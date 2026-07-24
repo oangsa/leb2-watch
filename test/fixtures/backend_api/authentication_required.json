@@ -1,0 +1,7 @@
+{
+  "message": "A LEB2 bearer session is required.",
+  "responseCode": "AUTHENTICATION_REQUIRED",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

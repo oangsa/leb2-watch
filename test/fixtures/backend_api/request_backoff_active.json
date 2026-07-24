@@ -1,0 +1,7 @@
+{
+  "message": "LEB2 access is temporarily paused after recent failures.",
+  "responseCode": "REQUEST_BACKOFF_ACTIVE",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

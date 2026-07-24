@@ -1,0 +1,12 @@
+{
+  "statusCode": 400,
+  "message": "Validation failed.",
+  "responseCode": "INVALID_REQUEST",
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>",
+  "validationErrors": {
+    "semesterId": [
+      "The field semesterId must be between 1 and 2147483647."
+    ]
+  }
+}

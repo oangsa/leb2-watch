@@ -1,0 +1,7 @@
+{
+  "message": "The LEB2 session has expired or is invalid.",
+  "responseCode": "SESSION_EXPIRED",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

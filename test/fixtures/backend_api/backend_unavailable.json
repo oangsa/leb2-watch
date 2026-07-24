@@ -1,0 +1,7 @@
+{
+  "message": "LEB2 is temporarily unavailable.",
+  "responseCode": "LEB2_UNAVAILABLE",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}
