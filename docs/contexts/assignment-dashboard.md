@@ -2,9 +2,10 @@
 
 ## Status
 
-Completed for Feature 11.1. Unit, Drift, widget, routing, accessibility,
-virtualization, Linux golden, analyzer, full-suite, and Linux release-build
-validation are recorded below.
+Completed for Feature 11.1 and its Feature 11.2 detail-route activation.
+Unit, Drift, widget, routing, accessibility, virtualization, Linux golden,
+analyzer, full-suite, and Linux release-build validation are recorded below
+and in the related detail context.
 
 ## Purpose
 
@@ -27,7 +28,7 @@ the last usable view.
 
 ## Non-scope
 
-- Assignment detail, row activation, attachments, or external links.
+- Attachments or external links.
 - Completion, unread, publication-time, or client-derived overdue semantics.
 - Notifications, reminders, app-resume hooks, background scheduling, tray
   actions, or synchronization cancellation UI.
@@ -50,8 +51,8 @@ The user selects one section at a time:
 Search matches assignment title or course name. A course selector and
 ascending/descending deadline controls compose with section and search.
 Expanded windows use compact table-like rows; smaller windows use one flat card
-per assignment. Rows are deliberately non-tappable until assignment detail
-exists.
+per assignment. Both forms are Material tap surfaces with one semantic
+activation and open the explicit semester-scoped local detail route.
 
 ## Architecture
 
@@ -85,6 +86,8 @@ sync service on disposal.
   — Riverpod route loading/error composition.
 - `lib/src/app/app_dependencies.dart` — shared database/sync composition.
 - `lib/src/app/routing/app_router.dart` — real assignments branch.
+- `lib/src/features/assignments/detail/domain/assignment_detail_key.dart` —
+  validated key passed by dashboard activation.
 - `test/features/assignments/dashboard/` — feature tests and deterministic
   golden harness.
 - `test/goldens/assignment_dashboard_mobile.png` — 375x812 light baseline.
@@ -103,6 +106,10 @@ without calling synchronization.
 `AssignmentDashboardCache` exposes active semester, lifecycle/revision,
 courses, current assignments, latest terminal attempt, and latest retained
 success. Collections are unmodifiable and debug strings are redacted.
+
+`AssignmentDashboardPage.onOpenAssignment` receives only a validated
+`AssignmentDetailKey`. The route adapter uses `pushNamed`; titles,
+descriptions, and other content do not enter route values.
 
 ## Data model
 
@@ -172,7 +179,9 @@ debug representation is redacted.
   missing/invalid values last; never globally interleave known and unknown
   timezones.
 - Use an Operational Workbench Cobalt layout with no KPI tiles, nested cards,
-  row taps, decorative motion, or external fonts.
+  decorative motion, or external fonts.
+- Make each valid compact/expanded row one Material activation surface after
+  Feature 11.2 added the destination; invalid legacy identities remain inert.
 
 ## Alternatives rejected
 
@@ -212,8 +221,8 @@ service.
 - Widget tests cover a pending 13-second refresh with immediate cache,
   empty/no-active/local-error states, status banners, controls, rapid taps,
   selected-course removal with visible and semantic All-courses reconciliation,
-  target race, disposal, semantics, 200-percent text at 320/375/414/768/1200,
-  and 500-row laziness.
+  target race, disposal, semantic row activation, pointer/keyboard detail
+  activation, 200-percent text at 320/375/414/768/1200, and 500-row laziness.
 - Provider/router/shell tests cover real route composition, loading/error
   recovery, global expired banner, keyboard navigation, and branch state.
 - Golden tests cover deterministic Linux mobile light and desktop dark views.
@@ -273,9 +282,16 @@ regression test, where they verify that production mock copy is absent.
 Golden SHA-256:
 
 ```text
-df651730a41fc568df420d7b0ac1c44a89723eb46344248c66d9f33b2bc18aa1  mobile
-bc9b9d95677f2f3946318a1ebefa6958dba71ee5fde9aef9d061a53fd961e527  desktop
+59e29fc84968c19678c48d7b2fed4f01ae6b9e0bfad12dd3a2d4896a78bab5fc  mobile
+190a8590316c63e9e2984b902167a77eb7cf0eaa03810a2658241edd46e9964f  desktop
 ```
+
+Feature 11.2 refreshed both baselines after Material row activation changed
+the RepaintBoundary composition from the row layer to the complete dashboard.
+Both candidates were visually inspected. Final Feature 11.2 validation passed
+86 non-golden focused tests and 2 ordinary golden tests without baseline
+updates, for 88 focused tests combined. The full suite passed 514 tests, and
+the Linux release build succeeded.
 
 ## Known limitations
 
@@ -288,12 +304,12 @@ bc9b9d95677f2f3946318a1ebefa6958dba71ee5fde9aef9d061a53fd961e527  desktop
   rereads.
 - Recently added is durable post-baseline discovery, not a time-windowed or
   unread list.
-- Rows remain non-tappable until Feature 11.2.
+- Invalid legacy identity rows remain inert instead of constructing a route.
 
 ## Future considerations
 
-- Feature 11.2 can add a detail destination and row activation without changing
-  dashboard projection semantics.
+- Later notification deep links can reuse the Feature 11.2 detail key without
+  changing dashboard projection semantics.
 - Background/platform features can trigger the same synchronization service and
   explicitly refresh foreground reads after independent-connection work.
 - A future explicit product decision could introduce time-windowed discovery or

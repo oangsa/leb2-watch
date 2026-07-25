@@ -1,0 +1,274 @@
+import '../data/assignment_detail_store.dart';
+import '../domain/assignment_detail_key.dart';
+import 'assignment_description_sanitizer.dart';
+
+sealed class AssignmentDetailTimestamp {
+  const AssignmentDetailTimestamp();
+
+  factory AssignmentDetailTimestamp.fromSource(String? source) {
+    if (source == null) {
+      return const MissingAssignmentDetailTimestamp();
+    }
+    final match = _sourceTimestampPattern.firstMatch(source);
+    if (match == null || DateTime.tryParse(source) == null) {
+      return const InvalidAssignmentDetailTimestamp();
+    }
+    if (match.namedGroup('zone') == null) {
+      return UnzonedAssignmentDetailTimestamp(source);
+    }
+    return ZonedAssignmentDetailTimestamp(DateTime.parse(source).toUtc());
+  }
+
+  @override
+  String toString() => '$runtimeType(redacted: true)';
+}
+
+final class ZonedAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
+  const ZonedAssignmentDetailTimestamp(this.instantUtc);
+
+  final DateTime instantUtc;
+}
+
+final class UnzonedAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
+  const UnzonedAssignmentDetailTimestamp(this.source);
+
+  final String source;
+}
+
+final class MissingAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
+  const MissingAssignmentDetailTimestamp();
+}
+
+final class InvalidAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
+  const InvalidAssignmentDetailTimestamp();
+}
+
+final class AssignmentDetailReminderEvidence {
+  const AssignmentDetailReminderEvidence({
+    required this.totalCount,
+    required this.pendingReconciliationCount,
+    required this.earliestReadyScheduledAtUtc,
+  });
+
+  final int totalCount;
+  final int pendingReconciliationCount;
+  final DateTime? earliestReadyScheduledAtUtc;
+
+  @override
+  String toString() => 'AssignmentDetailReminderEvidence(redacted: true)';
+}
+
+final class AssignmentDetailNotificationEvidence {
+  const AssignmentDetailNotificationEvidence({
+    required this.recordCount,
+    required this.latestRecordedAtUtc,
+  });
+
+  final int recordCount;
+  final DateTime? latestRecordedAtUtc;
+
+  @override
+  String toString() => 'AssignmentDetailNotificationEvidence(redacted: true)';
+}
+
+enum AssignmentDetailSyncStatus { success, failure, cancelled }
+
+final class AssignmentDetailSyncEvidence {
+  const AssignmentDetailSyncEvidence({
+    required this.latestAttemptStatus,
+    required this.latestAttemptFailureCategory,
+    required this.latestSuccessCompletedAtUtc,
+  });
+
+  final AssignmentDetailSyncStatus? latestAttemptStatus;
+  final String? latestAttemptFailureCategory;
+  final DateTime? latestSuccessCompletedAtUtc;
+
+  bool get isStale =>
+      latestAttemptStatus != null &&
+          latestAttemptStatus != AssignmentDetailSyncStatus.success ||
+      latestSuccessCompletedAtUtc == null;
+
+  @override
+  String toString() => 'AssignmentDetailSyncEvidence(redacted: true)';
+}
+
+sealed class AssignmentDetailState {
+  const AssignmentDetailState({required this.key, required this.sync});
+
+  final AssignmentDetailKey key;
+  final AssignmentDetailSyncEvidence sync;
+
+  @override
+  String toString() => '$runtimeType(redacted: true)';
+}
+
+final class CurrentAssignmentDetail extends AssignmentDetailState {
+  const CurrentAssignmentDetail({
+    required super.key,
+    required super.sync,
+    required this.courseName,
+    required this.title,
+    required this.description,
+    required this.activityType,
+    required this.deadline,
+    required this.backendReportedDeadlineExceeded,
+    required this.sourceCreatedAt,
+    required this.firstSeenAtUtc,
+    required this.lastSeenAtUtc,
+    required this.isBaseline,
+    required this.courseNotificationsMuted,
+    required this.reminders,
+    required this.notificationHistory,
+  });
+
+  final String? courseName;
+  final String title;
+  final String? description;
+  final String activityType;
+  final AssignmentDetailTimestamp deadline;
+  final bool backendReportedDeadlineExceeded;
+  final AssignmentDetailTimestamp sourceCreatedAt;
+  final DateTime firstSeenAtUtc;
+  final DateTime lastSeenAtUtc;
+  final bool isBaseline;
+  final bool courseNotificationsMuted;
+  final AssignmentDetailReminderEvidence reminders;
+  final AssignmentDetailNotificationEvidence notificationHistory;
+}
+
+final class SeenOnlyAssignmentDetail extends AssignmentDetailState {
+  const SeenOnlyAssignmentDetail({
+    required super.key,
+    required super.sync,
+    required this.courseName,
+    required this.firstSeenAtUtc,
+    required this.lastSeenAtUtc,
+    required this.isBaseline,
+    required this.courseNotificationsMuted,
+    required this.reminders,
+    required this.notificationHistory,
+  });
+
+  final String? courseName;
+  final DateTime firstSeenAtUtc;
+  final DateTime lastSeenAtUtc;
+  final bool isBaseline;
+  final bool courseNotificationsMuted;
+  final AssignmentDetailReminderEvidence reminders;
+  final AssignmentDetailNotificationEvidence notificationHistory;
+}
+
+final class MissingAssignmentDetail extends AssignmentDetailState {
+  const MissingAssignmentDetail({required super.key, required super.sync});
+}
+
+final class AssignmentDetailServiceException implements Exception {
+  const AssignmentDetailServiceException();
+
+  @override
+  String toString() => 'AssignmentDetailServiceException(redacted: true)';
+}
+
+abstract interface class AssignmentDetailService {
+  Stream<AssignmentDetailState> watch(AssignmentDetailKey key);
+}
+
+final class LocalAssignmentDetailService implements AssignmentDetailService {
+  const LocalAssignmentDetailService(
+    this._store, {
+    this._sanitizer = const AssignmentDescriptionSanitizer(),
+  });
+
+  final AssignmentDetailStore _store;
+  final AssignmentDescriptionSanitizer _sanitizer;
+
+  @override
+  Stream<AssignmentDetailState> watch(AssignmentDetailKey key) {
+    return _store.watch(key).map(_map).handleError((Object _, StackTrace _) {
+      throw const AssignmentDetailServiceException();
+    });
+  }
+
+  AssignmentDetailState _map(StoredAssignmentDetail value) {
+    final sync = _mapSync(value.sync);
+    return switch (value) {
+      StoredCurrentAssignmentDetail() => CurrentAssignmentDetail(
+        key: value.key,
+        sync: sync,
+        courseName: value.courseName,
+        title: value.title,
+        description: _sanitizer.toPlainText(value.rawDescription),
+        activityType: value.activityType,
+        deadline: AssignmentDetailTimestamp.fromSource(value.dueDateSource),
+        backendReportedDeadlineExceeded: value.dueDateExceed,
+        sourceCreatedAt: AssignmentDetailTimestamp.fromSource(
+          value.createdAtSource,
+        ),
+        firstSeenAtUtc: value.firstSeenAtUtc,
+        lastSeenAtUtc: value.lastSeenAtUtc,
+        isBaseline: value.isBaseline,
+        courseNotificationsMuted: value.courseNotificationsMuted,
+        reminders: _mapReminders(value.reminders),
+        notificationHistory: _mapHistory(value.notificationHistory),
+      ),
+      StoredSeenOnlyAssignmentDetail() => SeenOnlyAssignmentDetail(
+        key: value.key,
+        sync: sync,
+        courseName: value.courseName,
+        firstSeenAtUtc: value.firstSeenAtUtc,
+        lastSeenAtUtc: value.lastSeenAtUtc,
+        isBaseline: value.isBaseline,
+        courseNotificationsMuted: value.courseNotificationsMuted,
+        reminders: _mapReminders(value.reminders),
+        notificationHistory: _mapHistory(value.notificationHistory),
+      ),
+      StoredMissingAssignmentDetail() => MissingAssignmentDetail(
+        key: value.key,
+        sync: sync,
+      ),
+    };
+  }
+
+  AssignmentDetailReminderEvidence _mapReminders(StoredReminderEvidence value) {
+    return AssignmentDetailReminderEvidence(
+      totalCount: value.totalCount,
+      pendingReconciliationCount: value.pendingReconciliationCount,
+      earliestReadyScheduledAtUtc: value.earliestReadyScheduledAtUtc,
+    );
+  }
+
+  AssignmentDetailNotificationEvidence _mapHistory(
+    StoredNotificationHistoryEvidence value,
+  ) {
+    return AssignmentDetailNotificationEvidence(
+      recordCount: value.recordCount,
+      latestRecordedAtUtc: value.latestRecordedAtUtc,
+    );
+  }
+
+  AssignmentDetailSyncEvidence _mapSync(StoredAssignmentSyncEvidence value) {
+    return AssignmentDetailSyncEvidence(
+      latestAttemptStatus: switch (value.latestAttempt?.outcome) {
+        AssignmentDetailSyncOutcome.success =>
+          AssignmentDetailSyncStatus.success,
+        AssignmentDetailSyncOutcome.failure =>
+          AssignmentDetailSyncStatus.failure,
+        AssignmentDetailSyncOutcome.cancelled =>
+          AssignmentDetailSyncStatus.cancelled,
+        null => null,
+      },
+      latestAttemptFailureCategory: value.latestAttempt?.failureCategory,
+      latestSuccessCompletedAtUtc: value.latestSuccess?.completedAtUtc,
+    );
+  }
+
+  @override
+  String toString() => 'LocalAssignmentDetailService(redacted: true)';
+}
+
+final _sourceTimestampPattern = RegExp(
+  r'^[+-]?\d{4,6}-\d{2}-\d{2}T\d{2}:\d{2}'
+  r'(?::\d{2}(?:\.\d{1,9})?)?'
+  r'(?<zone>Z|[+-]\d{2}:\d{2})?$',
+);

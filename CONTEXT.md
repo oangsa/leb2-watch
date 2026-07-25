@@ -10,6 +10,11 @@ An assignment present in the latest validated snapshot saved for the active
 semester.
 _Avoid_: Active assignment, live assignment
 
+**Seen-only assignment**:
+An assignment identity retained in the local observation ledger but absent
+from the latest validated current snapshot.
+_Avoid_: Deleted assignment, completed assignment
+
 **Upcoming**:
 A current assignment whose saved deadline exists and was not reported as
 exceeded by the backend.

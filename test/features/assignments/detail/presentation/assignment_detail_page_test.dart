@@ -1,0 +1,274 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:leb2_watch/src/app/design_system/app_theme.dart';
+import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
+import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
+import 'package:leb2_watch/src/features/assignments/detail/presentation/assignment_detail_page.dart';
+
+void main() {
+  testWidgets(
+    'renders factual current detail without publication or delivery claims',
+    (tester) async {
+      final service = _FakeService(_current());
+      addTearDown(service.close);
+      await _pumpPage(tester, service);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Graph traversal'), findsOneWidget);
+      expect(find.text('Algorithms'), findsOneWidget);
+      expect(find.text('Hello world'), findsOneWidget);
+      expect(find.textContaining('<p>'), findsNothing);
+      expect(find.text('Reported overdue by the backend'), findsOneWidget);
+      expect(find.text('Source-created time'), findsOneWidget);
+      expect(find.textContaining('Published'), findsNothing);
+      expect(find.textContaining('delivered'), findsNothing);
+      expect(find.textContaining('sent'), findsNothing);
+      expect(find.text('Course notifications muted'), findsOneWidget);
+      expect(
+        find.text('2 reminder records · 1 needs reconciliation'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('1 notification history record saved locally'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'renders zoned time locally and preserves unzoned source wall clock',
+    (tester) async {
+      final service = _FakeService(_current());
+      addTearDown(service.close);
+      await _pumpPage(tester, service);
+      await tester.pumpAndSettle();
+
+      final localDeadline = DateTime.utc(2026, 8, 1, 9).toLocal();
+      final localizations = MaterialLocalizations.of(
+        tester.element(find.byKey(const Key('assignment-detail-scroll'))),
+      );
+      final expectedDeadline =
+          '${localizations.formatMediumDate(localDeadline)} at '
+          '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(localDeadline))}';
+
+      expect(find.text(expectedDeadline), findsOneWidget);
+      expect(find.text('2026-07-25 10:00:00'), findsOneWidget);
+      expect(
+        find.text(
+          'Time zone not provided. '
+          'The backend does not define this as publication time.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('distinguishes seen-only and missing saved states', (
+    tester,
+  ) async {
+    final service = _FakeService(_seenOnly());
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'This assignment no longer appears in the latest saved snapshot.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Graph traversal'), findsNothing);
+
+    service.controller.add(MissingAssignmentDetail(key: _key, sync: _sync));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('This assignment is not saved on this device.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Local assignment data may be out of date based on retained '
+        'synchronization evidence.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('This saved assignment may be out of date'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('preserves last detail when a later local read fails', (
+    tester,
+  ) async {
+    final service = _FakeService(_current());
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    service.controller.addError(StateError('PRIVATE_LOCAL_ERROR'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-detail-local-read-banner')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('PRIVATE_LOCAL_ERROR'), findsNothing);
+  });
+
+  testWidgets('first local read error is bounded and retryable', (
+    tester,
+  ) async {
+    var watches = 0;
+    final service = _ErrorThenValueService(_current(), () => watches += 1);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+    expect(find.text('Saved assignment unavailable'), findsOneWidget);
+    expect(find.textContaining('PRIVATE'), findsNothing);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(watches, 2);
+  });
+
+  for (final width in [320.0, 375.0, 414.0, 768.0, 1200.0]) {
+    testWidgets('wraps at ${width.toInt()} px with 200% text', (tester) async {
+      tester.view.physicalSize = Size(width, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = _FakeService(
+        _current(
+          title:
+              'A very long assignment title العربية ภาษาไทย '
+              'that must wrap without clipping',
+        ),
+      );
+      addTearDown(service.close);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(
+            size: Size(width, 1000),
+            textScaler: const TextScaler.linear(2),
+          ),
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: AssignmentDetailPage(
+              detailKey: _key,
+              service: service,
+              canPop: false,
+              onBack: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('assignment-detail-scroll')), findsOneWidget);
+    });
+  }
+}
+
+final _key = AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001');
+const _sync = AssignmentDetailSyncEvidence(
+  latestAttemptStatus: AssignmentDetailSyncStatus.success,
+  latestAttemptFailureCategory: null,
+  latestSuccessCompletedAtUtc: null,
+);
+const _reminders = AssignmentDetailReminderEvidence(
+  totalCount: 2,
+  pendingReconciliationCount: 1,
+  earliestReadyScheduledAtUtc: null,
+);
+const _history = AssignmentDetailNotificationEvidence(
+  recordCount: 1,
+  latestRecordedAtUtc: null,
+);
+
+CurrentAssignmentDetail _current({String title = 'Graph traversal'}) {
+  return CurrentAssignmentDetail(
+    key: _key,
+    sync: _sync,
+    courseName: 'Algorithms',
+    title: title,
+    description: 'Hello world',
+    activityType: 'ASM',
+    deadline: ZonedAssignmentDetailTimestamp(DateTime.utc(2026, 8, 1, 9)),
+    backendReportedDeadlineExceeded: true,
+    sourceCreatedAt: const UnzonedAssignmentDetailTimestamp(
+      '2026-07-25T10:00:00',
+    ),
+    firstSeenAtUtc: DateTime.utc(2026, 7, 25),
+    lastSeenAtUtc: DateTime.utc(2026, 7, 26),
+    isBaseline: false,
+    courseNotificationsMuted: true,
+    reminders: _reminders,
+    notificationHistory: _history,
+  );
+}
+
+SeenOnlyAssignmentDetail _seenOnly() {
+  return SeenOnlyAssignmentDetail(
+    key: _key,
+    sync: _sync,
+    courseName: 'Algorithms',
+    firstSeenAtUtc: DateTime.utc(2026, 7, 25),
+    lastSeenAtUtc: DateTime.utc(2026, 7, 26),
+    isBaseline: false,
+    courseNotificationsMuted: false,
+    reminders: _reminders,
+    notificationHistory: _history,
+  );
+}
+
+Future<void> _pumpPage(WidgetTester tester, AssignmentDetailService service) {
+  return tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      home: AssignmentDetailPage(
+        detailKey: _key,
+        service: service,
+        canPop: false,
+        onBack: () {},
+      ),
+    ),
+  );
+}
+
+final class _FakeService implements AssignmentDetailService {
+  _FakeService(this.initial);
+
+  final AssignmentDetailState initial;
+  final controller = StreamController<AssignmentDetailState>.broadcast();
+
+  @override
+  Stream<AssignmentDetailState> watch(AssignmentDetailKey key) async* {
+    yield initial;
+    yield* controller.stream;
+  }
+
+  Future<void> close() => controller.close();
+}
+
+final class _ErrorThenValueService implements AssignmentDetailService {
+  _ErrorThenValueService(this.value, this.onWatch);
+
+  final AssignmentDetailState value;
+  final VoidCallback onWatch;
+  var calls = 0;
+
+  @override
+  Stream<AssignmentDetailState> watch(AssignmentDetailKey key) {
+    calls += 1;
+    onWatch();
+    return calls == 1
+        ? Stream.error(StateError('PRIVATE_FIRST_ERROR'))
+        : Stream.value(value);
+  }
+}

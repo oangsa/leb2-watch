@@ -68,6 +68,11 @@ first-seen ledger evidence, and bounded sync history, then resolves each
 emission in one read transaction. It adds no table, column, index, or
 migration.
 
+`DriftAssignmentDetailStore` is another feature-owned read adapter over schema
+version 7. It watches current/seen assignment state, course name/preference,
+reminder/history aggregates, and retained sync evidence, then resolves each
+invalidation inside one explicit-semester/identity read transaction.
+
 ## Important files
 
 - `lib/src/core/database/database_tables.dart` — fourteen table definitions,
@@ -104,6 +109,10 @@ migration.
 - `test/features/assignments/dashboard/data/assignment_dashboard_store_test.dart`
   — coherent cache, history, switching, rollback, immutability, and redaction
   tests.
+- `lib/src/features/assignments/detail/data/assignment_detail_store.dart` —
+  current/seen-only/missing local detail projection.
+- `test/features/assignments/detail/data/assignment_detail_store_test.dart` —
+  semester isolation, aggregates, transitions, rollback, and redaction tests.
 
 ## Contracts and interfaces
 

@@ -24,6 +24,8 @@ without prematurely defining an application domain or database schema.
 - README generation and validation commands.
 - CI generation plus tracked and untracked drift detection.
 - Flutter-generated desktop plugin registration changes.
+- The parser-only `html 0.15.6` runtime dependency used by Feature 11.2 to
+  convert untrusted assignment description fragments to inert plain text.
 
 ## Non-scope
 
@@ -63,6 +65,8 @@ the database feature supplies a real schema.
 
 - `pubspec.yaml` — direct runtime and development dependency constraints.
 - `pubspec.lock` — exact resolved dependency graph.
+- `lib/src/features/assignments/detail/application/assignment_description_sanitizer.dart`
+  — the only production consumer of the direct `html` parser dependency.
 - `analysis_options.yaml` — Flutter lints plus Riverpod lint plugin.
 - `lib/bootstrap.dart` — root `ProviderScope`.
 - `test/codegen/domain_value.dart` — Freezed smoke source.
@@ -155,6 +159,10 @@ other resolved packages are stable. The existing CI actions remain
 SHA-pinned; the scaffold context documents the Flutter action's transitive
 mutable-cache limitation.
 
+`html 0.15.6` and its `csslib` dependency are pure Dart. Feature 11.2 uses
+fragment parsing only; it adds no WebView, HTML renderer, URL launcher,
+networking behavior, or native plugin.
+
 ## Decisions
 
 - Use the user-approved analyzer-12 graph on Flutter 3.44.8 / Dart 3.12.2.
@@ -168,6 +176,8 @@ mutable-cache limitation.
   `custom_lint`.
 - Keep generator concerns separate and test-only.
 - Commit generator outputs and enforce both tracked and untracked drift in CI.
+- Use one parser dependency for verified HTML descriptions instead of a
+  regex-only tag stripper.
 
 ## Alternatives rejected
 

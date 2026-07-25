@@ -14,6 +14,9 @@ import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
+import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
+import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
+import 'package:leb2_watch/src/features/assignments/detail/presentation/assignment_detail_route.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
@@ -680,6 +683,152 @@ void main() {
 
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'dashboard pushes encoded detail and back preserves dashboard',
+      (tester) async {
+        final controller = AppFlowController(initialStage: AppFlowStage.ready);
+        final router = createAppRouter(controller);
+        final detailService = _RouteAssignmentDetailService();
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            detailServiceLoader: () => detailService,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final card = find.byKey(const Key('assignment-card-101-backend:1001'));
+        await tester.ensureVisible(card);
+        tester
+            .widget<InkWell>(
+              find.descendant(of: card, matching: find.byType(InkWell)),
+            )
+            .onTap!
+            .call();
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(detailService.keys, [
+          AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001'),
+        ]);
+        expect(
+          find.text('This assignment is not saved on this device.'),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Back'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('direct detail retains shell and expired session banner', (
+      tester,
+    ) async {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final router = createAppRouter(
+        controller,
+        initialLocation: '/assignments/101/backend%3A1001',
+      );
+      final detailService = _RouteAssignmentDetailService();
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _RouterHarness(
+          router: router,
+          detailServiceLoader: () => detailService,
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 8,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assignments'), findsWidgets);
+      expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+      expect(detailService.keys.single.semesterId, 101);
+      expect(detailService.keys.single.identityKey, 'backend:1001');
+    });
+
+    test('named detail locations encode raw identities exactly once', () {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final router = createAppRouter(controller);
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+      const fingerprint =
+          'fingerprint:v1:'
+          '0123456789abcdef0123456789abcdef'
+          '0123456789abcdef0123456789abcdef';
+
+      expect(
+        router.namedLocation(
+          assignmentDetailRouteName,
+          pathParameters: const {
+            'semesterId': '101',
+            'identityKey': 'backend:1001',
+          },
+        ),
+        '/assignments/101/backend%3A1001',
+      );
+      expect(
+        router.namedLocation(
+          assignmentDetailRouteName,
+          pathParameters: const {
+            'semesterId': '102',
+            'identityKey': fingerprint,
+          },
+        ),
+        '/assignments/102/fingerprint%3Av1%3A'
+        '0123456789abcdef0123456789abcdef'
+        '0123456789abcdef0123456789abcdef',
+      );
+    });
+
+    for (final stage in [
+      AppFlowStage.onboarding,
+      AppFlowStage.authentication,
+      AppFlowStage.semesterSelection,
+    ]) {
+      testWidgets('detail path obeys ${stage.name} route guard', (
+        tester,
+      ) async {
+        final controller = AppFlowController(initialStage: stage);
+        final router = createAppRouter(
+          controller,
+          initialLocation: '/assignments/101/backend%3A1001',
+        );
+        final detailService = _RouteAssignmentDetailService();
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            detailServiceLoader: () => detailService,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(detailService.keys, isEmpty);
+        expect(
+          find.text(switch (stage) {
+            AppFlowStage.onboarding => 'Assignments, ready when you are',
+            AppFlowStage.authentication => 'Connect LEB2',
+            AppFlowStage.semesterSelection => 'Choose semester',
+            AppFlowStage.ready => throw StateError('unreachable'),
+          }),
+          findsWidgets,
+        );
+      });
+    }
   });
 }
 
@@ -690,6 +839,7 @@ class _RouterHarness extends StatelessWidget {
     this.sessionServiceLoader,
     this.semesterServiceLoader,
     this.courseServiceLoader,
+    this.detailServiceLoader,
     this.lifecycle = const SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: 1,
@@ -701,6 +851,7 @@ class _RouterHarness extends StatelessWidget {
   final FutureOr<SessionSetupService> Function()? sessionServiceLoader;
   final FutureOr<SemesterSelectionService> Function()? semesterServiceLoader;
   final FutureOr<CoursePreferencesService> Function()? courseServiceLoader;
+  final FutureOr<AssignmentDetailService> Function()? detailServiceLoader;
   final SessionLifecycleSnapshot lifecycle;
 
   @override
@@ -722,6 +873,9 @@ class _RouterHarness extends StatelessWidget {
         ),
         assignmentDashboardServiceProvider.overrideWith(
           (_) => _RouteAssignmentDashboardService(lifecycle: lifecycle),
+        ),
+        assignmentDetailServiceProvider.overrideWith(
+          (_) => detailServiceLoader?.call() ?? _RouteAssignmentDetailService(),
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
@@ -863,6 +1017,25 @@ final class _RouteAssignmentDashboardService
 
   @override
   Stream<AssignmentDashboardCache> watchCached() => Stream.value(_cache);
+}
+
+final class _RouteAssignmentDetailService implements AssignmentDetailService {
+  final keys = <AssignmentDetailKey>[];
+
+  @override
+  Stream<AssignmentDetailState> watch(AssignmentDetailKey key) {
+    keys.add(key);
+    return Stream.value(
+      MissingAssignmentDetail(
+        key: key,
+        sync: const AssignmentDetailSyncEvidence(
+          latestAttemptStatus: AssignmentDetailSyncStatus.success,
+          latestAttemptFailureCategory: null,
+          latestSuccessCompletedAtUtc: null,
+        ),
+      ),
+    );
+  }
 }
 
 final class _RouteSessionSetupService implements SessionSetupService {

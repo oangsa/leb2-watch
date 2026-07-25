@@ -10,6 +10,7 @@ import 'package:leb2_watch/src/features/assignments/dashboard/application/assign
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 
 import '../dashboard_test_support.dart';
 
@@ -404,12 +405,13 @@ void main() {
     expect(find.byKey(const Key('assignment-search-field')), findsOneWidget);
   });
 
-  testWidgets('assignment rows are semantic records without tap actions', (
+  testWidgets('assignment rows expose one semantic tap action with exact key', (
     tester,
   ) async {
+    AssignmentDetailKey? opened;
     final service = FakeAssignmentDashboardService();
     addTearDown(service.close);
-    await _pumpPage(tester, service);
+    await _pumpPage(tester, service, onOpenAssignment: (key) => opened = key);
     await tester.pumpAndSettle();
 
     final semantics = tester.getSemantics(
@@ -417,14 +419,44 @@ void main() {
     );
     expect(semantics.label, contains('Graph traversal'));
     expect(semantics.label, contains('Algorithms'));
+    expect(semantics.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+    expect(semantics.label, startsWith('Open assignment: Graph traversal'));
+    await tester.tap(find.byKey(const Key('assignment-card-101-backend:1001')));
     expect(
-      semantics.getSemanticsData().hasAction(SemanticsAction.tap),
-      isFalse,
+      opened,
+      AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001'),
     );
     expect(
       find.byKey(const Key('assignment-deadline-zone-caveat')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('expanded row activates through pointer and keyboard intent', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final opened = <AssignmentDetailKey>[];
+    final service = FakeAssignmentDashboardService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service, onOpenAssignment: opened.add);
+    await tester.pumpAndSettle();
+
+    final row = find.byKey(const Key('assignment-row-101-backend:1001'));
+    expect(row, findsOneWidget);
+    await tester.tap(row);
+    expect(opened, hasLength(1));
+
+    Actions.invoke(
+      tester.element(find.text('Graph traversal')),
+      const ActivateIntent(),
+    );
+    await tester.pump();
+    expect(opened, hasLength(2));
+    expect(opened.first, opened.last);
   });
 
   testWidgets('200-percent text has no overflow at responsive boundaries', (
@@ -483,6 +515,7 @@ Future<void> _pumpPage(
   AssignmentDashboardService service, {
   double textScale = 1,
   VoidCallback? onChooseSemester,
+  ValueChanged<AssignmentDetailKey>? onOpenAssignment,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -498,6 +531,7 @@ Future<void> _pumpPage(
           body: AssignmentDashboardPage(
             service: service,
             onChooseSemester: onChooseSemester ?? () {},
+            onOpenAssignment: onOpenAssignment ?? (_) {},
             deadlineFormatter: (_, deadline) => switch (deadline) {
               ZonedAssignmentDeadline() => 'Aug 1, 2026 at 9:30 AM',
               UnzonedAssignmentDeadline() => '2026-08-03 09:00',

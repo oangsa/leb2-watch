@@ -3,8 +3,9 @@
 ## Status
 
 Completed for guarded application routing, compact/medium/expanded navigation,
-desktop keyboard shortcuts, responsive behavior, durable session-expiration
-banner composition, and the Linux release build.
+the nested assignment-detail route, desktop keyboard shortcuts, responsive
+behavior, durable session-expiration banner composition, and the Linux
+release build.
 Android, iOS, macOS, and Windows use the same Dart route and shell code but
 remain unverified on their native toolchains.
 
@@ -24,6 +25,8 @@ completed.
   and always-public privacy access.
 - A state-preserving `StatefulShellRoute.indexedStack` with assignments,
   courses, settings, and diagnostics branches.
+- A named `/assignments/:semesterId/:identityKey` child route inside the
+  assignments branch.
 - Compact bottom navigation, medium navigation rail, and expanded workbench
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
@@ -115,7 +118,10 @@ stage. A ready-user recovery keeps the flow ready and navigates back to
 `CoursePreferencesRoute`, which opens only local saved data.
 Feature 11.1 replaces the assignments placeholder with
 `AssignmentDashboardRoute`; the stateful branch now preserves the real
-local-first worklist and its filters while navigation changes.
+local-first worklist and its filters while navigation changes. Feature 11.2
+adds `AssignmentDetailRoute` as a named child. Dashboard activation uses
+`pushNamed`, so Back restores the worklist; direct detail entry stays inside
+the same adaptive shell.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -174,6 +180,7 @@ The named product routes are:
 /authentication
 /semesters
 /assignments
+/assignments/:semesterId/:identityKey
 /courses
 /settings
 /diagnostics
@@ -208,7 +215,7 @@ The exact guard contract is:
   redirects to semesters.
 - Ready redirects `/` and onboarding to assignments.
 - Ready allows authentication for reauthentication, semester changes, the four
-  shell routes, and privacy.
+  shell routes, validated assignment detail children, and privacy.
 - Unknown ready routes fall through to the application-owned error surface.
 
 ## Data model
@@ -462,9 +469,9 @@ passed 96/96 after adding compact and expanded ready-user reachability.
   top-level sibling. The selection route has no separate cancel action.
 - Settings and diagnostics remain honest labels only; their real workflows
   belong to later features.
-- There are no nested branch routes yet, so indexed-stack branch-history
-  behavior is established architecturally but only selected-branch persistence
-  is observable in this feature.
+- The assignments branch now has one nested detail route. Push/back behavior
+  and shell retention are directly covered; intended-detail restoration
+  through incomplete flow gates remains outside the contract.
 
 ## Future considerations
 
@@ -474,7 +481,8 @@ passed 96/96 after adding compact and expanded ready-user reachability.
   semester state.
 - Decide whether safe intended-destination restoration is required after the
   gated flow.
-- Add nested assignment detail routes while retaining branch histories.
+- Preserve safe assignment-detail intent through gated flows only if a later
+  deep-link lifecycle defines that policy.
 - Perform Android, iOS, macOS, and Windows builds and real-device accessibility
   checks on supported hosts.
 

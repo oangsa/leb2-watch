@@ -13,6 +13,8 @@ import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import '../features/assignments/dashboard/data/assignment_dashboard_store.dart';
+import '../features/assignments/detail/application/assignment_detail_service.dart';
+import '../features/assignments/detail/data/assignment_detail_store.dart';
 import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
 import '../features/courses/application/course_preferences_service.dart';
@@ -119,6 +121,20 @@ final assignmentDashboardServiceProvider =
       final syncService = await ref.watch(assignmentSyncServiceProvider.future);
       return LocalAssignmentDashboardService(store, syncService);
     });
+
+final assignmentDetailStoreProvider = FutureProvider<AssignmentDetailStore>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return DriftAssignmentDetailStore(database);
+});
+
+final assignmentDetailServiceProvider = FutureProvider<AssignmentDetailService>(
+  (ref) async {
+    final store = await ref.watch(assignmentDetailStoreProvider.future);
+    return LocalAssignmentDetailService(store);
+  },
+);
 
 final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
   ref,

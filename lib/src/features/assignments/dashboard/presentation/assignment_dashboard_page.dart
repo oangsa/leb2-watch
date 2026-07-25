@@ -11,6 +11,7 @@ import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/session/session_lifecycle.dart';
 import '../../sync/assignment_sync_service.dart';
+import '../../detail/domain/assignment_detail_key.dart';
 import '../application/assignment_dashboard_projection.dart';
 import '../application/assignment_dashboard_service.dart';
 import '../data/assignment_dashboard_store.dart';
@@ -26,6 +27,7 @@ class AssignmentDashboardPage extends StatefulWidget {
   const AssignmentDashboardPage({
     required this.service,
     required this.onChooseSemester,
+    required this.onOpenAssignment,
     this.deadlineFormatter = formatAssignmentDeadline,
     this.timestampFormatter = formatAssignmentTimestamp,
     super.key,
@@ -33,6 +35,7 @@ class AssignmentDashboardPage extends StatefulWidget {
 
   final AssignmentDashboardService service;
   final VoidCallback onChooseSemester;
+  final ValueChanged<AssignmentDetailKey> onOpenAssignment;
   final AssignmentDeadlineFormatter deadlineFormatter;
   final AssignmentTimestampFormatter timestampFormatter;
 
@@ -207,6 +210,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         refreshResult: _refreshResult,
         deadlineFormatter: widget.deadlineFormatter,
         timestampFormatter: widget.timestampFormatter,
+        onOpenAssignment: widget.onOpenAssignment,
         onRefresh:
             cache.session.state == SessionLifecycleState.expired || _refreshing
             ? null
@@ -231,6 +235,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.refreshResult,
     required this.deadlineFormatter,
     required this.timestampFormatter,
+    required this.onOpenAssignment,
     required this.onRefresh,
     required this.onSectionChanged,
     required this.onSearchChanged,
@@ -247,6 +252,7 @@ class _DashboardWorklist extends StatelessWidget {
   final AssignmentDashboardRefreshResult? refreshResult;
   final AssignmentDeadlineFormatter deadlineFormatter;
   final AssignmentTimestampFormatter timestampFormatter;
+  final ValueChanged<AssignmentDetailKey> onOpenAssignment;
   final VoidCallback? onRefresh;
   final ValueChanged<AssignmentDashboardSection> onSectionChanged;
   final ValueChanged<String> onSearchChanged;
@@ -358,6 +364,10 @@ class _DashboardWorklist extends StatelessWidget {
                     itemCount: projection.rows.length,
                     itemBuilder: (context, index) {
                       final row = projection.rows[index];
+                      final detailKey = AssignmentDetailKey.tryParse(
+                        semesterIdSource: row.assignment.semesterId.toString(),
+                        identityKeySource: row.assignment.identityKey,
+                      );
                       return expanded
                           ? _ExpandedAssignmentRow(
                               key: Key(
@@ -366,6 +376,8 @@ class _DashboardWorklist extends StatelessWidget {
                               ),
                               row: row,
                               deadlineFormatter: deadlineFormatter,
+                              detailKey: detailKey,
+                              onOpenAssignment: onOpenAssignment,
                             )
                           : Padding(
                               padding: const EdgeInsets.only(
@@ -379,6 +391,8 @@ class _DashboardWorklist extends StatelessWidget {
                                 ),
                                 row: row,
                                 deadlineFormatter: deadlineFormatter,
+                                detailKey: detailKey,
+                                onOpenAssignment: onOpenAssignment,
                               ),
                             );
                     },
@@ -586,72 +600,83 @@ class _CompactAssignmentCard extends StatelessWidget {
   const _CompactAssignmentCard({
     required this.row,
     required this.deadlineFormatter,
+    required this.detailKey,
+    required this.onOpenAssignment,
     super.key,
   });
 
   final AssignmentDashboardRow row;
   final AssignmentDeadlineFormatter deadlineFormatter;
+  final AssignmentDetailKey? detailKey;
+  final ValueChanged<AssignmentDetailKey> onOpenAssignment;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final assignment = row.assignment;
     final deadline = deadlineFormatter(context, row.deadline);
+    final label =
+        'Open assignment: ${assignment.title}, ${assignment.courseName}, '
+        '${_deadlineSemantic(row.deadline, deadline)}, '
+        '${_statusLabel(assignment)}';
     return Semantics(
       container: true,
-      explicitChildNodes: true,
-      label:
-          '${assignment.title}, ${assignment.courseName}, '
-          '${_deadlineSemantic(row.deadline, deadline)}, '
-          '${_statusLabel(assignment)}',
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          border: Border.all(color: theme.colorScheme.outlineVariant),
+      button: detailKey != null,
+      onTap: detailKey == null ? null : () => onOpenAssignment(detailKey!),
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(assignment.title, style: theme.textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                assignment.courseName,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: AppTypography.labelWeight,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(deadline, style: theme.textTheme.bodyMedium),
-              if (row.deadline is UnzonedAssignmentDeadline)
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: detailKey == null ? null : () => onOpenAssignment(detailKey!),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(assignment.title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Time zone not provided.',
-                  key: const Key('assignment-deadline-zone-caveat'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  assignment.courseName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: AppTypography.labelWeight,
                   ),
                 ),
-              const SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xxs,
-                children: [
+                const SizedBox(height: AppSpacing.sm),
+                Text(deadline, style: theme.textTheme.bodyMedium),
+                if (row.deadline is UnzonedAssignmentDeadline)
                   Text(
-                    assignment.activityType,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  Text(
-                    _statusLabel(assignment),
+                    'Time zone not provided.',
+                    key: const Key('assignment-deadline-zone-caveat'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                ],
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    Text(
+                      assignment.activityType,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    Text(
+                      _statusLabel(assignment),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -684,81 +709,92 @@ class _ExpandedAssignmentRow extends StatelessWidget {
   const _ExpandedAssignmentRow({
     required this.row,
     required this.deadlineFormatter,
+    required this.detailKey,
+    required this.onOpenAssignment,
     super.key,
   });
 
   final AssignmentDashboardRow row;
   final AssignmentDeadlineFormatter deadlineFormatter;
+  final AssignmentDetailKey? detailKey;
+  final ValueChanged<AssignmentDetailKey> onOpenAssignment;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final assignment = row.assignment;
     final deadline = deadlineFormatter(context, row.deadline);
+    final label =
+        'Open assignment: ${assignment.title}, ${assignment.courseName}, '
+        '${_deadlineSemantic(row.deadline, deadline)}, '
+        '${_statusLabel(assignment)}';
     return Semantics(
       container: true,
-      explicitChildNodes: true,
-      label:
-          '${assignment.title}, ${assignment.courseName}, '
-          '${_deadlineSemantic(row.deadline, deadline)}, '
-          '${_statusLabel(assignment)}',
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 4,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(assignment.title, style: theme.textTheme.titleSmall),
-                    Text(
-                      assignment.activityType,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+      button: detailKey != null,
+      onTap: detailKey == null ? null : () => onOpenAssignment(detailKey!),
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: AppColors.transparent,
+        child: InkWell(
+          onTap: detailKey == null ? null : () => onOpenAssignment(detailKey!),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: theme.colorScheme.outlineVariant),
               ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  assignment.courseName,
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ),
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(deadline, style: theme.textTheme.bodyMedium),
-                    if (row.deadline is UnzonedAssignmentDeadline)
+            ),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(assignment.title, style: theme.textTheme.titleSmall),
                       Text(
-                        'Time zone not provided.',
+                        assignment.activityType,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  _statusLabel(assignment),
-                  style: theme.textTheme.bodyMedium,
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    assignment.courseName,
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
-              ),
-            ],
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(deadline, style: theme.textTheme.bodyMedium),
+                      if (row.deadline is UnzonedAssignmentDeadline)
+                        Text(
+                          'Time zone not provided.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    _statusLabel(assignment),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

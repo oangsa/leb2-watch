@@ -9,6 +9,7 @@ import '../shell/adaptive_app_shell.dart';
 import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
+import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
 import '../../features/semesters/presentation/semester_selection_route.dart';
@@ -71,6 +72,20 @@ GoRouter createAppRouter(
                       label: destination.label,
                     ),
                   },
+                  routes: destination == AppDestination.assignments
+                      ? [
+                          GoRoute(
+                            name: assignmentDetailRouteName,
+                            path: assignmentDetailRoutePath,
+                            builder: (_, state) => AssignmentDetailRoute(
+                              semesterIdSource:
+                                  state.pathParameters['semesterId'] ?? '',
+                              identityKeySource:
+                                  state.pathParameters['identityKey'] ?? '',
+                            ),
+                          ),
+                        ]
+                      : const [],
                 ),
               ],
             ),

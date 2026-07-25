@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/app_dependencies.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/routing/app_route.dart';
+import '../../detail/presentation/assignment_detail_route.dart';
 import 'assignment_dashboard_page.dart';
 
 class AssignmentDashboardRoute extends ConsumerWidget {
@@ -18,6 +19,10 @@ class AssignmentDashboardRoute extends ConsumerWidget {
           data: (service) => AssignmentDashboardPage(
             service: service,
             onChooseSemester: () => context.go(AppRoute.semesters.path),
+            onOpenAssignment: (key) => context.pushNamed(
+              assignmentDetailRouteName,
+              pathParameters: key.pathParameters,
+            ),
           ),
           error: (_, _) => AppStateView.error(
             title: 'Assignments unavailable',

@@ -111,6 +111,7 @@ Future<void> _pumpGolden(
             body: AssignmentDashboardPage(
               service: service,
               onChooseSemester: () {},
+              onOpenAssignment: (_) {},
               timestampFormatter: (_, _) => 'Jul 26, 2026 at 8:01 AM',
               deadlineFormatter: (_, deadline) => switch (deadline) {
                 ZonedAssignmentDeadline(:final instantUtc)
