@@ -2,9 +2,9 @@
 
 ## Status
 
-Completed for schema version 4, including ordered v1/v2/v3-to-v4 migration,
-generated Drift source, in-memory relational tests, and real file-backed
-migration and independent-connection tests. Linux remains the only
+Completed for schema version 5, including ordered v1/v2/v3/v4-to-v5
+migration, generated Drift source, in-memory relational tests, and real
+file-backed migration and independent-connection tests. Linux remains the only
 build-verified native target on this host.
 
 ## Purpose
@@ -21,14 +21,16 @@ connections one durable coordination record for single-flight synchronization.
 - UTC epoch-millisecond storage for application-owned timestamps.
 - Foreign keys, state checks, partial unique indices, query indices, and
   bounded history/operation retention.
-- Honest ordered migration from frozen v1, v2, and twelve-table v3 schemas.
+- Honest ordered migration from frozen v1/v2/v3 schemas and an explicit
+  pre-v5 v4 app-settings fixture.
+- A non-secret positive numeric LEB2 user ID in the singleton app-settings row.
 - Background SQLite opening with WAL, foreign keys, a 5-second busy timeout,
   disabled statement logging, and no read pool.
 - Application-support file resolution and bounded database-file deletion.
 
 ## Non-scope
 
-- Credential or session storage.
+- Credential, cookie, username, or password storage.
 - Backend deadline-instant interpretation.
 - Notification, retry, settings, scheduler, or UI behavior.
 - Database corruption recovery or network-filesystem coordination.
@@ -40,7 +42,7 @@ There is no database screen. Once composed by application features, cached
 assignments survive process restarts and synchronization callers can share a
 terminal result without persisting user credentials. Existing v1 and v2
 installations retain recoverable snapshot, ledger, reminder, and sync-history
-rows through the ordered v1/v2/v3-to-v4 upgrade.
+rows through the ordered v1/v2/v3/v4-to-v5 upgrade.
 
 ## Architecture
 
@@ -58,7 +60,7 @@ existing synchronization transaction, avoiding a required nested transaction.
 
 - `lib/src/core/database/database_tables.dart` — thirteen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 4, migration,
+- `lib/src/core/database/app_database.dart` — schema version 5, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -72,16 +74,19 @@ existing synchronization transaction, avoiding a required nested transaction.
 - `test/core/database/v3_app_database.dart` — frozen v3 fixture built from
   frozen v2 definitions plus explicit v3-only SQL.
 - `test/core/database/v3_app_database.g.dart` — generated v3 fixture support.
+- `test/core/database/v4_app_database.dart` — pre-v5 app-settings migration
+  fixture over the otherwise unchanged v4 table set.
+- `test/core/database/v4_app_database.g.dart` — generated v4 fixture support.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `4`. Fresh databases call `createAll`.
-Supported upgrades are exactly `1 -> 4`, `2 -> 4`, and `3 -> 4`, with older
-versions applying each ordered intermediate step. Every other transition fails
-with `UnsupportedError` rather than destroying data.
+`AppDatabase.schemaVersion` is `5`. Fresh databases call `createAll`.
+Supported upgrades are exactly `1 -> 5`, `2 -> 5`, `3 -> 5`, and `4 -> 5`,
+with older versions applying each ordered intermediate step. Every other
+transition fails with `UnsupportedError` rather than destroying data.
 
 Every open enables:
 
@@ -117,6 +122,11 @@ Schema v3 adds `assignment_baselines` and `sync_operation_changes`.
 Schema v4 adds `sync_backoff_states`, keyed by semester/user, with checked
 waiting/blocked state, safe failure codec, consecutive count, UTC policy
 timestamps, and a next-at query index.
+
+Schema v5 adds nullable `app_settings.leb2_user_id`. A table check permits only
+`NULL` or a positive int32 value. It is request identity needed for the
+verified snapshot contract, not a credential. The session-setup adapter updates
+it without replacing active-semester or unrelated setting values.
 
 Five indices enforce/serve coordination and result ownership:
 
@@ -158,6 +168,8 @@ baselines and missing seen rows, rebuilds reminders with their new foreign key,
 and creates the pending-reconciliation index.
 The v3-to-v4 step creates only the backoff table and its named index and does
 not infer historical per-user state.
+The v4-to-v5 step adds only the nullable checked LEB2 user-ID column and does
+not infer an identity for existing installations.
 
 ## Platform behavior
 
@@ -171,6 +183,7 @@ on cross-instance watch notifications.
 
 Credentials remain in secure storage. The database has no username, password,
 session-cookie, authorization-header, API-key, or credential-token column.
+The positive `leb2_user_id` is explicitly non-secret request identity.
 `sync_operations.owner_token` is a random, short-lived coordination nonce, not
 an authentication token. It is cleared on terminal completion.
 
@@ -185,7 +198,9 @@ nullable retry duration. File deletion remains limited to
   active request key.
 - Use a lease plus owner fencing so crashed work can recover without holding a
   writer transaction during HTTP.
-- Preserve v1/v2/v3 rows with ordered migrations and frozen fixtures.
+- Preserve v1/v2/v3/v4 rows with ordered migrations and versioned fixtures.
+- Add the v5 identity column with explicit checked SQLite SQL so upgraded
+  databases enforce the same positive-int32 constraint as fresh databases.
 - Set the busy timeout on every connection and WAL in the production opener.
 - Keep source date strings unchanged until timezone semantics are verified.
 - Use an explicit baseline row because an empty first snapshot has no seen row.
@@ -217,7 +232,7 @@ bounded non-retryable failure without storing the SQLite message.
 
 Database tests cover:
 
-- fresh thirteen-table v4 creation, all named indices, foreign keys, and busy
+- fresh thirteen-table v5 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -225,9 +240,15 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen v3 databases upgraded in place to v4 with assignment,
+- real v1, v2, frozen v3, and pre-v5 v4 databases upgraded in place to v5 with
+  assignment,
   seen, reminder, operation, and history rows preserved, empty baseline
-  recovery, empty initial backoff state, and clean `foreign_key_check`;
+  recovery, empty initial backoff/identity state, and clean
+  `foreign_key_check`;
+- raw rejection of negative, zero, and out-of-range user IDs after every
+  v1/v2/v3/v4 upgrade, while preserving active-semester foreign keys;
+- positive identity CRUD, invalid identity rejection, and preservation of
+  active-semester/unrelated singleton settings;
 - production WAL opening and bounded main/WAL/SHM deletion;
 - file-backed independent-connection coordination through the synchronization
   tests.
@@ -248,6 +269,10 @@ verified real v1/v2/v3-to-v4 upgrades. Focused sync/database/network tests
 passed 158/158, the full suite passed 258/258, both analyzers passed, generated
 hashes were stable, and the Linux release build succeeded.
 
+Feature 9.2 raised the live schema to v5, added the pre-v5 v4 fixture, and
+verified real v1/v2/v3/v4-to-v5 upgrades plus identity-store behavior. Its
+focused database/migration/identity group passed 31/31.
+
 ## Known limitations
 
 - Lease recovery cannot mathematically prevent a second GET after an owner is
@@ -262,6 +287,9 @@ hashes were stable, and the Linux release build succeeded.
 - Snapshot state remains semester-scoped rather than account-scoped.
 - Drift runtime/development preview-schema versions remain mismatched, so
   normal generation works but CLI schema export does not.
+- The v4 migration fixture freezes the changed pre-v5 `app_settings` table but
+  reuses live definitions for tables unchanged by v5; a later migration that
+  changes another table must first extract a fully versioned v4 definition.
 - Android, iOS, macOS, and Windows database runtime behavior is not verified on
   this Linux host.
 

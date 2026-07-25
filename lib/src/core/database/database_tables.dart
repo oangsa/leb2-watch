@@ -447,6 +447,7 @@ class SyncBackoffStates extends Table {
 class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();
+  IntColumn get leb2UserId => integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
@@ -455,6 +456,8 @@ class AppSettings extends Table {
   List<String> get customConstraints => const [
     'CHECK (singleton_id = 1)',
     'CHECK (active_semester_id IS NULL OR active_semester_id > 0)',
+    'CHECK (leb2_user_id IS NULL OR '
+        '(leb2_user_id > 0 AND leb2_user_id <= 2147483647))',
     'FOREIGN KEY (active_semester_id) REFERENCES semesters (semester_id) '
         'ON DELETE SET NULL',
   ];

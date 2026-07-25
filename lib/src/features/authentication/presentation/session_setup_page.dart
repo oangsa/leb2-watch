@@ -1,0 +1,713 @@
+// Hallmark · macrostructure: Workbench · theme: Cobalt
+// Pre-emit critique: P5 H5 E5 S5 R5 V4
+
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../../app/design_system/app_tokens.dart';
+import '../application/session_setup_service.dart';
+
+enum SessionSetupMethod { sessionCookie, credentials }
+
+class SessionSetupPage extends StatefulWidget {
+  const SessionSetupPage({
+    required this.service,
+    required this.onCompleted,
+    super.key,
+  });
+
+  final SessionSetupService service;
+  final FutureOr<void> Function() onCompleted;
+
+  @override
+  State<SessionSetupPage> createState() => _SessionSetupPageState();
+}
+
+class _SessionSetupPageState extends State<SessionSetupPage> {
+  static const _maximumContentWidth = 1040.0;
+  static const _maximumFormWidth = 520.0;
+  static const _wideFormBreakpoint = 768.0;
+  static const _maximumWideTextScale = 1.5;
+
+  final _cookieController = TextEditingController();
+  final _userIdController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _cookieFocus = FocusNode();
+  final _userIdFocus = FocusNode();
+  final _usernameFocus = FocusNode();
+  final _passwordFocus = FocusNode();
+
+  SessionSetupMethod _method = SessionSetupMethod.sessionCookie;
+  SavedSessionSummary? _savedSummary;
+  SessionSetupCancellation? _cancellation;
+  String? _cookieError;
+  String? _userIdError;
+  String? _usernameError;
+  String? _passwordError;
+  String? _status;
+  bool _statusIsError = false;
+  bool _busy = false;
+  bool _summaryLoading = true;
+  bool _showCookie = false;
+  bool _showPassword = false;
+  bool _automaticReauthentication = false;
+  bool _navigationPending = false;
+  int _operationId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadSavedSummary());
+  }
+
+  Future<void> _loadSavedSummary() async {
+    final summary = await widget.service.readSavedSessionSummary();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _savedSummary = summary;
+      _summaryLoading = false;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_busy || _summaryLoading || _navigationPending) {
+      return;
+    }
+    if (!_validateCurrentMethod()) {
+      return;
+    }
+
+    final operationId = ++_operationId;
+    final cancellation = SessionSetupCancellation();
+    setState(() {
+      _busy = true;
+      _cancellation = cancellation;
+      _statusIsError = false;
+      _status = 'Checking your connection…';
+    });
+
+    final SessionSetupResult result;
+    if (_method == SessionSetupMethod.sessionCookie) {
+      result = await widget.service.connectWithCookie(
+        sessionCookie: _cookieController.text,
+        userId: int.parse(_userIdController.text),
+        cancellation: cancellation,
+      );
+    } else {
+      result = await widget.service.connectWithCredentials(
+        username: _usernameController.text,
+        password: _passwordController.text,
+        enableAutomaticReauthentication: _automaticReauthentication,
+        cancellation: cancellation,
+      );
+    }
+    await _handleResult(result, operationId);
+  }
+
+  Future<void> _verifySavedSession() async {
+    if (_busy || _summaryLoading || _navigationPending) {
+      return;
+    }
+
+    final operationId = ++_operationId;
+    final cancellation = SessionSetupCancellation();
+    setState(() {
+      _busy = true;
+      _cancellation = cancellation;
+      _statusIsError = false;
+      _status = 'Checking the saved session…';
+    });
+    final result = await widget.service.verifySavedSession(
+      cancellation: cancellation,
+    );
+    await _handleResult(result, operationId);
+  }
+
+  bool _validateCurrentMethod() {
+    setState(() {
+      _cookieError = null;
+      _userIdError = null;
+      _usernameError = null;
+      _passwordError = null;
+      _status = null;
+      _statusIsError = false;
+    });
+
+    if (_method == SessionSetupMethod.sessionCookie) {
+      if (_cookieController.text.trim().isEmpty) {
+        setState(() {
+          _cookieError = 'Enter your current LEB2 session cookie.';
+        });
+        _cookieFocus.requestFocus();
+        return false;
+      }
+      final userId = int.tryParse(_userIdController.text);
+      if (userId == null || userId <= 0 || userId > 2147483647) {
+        setState(() {
+          _userIdError = 'Enter a positive numeric LEB2 user ID.';
+        });
+        _userIdFocus.requestFocus();
+        return false;
+      }
+      return true;
+    }
+
+    if (_usernameController.text.trim().isEmpty) {
+      setState(() {
+        _usernameError = 'Enter your LEB2 username.';
+      });
+      _usernameFocus.requestFocus();
+      return false;
+    }
+    if (_passwordController.text.trim().isEmpty) {
+      setState(() {
+        _passwordError = 'Enter your LEB2 password.';
+      });
+      _passwordFocus.requestFocus();
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _handleResult(SessionSetupResult result, int operationId) async {
+    if (!mounted || operationId != _operationId) {
+      return;
+    }
+    if (result is SessionSetupSuccess) {
+      setState(() {
+        _status = 'Session verified. Opening semester selection…';
+        _statusIsError = false;
+        _cancellation = null;
+      });
+      await _completeNavigation();
+      return;
+    }
+
+    final failure = result as SessionSetupFailure;
+    setState(() {
+      _busy = false;
+      _cancellation = null;
+      _statusIsError = failure.kind != SessionSetupFailureKind.cancelled;
+      _status = _failureMessage(failure);
+    });
+  }
+
+  Future<void> _completeNavigation() async {
+    try {
+      await Future<void>.sync(widget.onCompleted);
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _busy = false;
+        _navigationPending = true;
+        _statusIsError = true;
+        _status =
+            'Your session is saved, but semester selection could not open.';
+      });
+    }
+  }
+
+  Future<void> _retryNavigation() async {
+    if (_busy) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _statusIsError = false;
+      _status = 'Opening semester selection…';
+    });
+    await _completeNavigation();
+  }
+
+  String _failureMessage(SessionSetupFailure failure) {
+    return switch (failure.kind) {
+      SessionSetupFailureKind.invalidInput =>
+        'Check the highlighted fields and try again.',
+      SessionSetupFailureKind.incompleteSavedSession =>
+        'The saved setup is incomplete. Enter a current session.',
+      SessionSetupFailureKind.invalidOrExpiredSession =>
+        'This session is expired or invalid. Enter a current session.',
+      SessionSetupFailureKind.invalidCredentials =>
+        'The username or password was not accepted.',
+      SessionSetupFailureKind.networkUnavailable =>
+        'No network connection. Your saved session was not changed.',
+      SessionSetupFailureKind.requestTimeout =>
+        'The connection check took too long. Your saved session was not changed.',
+      SessionSetupFailureKind.backendUnavailable =>
+        'LEB2 could not be reached. Try again later.',
+      SessionSetupFailureKind.rateLimited => _rateLimitMessage(
+        failure.retryAfter,
+      ),
+      SessionSetupFailureKind.invalidResponse =>
+        'The backend returned an unexpected response. Your saved session was not changed.',
+      SessionSetupFailureKind.secureStorageUnavailable =>
+        'Secure credential storage is unavailable. No new session was saved.',
+      SessionSetupFailureKind.localStorageUnavailable =>
+        'Local session settings could not be saved.',
+      SessionSetupFailureKind.differentAccountData =>
+        'This device has data for another LEB2 account. Delete local data before connecting a different account.',
+      SessionSetupFailureKind.persistenceUncertain =>
+        'Saving could not be completed or safely restored. Review the saved-session status before trying again.',
+      SessionSetupFailureKind.cancelled => 'Connection check cancelled.',
+      SessionSetupFailureKind.busy => 'A connection check is already running.',
+      SessionSetupFailureKind.unexpected =>
+        'The connection could not be completed. Your saved session was not changed.',
+    };
+  }
+
+  String _rateLimitMessage(Duration? retryAfter) {
+    if (retryAfter == null) {
+      return 'Too many checks are running. Try again later.';
+    }
+    final seconds = retryAfter.inSeconds;
+    if (seconds < 60) {
+      return 'Too many checks are running. Try again in ${seconds < 1 ? 1 : seconds} seconds.';
+    }
+    final minutes = (seconds / 60).ceil();
+    return 'Too many checks are running. Try again in $minutes minutes.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final useWideLayout =
+                constraints.maxWidth >= _wideFormBreakpoint &&
+                MediaQuery.textScalerOf(context).scale(1) <=
+                    _maximumWideTextScale;
+            return SingleChildScrollView(
+              key: const Key('session-setup-scroll-view'),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: _maximumContentWidth,
+                  ),
+                  child: FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: useWideLayout
+                        ? _wideLayout(context)
+                        : _compactLayout(context),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _compactLayout(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _ConnectionIntroduction(),
+        const SizedBox(height: AppSpacing.xl),
+        _formPanel(context),
+      ],
+    );
+  }
+
+  Widget _wideLayout(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Expanded(child: _ConnectionIntroduction()),
+        const SizedBox(width: AppSpacing.xl),
+        Expanded(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _maximumFormWidth),
+            child: _formPanel(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _formPanel(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Connection method',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SegmentedButton<SessionSetupMethod>(
+              key: const Key('session-method-control'),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: SessionSetupMethod.sessionCookie,
+                  label: Text(
+                    'Session cookie',
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                  ),
+                ),
+                ButtonSegment(
+                  value: SessionSetupMethod.credentials,
+                  label: Text(
+                    'Username / password',
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                  ),
+                ),
+              ],
+              selected: {_method},
+              onSelectionChanged: _busy || _navigationPending
+                  ? null
+                  : (selection) {
+                      setState(() {
+                        _method = selection.single;
+                        _cookieError = null;
+                        _userIdError = null;
+                        _usernameError = null;
+                        _passwordError = null;
+                        _status = null;
+                        _statusIsError = false;
+                      });
+                    },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (_method == SessionSetupMethod.sessionCookie)
+              _cookieFields()
+            else
+              _credentialFields(),
+            const SizedBox(height: AppSpacing.lg),
+            _statusRegion(context),
+            if (_status != null) const SizedBox(height: AppSpacing.md),
+            if (_navigationPending)
+              FilledButton(
+                key: const Key('session-navigation-retry'),
+                onPressed: _busy ? null : _retryNavigation,
+                child: const Text('Continue to semesters'),
+              )
+            else
+              FilledButton(
+                key: const Key('session-submit'),
+                onPressed: _busy || _summaryLoading ? null : _submit,
+                child: Text(_busy ? 'Checking…' : 'Verify and continue'),
+              ),
+            const SizedBox(height: AppSpacing.lg),
+            Divider(color: Theme.of(context).colorScheme.outlineVariant),
+            const SizedBox(height: AppSpacing.lg),
+            _savedSessionSection(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cookieFields() {
+    return Column(
+      key: const Key('cookie-method-fields'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('session-cookie-field'),
+          controller: _cookieController,
+          focusNode: _cookieFocus,
+          enabled: !_busy && !_navigationPending,
+          obscureText: !_showCookie,
+          autocorrect: false,
+          enableSuggestions: false,
+          smartDashesType: SmartDashesType.disabled,
+          smartQuotesType: SmartQuotesType.disabled,
+          enableIMEPersonalizedLearning: false,
+          keyboardType: TextInputType.visiblePassword,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            labelText: 'LEB2 session cookie',
+            errorText: _cookieError,
+            suffixIcon: _SecretVisibilityButton(
+              visible: _showCookie,
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => _showCookie = !_showCookie),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          key: const Key('session-user-id-field'),
+          controller: _userIdController,
+          focusNode: _userIdFocus,
+          enabled: !_busy && !_navigationPending,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onSubmitted: (_) => unawaited(_submit()),
+          decoration: InputDecoration(
+            labelText: 'LEB2 user ID',
+            errorText: _userIdError,
+            helperText:
+                'The connection check verifies the cookie only. The backend cannot verify this ID from a cookie.',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _credentialFields() {
+    return Column(
+      key: const Key('credential-method-fields'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          key: const Key('session-username-field'),
+          controller: _usernameController,
+          focusNode: _usernameFocus,
+          enabled: !_busy && !_navigationPending,
+          autocorrect: false,
+          enableSuggestions: false,
+          smartDashesType: SmartDashesType.disabled,
+          smartQuotesType: SmartQuotesType.disabled,
+          textInputAction: TextInputAction.next,
+          decoration: InputDecoration(
+            labelText: 'Username',
+            errorText: _usernameError,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextField(
+          key: const Key('session-password-field'),
+          controller: _passwordController,
+          focusNode: _passwordFocus,
+          enabled: !_busy && !_navigationPending,
+          obscureText: !_showPassword,
+          autocorrect: false,
+          enableSuggestions: false,
+          smartDashesType: SmartDashesType.disabled,
+          smartQuotesType: SmartQuotesType.disabled,
+          enableIMEPersonalizedLearning: false,
+          keyboardType: TextInputType.visiblePassword,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => unawaited(_submit()),
+          decoration: InputDecoration(
+            labelText: 'Password',
+            errorText: _passwordError,
+            suffixIcon: _SecretVisibilityButton(
+              visible: _showPassword,
+              onPressed: _busy
+                  ? null
+                  : () => setState(() => _showPassword = !_showPassword),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SwitchListTile.adaptive(
+          key: const Key('automatic-reauthentication-toggle'),
+          contentPadding: EdgeInsets.zero,
+          value: _automaticReauthentication,
+          onChanged: _busy || _navigationPending
+              ? null
+              : (value) {
+                  setState(() => _automaticReauthentication = value);
+                },
+          title: const Text('Save credentials for automatic reauthentication'),
+          subtitle: const Text(
+            'Off by default. When enabled, credentials stay only in operating-system secure storage.',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusRegion(BuildContext context) {
+    if (_status == null && !_busy) {
+      return const SizedBox.shrink(key: Key('session-status-empty'));
+    }
+    final color = _statusIsError
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Semantics(
+      key: const Key('session-status-live-region'),
+      container: true,
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_busy) ...[
+            const ExcludeSemantics(
+              child: SizedBox.square(
+                dimension: AppSpacing.lg,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Expanded(
+            child: Text(
+              _status ?? 'Checking…',
+              key: const Key('session-status-text'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _savedSessionSection(BuildContext context) {
+    final summary = _savedSummary;
+    if (_summaryLoading || summary == null) {
+      return Semantics(
+        liveRegion: true,
+        child: const Text('Checking saved-session status…'),
+      );
+    }
+
+    final title = switch (summary.state) {
+      SavedSessionState.none => 'No saved session',
+      SavedSessionState.ready => 'Saved session ready to verify',
+      SavedSessionState.incomplete => 'Saved setup is incomplete',
+      SavedSessionState.secureStorageUnavailable ||
+      SavedSessionState.localStorageUnavailable =>
+        'Saved-session status unavailable',
+    };
+    final detail = switch (summary.state) {
+      SavedSessionState.none =>
+        'Connect with one of the methods above to continue.',
+      SavedSessionState.ready =>
+        summary.automaticReauthenticationEnabled
+            ? 'Automatic reauthentication is enabled in secure storage.'
+            : 'Automatic reauthentication is off.',
+      SavedSessionState.incomplete =>
+        'Enter a current session to complete setup.',
+      SavedSessionState.secureStorageUnavailable =>
+        'Operating-system secure storage could not be read.',
+      SavedSessionState.localStorageUnavailable =>
+        'Local session settings could not be read.',
+    };
+
+    return Semantics(
+      key: const Key('saved-session-summary'),
+      container: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: AppSpacing.xs),
+          Text(detail, style: Theme.of(context).textTheme.bodyMedium),
+          if (summary.state == SavedSessionState.ready) ...[
+            const SizedBox(height: AppSpacing.md),
+            OutlinedButton(
+              key: const Key('verify-saved-session'),
+              onPressed: _busy || _navigationPending
+                  ? null
+                  : _verifySavedSession,
+              child: const Text('Verify saved session'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _cancellation?.cancel();
+    _cookieController.clear();
+    _usernameController.clear();
+    _passwordController.clear();
+    _cookieController.dispose();
+    _userIdController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _cookieFocus.dispose();
+    _userIdFocus.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+}
+
+class _ConnectionIntroduction extends StatelessWidget {
+  const _ConnectionIntroduction();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LEB2 Watch',
+          style: textTheme.titleLarge?.copyWith(
+            color: colors.primary,
+            fontWeight: AppTypography.headingWeight,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Semantics(
+          header: true,
+          child: Text('Connect LEB2', style: textTheme.headlineLarge),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'LEB2 Watch is an independent third-party application. Your '
+          'username and password are sent only when you sign in and, if you '
+          'opt in, for automatic reauthentication.',
+          style: textTheme.bodyLarge,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Container(
+          padding: const EdgeInsets.only(left: AppSpacing.md),
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: colors.primary,
+                width: AppBorders.hairline * 3,
+              ),
+            ),
+          ),
+          child: Text(
+            'Your saved session cookie is kept at rest in operating-system '
+            'secure storage. Protected backend requests temporarily send that '
+            'cookie and your numeric LEB2 user ID. The ID stays in local '
+            'SQLite between requests.',
+            style: textTheme.bodyLarge,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SecretVisibilityButton extends StatelessWidget {
+  const _SecretVisibilityButton({
+    required this.visible,
+    required this.onPressed,
+  });
+
+  final bool visible;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final action = visible ? 'Hide' : 'Show';
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: '$action secret',
+      icon: Icon(visible ? Icons.visibility_off : Icons.visibility),
+    );
+  }
+}

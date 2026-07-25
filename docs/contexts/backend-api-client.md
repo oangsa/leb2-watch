@@ -2,10 +2,12 @@
 
 ## Status
 
-Completed for the three verified read routes, generated transport and domain
-models, strict response validation, cancellation, safe transport evidence,
-focused tests, repository-wide analysis and tests, and the Linux release build.
-Android, iOS, macOS, and Windows builds remain unverified on this Linux host.
+Completed for the three verified authenticated read routes, candidate-session
+verification, credential login/cookie acquisition, generated transport and
+domain models, strict response validation, cancellation, safe transport
+evidence, focused tests, repository-wide analysis and tests, and the Linux
+release build. Android, iOS, macOS, and Windows builds remain unverified on
+this Linux host.
 
 ## Purpose
 
@@ -19,8 +21,11 @@ unvalidated backend data.
 
 - `GET /Semester`, `GET /Class/{semesterId}`, and
   `GET /Activity/{semesterId}/snapshot`.
-- Exact Bearer credential injection on all requests and the required explicit
-  numeric user-ID header on snapshot requests.
+- Candidate-cookie verification through `GET /Semester`.
+- Unauthenticated `POST /User/login` and `POST /User/cookie` with the exact
+  verified JSON body.
+- Exact Bearer credential injection on protected authenticated requests and
+  the required explicit numeric user-ID header on snapshot requests.
 - Strict environment-provided base-URL validation and production HTTPS
   enforcement.
 - Dio timeouts, redirect prevention, bytes responses, cancellation, and
@@ -35,11 +40,10 @@ unvalidated backend data.
 ## Non-scope
 
 - Domain failure mapping owned by Feature 7.2.
-- Login, cookie acquisition, session verification, or credential mutation.
+- Credential mutation or automatic reauthentication.
 - Retry, backoff, synchronization, snapshot persistence, or database mapping.
-- Flat or per-class activity routes, the health route, or providers.
-- Bootstrap composition, widgets, diagnostics, and production URL selection.
-- User-ID acquisition or persistence.
+- Flat or per-class activity routes, the health route, or widgets.
+- Diagnostics and production URL selection.
 
 ## User-visible behavior
 
@@ -59,11 +63,15 @@ malformed responses are never interpreted as empty success.
 interface source so the cancellation completion signal stays private while the
 public cancellation value exposes only `cancel()` and `isCancelled`.
 
-Construction validates `AppConfiguration`, creates one Dio instance, installs
-one private asynchronous credential interceptor, and optionally installs a
-callback adapter for tests. The implementation then owns request creation,
-response metadata validation, strict byte decoding, DTO conversion, invariant
-validation, domain mapping, HTTP evidence, and event emission.
+Construction validates `AppConfiguration` and creates two Dio pipelines with
+the same strict options. The authenticated pipeline installs one private
+asynchronous saved-credential interceptor. The session pipeline deliberately
+has no such interceptor, so a caller-supplied candidate cookie and
+unauthenticated credential request cannot be replaced or supplemented by saved
+state. Tests may inject one callback adapter into both. The implementation then
+owns request creation, response metadata validation, strict byte decoding, DTO
+conversion, invariant validation, domain mapping, HTTP evidence, and event
+emission.
 
 The domain models and checked DTOs are separate. DTOs are internal transport
 values with fixed redacted string output. Freezed domain values provide
@@ -95,6 +103,8 @@ field-bearing `toString` output.
 - `test/core/network/retry_after_parser_test.dart` — retry-header parsing.
 - `test/core/network/network_test_support.dart` — callback Dio adapter and
   in-memory credential test adapter.
+- `test/core/network/backend_session_client_test.dart` — candidate-cookie,
+  login, cookie-acquisition, cancellation, error-evidence, and redaction tests.
 
 ## Contracts and interfaces
 
@@ -118,6 +128,33 @@ abstract interface class BackendApiClient {
   });
 }
 ```
+
+The session extension is:
+
+```dart
+abstract interface class BackendSessionClient {
+  Future<List<Semester>> verifySessionCookie({
+    required String candidateCookie,
+    BackendRequestCancellation? cancellation,
+  });
+  Future<BackendUserIdentity> authenticateUser({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  });
+  Future<BackendSessionCookie> acquireSessionCookie({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  });
+}
+```
+
+Login and cookie acquisition POST the exact JSON keys `username`, `password`,
+and `remember: false`. The checked login profile requires every verified field
+and a positive int32 `id`; the public domain value retains only that ID. The
+checked cookie response requires one nonblank string and preserves it
+opaquely.
 
 Semester and user IDs supplied by callers must be positive int32 values.
 Requests use connect/send/receive timeouts of 10/10/30 seconds,
@@ -171,6 +208,11 @@ For each request:
    objects while mapping any failure.
 10. Emit one bounded development event; production emits no event.
 
+Candidate verification follows the same response-validation path but injects
+the explicit candidate Bearer header on the interceptor-free session client.
+Credential POST requests use that same interceptor-free client and set JSON
+content type. None of these three methods reads or mutates `CredentialStore`.
+
 ## Platform behavior
 
 The Dart transport behavior is shared by Android, iOS, Windows, macOS, and
@@ -187,10 +229,17 @@ exactly; it is never trimmed, parsed, stored by this module, added to event
 metadata, or retained in a failure. The numeric user ID appears only in the
 snapshot request header and route method argument.
 
+Candidate cookie, username, and password values are direct method inputs and
+are never retained in transport events or public debug output. The
+interceptor-free session pipeline cannot attach a saved authorization header
+to login/cookie requests. The returned profile is reduced to its numeric ID;
+the institutional ID must be nonblank, while all four localized-name keys must
+be strings but may be empty. None is returned.
+
 There is no Dio logging interceptor. Development events contain only a fixed
-GET method enum, normalized route enum, optional status, elapsed duration, and
-fixed outcome. Production drops events even when a sink is supplied. A
-throwing sink cannot affect request behavior.
+GET-or-POST method enum, normalized route enum, optional status, elapsed
+duration, and fixed outcome. Production drops events even when a sink is
+supplied. A throwing sink cannot affect request behavior.
 
 Domain values, DTOs, cancellation, the concrete client, configuration
 failures, transport failures, and HTTP evidence all have fixed or redacted
@@ -218,6 +267,10 @@ URL, or response bytes.
   raw response document.
 - Enforce HTTPS at production construction rather than rely on deployment
   convention.
+- Isolate candidate and credential requests from the saved-cookie interceptor
+  while reusing the module's strict decoder and failure boundary.
+- Reduce the verified login profile to the only value the frontend owns: the
+  positive numeric backend user ID.
 
 ## Alternatives rejected
 
@@ -225,8 +278,8 @@ URL, or response bytes.
   course information and violates the verified required route.
 - Parsing the cookie for a user ID was rejected because it is opaque and not a
   JWT contract.
-- Adding login, retry, persistence, repositories, or providers was rejected as
-  outside this feature.
+- Adding retry or persistence inside the transport adapter was rejected because
+  session orchestration owns candidate ordering and local mutation.
 - Using Dio's JSON transformer or logging interceptor was rejected because it
   weakens strict classification and expands secret-bearing diagnostic state.
 - Returning DTOs or Dio failures to callers was rejected because callers
@@ -280,6 +333,12 @@ The 40 focused tests cover:
 - Development/production events, throwing sinks, debug redaction, no retries,
   and Dio/database ownership.
 
+Feature 9.2 adds 12 focused session-transport tests covering direct candidate
+authorization without secure-store access, exact unauthenticated POST
+contracts, strict login/cookie response checks, empty-semester validity,
+malformed responses, exact error evidence, cancellation, no mutation, and
+redacted public values/events.
+
 ## Validation evidence
 
 Flutter and Dart commands used a shell where `~/.zshrc` was sourced once
@@ -319,16 +378,19 @@ blank lines, now at eight model-variant locations in
 `backend_models.freezed.dart`; the deterministic generator-owned output was not
 edited by hand.
 
+Feature 9.2's focused session-transport group passed 12/12; its combined
+transport/setup-service group passed 39/39.
+
 ## Known limitations
 
-- A cookie-only flow cannot call the snapshot route because the backend also
-  requires a positive numeric user ID and exposes no current-user or
-  identity-from-cookie endpoint. This client deliberately does not invent its
-  acquisition or ownership.
+- A cookie-only transport call still cannot derive the numeric user ID because
+  the backend exposes no current-user or identity-from-cookie endpoint.
+  Session setup therefore asks the user for the ID explicitly and persists it
+  outside this client.
 - Assignment timestamp timezone and deadline-inclusivity semantics remain
   unresolved; source strings cannot yet drive UTC reminders.
-- This feature is not composed in bootstrap and makes no runtime request until
-  a later owning feature supplies a lifecycle.
+- The client is composed at the root but remains lazy and makes no request until
+  a session or synchronization operation explicitly calls it.
 - The deployed production URL and revision remain unverified.
 - Android, iOS, macOS, and Windows builds were not available on this Linux
   host.
@@ -339,10 +401,6 @@ edited by hand.
 ## Future considerations
 
 - Map transport evidence into the exact Feature 7.2 domain failures.
-- Resolve user-ID acquisition and local ownership before cookie-only session
-  setup claims snapshot support.
-- Compose the client only when session verification or synchronization owns
-  its lifetime.
 - Map validated snapshot values transactionally into Drift in the
   synchronization feature.
 - Add retry/backoff only in its dedicated feature; keep this client

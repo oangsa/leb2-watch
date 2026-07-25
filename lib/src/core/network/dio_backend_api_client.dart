@@ -4,7 +4,8 @@ const _maximumInt32 = 2147483647;
 const _authorizationHeader = 'Authorization';
 const _userIdHeader = 'X-LEB2-USER-ID';
 
-final class DioBackendApiClient implements BackendApiClient {
+final class DioBackendApiClient
+    implements BackendApiClient, BackendSessionClient {
   factory DioBackendApiClient({
     required AppConfiguration configuration,
     required CredentialStore credentialStore,
@@ -13,26 +14,17 @@ final class DioBackendApiClient implements BackendApiClient {
     DateTime Function()? utcNow,
   }) {
     final baseUrl = _validatedBaseUrl(configuration);
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        sendTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 30),
-        responseType: ResponseType.bytes,
-        followRedirects: false,
-        maxRedirects: 0,
-        headers: const {Headers.acceptHeader: 'application/json'},
-        validateStatus: (_) => true,
-      ),
-    );
+    final dio = _createDio(baseUrl);
+    final sessionDio = _createDio(baseUrl);
     if (httpClientAdapter != null) {
       dio.httpClientAdapter = httpClientAdapter;
+      sessionDio.httpClientAdapter = httpClientAdapter;
     }
     dio.interceptors.add(_CredentialInterceptor(credentialStore));
 
     return DioBackendApiClient._(
       dio: dio,
+      sessionDio: sessionDio,
       eventSink: configuration.environment == AppEnvironment.development
           ? eventSink ?? _developmentEventSink
           : null,
@@ -42,11 +34,13 @@ final class DioBackendApiClient implements BackendApiClient {
 
   DioBackendApiClient._({
     required this._dio,
+    required this._sessionDio,
     required this._eventSink,
     required this._utcNow,
   });
 
   final Dio _dio;
+  final Dio _sessionDio;
   final BackendTransportEventSink? _eventSink;
   final DateTime Function() _utcNow;
 
@@ -59,6 +53,68 @@ final class DioBackendApiClient implements BackendApiClient {
       path: '/Semester',
       cancellation: cancellation,
       mapSuccess: _mapSemesters,
+    );
+  }
+
+  @override
+  Future<List<Semester>> verifySessionCookie({
+    required String candidateCookie,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requireNonblankRequest(candidateCookie, 'candidateCookie');
+    return _execute(
+      dio: _sessionDio,
+      route: BackendTransportRoute.sessionVerification,
+      path: '/Semester',
+      headers: {_authorizationHeader: 'Bearer $candidateCookie'},
+      cancellation: cancellation,
+      mapSuccess: _mapSemesters,
+    );
+  }
+
+  @override
+  Future<BackendUserIdentity> authenticateUser({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requireNonblankRequest(username, 'username');
+    _requireNonblankRequest(password, 'password');
+    final request = BackendCredentialsRequestDto(
+      username: username,
+      password: password,
+    );
+    return _execute(
+      dio: _sessionDio,
+      method: BackendTransportMethod.post,
+      route: BackendTransportRoute.userLogin,
+      path: '/User/login',
+      data: request.toJson(),
+      cancellation: cancellation,
+      mapSuccess: _mapUserIdentity,
+    );
+  }
+
+  @override
+  Future<BackendSessionCookie> acquireSessionCookie({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requireNonblankRequest(username, 'username');
+    _requireNonblankRequest(password, 'password');
+    final request = BackendCredentialsRequestDto(
+      username: username,
+      password: password,
+    );
+    return _execute(
+      dio: _sessionDio,
+      method: BackendTransportMethod.post,
+      route: BackendTransportRoute.sessionCookieAcquisition,
+      path: '/User/cookie',
+      data: request.toJson(),
+      cancellation: cancellation,
+      mapSuccess: _mapSessionCookie,
     );
   }
 
@@ -97,7 +153,10 @@ final class DioBackendApiClient implements BackendApiClient {
     required BackendTransportRoute route,
     required String path,
     required T Function(Object? json) mapSuccess,
+    Dio? dio,
+    BackendTransportMethod method = BackendTransportMethod.get,
     Map<String, Object?>? headers,
+    Object? data,
     BackendRequestCancellation? cancellation,
   }) async {
     final stopwatch = Stopwatch()..start();
@@ -122,9 +181,19 @@ final class DioBackendApiClient implements BackendApiClient {
         );
       }
 
-      final response = await _dio.get<List<int>>(
+      final client = dio ?? _dio;
+      final options = Options(
+        method: method.name.toUpperCase(),
+        headers: {
+          if (method == BackendTransportMethod.post)
+            Headers.contentTypeHeader: Headers.jsonContentType,
+          ...?headers,
+        },
+      );
+      final response = await client.request<List<int>>(
         path,
-        options: Options(headers: headers),
+        data: data,
+        options: options,
         cancelToken: cancelToken,
       );
       statusCode = response.statusCode;
@@ -177,7 +246,7 @@ final class DioBackendApiClient implements BackendApiClient {
       stopwatch.stop();
       _emitEvent(
         BackendTransportEvent(
-          method: BackendTransportMethod.get,
+          method: method,
           route: route,
           statusCode: statusCode,
           elapsed: stopwatch.elapsed,
@@ -372,6 +441,22 @@ final class DioBackendApiClient implements BackendApiClient {
   String toString() => 'DioBackendApiClient(redacted: true)';
 }
 
+Dio _createDio(String baseUrl) {
+  return Dio(
+    BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+      responseType: ResponseType.bytes,
+      followRedirects: false,
+      maxRedirects: 0,
+      headers: const {Headers.acceptHeader: 'application/json'},
+      validateStatus: (_) => true,
+    ),
+  );
+}
+
 final class _CredentialInterceptor extends Interceptor {
   _CredentialInterceptor(this._credentialStore);
 
@@ -437,6 +522,19 @@ List<Semester> _mapSemesters(Object? json) {
     semesters.add(Semester(id: dto.id));
   }
   return List<Semester>.unmodifiable(semesters);
+}
+
+BackendUserIdentity _mapUserIdentity(Object? json) {
+  final dto = BackendUserProfileDto.fromJson(_asJsonObject(json));
+  _requireResponsePositiveInt32(dto.id);
+  _requireNonblank(dto.kmuttId);
+  return BackendUserIdentity(id: dto.id);
+}
+
+BackendSessionCookie _mapSessionCookie(Object? json) {
+  final dto = BackendCookieDto.fromJson(_asJsonObject(json));
+  _requireNonblank(dto.cookie);
+  return BackendSessionCookie(dto.cookie);
 }
 
 List<Course> _mapCourses(Object? json, int semesterId) {
@@ -572,6 +670,12 @@ Map<String, dynamic> _asJsonObject(Object? value) {
 void _requirePositiveInt32(int value, String name) {
   if (value <= 0 || value > _maximumInt32) {
     throw ArgumentError('$name must be a positive int32.');
+  }
+}
+
+void _requireNonblankRequest(String value, String name) {
+  if (value.trim().isEmpty) {
+    throw ArgumentError('$name must not be blank.');
   }
 }
 

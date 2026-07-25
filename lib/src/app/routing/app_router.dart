@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../design_system/widgets/app_state_view.dart';
 import '../shell/adaptive_app_shell.dart';
+import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
 import 'app_flow.dart';
 import 'app_placeholder_page.dart';
@@ -34,7 +35,11 @@ GoRouter createAppRouter(
               controller.updateStage(AppFlowStage.authentication),
         ),
       ),
-      _placeholderRoute(AppRoute.authentication, 'Authentication'),
+      GoRoute(
+        name: AppRoute.authentication.name,
+        path: AppRoute.authentication.path,
+        builder: (_, _) => const SessionSetupRoute(),
+      ),
       _placeholderRoute(AppRoute.semesters, 'Semesters'),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) =>

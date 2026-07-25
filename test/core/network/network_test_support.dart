@@ -36,12 +36,18 @@ final class CallbackHttpClientAdapter implements HttpClientAdapter {
 final class MemoryCredentialStore implements CredentialStore {
   MemoryCredentialStore({
     this.sessionCookie = '<SESSION_COOKIE>',
+    this.credentials,
     this.readFailure,
   });
 
   String? sessionCookie;
+  StoredCredentials? credentials;
   Object? readFailure;
   var sessionReadCount = 0;
+  var sessionWriteCount = 0;
+  var credentialReadCount = 0;
+  var credentialWriteCount = 0;
+  var mutationCount = 0;
 
   @override
   Future<String?> readSessionCookie() async {
@@ -56,25 +62,40 @@ final class MemoryCredentialStore implements CredentialStore {
   @override
   Future<void> clear() async {
     sessionCookie = null;
+    credentials = null;
+    mutationCount += 1;
   }
 
   @override
-  Future<void> deleteCredentials() async {}
+  Future<void> deleteCredentials() async {
+    credentials = null;
+    mutationCount += 1;
+  }
 
   @override
   Future<void> deleteSessionCookie() async {
     sessionCookie = null;
+    mutationCount += 1;
   }
 
   @override
-  Future<StoredCredentials?> readCredentials() async => null;
+  Future<StoredCredentials?> readCredentials() async {
+    credentialReadCount += 1;
+    return credentials;
+  }
 
   @override
-  Future<void> saveCredentials(StoredCredentials value) async {}
+  Future<void> saveCredentials(StoredCredentials value) async {
+    credentials = value;
+    credentialWriteCount += 1;
+    mutationCount += 1;
+  }
 
   @override
   Future<void> saveSessionCookie(String value) async {
     sessionCookie = value;
+    sessionWriteCount += 1;
+    mutationCount += 1;
   }
 }
 

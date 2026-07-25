@@ -31,6 +31,43 @@ abstract interface class BackendApiClient {
   });
 }
 
+abstract interface class BackendSessionClient {
+  Future<List<Semester>> verifySessionCookie({
+    required String candidateCookie,
+    BackendRequestCancellation? cancellation,
+  });
+
+  Future<BackendUserIdentity> authenticateUser({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  });
+
+  Future<BackendSessionCookie> acquireSessionCookie({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  });
+}
+
+final class BackendUserIdentity {
+  const BackendUserIdentity({required this.id});
+
+  final int id;
+
+  @override
+  String toString() => 'BackendUserIdentity(redacted: true)';
+}
+
+final class BackendSessionCookie {
+  const BackendSessionCookie(this.value);
+
+  final String value;
+
+  @override
+  String toString() => 'BackendSessionCookie(redacted: true)';
+}
+
 final class BackendRequestCancellation {
   final Completer<void> _cancelled = Completer<void>();
 

@@ -51,6 +51,12 @@ features.
 `lib/bootstrap.dart`. Bootstrap initializes Flutter bindings, reads the
 compile-time configuration, and passes it to `Leb2WatchApp`.
 
+Feature 9.2 retains that boundary while adding the root Riverpod composition:
+bootstrap creates `AppConfiguration` exactly once, overrides
+`appConfigurationProvider` with that same object, and installs the application
+under the root `ProviderScope`. Lazy providers do not make a backend request at
+startup.
+
 The minimal root widget lives under `lib/src/app/`. Compile-time configuration
 lives under `lib/src/core/config/`. Empty, tracked `lib/src/features/` and
 `lib/src/platform/` directories record the intended boundaries without adding
@@ -63,6 +69,8 @@ The scaffold depends only on the Flutter SDK. `flutter_lints` and
 
 - `lib/main.dart` — thin process entry point.
 - `lib/bootstrap.dart` — Flutter initialization and configuration assembly.
+- `lib/src/app/app_dependencies.dart` — current root-scoped configuration,
+  secure-storage, database, transport, and session-setup composition.
 - `lib/src/app/leb2_watch_app.dart` — minimal application root.
 - `lib/src/core/config/app_configuration.dart` — compile-time environment
   parser and configuration value.
@@ -119,10 +127,13 @@ At process start:
 2. Flutter bindings are initialized.
 3. `AppConfiguration.fromEnvironment()` reads compile-time definitions.
 4. Unknown nonempty `APP_ENV` values fail immediately.
-5. Valid configuration is passed to the root widget.
-6. The minimal Flutter application renders.
+5. Valid configuration is installed as the exact Riverpod override and passed
+   to the root widget.
+6. The Flutter application renders; lazy transport/database providers open
+   only when a consuming workflow requests them.
 
-There is no networking, persistence, synchronization, or background state.
+Bootstrap itself performs no networking. Current owning features add local
+persistence and transport behind lazy application providers.
 
 ## Platform behavior
 
@@ -146,9 +157,11 @@ internal executable.
 
 ## Security and privacy
 
-No credential, session cookie, user record, production URL, analytics,
-tracking, or remote service integration exists in this feature. The backend URL
-must be supplied at compile time and is not committed.
+At scaffold completion, no credential, session cookie, user record, production
+URL, analytics, tracking, or remote service integration existed. Current
+session composition preserves the scaffold's compile-time URL rule and makes
+no construction-time request; credentials remain behind the secure-store
+interface and never enter the configuration object.
 
 The CI workflow grants only `contents: read`, has a 15-minute timeout, and pins
 its two top-level actions to immutable commits. The pinned Flutter composite
@@ -164,7 +177,8 @@ treated as a fully immutable action graph.
 - Keep `main.dart` thin and put bootstrap, application, and configuration
   concerns in their intended directories.
 - Pass configuration into the root widget so invalid environments are rejected
-  at startup, without adding a dependency-injection framework.
+  at startup. Once Riverpod was added by its owning feature, reuse that exact
+  object as the root provider override rather than parsing configuration twice.
 - Keep the backend URL optional until the authenticated API client is
   implemented.
 - Track empty feature and platform seams with `.gitkeep` rather than placeholder

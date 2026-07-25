@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
@@ -10,6 +10,7 @@ import 'package:path/path.dart' as path;
 import 'v1_app_database.dart' as v1;
 import 'v2_app_database.dart' as v2;
 import 'v3_app_database.dart' as v3;
+import 'v4_app_database.dart' as v4;
 
 void main() {
   late Directory temporaryDirectory;
@@ -46,7 +47,7 @@ void main() {
   });
 
   test(
-    'migrates a real v1 database to v4 and seeds durable baseline state',
+    'migrates a real v1 database to v5 and seeds durable baseline state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v1.V1AppDatabase(NativeDatabase(databaseFile));
@@ -105,7 +106,12 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 4);
+      expect(await _pragmaInt(database, 'user_version'), 5);
+      expect(
+        (await database.select(database.appSettings).getSingleOrNull())
+            ?.leb2UserId,
+        isNull,
+      );
       expect(
         (await database.select(database.semesters).get())
             .map((row) => row.semesterId)
@@ -198,12 +204,13 @@ void main() {
         ),
         'seen_activities',
       );
+      await _expectLeb2UserIdConstraint(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a real v2 database to v4 preserving ledgers and reminders',
+    'migrates a real v2 database to v5 preserving ledgers and reminders',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v2.V2AppDatabase(NativeDatabase(databaseFile));
@@ -251,7 +258,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 4);
+      expect(await _pragmaInt(database, 'user_version'), 5);
       expect(await database.select(database.activities).get(), hasLength(1));
       expect(
         await database.select(database.seenActivities).get(),
@@ -305,12 +312,13 @@ void main() {
         ),
         'seen_activities',
       );
+      await _expectLeb2UserIdConstraint(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a frozen real v3 database to v4 without seeding backoff',
+    'migrates a frozen real v3 database to v5 without seeding backoff',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v3.V3AppDatabase(NativeDatabase(databaseFile));
@@ -344,7 +352,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 4);
+      expect(await _pragmaInt(database, 'user_version'), 5);
       expect(
         (await database.select(database.semesters).getSingle()).semesterId,
         101,
@@ -357,6 +365,75 @@ void main() {
       expect(
         await _indexExists(database, 'sync_backoff_states_by_next_attempt'),
         isTrue,
+      );
+      await _expectLeb2UserIdConstraint(database);
+      expect(await _foreignKeyViolations(database), isEmpty);
+    },
+  );
+
+  test(
+    'migrates a frozen real v4 database to v5 preserving every prior table',
+    () async {
+      final databaseFile = await storage.resolveDatabaseFile();
+      final legacy = v4.V4AppDatabase(NativeDatabase(databaseFile));
+      await legacy
+          .into(legacy.semesters)
+          .insert(v4.SemestersCompanion.insert(semesterId: const Value(101)));
+      await legacy
+          .into(legacy.courses)
+          .insert(
+            v4.CoursesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              name: 'Preserved course',
+            ),
+          );
+      await legacy
+          .into(legacy.v4AppSettings)
+          .insert(
+            const v4.V4AppSettingsCompanion(
+              singletonId: Value(1),
+              activeSemesterId: Value(101),
+            ),
+          );
+      await legacy
+          .into(legacy.syncBackoffStates)
+          .insert(
+            v4.SyncBackoffStatesCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              consecutiveFailureCount: 1,
+              state: 'waiting',
+              nextAutomaticAttemptAtUtc: Value(
+                DateTime.utc(2026, 7, 25, 12, 1),
+              ),
+              lastFailureKind: 'networkUnavailable',
+              updatedAtUtc: DateTime.utc(2026, 7, 25, 12),
+            ),
+          );
+      expect(await _pragmaInt(legacy, 'user_version'), 4);
+      await legacy.close();
+
+      final database = await storage.openDatabase();
+      addTearDown(database.close);
+
+      expect(await _pragmaInt(database, 'user_version'), 5);
+      expect(
+        (await database.select(database.courses).getSingle()).name,
+        'Preserved course',
+      );
+      final settings = await database.select(database.appSettings).getSingle();
+      expect(settings.activeSemesterId, 101);
+      expect(settings.leb2UserId, isNull);
+      expect(
+        await database.select(database.syncBackoffStates).get(),
+        hasLength(1),
+      );
+      await _expectLeb2UserIdConstraint(database);
+      expect(
+        (await database.select(database.appSettings).getSingle())
+            .activeSemesterId,
+        101,
       );
       expect(await _foreignKeyViolations(database), isEmpty);
     },
@@ -392,6 +469,33 @@ void main() {
 Future<int> _pragmaInt(GeneratedDatabase database, String pragma) async {
   final row = await database.customSelect('PRAGMA $pragma').getSingle();
   return row.data.values.single as int;
+}
+
+Future<void> _expectLeb2UserIdConstraint(AppDatabase database) async {
+  await database.customStatement(
+    'INSERT OR IGNORE INTO app_settings (singleton_id) VALUES (1)',
+  );
+  for (final invalid in [-1, 0, 2147483648]) {
+    await expectLater(
+      database.customStatement(
+        'UPDATE app_settings SET leb2_user_id = ? WHERE singleton_id = 1',
+        [invalid],
+      ),
+      throwsException,
+      reason: 'migrated schema accepted invalid LEB2 user ID $invalid',
+    );
+  }
+  await database.customStatement(
+    'UPDATE app_settings SET leb2_user_id = 2147483647 '
+    'WHERE singleton_id = 1',
+  );
+  expect(
+    (await database.select(database.appSettings).getSingle()).leb2UserId,
+    2147483647,
+  );
+  await database.customStatement(
+    'UPDATE app_settings SET leb2_user_id = NULL WHERE singleton_id = 1',
+  );
 }
 
 v1.ActivitiesCompanion _legacyActivity() {

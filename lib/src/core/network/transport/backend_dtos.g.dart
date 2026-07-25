@@ -6,6 +6,36 @@ part of 'backend_dtos.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+Map<String, dynamic> _$BackendCredentialsRequestDtoToJson(
+  BackendCredentialsRequestDto instance,
+) => <String, dynamic>{
+  'username': instance.username,
+  'password': instance.password,
+  'remember': instance.remember,
+};
+
+BackendUserProfileDto _$BackendUserProfileDtoFromJson(
+  Map<String, dynamic> json,
+) => $checkedCreate('BackendUserProfileDto', json, ($checkedConvert) {
+  final val = BackendUserProfileDto(
+    id: $checkedConvert('id', (v) => _requiredInt(v)),
+    kmuttId: $checkedConvert('kmuttId', (v) => v as String),
+    nameThai: $checkedConvert('nameThai', (v) => v as String),
+    nameEnglish: $checkedConvert('nameEnglish', (v) => v as String),
+    surnameThai: $checkedConvert('surnameThai', (v) => v as String),
+    surnameEnglish: $checkedConvert('surnameEnglish', (v) => v as String),
+  );
+  return val;
+});
+
+BackendCookieDto _$BackendCookieDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('BackendCookieDto', json, ($checkedConvert) {
+      final val = BackendCookieDto(
+        cookie: $checkedConvert('cookie', (v) => v as String),
+      );
+      return val;
+    });
+
 CourseDto _$CourseDtoFromJson(Map<String, dynamic> json) =>
     $checkedCreate('CourseDto', json, ($checkedConvert) {
       final val = CourseDto(

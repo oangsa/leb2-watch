@@ -1,6 +1,13 @@
-enum BackendTransportMethod { get }
+enum BackendTransportMethod { get, post }
 
-enum BackendTransportRoute { semesters, courses, semesterSnapshot }
+enum BackendTransportRoute {
+  semesters,
+  courses,
+  semesterSnapshot,
+  sessionVerification,
+  userLogin,
+  sessionCookieAcquisition,
+}
 
 enum BackendTransportOutcome {
   success,

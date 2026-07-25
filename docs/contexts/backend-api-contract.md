@@ -320,7 +320,8 @@ The verified credential flow is:
 
 1. Send credentials to `POST /User/login` and obtain the numeric user `id`.
 2. Send credentials to `POST /User/cookie` and obtain the opaque cookie.
-3. Store both only according to the frontend's secure/local privacy boundary.
+3. Store the opaque cookie in secure storage and the non-secret numeric ID in
+   local SQLite; store username/password only after explicit opt-in.
 4. Send the cookie as Bearer authorization and the positive ID in
    `X-LEB2-USER-ID` for snapshot requests.
 
@@ -372,6 +373,10 @@ timestamp contract.
 - Treat HTTP metadata separately from JSON fixtures.
 - Mark local contract verification complete while keeping unresolved contracts
   explicit as downstream blockers.
+- For manual cookie setup, require the user to enter the positive numeric ID
+  explicitly and state that cookie verification cannot prove it.
+- For credential setup, use the verified `/User/login` identity before
+  acquiring and verifying the cookie.
 
 ## Alternatives rejected
 
@@ -404,8 +409,7 @@ timestamp contract.
 
 ## Tests
 
-No application tests exist yet. The fixtures provide deterministic inputs for
-later fake-adapter tests:
+The fixtures provide deterministic inputs for fake-adapter tests:
 
 - Successful nested snapshot with one populated and one empty class.
 - Successfully empty snapshot, semester list, class list, user login, and
@@ -417,7 +421,12 @@ later fake-adapter tests:
 
 Fixture syntax and sanitization are validated by the commands under Validation
 evidence. HTTP status, content type, `Retry-After`, and `WWW-Authenticate` must
-be supplied by the future fake adapter.
+be supplied separately by the fake adapter.
+
+Frontend transport and session-setup tests now verify the exact candidate
+`GET /Semester`, unauthenticated login/cookie POST bodies, strict response
+shapes, `SESSION_EXPIRED`, `RESOURCE_NOT_FOUND`, rate/backoff evidence, and
+candidate-before-persistence ordering without production calls.
 
 ## Validation evidence
 
@@ -433,9 +442,7 @@ Passed: 23, Failed: 0, Skipped: 0
 ```
 
 These results verify the existing test binaries at sibling commit `d6e3261`;
-they are not fresh compilation evidence. This frontend feature performs no
-Flutter build or test because no Flutter project exists and no product behavior
-is changed.
+they are not fresh compilation evidence from source.
 
 Frontend fixture and documentation validation:
 
@@ -466,11 +473,16 @@ The initial attempt to use `jq` failed because it is not installed. No fixture
 was modified by that attempt; the installed Python JSON parser supplied the
 successful evidence above.
 
+Feature 9.2 added fresh frontend evidence: 12 session-transport tests passed,
+and the combined session transport/setup-service group passed 39/39.
+
 ## Known limitations
 
-- **Blocks session setup and activity requests:** a cookie-only flow has no
+- **Manual cookie identity remains user-asserted:** a cookie-only flow has no
   verified way to obtain the positive numeric user ID required by all activity
-  routes. Resolve the product flow or add a backend identity endpoint.
+  routes. The implemented product flow requires explicit entry, states that
+  limitation, and prevents replacement when a different known local identity
+  exists.
 - **Blocks UTC persistence, exact deadline diffing, and deadline reminders:**
   activity timestamp timezone, daylight-saving, and deadline-inclusivity
   semantics are undefined.
@@ -492,8 +504,8 @@ successful evidence above.
 
 ## Future considerations
 
-- Resolve the numeric user-ID acquisition flow before session setup or API
-  client behavior is declared complete.
+- Prefer a future backend current-user endpoint so manual cookie setup can
+  verify rather than ask for the numeric user ID.
 - Add an explicit backend timezone/offset contract before UTC persistence,
   deadline diffing, and reminders.
 - Add stable attachment, external-link, and publication fields if those UI
@@ -507,3 +519,5 @@ successful evidence above.
 ## Related contexts
 
 - [Repository Frontend Preflight](repository-preflight.md)
+- [Session Setup and Verification](session-setup.md)
+- [Authenticated Backend API Client](backend-api-client.md)

@@ -27,14 +27,15 @@ completed.
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
   shortcuts.
-- Safe route-error and label-only placeholder surfaces.
+- Safe route-error, session-setup, and remaining label-only placeholder
+  surfaces.
 - Root `MaterialApp.router` and router lifecycle ownership.
 - Focused controller, router, shell, accessibility, and root-widget tests.
 
 ## Non-scope
 
-- Real onboarding, authentication, session, semester, assignment, course,
-  settings, diagnostics, or privacy behavior.
+- Real semester, assignment, course, settings, diagnostics, or privacy
+  behavior.
 - Persisting the temporary application-flow stage.
 - Preserving a blocked deep-link target through the incomplete flow.
 - API, database, credential, notification, synchronization, or background
@@ -67,8 +68,9 @@ semantics and tooltips.
 
 The current branch survives window resizing. Expanded layouts accept
 Command+1 through Command+4 on Apple platforms and Control+1 through
-Control+4 on Windows and Linux. Product routes currently show only truthful
-route labels; no unfinished workflow is presented as usable.
+Control+4 on Windows and Linux. The authentication route presents the real
+session-setup workflow. Remaining product routes show only truthful route
+labels; no unfinished workflow is presented as usable.
 
 ## Architecture
 
@@ -90,7 +92,10 @@ location.
 
 `Leb2WatchApp` reads the controller once in `initState`, creates the router
 once, supplies it to `MaterialApp.router`, and disposes the router with the
-widget. The root `ProviderScope` remains in `bootstrap()`.
+widget. The root `ProviderScope` remains in `bootstrap()`. Feature 9.2 replaces
+the authentication placeholder with `SessionSetupRoute`; successful verified
+persistence updates the same flow controller to `semesterSelection`, so the
+existing router redirects to `/semesters` without reconstruction.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -110,6 +115,9 @@ adds deterministic autofocus and `CallbackShortcuts`.
   and safe error surface.
 - `lib/src/app/routing/app_placeholder_page.dart` — accessible label-only
   route surfaces.
+- `lib/src/features/authentication/presentation/session_setup_route.dart` —
+  authentication provider loading/error adapter and successful flow
+  transition.
 - `lib/src/app/shell/adaptive_app_shell.dart` — compact, medium, and expanded
   navigation.
 - `lib/src/app/leb2_watch_app.dart` — root router lifecycle and themes.
@@ -167,10 +175,10 @@ The exact guard contract is:
 
 ## Data model
 
-This feature adds no domain, transport, database, credential, or settings data
-model. `AppFlowStage` is process-local navigation state and is intentionally
-not persisted. Route and destination enums are compile-time presentation
-contracts.
+The shell itself adds no domain, transport, database, credential, or settings
+data model. `AppFlowStage` is process-local navigation state and is
+intentionally not persisted. Route and destination enums are compile-time
+presentation contracts.
 
 ## State and control flow
 
@@ -286,7 +294,9 @@ responses, retries, synchronization failures, or database rollback.
 - `/` and incomplete-stage redirects.
 - Privacy access in all four stages.
 - Live onboarding-to-authentication-to-semesters-to-assignments progression
-  without router reconstruction.
+  without router reconstruction, including verified session-setup success.
+- Authentication provider loading, redacted initialization failure, retry,
+  and successful progression to the semester route.
 - Ready-stage gate redirects and all four shell branches.
 - Safe unknown-route copy without URI, query, or router exception disclosure.
 - Listener safety after router disposal.
@@ -374,18 +384,18 @@ semantics, tooltips' full label source, and pointer selection.
 - Android, iOS, macOS, and Windows are not build-verified on this Linux host.
 - Native keyboard layouts and screen-reader output require device-level
   validation even though Flutter semantics and key dispatch tests pass.
-- The application-flow stage is temporary in-memory state. Later onboarding,
-  session, and semester features must derive and persist the real state.
+- The application-flow stage is temporary in-memory state. Later session-state
+  restoration and semester features must derive and persist the real state.
 - Blocked deep links do not resume after flow completion.
-- Product route surfaces are honest labels only; their real workflows belong
-  to later features.
+- Remaining product route surfaces are honest labels only; their real
+  workflows belong to later features.
 - There are no nested branch routes yet, so indexed-stack branch-history
   behavior is established architecturally but only selected-branch persistence
   is observable in this feature.
 
 ## Future considerations
 
-- Replace each placeholder builder in its owning product feature without
+- Replace each remaining placeholder builder in its owning product feature without
   changing route names or shell destination order.
 - Derive the flow stage from completed onboarding, verified session, and active
   semester state.
@@ -401,3 +411,4 @@ semantics, tooltips' full label source, and pointer selection.
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
+- [Session Setup and Verification](session-setup.md)

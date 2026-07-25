@@ -28,19 +28,18 @@ application-owned interface and fixed failures instead of depending on
 
 ## Non-scope
 
-- Session-entry, onboarding, verification, or expiration UI.
-- Backend authentication or automatic-reauthentication behavior.
-- A Riverpod provider or application composition for the adapter.
+- Session-expiration lifecycle or automatic-reauthentication execution.
+- Backend authentication transport behavior.
 - SQLite, SharedPreferences, settings, logs, or crash reporting.
 - Real desktop keyring writes in automated tests.
 - Credential migration beyond rejecting unknown schema versions.
 
 ## User-visible behavior
 
-This feature adds no screen. Later authentication flows can save, read, replace,
-or delete the session cookie without exposing the storage plugin. Username and
-password are saved only when a later explicit automatic-reauthentication flow
-calls `saveCredentials`.
+The session-setup screen can save, read, replace, or delete the session cookie
+without exposing the storage plugin. Username and password are saved only when
+the user explicitly enables automatic reauthentication; the setting is off by
+default.
 
 Missing secure entries return `null`. Invalid or unavailable storage returns a
 safe application exception. Cached product data is not part of this module and
@@ -61,6 +60,12 @@ platform options. There is no second public storage-driver interface.
 Freezed's generated `toString` is disabled, so the implementation inherits the
 custom redacted representation.
 
+`credentialStoreProvider` composes one application-owned adapter at the root
+Riverpod scope. `LocalSessionSetupService` consumes only the interface and
+coordinates secure values with the non-secret SQLite identity. Candidate
+verification completes before secure mutation; a failed multi-store commit
+attempts to restore the prior secure values.
+
 ## Important files
 
 - `lib/src/core/security/credential_store.dart` — application interface,
@@ -78,6 +83,10 @@ custom redacted representation.
   behavior, plugin-failure mapping, malformed payloads, and bounded clearing.
 - `test/core/security/secure_storage_platform_configuration_test.dart` —
   platform configuration and persistence-ownership checks.
+- `lib/src/app/app_dependencies.dart` — root-scoped credential adapter
+  composition.
+- `lib/src/features/authentication/application/session_setup_service.dart` —
+  verified candidate commit and compensating restoration.
 - `android/app/src/main/AndroidManifest.xml` — disables backup and selects both
   Android backup-rule formats.
 - `android/app/src/main/res/xml/backup_rules.xml` — Android 11 and earlier
@@ -151,6 +160,12 @@ payload.
 first fails. It reports one fixed `clear/secureStorageUnavailable` failure if
 either delete fails.
 
+Session setup reads both prior secure values before verification. It writes the
+verified cookie first, then either saves the explicitly opted-in credential
+payload or deletes prior optional credentials. If that or the following
+non-secret identity write fails, it attempts to restore the prior cookie and
+credential payload rather than leaving an intentionally mixed session.
+
 ## Platform behavior
 
 - Android uses storage namespace `leb2_watch_credentials_v1`, disables the
@@ -175,6 +190,10 @@ Only the session cookie, optional username/password payload, and its schema
 version enter secure storage. The plugin is imported only by the concrete
 adapter in application Dart code.
 
+Widgets never receive saved secret values: the setup service returns only a
+redacted `SavedSessionSummary`. Candidate cookies and credentials travel from
+the secret fields directly through the setup and transport interfaces.
+
 The model, adapter, and application exception have redacted or fixed debug
 representations. The adapter contains no logger. It catches platform plugin
 failures at the external seam without retaining their messages or values.
@@ -197,6 +216,9 @@ delete a wider keyring. It deletes only the two LEB2 Watch entries.
 - Use fixed application failures and discard original platform failure data.
 - Apply Android exclusions only to verified secure-storage files; future
   database backup policy remains separate.
+- Keep automatic reauthentication disabled until the user explicitly opts in,
+  and delete old optional credentials when a verified cookie-only session or
+  opt-out credential session replaces them.
 
 ## Alternatives rejected
 
@@ -295,10 +317,8 @@ reviewed and contains no generated secret-bearing `toString`.
 
 ## Future considerations
 
-- Compose the adapter through Riverpod when the session-setup feature has a
-  consumer.
-- Call `saveCredentials` only behind the later explicit
-  automatic-reauthentication setting.
+- Reuse the composed adapter when the session-expiration feature implements
+  automatic reauthentication.
 - Add schema migrations only when a real new credential shape is required.
 - Revalidate Android SharedPreferences exclusion paths whenever
   `flutter_secure_storage` is upgraded.

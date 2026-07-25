@@ -71,6 +71,63 @@ final class SemesterDto {
   String toString() => 'SemesterDto(redacted: true)';
 }
 
+@JsonSerializable(checked: true, createFactory: false)
+final class BackendCredentialsRequestDto {
+  const BackendCredentialsRequestDto({
+    required this.username,
+    required this.password,
+    this.remember = false,
+  });
+
+  final String username;
+  final String password;
+  final bool remember;
+
+  Map<String, dynamic> toJson() => _$BackendCredentialsRequestDtoToJson(this);
+
+  @override
+  String toString() => 'BackendCredentialsRequestDto(redacted: true)';
+}
+
+@JsonSerializable(checked: true, createToJson: false)
+final class BackendUserProfileDto {
+  const BackendUserProfileDto({
+    required this.id,
+    required this.kmuttId,
+    required this.nameThai,
+    required this.nameEnglish,
+    required this.surnameThai,
+    required this.surnameEnglish,
+  });
+
+  factory BackendUserProfileDto.fromJson(Map<String, dynamic> json) =>
+      _$BackendUserProfileDtoFromJson(json);
+
+  @JsonKey(fromJson: _requiredInt)
+  final int id;
+  final String kmuttId;
+  final String nameThai;
+  final String nameEnglish;
+  final String surnameThai;
+  final String surnameEnglish;
+
+  @override
+  String toString() => 'BackendUserProfileDto(redacted: true)';
+}
+
+@JsonSerializable(checked: true, createToJson: false)
+final class BackendCookieDto {
+  const BackendCookieDto({required this.cookie});
+
+  factory BackendCookieDto.fromJson(Map<String, dynamic> json) =>
+      _$BackendCookieDtoFromJson(json);
+
+  final String cookie;
+
+  @override
+  String toString() => 'BackendCookieDto(redacted: true)';
+}
+
 @JsonSerializable(checked: true, createToJson: false)
 final class CourseDto {
   const CourseDto({required this.id, required this.name});

@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 4', () {
+  group('schema version 5', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 4);
+        expect(database.schemaVersion, 5);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -45,7 +45,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 4);
+        expect(await _pragmaInt(database, 'user_version'), 5);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );

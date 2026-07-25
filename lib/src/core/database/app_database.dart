@@ -31,14 +31,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) => migrator.createAll(),
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 3 || to != 4) {
+        if (from < 1 || from > 4 || to != 5) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -49,7 +49,10 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 2) {
           await _migrateFrom2To3(migrator);
         }
-        await _migrateFrom3To4(migrator);
+        if (from <= 3) {
+          await _migrateFrom3To4(migrator);
+        }
+        await _migrateFrom4To5();
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -144,6 +147,14 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX sync_backoff_states_by_next_attempt '
       'ON sync_backoff_states '
       '(state, next_automatic_attempt_at_utc, semester_id, user_id)',
+    );
+  }
+
+  Future<void> _migrateFrom4To5() {
+    return customStatement(
+      'ALTER TABLE app_settings ADD COLUMN leb2_user_id INTEGER NULL '
+      'CHECK (leb2_user_id IS NULL OR '
+      '(leb2_user_id > 0 AND leb2_user_id <= 2147483647))',
     );
   }
 
