@@ -15,6 +15,23 @@ Install dependencies:
 flutter pub get
 ```
 
+Generate committed Dart sources:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Regenerate continuously while editing annotated sources:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+`build_runner` 2.15.1 accepts these plan-required commands, but reports that
+`--delete-conflicting-outputs` has been removed and is ignored. Generated
+`*.g.dart` and `*.freezed.dart` files are committed beside their sources; do
+not edit them by hand.
+
 Run with compile-time development configuration:
 
 ```bash
@@ -30,7 +47,9 @@ to the repository.
 ## Validate
 
 ```bash
+dart run build_runner build --delete-conflicting-outputs
 dart format --output=none --set-exit-if-changed .
+dart analyze
 flutter analyze
 flutter test
 flutter build linux
