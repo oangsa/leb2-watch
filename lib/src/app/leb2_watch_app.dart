@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/config/app_configuration.dart';
+import 'design_system/app_theme.dart';
 
 class Leb2WatchApp extends StatelessWidget {
   const Leb2WatchApp({required this.configuration, super.key});
@@ -9,9 +10,13 @@ class Leb2WatchApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'LEB2 Watch',
-      home: Scaffold(
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
+      themeAnimationStyle: AnimationStyle.noAnimation,
+      home: const Scaffold(
         body: SafeArea(child: Center(child: Text('LEB2 Watch'))),
       ),
     );
