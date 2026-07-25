@@ -36,8 +36,8 @@ screens from inventing colors, spacing, typography, or breakpoints ad hoc.
   platform services.
 - Remote or bundled custom fonts, images, gradients, animation packages, or
   other new dependencies.
-- Golden tests; primary responsive-layout goldens belong to the assignment
-  dashboard feature.
+- Screen-level golden tests, which are owned by the later assignment dashboard
+  feature rather than this foundation.
 - Native project, generated-code, CI, or dependency changes.
 
 ## User-visible behavior
@@ -352,8 +352,9 @@ was added or changed.
   width-class threshold.
 - `ThemeMode.system` is wired, but a persisted user theme override is outside
   this feature.
-- Goldens and complete screen-level visual hierarchy are deferred to the
-  assignment dashboard and adaptive shell.
+- The foundation itself has no standalone screen golden. Feature 11.1 now
+  provides deterministic Linux mobile-light and desktop-dark dashboard
+  baselines using these tokens.
 
 ## Future considerations
 
@@ -361,8 +362,8 @@ was added or changed.
   sidebar in the adaptive application shell.
 - Use these status components for local-first, offline, stale, session-expired,
   and synchronization states.
-- Add dashboard goldens once real information architecture and representative
-  sanitized fixtures exist.
+- Extend the dashboard golden convention to later primary screens only when
+  their real information architecture exists.
 - Review typography and control geometry on Android, iOS, Windows, macOS, and
   Linux devices.
 - Add a user-selectable theme mode only if settings requirements later demand
@@ -370,6 +371,7 @@ was added or changed.
 
 ## Related contexts
 
+- [Local-First Assignment Dashboard](assignment-dashboard.md)
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Backend API Contract](backend-api-contract.md)

@@ -14,6 +14,9 @@ import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
+import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
@@ -165,6 +168,11 @@ void main() {
         await tester.pumpAndSettle();
         if (testCase.$2 == AppDestination.courses) {
           expect(find.text('No saved courses yet'), findsOneWidget);
+        } else if (testCase.$2 == AppDestination.assignments) {
+          expect(
+            find.byKey(const Key('assignment-dashboard-list')),
+            findsOneWidget,
+          );
         } else {
           expect(
             find.byKey(Key('${testCase.$2.name}-surface')),
@@ -197,6 +205,11 @@ void main() {
         await tester.pumpAndSettle();
         if (testCase.$2 == AppDestination.courses) {
           expect(find.text('No saved courses yet'), findsOneWidget);
+        } else if (testCase.$2 == AppDestination.assignments) {
+          expect(
+            find.byKey(const Key('assignment-dashboard-list')),
+            findsOneWidget,
+          );
         } else {
           expect(
             find.byKey(Key('${testCase.$2.name}-surface')),
@@ -419,7 +432,10 @@ void main() {
           find.text('Your LEB2 session expired. Showing saved data.'),
           findsOneWidget,
         );
-        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull);
       },
     );
@@ -452,6 +468,9 @@ Future<_ShellSetup> _pumpShell(
         ),
         coursePreferencesServiceProvider.overrideWith(
           (_) => _ShellCoursePreferencesService(),
+        ),
+        assignmentDashboardServiceProvider.overrideWith(
+          (_) => _ShellAssignmentDashboardService(lifecycle: lifecycle),
         ),
       ],
       child: MaterialApp.router(
@@ -509,6 +528,37 @@ final class _ShellCoursePreferencesService implements CoursePreferencesService {
     CourseKey key, {
     required bool muted,
   }) async => const CoursePreferenceUpdateSuccess();
+}
+
+final class _ShellAssignmentDashboardService
+    implements AssignmentDashboardService {
+  _ShellAssignmentDashboardService({required this.lifecycle});
+
+  final SessionLifecycleSnapshot lifecycle;
+
+  AssignmentDashboardCache get _cache {
+    final success = AssignmentDashboardSyncRun(
+      outcome: AssignmentDashboardSyncOutcome.success,
+      startedAtUtc: DateTime.utc(2026, 7, 26),
+      completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
+      failureCategory: null,
+    );
+    return AssignmentDashboardCache(
+      activeSemesterId: 202,
+      session: lifecycle,
+      courses: const [],
+      assignments: const [],
+      latestAttempt: success,
+      latestSuccess: success,
+    );
+  }
+
+  @override
+  Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason) async =>
+      AssignmentDashboardRefreshSuccess(_cache.targetKey);
+
+  @override
+  Stream<AssignmentDashboardCache> watchCached() => Stream.value(_cache);
 }
 
 Future<void> _resize(

@@ -12,6 +12,9 @@ import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
+import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
@@ -258,7 +261,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
         expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
         await tester.tap(find.text('Reconnect'));
         await tester.pumpAndSettle();
@@ -279,7 +285,10 @@ void main() {
 
         expect(service.cookieCalls, 1);
         expect(controller.stage, AppFlowStage.ready);
-        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -400,7 +409,10 @@ void main() {
 
         expect(semesterService.selectCalls, 1);
         expect(controller.stage, AppFlowStage.ready);
-        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -431,7 +443,10 @@ void main() {
 
       expect(semesterService.selectCalls, 1);
       expect(controller.stage, AppFlowStage.ready);
-      expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+      expect(
+        find.byKey(const Key('assignment-dashboard-list')),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
@@ -566,7 +581,14 @@ void main() {
       for (final destination in AppDestination.values) {
         router.go(destination.route.path);
         await tester.pumpAndSettle();
-        if (destination == AppDestination.courses) {
+        if (destination == AppDestination.assignments) {
+          expect(
+            find.byKey(const Key('assignment-dashboard-list')),
+            findsOneWidget,
+          );
+          expect(find.text('Router assignment'), findsOneWidget);
+          expect(find.byKey(const Key('assignments-surface')), findsNothing);
+        } else if (destination == AppDestination.courses) {
           expect(find.text('Course controls'), findsOneWidget);
           expect(find.text('Router course'), findsOneWidget);
           expect(find.byKey(const Key('courses-surface')), findsNothing);
@@ -635,7 +657,10 @@ void main() {
       await tester.tap(find.text('Open assignments'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+      expect(
+        find.byKey(const Key('assignment-dashboard-list')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('disposed router removes its controller listener', (
@@ -694,6 +719,9 @@ class _RouterHarness extends StatelessWidget {
         coursePreferencesServiceProvider.overrideWith(
           (_) =>
               courseServiceLoader?.call() ?? _RouteCoursePreferencesService(),
+        ),
+        assignmentDashboardServiceProvider.overrideWith(
+          (_) => _RouteAssignmentDashboardService(lifecycle: lifecycle),
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
@@ -789,6 +817,52 @@ final class _RouteCoursePreferencesService implements CoursePreferencesService {
       ),
     );
   }
+}
+
+final class _RouteAssignmentDashboardService
+    implements AssignmentDashboardService {
+  _RouteAssignmentDashboardService({required this.lifecycle});
+
+  final SessionLifecycleSnapshot lifecycle;
+
+  AssignmentDashboardCache get _cache {
+    final success = AssignmentDashboardSyncRun(
+      outcome: AssignmentDashboardSyncOutcome.success,
+      startedAtUtc: DateTime.utc(2026, 7, 26),
+      completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
+      failureCategory: null,
+    );
+    return AssignmentDashboardCache(
+      activeSemesterId: 101,
+      session: lifecycle,
+      courses: const [
+        AssignmentDashboardCourse(id: 3001, name: 'Router course'),
+      ],
+      assignments: [
+        CachedAssignment(
+          semesterId: 101,
+          identityKey: 'backend:1001',
+          courseId: 3001,
+          courseName: 'Router course',
+          title: 'Router assignment',
+          activityType: 'ASM',
+          dueDateSource: '2026-08-01T12:00:00Z',
+          dueDateExceed: false,
+          firstSeenAtUtc: DateTime.utc(2026, 7, 26),
+          isBaseline: true,
+        ),
+      ],
+      latestAttempt: success,
+      latestSuccess: success,
+    );
+  }
+
+  @override
+  Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason) async =>
+      AssignmentDashboardRefreshSuccess(_cache.targetKey);
+
+  @override
+  Stream<AssignmentDashboardCache> watchCached() => Stream.value(_cache);
 }
 
 final class _RouteSessionSetupService implements SessionSetupService {

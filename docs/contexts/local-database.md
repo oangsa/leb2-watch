@@ -62,6 +62,12 @@ and selection transactionally, merges verified IDs insert-only, and compares
 the captured session lifecycle inside the same transaction before persisting a
 network result.
 
+`DriftAssignmentDashboardStore` is a feature-owned read adapter over the
+existing schema. It observes app settings, current courses/activities,
+first-seen ledger evidence, and bounded sync history, then resolves each
+emission in one read transaction. It adds no table, column, index, or
+migration.
+
 ## Important files
 
 - `lib/src/core/database/database_tables.dart` — fourteen table definitions,
@@ -93,6 +99,11 @@ network result.
   transactional semester catalog and active-selection adapter.
 - `test/features/semesters/data/semester_selection_store_test.dart` —
   semester merge, preservation, rollback, and lifecycle-fence tests.
+- `lib/src/features/assignments/dashboard/data/assignment_dashboard_store.dart`
+  — current-only, display-safe dashboard projection.
+- `test/features/assignments/dashboard/data/assignment_dashboard_store_test.dart`
+  — coherent cache, history, switching, rollback, immutability, and redaction
+  tests.
 
 ## Contracts and interfaces
 
@@ -374,6 +385,7 @@ database hashes stayed unchanged, and the Linux release build succeeded.
 
 ## Related contexts
 
+- [Local-First Assignment Dashboard](assignment-dashboard.md)
 - [Assignment Synchronization](assignment-synchronization.md)
 - [Assignment Diffing](assignment-diffing.md)
 - [Synchronization Backoff](synchronization-backoff.md)

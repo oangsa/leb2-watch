@@ -8,6 +8,7 @@ import '../design_system/widgets/app_state_view.dart';
 import '../shell/adaptive_app_shell.dart';
 import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
+import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
 import '../../features/semesters/presentation/semester_selection_route.dart';
@@ -61,12 +62,15 @@ GoRouter createAppRouter(
                 GoRoute(
                   name: destination.route.name,
                   path: destination.route.path,
-                  builder: (_, _) => destination == AppDestination.courses
-                      ? const CoursePreferencesRoute()
-                      : AppPlaceholderSurface(
-                          key: Key('${destination.name}-surface'),
-                          label: destination.label,
-                        ),
+                  builder: (_, _) => switch (destination) {
+                    AppDestination.assignments =>
+                      const AssignmentDashboardRoute(),
+                    AppDestination.courses => const CoursePreferencesRoute(),
+                    _ => AppPlaceholderSurface(
+                      key: Key('${destination.name}-surface'),
+                      label: destination.label,
+                    ),
+                  },
                 ),
               ],
             ),

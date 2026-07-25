@@ -43,7 +43,8 @@ clear path to verify a replacement session.
 - Deleting an expired cookie or cached user data.
 - Android WorkManager, iOS BGTaskScheduler, or desktop timer cancellation.
 - Notification scheduling or cancellation.
-- Semester selection and the assignment dashboard, which are later features.
+- Semester-selection and assignment-dashboard implementation details; this
+  feature supplies their durable lifecycle contract and global shell banner.
 - Switching accounts while another account's cached data remains.
 - Interpreting any response other than verified `401 SESSION_EXPIRED` as
   expiration.
@@ -392,9 +393,8 @@ removed and is ignored.
 
 - Native background scheduling is not implemented, so there is no platform job
   registration to cancel yet.
-- The current assignments route is the truthful shell placeholder until the
-  local-first dashboard feature lands. Database preservation and continued
-  route visibility are tested; a populated dashboard cannot yet be rendered.
+- The local-first dashboard now renders populated saved assignments underneath
+  the global expired-session banner and disables its refresh action.
 - The app-flow stage remains in memory. Lifecycle state itself is durable and
   independently gates synchronization.
 - Revision exhaustion at int32 maximum fails closed and requires future
@@ -406,8 +406,8 @@ removed and is ignored.
 
 - Native scheduler features must stop rescheduling after
   `SyncPausedForSession` and resume only after verified activation.
-- The assignment dashboard should render the same cached query underneath this
-  shell banner.
+- Future assignment-detail routes must preserve the same global banner and
+  cached-data visibility.
 - Diagnostics should report expired/paused state without sensitive transport
   evidence.
 - Automatic reauthentication must reuse the candidate-verification and
@@ -415,6 +415,7 @@ removed and is ignored.
 
 ## Related contexts
 
+- [Local-First Assignment Dashboard](assignment-dashboard.md)
 - [Backend API Contract](backend-api-contract.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Session Setup and Verification](session-setup.md)

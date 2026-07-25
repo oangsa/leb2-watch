@@ -11,6 +11,8 @@ import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
+import '../features/assignments/dashboard/application/assignment_dashboard_service.dart';
+import '../features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
 import '../features/courses/application/course_preferences_service.dart';
@@ -104,6 +106,19 @@ final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
     database: database,
   );
 });
+
+final assignmentDashboardStoreProvider =
+    FutureProvider<AssignmentDashboardStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftAssignmentDashboardStore(database);
+    });
+
+final assignmentDashboardServiceProvider =
+    FutureProvider<AssignmentDashboardService>((ref) async {
+      final store = await ref.watch(assignmentDashboardStoreProvider.future);
+      final syncService = await ref.watch(assignmentSyncServiceProvider.future);
+      return LocalAssignmentDashboardService(store, syncService);
+    });
 
 final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
   ref,

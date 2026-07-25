@@ -28,8 +28,8 @@ completed.
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
   shortcuts.
-- Safe route-error, session-setup, semester-selection, course-preferences, and remaining
-  label-only placeholder surfaces.
+- Safe route-error, session-setup, semester-selection, assignment-dashboard,
+  course-preferences, and remaining label-only placeholder surfaces.
 - A global status slot that preserves route content in all three layouts.
 - Ready-stage reauthentication access and return-to-assignments recovery.
 - One restrained `Change semester` action in shared ready-shell content.
@@ -38,7 +38,7 @@ completed.
 
 ## Non-scope
 
-- Real assignment, settings, diagnostics, or privacy behavior.
+- Real settings, diagnostics, or privacy behavior.
 - Persisting the temporary application-flow stage.
 - Preserving a blocked deep-link target through the incomplete flow.
 - Credential, notification, or native background services.
@@ -113,6 +113,9 @@ advances to ready assignments, while ready-user changes preserve the ready
 stage. A ready-user recovery keeps the flow ready and navigates back to
 `/assignments`. Feature 10.2 replaces the courses placeholder with
 `CoursePreferencesRoute`, which opens only local saved data.
+Feature 11.1 replaces the assignments placeholder with
+`AssignmentDashboardRoute`; the stateful branch now preserves the real
+local-first worklist and its filters while navigation changes.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -457,15 +460,15 @@ passed 96/96 after adding compact and expanded ready-user reachability.
 - The `Change semester` action uses location replacement rather than a pushed
   overlay because the current stateful-branch context cannot push that
   top-level sibling. The selection route has no separate cancel action.
-- Remaining product route surfaces are honest labels only; their real
-  workflows belong to later features.
+- Settings and diagnostics remain honest labels only; their real workflows
+  belong to later features.
 - There are no nested branch routes yet, so indexed-stack branch-history
   behavior is established architecturally but only selected-branch persistence
   is observable in this feature.
 
 ## Future considerations
 
-- Replace each remaining placeholder builder in its owning product feature
+- Replace each remaining settings/diagnostics placeholder in its owning feature
   without changing route names or shell destination order.
 - Derive the flow stage from completed onboarding, verified session, and active
   semester state.

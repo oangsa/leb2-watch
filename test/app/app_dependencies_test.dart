@@ -13,6 +13,8 @@ import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
@@ -77,6 +79,18 @@ void main() {
       final syncService = await container.read(
         assignmentSyncServiceProvider.future,
       );
+      final firstDashboardStore = await container.read(
+        assignmentDashboardStoreProvider.future,
+      );
+      final secondDashboardStore = await container.read(
+        assignmentDashboardStoreProvider.future,
+      );
+      final firstDashboardService = await container.read(
+        assignmentDashboardServiceProvider.future,
+      );
+      final secondDashboardService = await container.read(
+        assignmentDashboardServiceProvider.future,
+      );
       final firstSemesterStore = await container.read(
         semesterSelectionStoreProvider.future,
       );
@@ -111,6 +125,10 @@ void main() {
       expect(secondService, same(firstService));
       expect(lifecycle, SessionLifecycleSnapshot.initial);
       expect(syncService, isNotNull);
+      expect(firstDashboardStore, isA<DriftAssignmentDashboardStore>());
+      expect(secondDashboardStore, same(firstDashboardStore));
+      expect(firstDashboardService, isA<LocalAssignmentDashboardService>());
+      expect(secondDashboardService, same(firstDashboardService));
       expect(firstSemesterStore, isA<DriftSemesterSelectionStore>());
       expect(secondSemesterStore, same(firstSemesterStore));
       expect(firstSemesterService, isA<LocalSemesterSelectionService>());
