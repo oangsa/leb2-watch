@@ -2,7 +2,7 @@
 
 ## Status
 
-Completed for schema version 6, including ordered v1/v2/v3/v4/v5-to-v6
+Completed for schema version 7, including ordered v1/v2/v3/v4/v5/v6-to-v7
 migration, generated Drift source, in-memory relational tests, and real
 file-backed migration and independent-connection tests. Linux remains the only
 build-verified native target on this host.
@@ -15,14 +15,14 @@ connections one durable coordination record for single-flight synchronization.
 
 ## Scope
 
-- Thirteen Drift tables covering snapshots, baselines, seen identity, reminders,
+- Fourteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
   notification/change and sync history, settings, and synchronization
   operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
 - Foreign keys, state checks, partial unique indices, query indices, and
   bounded history/operation retention.
-- Honest ordered migration from frozen v1/v2/v3 schemas and an explicit
-  pre-v5 v4 app-settings fixture.
+- Honest ordered migration from frozen v1/v2/v3 schemas and explicit pre-v5,
+  pre-v6, and pre-v7 fixtures.
 - A non-secret positive numeric LEB2 user ID in the singleton app-settings row.
 - Background SQLite opening with WAL, foreign keys, a 5-second busy timeout,
   disabled statement logging, and no read pool.
@@ -64,9 +64,9 @@ network result.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — thirteen table definitions,
+- `lib/src/core/database/database_tables.dart` — fourteen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 6, migration,
+- `lib/src/core/database/app_database.dart` — schema version 7, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -84,6 +84,8 @@ network result.
 - `test/core/database/v4_app_database.g.dart` — generated v4 fixture support.
 - `test/core/database/v5_app_database.dart` — frozen physical v5 schema.
 - `test/core/database/v5_app_database.g.dart` — generated v5 fixture support.
+- `test/core/database/v6_app_database.dart` — frozen physical v6 schema.
+- `test/core/database/v6_app_database.g.dart` — generated v6 fixture support.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
@@ -94,9 +96,9 @@ network result.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `6`. Fresh databases call `createAll`.
-Supported upgrades are exactly `1 -> 6`, `2 -> 6`, `3 -> 6`, `4 -> 6`, and
-`5 -> 6`,
+`AppDatabase.schemaVersion` is `7`. Fresh databases call `createAll`.
+Supported upgrades are exactly `1 -> 7`, `2 -> 7`, `3 -> 7`, `4 -> 7`,
+`5 -> 7`, and `6 -> 7`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -145,7 +147,12 @@ Schema v6 adds checked `app_settings.session_lifecycle` and
 and revision are bounded local coordination state. The operation revision
 fences late responses from credentials that have since been replaced.
 
-Feature 10.1 uses this schema unchanged. Semester refresh inserts positive
+Schema v7 adds `course_preferences`, keyed by semester and course ID, with
+notification-unmuted and background-monitoring-enabled defaults. The semester
+foreign key cascades intentional semester deletion. There is no current-course
+foreign key, so preferences survive course removal and reappearance.
+
+Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
 backend contract does not define authoritative removal and the semester
 foreign key owns cached course, activity, notification, and synchronization
@@ -201,6 +208,8 @@ any exact row; a different known user's row cannot expire the known current
 user. Backoff rows remain intact. A real v1 upgrade already creates the current
 `sync_operations` shape during its v1-to-v2 step, so the final migration avoids
 adding the operation revision twice.
+The v6-to-v7 step creates only `course_preferences`; older migrations run
+their ordered steps first and then create the same table.
 
 ## Platform behavior
 
@@ -236,6 +245,8 @@ nullable retry duration. File deletion remains limited to
 - Keep source date strings unchanged until timezone semantics are verified.
 - Keep semester refresh insert-only until the backend defines authoritative
   removal semantics.
+- Own course preferences beneath a semester but not beneath the replaceable
+  current-course snapshot.
 - Use an explicit baseline row because an empty first snapshot has no seen row.
 - Own reminders under durable seen identity so removal does not erase the
   notification ID before reconciliation.
@@ -265,7 +276,7 @@ bounded non-retryable failure without storing the SQLite message.
 
 Database tests cover:
 
-- fresh thirteen-table v6 creation, all named indices, foreign keys, and busy
+- fresh fourteen-table v7 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -273,8 +284,9 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen physical v3/v4/v5 databases upgraded in place to v6
-  with assignment, seen, reminder, operation, and history rows preserved,
+- real v1, v2, and frozen physical v3/v4/v5/v6 databases upgraded in place to
+  v7 with assignment, seen, fingerprint, reminder, notification, sync-run,
+  operation, baseline, operation-change, and backoff rows preserved,
   empty baseline recovery, correct lifecycle/revision defaults or conservative
   exact-expiration state, and clean `foreign_key_check`;
 - frozen-v5 matching-user, null-current-user, and mismatched-known-user
@@ -320,6 +332,17 @@ verified deterministic reads, partial settings updates, insert-only merge,
 preservation of every semester-owned table, lifecycle-fenced discard, and
 transaction rollback.
 
+Feature 10.2 raised the live schema to v7 and verified fresh defaults,
+constraints, credential-column absence, and real v1/v2/v3/v4/v5/v6-to-v7
+migrations. Its focused schema, migration, course-store, service, and policy
+suite passed 48/48. Independent validation strengthened the exact frozen v6
+case with a connected row graph across all thirteen prior tables; every row
+and important field survived the additive v7 migration, the new preference
+table began empty, and constraints, cascade behavior, and foreign keys
+remained valid. The complete file-backed migration suite passed 12/12, the full
+Flutter suite remained 437/437, both strict analyzers passed, generated
+database hashes stayed unchanged, and the Linux release build succeeded.
+
 ## Known limitations
 
 - Lease recovery cannot mathematically prevent a second GET after an owner is
@@ -334,7 +357,7 @@ transaction rollback.
 - Snapshot state remains semester-scoped rather than account-scoped.
 - Drift runtime/development preview-schema versions remain mismatched, so
   normal generation works but CLI schema export does not.
-- Frozen v4 and v5 fixtures build their historical added tables with explicit
+- Frozen v4, v5, and v6 fixtures build their historical added tables with explicit
   SQL over frozen v2 Dart definitions. They validate the physical schema but
   do not expose generated typed APIs for every historical table.
 - Android, iOS, macOS, and Windows database runtime behavior is not verified on
@@ -359,3 +382,4 @@ transaction rollback.
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Session Expiration Recovery](session-expiration.md)
 - [Semester Selection](semester-selection.md)
+- [Course Preferences](course-preferences.md)

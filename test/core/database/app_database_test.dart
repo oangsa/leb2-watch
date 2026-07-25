@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 6', () {
+  group('schema version 7', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,12 +29,13 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 6);
+        expect(database.schemaVersion, 7);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
           'app_settings',
           'assignment_baselines',
+          'course_preferences',
           'courses',
           'notification_history',
           'scheduled_reminders',
@@ -45,7 +46,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 6);
+        expect(await _pragmaInt(database, 'user_version'), 7);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -124,6 +125,56 @@ void main() {
           expect(entry.column, isNot(contains(fragment)));
         }
       }
+    });
+
+    test('enforces course preference ownership and defaults', () async {
+      await _insertSemesterAndCourse(database);
+
+      await database
+          .into(database.coursePreferences)
+          .insert(
+            CoursePreferencesCompanion.insert(semesterId: 101, courseId: 3001),
+          );
+      final preference = await database
+          .select(database.coursePreferences)
+          .getSingle();
+      expect(preference.notificationsMuted, isFalse);
+      expect(preference.backgroundMonitoringEnabled, isTrue);
+
+      for (final values in [(0, 3001), (101, 0), (-1, 3001), (101, -1)]) {
+        await expectLater(
+          database.customStatement(
+            'INSERT INTO course_preferences '
+            '(semester_id, course_id) VALUES (?, ?)',
+            [values.$1, values.$2],
+          ),
+          throwsException,
+        );
+      }
+
+      await database.delete(database.courses).go();
+      expect(
+        await database.select(database.coursePreferences).get(),
+        hasLength(1),
+        reason: 'temporarily absent courses retain their preferences',
+      );
+      await database
+          .into(database.courses)
+          .insert(
+            CoursesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              name: 'Reappeared Course',
+            ),
+          );
+      expect(
+        (await database.select(database.coursePreferences).getSingle())
+            .notificationsMuted,
+        isFalse,
+      );
+
+      await database.delete(database.semesters).go();
+      expect(await database.select(database.coursePreferences).get(), isEmpty);
     });
 
     test('constrains lifecycle state and session revisions', () async {

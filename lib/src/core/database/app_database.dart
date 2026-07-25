@@ -12,6 +12,7 @@ const sqliteBusyTimeout = Duration(seconds: 5);
   tables: [
     Semesters,
     Courses,
+    CoursePreferences,
     Activities,
     SeenActivities,
     ActivityFingerprints,
@@ -31,14 +32,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) => migrator.createAll(),
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 5 || to != 6) {
+        if (from < 1 || from > 6 || to != 7) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -55,7 +56,10 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 4) {
           await _migrateFrom4To5();
         }
-        await _migrateFrom5To6(addSyncOperationRevision: from != 1);
+        if (from <= 5) {
+          await _migrateFrom5To6(addSyncOperationRevision: from != 1);
+        }
+        await migrator.createTable(coursePreferences);
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');

@@ -13,6 +13,8 @@ import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
+import '../features/courses/application/course_preferences_service.dart';
+import '../features/courses/data/course_preferences_store.dart';
 import '../features/semesters/application/semester_selection_service.dart';
 import '../features/semesters/data/semester_selection_store.dart';
 
@@ -134,4 +136,23 @@ final semesterSelectionServiceProvider =
         store,
         lifecycleStore,
       );
+    });
+
+final coursePreferencesStoreProvider = FutureProvider<CoursePreferencesStore>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return DriftCoursePreferencesStore(database);
+});
+
+final coursePreferencesServiceProvider =
+    FutureProvider<CoursePreferencesService>((ref) async {
+      final store = await ref.watch(coursePreferencesStoreProvider.future);
+      return LocalCoursePreferencesService(store);
+    });
+
+final courseEffectPolicyReaderProvider =
+    FutureProvider<CourseEffectPolicyReader>((ref) async {
+      final service = await ref.watch(coursePreferencesServiceProvider.future);
+      return service as CourseEffectPolicyReader;
     });

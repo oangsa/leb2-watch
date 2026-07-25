@@ -28,7 +28,7 @@ completed.
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
   shortcuts.
-- Safe route-error, session-setup, semester-selection, and remaining
+- Safe route-error, session-setup, semester-selection, course-preferences, and remaining
   label-only placeholder surfaces.
 - A global status slot that preserves route content in all three layouts.
 - Ready-stage reauthentication access and return-to-assignments recovery.
@@ -38,7 +38,7 @@ completed.
 
 ## Non-scope
 
-- Real assignment, course, settings, diagnostics, or privacy behavior.
+- Real assignment, settings, diagnostics, or privacy behavior.
 - Persisting the temporary application-flow stage.
 - Preserving a blocked deep-link target through the incomplete flow.
 - Credential, notification, or native background services.
@@ -52,7 +52,8 @@ The application opens on the real `PrivacyOnboardingPage` now owned by Feature
 9.1. The shell's process-local guard remains responsible for keeping users at
 the current flow gate. Authentication and semester-selection stages each
 permit only their matching gate and the privacy page. A ready user lands on
-assignments and may move among assignments, courses, settings, and diagnostics.
+assignments and may move among assignments, the real local course-controls
+route, settings, and diagnostics.
 A ready user may also open the real semester-selection route to change the
 active local semester. A semantically labeled icon action is shown at the
 upper-right of shell content on compact, medium, and expanded layouts.
@@ -110,7 +111,8 @@ router redirects to `/semesters` without reconstruction. Feature 10.1 replaces
 that route's placeholder with `SemesterSelectionRoute`; initial selection
 advances to ready assignments, while ready-user changes preserve the ready
 stage. A ready-user recovery keeps the flow ready and navigates back to
-`/assignments`.
+`/assignments`. Feature 10.2 replaces the courses placeholder with
+`CoursePreferencesRoute`, which opens only local saved data.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -145,6 +147,8 @@ route child rather than replacing it.
   transition.
 - `lib/src/features/semesters/presentation/semester_selection_route.dart` —
   real semester route, provider states, and initial/ready flow transitions.
+- `lib/src/features/courses/presentation/course_preferences_route.dart` —
+  real local course route with provider loading, error, and retry states.
 - `lib/src/app/shell/adaptive_app_shell.dart` — compact, medium, and expanded
   navigation plus the route-preserving global banner slot.
 - `lib/src/app/design_system/widgets/app_status_banner.dart` — warning banner,

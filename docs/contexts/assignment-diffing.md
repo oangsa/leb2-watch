@@ -43,6 +43,10 @@ changes only after the complete database transaction commits. Repeated
 snapshots do not report duplicates, and a previously seen assignment that
 reappears is not treated as never seen.
 
+Feature 10.2 reads current `seen_activities.is_baseline = false` rows as the
+truthful per-course post-baseline activity count. It does not reinterpret that
+durable discovery evidence as unread state.
+
 ## Architecture
 
 `AssignmentSyncService` remains the small public seam. `SyncSuccess` now owns
@@ -116,6 +120,10 @@ Scheduled reminders now reference `seen_activities`, not current
 `activities`. An unchanged reminder survives snapshot upsert; a deadline
 change or removal retains its notification ID and sets the reconciliation
 flag.
+
+The course-preferences catalog reads current activities only. Its upcoming
+count requires a non-null saved deadline source and `due_date_exceed = false`;
+it does not parse source dates or apply a live clock.
 
 ## State and control flow
 
@@ -296,3 +304,4 @@ recorded in the worker handoff for this feature.
 - [Backend API Contract](backend-api-contract.md)
 - [Backend API Client](backend-api-client.md)
 - [API Error Mapping](api-error-mapping.md)
+- [Course Preferences](course-preferences.md)

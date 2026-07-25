@@ -12,6 +12,8 @@ import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
+import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
@@ -511,6 +513,47 @@ void main() {
       },
     );
 
+    testWidgets(
+      'course route exposes bounded loading and redacted initialization error',
+      (tester) async {
+        final pending = Completer<CoursePreferencesService>();
+        var loadCalls = 0;
+        final controller = AppFlowController(initialStage: AppFlowStage.ready);
+        final router = createAppRouter(
+          controller,
+          initialLocation: AppRoute.courses.path,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            courseServiceLoader: () {
+              loadCalls += 1;
+              if (loadCalls == 1) {
+                return pending.future;
+              }
+              return _RouteCoursePreferencesService();
+            },
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Preparing course controls'), findsOneWidget);
+
+        pending.completeError(StateError('<PRIVATE_COURSE_ERROR>'));
+        await tester.pumpAndSettle();
+        expect(find.text('Course controls unavailable'), findsOneWidget);
+        expect(find.textContaining('<PRIVATE_COURSE_ERROR>'), findsNothing);
+        expect(find.text('Retry'), findsOneWidget);
+
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(loadCalls, 2);
+        expect(find.text('Course controls'), findsOneWidget);
+      },
+    );
+
     testWidgets('ready stage reaches every shell branch', (tester) async {
       final controller = AppFlowController(initialStage: AppFlowStage.ready);
       final router = createAppRouter(controller);
@@ -523,8 +566,48 @@ void main() {
       for (final destination in AppDestination.values) {
         router.go(destination.route.path);
         await tester.pumpAndSettle();
-        expect(find.byKey(Key('${destination.name}-surface')), findsOneWidget);
+        if (destination == AppDestination.courses) {
+          expect(find.text('Course controls'), findsOneWidget);
+          expect(find.text('Router course'), findsOneWidget);
+          expect(find.byKey(const Key('courses-surface')), findsNothing);
+        } else {
+          expect(
+            find.byKey(Key('${destination.name}-surface')),
+            findsOneWidget,
+          );
+        }
       }
+    });
+
+    testWidgets('expired banner coexists with usable cached course controls', (
+      tester,
+    ) async {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final router = createAppRouter(
+        controller,
+        initialLocation: AppRoute.courses.path,
+      );
+      final courseService = _RouteCoursePreferencesService();
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _RouterHarness(
+          router: router,
+          courseServiceLoader: () => courseService,
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 3,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+      expect(find.text('Router course'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('course-mute-3001')));
+      await tester.pump();
+      expect(courseService.muteCalls, 1);
     });
 
     testWidgets('unknown ready route renders only the safe error surface', (
@@ -581,6 +664,7 @@ class _RouterHarness extends StatelessWidget {
     this.flowController,
     this.sessionServiceLoader,
     this.semesterServiceLoader,
+    this.courseServiceLoader,
     this.lifecycle = const SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: 1,
@@ -591,6 +675,7 @@ class _RouterHarness extends StatelessWidget {
   final AppFlowController? flowController;
   final FutureOr<SessionSetupService> Function()? sessionServiceLoader;
   final FutureOr<SemesterSelectionService> Function()? semesterServiceLoader;
+  final FutureOr<CoursePreferencesService> Function()? courseServiceLoader;
   final SessionLifecycleSnapshot lifecycle;
 
   @override
@@ -605,6 +690,10 @@ class _RouterHarness extends StatelessWidget {
         semesterSelectionServiceProvider.overrideWith(
           (_) =>
               semesterServiceLoader?.call() ?? _RouteSemesterSelectionService(),
+        ),
+        coursePreferencesServiceProvider.overrideWith(
+          (_) =>
+              courseServiceLoader?.call() ?? _RouteCoursePreferencesService(),
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
@@ -660,6 +749,43 @@ final class _RouteSemesterSelectionService implements SemesterSelectionService {
       SemesterCatalog(
         semesterIds: const [202, 101],
         activeSemesterId: semesterId,
+      ),
+    );
+  }
+}
+
+final class _RouteCoursePreferencesService implements CoursePreferencesService {
+  int muteCalls = 0;
+
+  @override
+  Future<CoursePreferenceUpdateResult> setBackgroundMonitoringEnabled(
+    CourseKey key, {
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setNotificationsMuted(
+    CourseKey key, {
+    required bool muted,
+  }) async {
+    muteCalls += 1;
+    return const CoursePreferenceUpdateFailure();
+  }
+
+  @override
+  Stream<ActiveCourseCatalog> watchCatalog() {
+    return Stream.value(
+      ActiveCourseCatalog(
+        activeSemesterId: 101,
+        courses: const [
+          CourseSummary(
+            key: CourseKey(semesterId: 101, courseId: 3001),
+            name: 'Router course',
+            postBaselineActivityCount: 0,
+            notReportedExceededDeadlineCount: 0,
+            preference: CoursePreference(),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'app_database.dart';
+part of 'v6_app_database.dart';
 
 // ignore_for_file: type=lint
 class $SemestersTable extends Semesters
@@ -405,357 +405,6 @@ class CoursesCompanion extends UpdateCompanion<Course> {
           ..write('semesterId: $semesterId, ')
           ..write('courseId: $courseId, ')
           ..write('name: $name, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $CoursePreferencesTable extends CoursePreferences
-    with TableInfo<$CoursePreferencesTable, CoursePreference> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $CoursePreferencesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _courseIdMeta = const VerificationMeta(
-    'courseId',
-  );
-  @override
-  late final GeneratedColumn<int> courseId = GeneratedColumn<int>(
-    'course_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _notificationsMutedMeta =
-      const VerificationMeta('notificationsMuted');
-  @override
-  late final GeneratedColumn<bool> notificationsMuted = GeneratedColumn<bool>(
-    'notifications_muted',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("notifications_muted" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _backgroundMonitoringEnabledMeta =
-      const VerificationMeta('backgroundMonitoringEnabled');
-  @override
-  late final GeneratedColumn<bool> backgroundMonitoringEnabled =
-      GeneratedColumn<bool>(
-        'background_monitoring_enabled',
-        aliasedName,
-        false,
-        type: DriftSqlType.bool,
-        requiredDuringInsert: false,
-        defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("background_monitoring_enabled" IN (0, 1))',
-        ),
-        defaultValue: const Constant(true),
-      );
-  @override
-  List<GeneratedColumn> get $columns => [
-    semesterId,
-    courseId,
-    notificationsMuted,
-    backgroundMonitoringEnabled,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'course_preferences';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<CoursePreference> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('course_id')) {
-      context.handle(
-        _courseIdMeta,
-        courseId.isAcceptableOrUnknown(data['course_id']!, _courseIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_courseIdMeta);
-    }
-    if (data.containsKey('notifications_muted')) {
-      context.handle(
-        _notificationsMutedMeta,
-        notificationsMuted.isAcceptableOrUnknown(
-          data['notifications_muted']!,
-          _notificationsMutedMeta,
-        ),
-      );
-    }
-    if (data.containsKey('background_monitoring_enabled')) {
-      context.handle(
-        _backgroundMonitoringEnabledMeta,
-        backgroundMonitoringEnabled.isAcceptableOrUnknown(
-          data['background_monitoring_enabled']!,
-          _backgroundMonitoringEnabledMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {semesterId, courseId};
-  @override
-  CoursePreference map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return CoursePreference(
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      courseId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}course_id'],
-      )!,
-      notificationsMuted: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}notifications_muted'],
-      )!,
-      backgroundMonitoringEnabled: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}background_monitoring_enabled'],
-      )!,
-    );
-  }
-
-  @override
-  $CoursePreferencesTable createAlias(String alias) {
-    return $CoursePreferencesTable(attachedDatabase, alias);
-  }
-}
-
-class CoursePreference extends DataClass
-    implements Insertable<CoursePreference> {
-  final int semesterId;
-  final int courseId;
-  final bool notificationsMuted;
-  final bool backgroundMonitoringEnabled;
-  const CoursePreference({
-    required this.semesterId,
-    required this.courseId,
-    required this.notificationsMuted,
-    required this.backgroundMonitoringEnabled,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['semester_id'] = Variable<int>(semesterId);
-    map['course_id'] = Variable<int>(courseId);
-    map['notifications_muted'] = Variable<bool>(notificationsMuted);
-    map['background_monitoring_enabled'] = Variable<bool>(
-      backgroundMonitoringEnabled,
-    );
-    return map;
-  }
-
-  CoursePreferencesCompanion toCompanion(bool nullToAbsent) {
-    return CoursePreferencesCompanion(
-      semesterId: Value(semesterId),
-      courseId: Value(courseId),
-      notificationsMuted: Value(notificationsMuted),
-      backgroundMonitoringEnabled: Value(backgroundMonitoringEnabled),
-    );
-  }
-
-  factory CoursePreference.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return CoursePreference(
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      courseId: serializer.fromJson<int>(json['courseId']),
-      notificationsMuted: serializer.fromJson<bool>(json['notificationsMuted']),
-      backgroundMonitoringEnabled: serializer.fromJson<bool>(
-        json['backgroundMonitoringEnabled'],
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'semesterId': serializer.toJson<int>(semesterId),
-      'courseId': serializer.toJson<int>(courseId),
-      'notificationsMuted': serializer.toJson<bool>(notificationsMuted),
-      'backgroundMonitoringEnabled': serializer.toJson<bool>(
-        backgroundMonitoringEnabled,
-      ),
-    };
-  }
-
-  CoursePreference copyWith({
-    int? semesterId,
-    int? courseId,
-    bool? notificationsMuted,
-    bool? backgroundMonitoringEnabled,
-  }) => CoursePreference(
-    semesterId: semesterId ?? this.semesterId,
-    courseId: courseId ?? this.courseId,
-    notificationsMuted: notificationsMuted ?? this.notificationsMuted,
-    backgroundMonitoringEnabled:
-        backgroundMonitoringEnabled ?? this.backgroundMonitoringEnabled,
-  );
-  CoursePreference copyWithCompanion(CoursePreferencesCompanion data) {
-    return CoursePreference(
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      courseId: data.courseId.present ? data.courseId.value : this.courseId,
-      notificationsMuted: data.notificationsMuted.present
-          ? data.notificationsMuted.value
-          : this.notificationsMuted,
-      backgroundMonitoringEnabled: data.backgroundMonitoringEnabled.present
-          ? data.backgroundMonitoringEnabled.value
-          : this.backgroundMonitoringEnabled,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('CoursePreference(')
-          ..write('semesterId: $semesterId, ')
-          ..write('courseId: $courseId, ')
-          ..write('notificationsMuted: $notificationsMuted, ')
-          ..write('backgroundMonitoringEnabled: $backgroundMonitoringEnabled')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    semesterId,
-    courseId,
-    notificationsMuted,
-    backgroundMonitoringEnabled,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is CoursePreference &&
-          other.semesterId == this.semesterId &&
-          other.courseId == this.courseId &&
-          other.notificationsMuted == this.notificationsMuted &&
-          other.backgroundMonitoringEnabled ==
-              this.backgroundMonitoringEnabled);
-}
-
-class CoursePreferencesCompanion extends UpdateCompanion<CoursePreference> {
-  final Value<int> semesterId;
-  final Value<int> courseId;
-  final Value<bool> notificationsMuted;
-  final Value<bool> backgroundMonitoringEnabled;
-  final Value<int> rowid;
-  const CoursePreferencesCompanion({
-    this.semesterId = const Value.absent(),
-    this.courseId = const Value.absent(),
-    this.notificationsMuted = const Value.absent(),
-    this.backgroundMonitoringEnabled = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  CoursePreferencesCompanion.insert({
-    required int semesterId,
-    required int courseId,
-    this.notificationsMuted = const Value.absent(),
-    this.backgroundMonitoringEnabled = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : semesterId = Value(semesterId),
-       courseId = Value(courseId);
-  static Insertable<CoursePreference> custom({
-    Expression<int>? semesterId,
-    Expression<int>? courseId,
-    Expression<bool>? notificationsMuted,
-    Expression<bool>? backgroundMonitoringEnabled,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (semesterId != null) 'semester_id': semesterId,
-      if (courseId != null) 'course_id': courseId,
-      if (notificationsMuted != null) 'notifications_muted': notificationsMuted,
-      if (backgroundMonitoringEnabled != null)
-        'background_monitoring_enabled': backgroundMonitoringEnabled,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  CoursePreferencesCompanion copyWith({
-    Value<int>? semesterId,
-    Value<int>? courseId,
-    Value<bool>? notificationsMuted,
-    Value<bool>? backgroundMonitoringEnabled,
-    Value<int>? rowid,
-  }) {
-    return CoursePreferencesCompanion(
-      semesterId: semesterId ?? this.semesterId,
-      courseId: courseId ?? this.courseId,
-      notificationsMuted: notificationsMuted ?? this.notificationsMuted,
-      backgroundMonitoringEnabled:
-          backgroundMonitoringEnabled ?? this.backgroundMonitoringEnabled,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (courseId.present) {
-      map['course_id'] = Variable<int>(courseId.value);
-    }
-    if (notificationsMuted.present) {
-      map['notifications_muted'] = Variable<bool>(notificationsMuted.value);
-    }
-    if (backgroundMonitoringEnabled.present) {
-      map['background_monitoring_enabled'] = Variable<bool>(
-        backgroundMonitoringEnabled.value,
-      );
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('CoursePreferencesCompanion(')
-          ..write('semesterId: $semesterId, ')
-          ..write('courseId: $courseId, ')
-          ..write('notificationsMuted: $notificationsMuted, ')
-          ..write('backgroundMonitoringEnabled: $backgroundMonitoringEnabled, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3563,20 +3212,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
       ).withConverter<DateTime>(
         $ScheduledRemindersTable.$convertercreatedAtUtc,
       );
-  static const VerificationMeta _needsReconciliationMeta =
-      const VerificationMeta('needsReconciliation');
-  @override
-  late final GeneratedColumn<bool> needsReconciliation = GeneratedColumn<bool>(
-    'needs_reconciliation',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("needs_reconciliation" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   @override
   List<GeneratedColumn> get $columns => [
     notificationId,
@@ -3586,7 +3221,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
     deadlineAtUtc,
     scheduledForUtc,
     createdAtUtc,
-    needsReconciliation,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3639,15 +3273,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
     } else if (isInserting) {
       context.missing(_offsetMinutesMeta);
     }
-    if (data.containsKey('needs_reconciliation')) {
-      context.handle(
-        _needsReconciliationMeta,
-        needsReconciliation.isAcceptableOrUnknown(
-          data['needs_reconciliation']!,
-          _needsReconciliationMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -3692,10 +3317,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
           data['${effectivePrefix}created_at_utc'],
         )!,
       ),
-      needsReconciliation: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}needs_reconciliation'],
-      )!,
     );
   }
 
@@ -3721,7 +3342,6 @@ class ScheduledReminder extends DataClass
   final DateTime deadlineAtUtc;
   final DateTime scheduledForUtc;
   final DateTime createdAtUtc;
-  final bool needsReconciliation;
   const ScheduledReminder({
     required this.notificationId,
     required this.semesterId,
@@ -3730,7 +3350,6 @@ class ScheduledReminder extends DataClass
     required this.deadlineAtUtc,
     required this.scheduledForUtc,
     required this.createdAtUtc,
-    required this.needsReconciliation,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3756,7 +3375,6 @@ class ScheduledReminder extends DataClass
         $ScheduledRemindersTable.$convertercreatedAtUtc.toSql(createdAtUtc),
       );
     }
-    map['needs_reconciliation'] = Variable<bool>(needsReconciliation);
     return map;
   }
 
@@ -3769,7 +3387,6 @@ class ScheduledReminder extends DataClass
       deadlineAtUtc: Value(deadlineAtUtc),
       scheduledForUtc: Value(scheduledForUtc),
       createdAtUtc: Value(createdAtUtc),
-      needsReconciliation: Value(needsReconciliation),
     );
   }
 
@@ -3786,9 +3403,6 @@ class ScheduledReminder extends DataClass
       deadlineAtUtc: serializer.fromJson<DateTime>(json['deadlineAtUtc']),
       scheduledForUtc: serializer.fromJson<DateTime>(json['scheduledForUtc']),
       createdAtUtc: serializer.fromJson<DateTime>(json['createdAtUtc']),
-      needsReconciliation: serializer.fromJson<bool>(
-        json['needsReconciliation'],
-      ),
     );
   }
   @override
@@ -3802,7 +3416,6 @@ class ScheduledReminder extends DataClass
       'deadlineAtUtc': serializer.toJson<DateTime>(deadlineAtUtc),
       'scheduledForUtc': serializer.toJson<DateTime>(scheduledForUtc),
       'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
-      'needsReconciliation': serializer.toJson<bool>(needsReconciliation),
     };
   }
 
@@ -3814,7 +3427,6 @@ class ScheduledReminder extends DataClass
     DateTime? deadlineAtUtc,
     DateTime? scheduledForUtc,
     DateTime? createdAtUtc,
-    bool? needsReconciliation,
   }) => ScheduledReminder(
     notificationId: notificationId ?? this.notificationId,
     semesterId: semesterId ?? this.semesterId,
@@ -3823,7 +3435,6 @@ class ScheduledReminder extends DataClass
     deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
     scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
     createdAtUtc: createdAtUtc ?? this.createdAtUtc,
-    needsReconciliation: needsReconciliation ?? this.needsReconciliation,
   );
   ScheduledReminder copyWithCompanion(ScheduledRemindersCompanion data) {
     return ScheduledReminder(
@@ -3848,9 +3459,6 @@ class ScheduledReminder extends DataClass
       createdAtUtc: data.createdAtUtc.present
           ? data.createdAtUtc.value
           : this.createdAtUtc,
-      needsReconciliation: data.needsReconciliation.present
-          ? data.needsReconciliation.value
-          : this.needsReconciliation,
     );
   }
 
@@ -3863,8 +3471,7 @@ class ScheduledReminder extends DataClass
           ..write('offsetMinutes: $offsetMinutes, ')
           ..write('deadlineAtUtc: $deadlineAtUtc, ')
           ..write('scheduledForUtc: $scheduledForUtc, ')
-          ..write('createdAtUtc: $createdAtUtc, ')
-          ..write('needsReconciliation: $needsReconciliation')
+          ..write('createdAtUtc: $createdAtUtc')
           ..write(')'))
         .toString();
   }
@@ -3878,7 +3485,6 @@ class ScheduledReminder extends DataClass
     deadlineAtUtc,
     scheduledForUtc,
     createdAtUtc,
-    needsReconciliation,
   );
   @override
   bool operator ==(Object other) =>
@@ -3890,8 +3496,7 @@ class ScheduledReminder extends DataClass
           other.offsetMinutes == this.offsetMinutes &&
           other.deadlineAtUtc == this.deadlineAtUtc &&
           other.scheduledForUtc == this.scheduledForUtc &&
-          other.createdAtUtc == this.createdAtUtc &&
-          other.needsReconciliation == this.needsReconciliation);
+          other.createdAtUtc == this.createdAtUtc);
 }
 
 class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
@@ -3902,7 +3507,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
   final Value<DateTime> deadlineAtUtc;
   final Value<DateTime> scheduledForUtc;
   final Value<DateTime> createdAtUtc;
-  final Value<bool> needsReconciliation;
   const ScheduledRemindersCompanion({
     this.notificationId = const Value.absent(),
     this.semesterId = const Value.absent(),
@@ -3911,7 +3515,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     this.deadlineAtUtc = const Value.absent(),
     this.scheduledForUtc = const Value.absent(),
     this.createdAtUtc = const Value.absent(),
-    this.needsReconciliation = const Value.absent(),
   });
   ScheduledRemindersCompanion.insert({
     this.notificationId = const Value.absent(),
@@ -3921,7 +3524,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     required DateTime deadlineAtUtc,
     required DateTime scheduledForUtc,
     required DateTime createdAtUtc,
-    this.needsReconciliation = const Value.absent(),
   }) : semesterId = Value(semesterId),
        identityKey = Value(identityKey),
        offsetMinutes = Value(offsetMinutes),
@@ -3936,7 +3538,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Expression<int>? deadlineAtUtc,
     Expression<int>? scheduledForUtc,
     Expression<int>? createdAtUtc,
-    Expression<bool>? needsReconciliation,
   }) {
     return RawValuesInsertable({
       if (notificationId != null) 'notification_id': notificationId,
@@ -3946,8 +3547,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       if (deadlineAtUtc != null) 'deadline_at_utc': deadlineAtUtc,
       if (scheduledForUtc != null) 'scheduled_for_utc': scheduledForUtc,
       if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
-      if (needsReconciliation != null)
-        'needs_reconciliation': needsReconciliation,
     });
   }
 
@@ -3959,7 +3558,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Value<DateTime>? deadlineAtUtc,
     Value<DateTime>? scheduledForUtc,
     Value<DateTime>? createdAtUtc,
-    Value<bool>? needsReconciliation,
   }) {
     return ScheduledRemindersCompanion(
       notificationId: notificationId ?? this.notificationId,
@@ -3969,7 +3567,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
       scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
       createdAtUtc: createdAtUtc ?? this.createdAtUtc,
-      needsReconciliation: needsReconciliation ?? this.needsReconciliation,
     );
   }
 
@@ -4009,9 +3606,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
         ),
       );
     }
-    if (needsReconciliation.present) {
-      map['needs_reconciliation'] = Variable<bool>(needsReconciliation.value);
-    }
     return map;
   }
 
@@ -4024,8 +3618,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
           ..write('offsetMinutes: $offsetMinutes, ')
           ..write('deadlineAtUtc: $deadlineAtUtc, ')
           ..write('scheduledForUtc: $scheduledForUtc, ')
-          ..write('createdAtUtc: $createdAtUtc, ')
-          ..write('needsReconciliation: $needsReconciliation')
+          ..write('createdAtUtc: $createdAtUtc')
           ..write(')'))
         .toString();
   }
@@ -5073,18 +4666,6 @@ class $SyncOperationsTable extends SyncOperations
         ),
         defaultValue: const Constant(false),
       );
-  static const VerificationMeta _sessionRevisionMeta = const VerificationMeta(
-    'sessionRevision',
-  );
-  @override
-  late final GeneratedColumn<int> sessionRevision = GeneratedColumn<int>(
-    'session_revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
   static const VerificationMeta _resultFailureKindMeta = const VerificationMeta(
     'resultFailureKind',
   );
@@ -5153,7 +4734,6 @@ class $SyncOperationsTable extends SyncOperations
     ownerToken,
     leaseExpiresAtUtc,
     cancellationRequested,
-    sessionRevision,
     resultFailureKind,
     resultFailureDetail,
     resultRetryAfterMilliseconds,
@@ -5225,15 +4805,6 @@ class $SyncOperationsTable extends SyncOperations
         cancellationRequested.isAcceptableOrUnknown(
           data['cancellation_requested']!,
           _cancellationRequestedMeta,
-        ),
-      );
-    }
-    if (data.containsKey('session_revision')) {
-      context.handle(
-        _sessionRevisionMeta,
-        sessionRevision.isAcceptableOrUnknown(
-          data['session_revision']!,
-          _sessionRevisionMeta,
         ),
       );
     }
@@ -5344,10 +4915,6 @@ class $SyncOperationsTable extends SyncOperations
         DriftSqlType.bool,
         data['${effectivePrefix}cancellation_requested'],
       )!,
-      sessionRevision: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}session_revision'],
-      )!,
       resultFailureKind: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}result_failure_kind'],
@@ -5404,7 +4971,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
   final bool cancellationRequested;
-  final int sessionRevision;
   final String? resultFailureKind;
   final String? resultFailureDetail;
   final int? resultRetryAfterMilliseconds;
@@ -5422,7 +4988,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     this.ownerToken,
     this.leaseExpiresAtUtc,
     required this.cancellationRequested,
-    required this.sessionRevision,
     this.resultFailureKind,
     this.resultFailureDetail,
     this.resultRetryAfterMilliseconds,
@@ -5463,7 +5028,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       );
     }
     map['cancellation_requested'] = Variable<bool>(cancellationRequested);
-    map['session_revision'] = Variable<int>(sessionRevision);
     if (!nullToAbsent || resultFailureKind != null) {
       map['result_failure_kind'] = Variable<String>(resultFailureKind);
     }
@@ -5505,7 +5069,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ? const Value.absent()
           : Value(leaseExpiresAtUtc),
       cancellationRequested: Value(cancellationRequested),
-      sessionRevision: Value(sessionRevision),
       resultFailureKind: resultFailureKind == null && nullToAbsent
           ? const Value.absent()
           : Value(resultFailureKind),
@@ -5546,7 +5109,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       cancellationRequested: serializer.fromJson<bool>(
         json['cancellationRequested'],
       ),
-      sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
       resultFailureKind: serializer.fromJson<String?>(
         json['resultFailureKind'],
       ),
@@ -5577,7 +5139,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       'ownerToken': serializer.toJson<String?>(ownerToken),
       'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
       'cancellationRequested': serializer.toJson<bool>(cancellationRequested),
-      'sessionRevision': serializer.toJson<int>(sessionRevision),
       'resultFailureKind': serializer.toJson<String?>(resultFailureKind),
       'resultFailureDetail': serializer.toJson<String?>(resultFailureDetail),
       'resultRetryAfterMilliseconds': serializer.toJson<int?>(
@@ -5600,7 +5161,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     Value<String?> ownerToken = const Value.absent(),
     Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
     bool? cancellationRequested,
-    int? sessionRevision,
     Value<String?> resultFailureKind = const Value.absent(),
     Value<String?> resultFailureDetail = const Value.absent(),
     Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -5622,7 +5182,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
         ? leaseExpiresAtUtc.value
         : this.leaseExpiresAtUtc,
     cancellationRequested: cancellationRequested ?? this.cancellationRequested,
-    sessionRevision: sessionRevision ?? this.sessionRevision,
     resultFailureKind: resultFailureKind.present
         ? resultFailureKind.value
         : this.resultFailureKind,
@@ -5668,9 +5227,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       cancellationRequested: data.cancellationRequested.present
           ? data.cancellationRequested.value
           : this.cancellationRequested,
-      sessionRevision: data.sessionRevision.present
-          ? data.sessionRevision.value
-          : this.sessionRevision,
       resultFailureKind: data.resultFailureKind.present
           ? data.resultFailureKind.value
           : this.resultFailureKind,
@@ -5703,7 +5259,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
           ..write('cancellationRequested: $cancellationRequested, ')
-          ..write('sessionRevision: $sessionRevision, ')
           ..write('resultFailureKind: $resultFailureKind, ')
           ..write('resultFailureDetail: $resultFailureDetail, ')
           ..write(
@@ -5728,7 +5283,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     ownerToken,
     leaseExpiresAtUtc,
     cancellationRequested,
-    sessionRevision,
     resultFailureKind,
     resultFailureDetail,
     resultRetryAfterMilliseconds,
@@ -5750,7 +5304,6 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           other.ownerToken == this.ownerToken &&
           other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
           other.cancellationRequested == this.cancellationRequested &&
-          other.sessionRevision == this.sessionRevision &&
           other.resultFailureKind == this.resultFailureKind &&
           other.resultFailureDetail == this.resultFailureDetail &&
           other.resultRetryAfterMilliseconds ==
@@ -5771,7 +5324,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
   final Value<String?> ownerToken;
   final Value<DateTime?> leaseExpiresAtUtc;
   final Value<bool> cancellationRequested;
-  final Value<int> sessionRevision;
   final Value<String?> resultFailureKind;
   final Value<String?> resultFailureDetail;
   final Value<int?> resultRetryAfterMilliseconds;
@@ -5789,7 +5341,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.cancellationRequested = const Value.absent(),
-    this.sessionRevision = const Value.absent(),
     this.resultFailureKind = const Value.absent(),
     this.resultFailureDetail = const Value.absent(),
     this.resultRetryAfterMilliseconds = const Value.absent(),
@@ -5808,7 +5359,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.cancellationRequested = const Value.absent(),
-    this.sessionRevision = const Value.absent(),
     this.resultFailureKind = const Value.absent(),
     this.resultFailureDetail = const Value.absent(),
     this.resultRetryAfterMilliseconds = const Value.absent(),
@@ -5831,7 +5381,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Expression<String>? ownerToken,
     Expression<int>? leaseExpiresAtUtc,
     Expression<bool>? cancellationRequested,
-    Expression<int>? sessionRevision,
     Expression<String>? resultFailureKind,
     Expression<String>? resultFailureDetail,
     Expression<int>? resultRetryAfterMilliseconds,
@@ -5851,7 +5400,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
       if (cancellationRequested != null)
         'cancellation_requested': cancellationRequested,
-      if (sessionRevision != null) 'session_revision': sessionRevision,
       if (resultFailureKind != null) 'result_failure_kind': resultFailureKind,
       if (resultFailureDetail != null)
         'result_failure_detail': resultFailureDetail,
@@ -5875,7 +5423,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Value<String?>? ownerToken,
     Value<DateTime?>? leaseExpiresAtUtc,
     Value<bool>? cancellationRequested,
-    Value<int>? sessionRevision,
     Value<String?>? resultFailureKind,
     Value<String?>? resultFailureDetail,
     Value<int?>? resultRetryAfterMilliseconds,
@@ -5895,7 +5442,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
       cancellationRequested:
           cancellationRequested ?? this.cancellationRequested,
-      sessionRevision: sessionRevision ?? this.sessionRevision,
       resultFailureKind: resultFailureKind ?? this.resultFailureKind,
       resultFailureDetail: resultFailureDetail ?? this.resultFailureDetail,
       resultRetryAfterMilliseconds:
@@ -5955,9 +5501,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
         cancellationRequested.value,
       );
     }
-    if (sessionRevision.present) {
-      map['session_revision'] = Variable<int>(sessionRevision.value);
-    }
     if (resultFailureKind.present) {
       map['result_failure_kind'] = Variable<String>(resultFailureKind.value);
     }
@@ -5994,7 +5537,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
           ..write('cancellationRequested: $cancellationRequested, ')
-          ..write('sessionRevision: $sessionRevision, ')
           ..write('resultFailureKind: $resultFailureKind, ')
           ..write('resultFailureDetail: $resultFailureDetail, ')
           ..write(
@@ -6002,1206 +5544,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
           )
           ..write('resultCourseCount: $resultCourseCount, ')
           ..write('resultActivityCount: $resultActivityCount')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $AssignmentBaselinesTable extends AssignmentBaselines
-    with TableInfo<$AssignmentBaselinesTable, AssignmentBaseline> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $AssignmentBaselinesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int> establishedAtUtc =
-      GeneratedColumn<int>(
-        'established_at_utc',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      ).withConverter<DateTime?>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [semesterId, establishedAtUtc];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'assignment_baselines';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<AssignmentBaseline> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {semesterId};
-  @override
-  AssignmentBaseline map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AssignmentBaseline(
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      establishedAtUtc: $AssignmentBaselinesTable.$converterestablishedAtUtcn
-          .fromSql(
-            attachedDatabase.typeMapping.read(
-              DriftSqlType.int,
-              data['${effectivePrefix}established_at_utc'],
-            ),
-          ),
-    );
-  }
-
-  @override
-  $AssignmentBaselinesTable createAlias(String alias) {
-    return $AssignmentBaselinesTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<DateTime, int> $converterestablishedAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $converterestablishedAtUtcn =
-      NullAwareTypeConverter.wrap($converterestablishedAtUtc);
-}
-
-class AssignmentBaseline extends DataClass
-    implements Insertable<AssignmentBaseline> {
-  final int semesterId;
-  final DateTime? establishedAtUtc;
-  const AssignmentBaseline({required this.semesterId, this.establishedAtUtc});
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['semester_id'] = Variable<int>(semesterId);
-    if (!nullToAbsent || establishedAtUtc != null) {
-      map['established_at_utc'] = Variable<int>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn.toSql(
-          establishedAtUtc,
-        ),
-      );
-    }
-    return map;
-  }
-
-  AssignmentBaselinesCompanion toCompanion(bool nullToAbsent) {
-    return AssignmentBaselinesCompanion(
-      semesterId: Value(semesterId),
-      establishedAtUtc: establishedAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(establishedAtUtc),
-    );
-  }
-
-  factory AssignmentBaseline.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AssignmentBaseline(
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      establishedAtUtc: serializer.fromJson<DateTime?>(
-        json['establishedAtUtc'],
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'semesterId': serializer.toJson<int>(semesterId),
-      'establishedAtUtc': serializer.toJson<DateTime?>(establishedAtUtc),
-    };
-  }
-
-  AssignmentBaseline copyWith({
-    int? semesterId,
-    Value<DateTime?> establishedAtUtc = const Value.absent(),
-  }) => AssignmentBaseline(
-    semesterId: semesterId ?? this.semesterId,
-    establishedAtUtc: establishedAtUtc.present
-        ? establishedAtUtc.value
-        : this.establishedAtUtc,
-  );
-  AssignmentBaseline copyWithCompanion(AssignmentBaselinesCompanion data) {
-    return AssignmentBaseline(
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      establishedAtUtc: data.establishedAtUtc.present
-          ? data.establishedAtUtc.value
-          : this.establishedAtUtc,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AssignmentBaseline(')
-          ..write('semesterId: $semesterId, ')
-          ..write('establishedAtUtc: $establishedAtUtc')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(semesterId, establishedAtUtc);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is AssignmentBaseline &&
-          other.semesterId == this.semesterId &&
-          other.establishedAtUtc == this.establishedAtUtc);
-}
-
-class AssignmentBaselinesCompanion extends UpdateCompanion<AssignmentBaseline> {
-  final Value<int> semesterId;
-  final Value<DateTime?> establishedAtUtc;
-  const AssignmentBaselinesCompanion({
-    this.semesterId = const Value.absent(),
-    this.establishedAtUtc = const Value.absent(),
-  });
-  AssignmentBaselinesCompanion.insert({
-    this.semesterId = const Value.absent(),
-    this.establishedAtUtc = const Value.absent(),
-  });
-  static Insertable<AssignmentBaseline> custom({
-    Expression<int>? semesterId,
-    Expression<int>? establishedAtUtc,
-  }) {
-    return RawValuesInsertable({
-      if (semesterId != null) 'semester_id': semesterId,
-      if (establishedAtUtc != null) 'established_at_utc': establishedAtUtc,
-    });
-  }
-
-  AssignmentBaselinesCompanion copyWith({
-    Value<int>? semesterId,
-    Value<DateTime?>? establishedAtUtc,
-  }) {
-    return AssignmentBaselinesCompanion(
-      semesterId: semesterId ?? this.semesterId,
-      establishedAtUtc: establishedAtUtc ?? this.establishedAtUtc,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (establishedAtUtc.present) {
-      map['established_at_utc'] = Variable<int>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn.toSql(
-          establishedAtUtc.value,
-        ),
-      );
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AssignmentBaselinesCompanion(')
-          ..write('semesterId: $semesterId, ')
-          ..write('establishedAtUtc: $establishedAtUtc')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncOperationChangesTable extends SyncOperationChanges
-    with TableInfo<$SyncOperationChangesTable, SyncOperationChange> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncOperationChangesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _operationIdMeta = const VerificationMeta(
-    'operationId',
-  );
-  @override
-  late final GeneratedColumn<int> operationId = GeneratedColumn<int>(
-    'operation_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _identityKeyMeta = const VerificationMeta(
-    'identityKey',
-  );
-  @override
-  late final GeneratedColumn<String> identityKey = GeneratedColumn<String>(
-    'identity_key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    operationId,
-    semesterId,
-    identityKey,
-    kind,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_operation_changes';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SyncOperationChange> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('operation_id')) {
-      context.handle(
-        _operationIdMeta,
-        operationId.isAcceptableOrUnknown(
-          data['operation_id']!,
-          _operationIdMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_operationIdMeta);
-    }
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('identity_key')) {
-      context.handle(
-        _identityKeyMeta,
-        identityKey.isAcceptableOrUnknown(
-          data['identity_key']!,
-          _identityKeyMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_identityKeyMeta);
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_kindMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {operationId, identityKey, kind};
-  @override
-  SyncOperationChange map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncOperationChange(
-      operationId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}operation_id'],
-      )!,
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      identityKey: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}identity_key'],
-      )!,
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
-      )!,
-    );
-  }
-
-  @override
-  $SyncOperationChangesTable createAlias(String alias) {
-    return $SyncOperationChangesTable(attachedDatabase, alias);
-  }
-}
-
-class SyncOperationChange extends DataClass
-    implements Insertable<SyncOperationChange> {
-  final int operationId;
-  final int semesterId;
-  final String identityKey;
-  final String kind;
-  const SyncOperationChange({
-    required this.operationId,
-    required this.semesterId,
-    required this.identityKey,
-    required this.kind,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['operation_id'] = Variable<int>(operationId);
-    map['semester_id'] = Variable<int>(semesterId);
-    map['identity_key'] = Variable<String>(identityKey);
-    map['kind'] = Variable<String>(kind);
-    return map;
-  }
-
-  SyncOperationChangesCompanion toCompanion(bool nullToAbsent) {
-    return SyncOperationChangesCompanion(
-      operationId: Value(operationId),
-      semesterId: Value(semesterId),
-      identityKey: Value(identityKey),
-      kind: Value(kind),
-    );
-  }
-
-  factory SyncOperationChange.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncOperationChange(
-      operationId: serializer.fromJson<int>(json['operationId']),
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      identityKey: serializer.fromJson<String>(json['identityKey']),
-      kind: serializer.fromJson<String>(json['kind']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'operationId': serializer.toJson<int>(operationId),
-      'semesterId': serializer.toJson<int>(semesterId),
-      'identityKey': serializer.toJson<String>(identityKey),
-      'kind': serializer.toJson<String>(kind),
-    };
-  }
-
-  SyncOperationChange copyWith({
-    int? operationId,
-    int? semesterId,
-    String? identityKey,
-    String? kind,
-  }) => SyncOperationChange(
-    operationId: operationId ?? this.operationId,
-    semesterId: semesterId ?? this.semesterId,
-    identityKey: identityKey ?? this.identityKey,
-    kind: kind ?? this.kind,
-  );
-  SyncOperationChange copyWithCompanion(SyncOperationChangesCompanion data) {
-    return SyncOperationChange(
-      operationId: data.operationId.present
-          ? data.operationId.value
-          : this.operationId,
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      identityKey: data.identityKey.present
-          ? data.identityKey.value
-          : this.identityKey,
-      kind: data.kind.present ? data.kind.value : this.kind,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperationChange(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('identityKey: $identityKey, ')
-          ..write('kind: $kind')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(operationId, semesterId, identityKey, kind);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SyncOperationChange &&
-          other.operationId == this.operationId &&
-          other.semesterId == this.semesterId &&
-          other.identityKey == this.identityKey &&
-          other.kind == this.kind);
-}
-
-class SyncOperationChangesCompanion
-    extends UpdateCompanion<SyncOperationChange> {
-  final Value<int> operationId;
-  final Value<int> semesterId;
-  final Value<String> identityKey;
-  final Value<String> kind;
-  final Value<int> rowid;
-  const SyncOperationChangesCompanion({
-    this.operationId = const Value.absent(),
-    this.semesterId = const Value.absent(),
-    this.identityKey = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncOperationChangesCompanion.insert({
-    required int operationId,
-    required int semesterId,
-    required String identityKey,
-    required String kind,
-    this.rowid = const Value.absent(),
-  }) : operationId = Value(operationId),
-       semesterId = Value(semesterId),
-       identityKey = Value(identityKey),
-       kind = Value(kind);
-  static Insertable<SyncOperationChange> custom({
-    Expression<int>? operationId,
-    Expression<int>? semesterId,
-    Expression<String>? identityKey,
-    Expression<String>? kind,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (operationId != null) 'operation_id': operationId,
-      if (semesterId != null) 'semester_id': semesterId,
-      if (identityKey != null) 'identity_key': identityKey,
-      if (kind != null) 'kind': kind,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncOperationChangesCompanion copyWith({
-    Value<int>? operationId,
-    Value<int>? semesterId,
-    Value<String>? identityKey,
-    Value<String>? kind,
-    Value<int>? rowid,
-  }) {
-    return SyncOperationChangesCompanion(
-      operationId: operationId ?? this.operationId,
-      semesterId: semesterId ?? this.semesterId,
-      identityKey: identityKey ?? this.identityKey,
-      kind: kind ?? this.kind,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (operationId.present) {
-      map['operation_id'] = Variable<int>(operationId.value);
-    }
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (identityKey.present) {
-      map['identity_key'] = Variable<String>(identityKey.value);
-    }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperationChangesCompanion(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('identityKey: $identityKey, ')
-          ..write('kind: $kind, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncBackoffStatesTable extends SyncBackoffStates
-    with TableInfo<$SyncBackoffStatesTable, SyncBackoffState> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncBackoffStatesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
-  @override
-  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
-    'user_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _consecutiveFailureCountMeta =
-      const VerificationMeta('consecutiveFailureCount');
-  @override
-  late final GeneratedColumn<int> consecutiveFailureCount =
-      GeneratedColumn<int>(
-        'consecutive_failure_count',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: true,
-      );
-  static const VerificationMeta _stateMeta = const VerificationMeta('state');
-  @override
-  late final GeneratedColumn<String> state = GeneratedColumn<String>(
-    'state',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int>
-  nextAutomaticAttemptAtUtc =
-      GeneratedColumn<int>(
-        'next_automatic_attempt_at_utc',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      ).withConverter<DateTime?>(
-        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn,
-      );
-  static const VerificationMeta _lastFailureKindMeta = const VerificationMeta(
-    'lastFailureKind',
-  );
-  @override
-  late final GeneratedColumn<String> lastFailureKind = GeneratedColumn<String>(
-    'last_failure_kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _lastFailureDetailMeta = const VerificationMeta(
-    'lastFailureDetail',
-  );
-  @override
-  late final GeneratedColumn<String> lastFailureDetail =
-      GeneratedColumn<String>(
-        'last_failure_detail',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _lastRetryAfterMillisecondsMeta =
-      const VerificationMeta('lastRetryAfterMilliseconds');
-  @override
-  late final GeneratedColumn<int> lastRetryAfterMilliseconds =
-      GeneratedColumn<int>(
-        'last_retry_after_milliseconds',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAtUtc =
-      GeneratedColumn<int>(
-        'updated_at_utc',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: true,
-      ).withConverter<DateTime>($SyncBackoffStatesTable.$converterupdatedAtUtc);
-  @override
-  List<GeneratedColumn> get $columns => [
-    semesterId,
-    userId,
-    consecutiveFailureCount,
-    state,
-    nextAutomaticAttemptAtUtc,
-    lastFailureKind,
-    lastFailureDetail,
-    lastRetryAfterMilliseconds,
-    updatedAtUtc,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_backoff_states';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SyncBackoffState> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('user_id')) {
-      context.handle(
-        _userIdMeta,
-        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_userIdMeta);
-    }
-    if (data.containsKey('consecutive_failure_count')) {
-      context.handle(
-        _consecutiveFailureCountMeta,
-        consecutiveFailureCount.isAcceptableOrUnknown(
-          data['consecutive_failure_count']!,
-          _consecutiveFailureCountMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_consecutiveFailureCountMeta);
-    }
-    if (data.containsKey('state')) {
-      context.handle(
-        _stateMeta,
-        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_stateMeta);
-    }
-    if (data.containsKey('last_failure_kind')) {
-      context.handle(
-        _lastFailureKindMeta,
-        lastFailureKind.isAcceptableOrUnknown(
-          data['last_failure_kind']!,
-          _lastFailureKindMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_lastFailureKindMeta);
-    }
-    if (data.containsKey('last_failure_detail')) {
-      context.handle(
-        _lastFailureDetailMeta,
-        lastFailureDetail.isAcceptableOrUnknown(
-          data['last_failure_detail']!,
-          _lastFailureDetailMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_retry_after_milliseconds')) {
-      context.handle(
-        _lastRetryAfterMillisecondsMeta,
-        lastRetryAfterMilliseconds.isAcceptableOrUnknown(
-          data['last_retry_after_milliseconds']!,
-          _lastRetryAfterMillisecondsMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {semesterId, userId};
-  @override
-  SyncBackoffState map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncBackoffState(
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      userId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}user_id'],
-      )!,
-      consecutiveFailureCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}consecutive_failure_count'],
-      )!,
-      state: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}state'],
-      )!,
-      nextAutomaticAttemptAtUtc: $SyncBackoffStatesTable
-          .$converternextAutomaticAttemptAtUtcn
-          .fromSql(
-            attachedDatabase.typeMapping.read(
-              DriftSqlType.int,
-              data['${effectivePrefix}next_automatic_attempt_at_utc'],
-            ),
-          ),
-      lastFailureKind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}last_failure_kind'],
-      )!,
-      lastFailureDetail: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}last_failure_detail'],
-      ),
-      lastRetryAfterMilliseconds: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}last_retry_after_milliseconds'],
-      ),
-      updatedAtUtc: $SyncBackoffStatesTable.$converterupdatedAtUtc.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}updated_at_utc'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $SyncBackoffStatesTable createAlias(String alias) {
-    return $SyncBackoffStatesTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<DateTime, int> $converternextAutomaticAttemptAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $converternextAutomaticAttemptAtUtcn =
-      NullAwareTypeConverter.wrap($converternextAutomaticAttemptAtUtc);
-  static TypeConverter<DateTime, int> $converterupdatedAtUtc =
-      const UtcDateTimeConverter();
-}
-
-class SyncBackoffState extends DataClass
-    implements Insertable<SyncBackoffState> {
-  final int semesterId;
-  final int userId;
-  final int consecutiveFailureCount;
-  final String state;
-  final DateTime? nextAutomaticAttemptAtUtc;
-  final String lastFailureKind;
-  final String? lastFailureDetail;
-  final int? lastRetryAfterMilliseconds;
-  final DateTime updatedAtUtc;
-  const SyncBackoffState({
-    required this.semesterId,
-    required this.userId,
-    required this.consecutiveFailureCount,
-    required this.state,
-    this.nextAutomaticAttemptAtUtc,
-    required this.lastFailureKind,
-    this.lastFailureDetail,
-    this.lastRetryAfterMilliseconds,
-    required this.updatedAtUtc,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['semester_id'] = Variable<int>(semesterId);
-    map['user_id'] = Variable<int>(userId);
-    map['consecutive_failure_count'] = Variable<int>(consecutiveFailureCount);
-    map['state'] = Variable<String>(state);
-    if (!nullToAbsent || nextAutomaticAttemptAtUtc != null) {
-      map['next_automatic_attempt_at_utc'] = Variable<int>(
-        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn.toSql(
-          nextAutomaticAttemptAtUtc,
-        ),
-      );
-    }
-    map['last_failure_kind'] = Variable<String>(lastFailureKind);
-    if (!nullToAbsent || lastFailureDetail != null) {
-      map['last_failure_detail'] = Variable<String>(lastFailureDetail);
-    }
-    if (!nullToAbsent || lastRetryAfterMilliseconds != null) {
-      map['last_retry_after_milliseconds'] = Variable<int>(
-        lastRetryAfterMilliseconds,
-      );
-    }
-    {
-      map['updated_at_utc'] = Variable<int>(
-        $SyncBackoffStatesTable.$converterupdatedAtUtc.toSql(updatedAtUtc),
-      );
-    }
-    return map;
-  }
-
-  SyncBackoffStatesCompanion toCompanion(bool nullToAbsent) {
-    return SyncBackoffStatesCompanion(
-      semesterId: Value(semesterId),
-      userId: Value(userId),
-      consecutiveFailureCount: Value(consecutiveFailureCount),
-      state: Value(state),
-      nextAutomaticAttemptAtUtc:
-          nextAutomaticAttemptAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(nextAutomaticAttemptAtUtc),
-      lastFailureKind: Value(lastFailureKind),
-      lastFailureDetail: lastFailureDetail == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastFailureDetail),
-      lastRetryAfterMilliseconds:
-          lastRetryAfterMilliseconds == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastRetryAfterMilliseconds),
-      updatedAtUtc: Value(updatedAtUtc),
-    );
-  }
-
-  factory SyncBackoffState.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncBackoffState(
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      userId: serializer.fromJson<int>(json['userId']),
-      consecutiveFailureCount: serializer.fromJson<int>(
-        json['consecutiveFailureCount'],
-      ),
-      state: serializer.fromJson<String>(json['state']),
-      nextAutomaticAttemptAtUtc: serializer.fromJson<DateTime?>(
-        json['nextAutomaticAttemptAtUtc'],
-      ),
-      lastFailureKind: serializer.fromJson<String>(json['lastFailureKind']),
-      lastFailureDetail: serializer.fromJson<String?>(
-        json['lastFailureDetail'],
-      ),
-      lastRetryAfterMilliseconds: serializer.fromJson<int?>(
-        json['lastRetryAfterMilliseconds'],
-      ),
-      updatedAtUtc: serializer.fromJson<DateTime>(json['updatedAtUtc']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'semesterId': serializer.toJson<int>(semesterId),
-      'userId': serializer.toJson<int>(userId),
-      'consecutiveFailureCount': serializer.toJson<int>(
-        consecutiveFailureCount,
-      ),
-      'state': serializer.toJson<String>(state),
-      'nextAutomaticAttemptAtUtc': serializer.toJson<DateTime?>(
-        nextAutomaticAttemptAtUtc,
-      ),
-      'lastFailureKind': serializer.toJson<String>(lastFailureKind),
-      'lastFailureDetail': serializer.toJson<String?>(lastFailureDetail),
-      'lastRetryAfterMilliseconds': serializer.toJson<int?>(
-        lastRetryAfterMilliseconds,
-      ),
-      'updatedAtUtc': serializer.toJson<DateTime>(updatedAtUtc),
-    };
-  }
-
-  SyncBackoffState copyWith({
-    int? semesterId,
-    int? userId,
-    int? consecutiveFailureCount,
-    String? state,
-    Value<DateTime?> nextAutomaticAttemptAtUtc = const Value.absent(),
-    String? lastFailureKind,
-    Value<String?> lastFailureDetail = const Value.absent(),
-    Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
-    DateTime? updatedAtUtc,
-  }) => SyncBackoffState(
-    semesterId: semesterId ?? this.semesterId,
-    userId: userId ?? this.userId,
-    consecutiveFailureCount:
-        consecutiveFailureCount ?? this.consecutiveFailureCount,
-    state: state ?? this.state,
-    nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc.present
-        ? nextAutomaticAttemptAtUtc.value
-        : this.nextAutomaticAttemptAtUtc,
-    lastFailureKind: lastFailureKind ?? this.lastFailureKind,
-    lastFailureDetail: lastFailureDetail.present
-        ? lastFailureDetail.value
-        : this.lastFailureDetail,
-    lastRetryAfterMilliseconds: lastRetryAfterMilliseconds.present
-        ? lastRetryAfterMilliseconds.value
-        : this.lastRetryAfterMilliseconds,
-    updatedAtUtc: updatedAtUtc ?? this.updatedAtUtc,
-  );
-  SyncBackoffState copyWithCompanion(SyncBackoffStatesCompanion data) {
-    return SyncBackoffState(
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      userId: data.userId.present ? data.userId.value : this.userId,
-      consecutiveFailureCount: data.consecutiveFailureCount.present
-          ? data.consecutiveFailureCount.value
-          : this.consecutiveFailureCount,
-      state: data.state.present ? data.state.value : this.state,
-      nextAutomaticAttemptAtUtc: data.nextAutomaticAttemptAtUtc.present
-          ? data.nextAutomaticAttemptAtUtc.value
-          : this.nextAutomaticAttemptAtUtc,
-      lastFailureKind: data.lastFailureKind.present
-          ? data.lastFailureKind.value
-          : this.lastFailureKind,
-      lastFailureDetail: data.lastFailureDetail.present
-          ? data.lastFailureDetail.value
-          : this.lastFailureDetail,
-      lastRetryAfterMilliseconds: data.lastRetryAfterMilliseconds.present
-          ? data.lastRetryAfterMilliseconds.value
-          : this.lastRetryAfterMilliseconds,
-      updatedAtUtc: data.updatedAtUtc.present
-          ? data.updatedAtUtc.value
-          : this.updatedAtUtc,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncBackoffState(')
-          ..write('semesterId: $semesterId, ')
-          ..write('userId: $userId, ')
-          ..write('consecutiveFailureCount: $consecutiveFailureCount, ')
-          ..write('state: $state, ')
-          ..write('nextAutomaticAttemptAtUtc: $nextAutomaticAttemptAtUtc, ')
-          ..write('lastFailureKind: $lastFailureKind, ')
-          ..write('lastFailureDetail: $lastFailureDetail, ')
-          ..write('lastRetryAfterMilliseconds: $lastRetryAfterMilliseconds, ')
-          ..write('updatedAtUtc: $updatedAtUtc')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    semesterId,
-    userId,
-    consecutiveFailureCount,
-    state,
-    nextAutomaticAttemptAtUtc,
-    lastFailureKind,
-    lastFailureDetail,
-    lastRetryAfterMilliseconds,
-    updatedAtUtc,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SyncBackoffState &&
-          other.semesterId == this.semesterId &&
-          other.userId == this.userId &&
-          other.consecutiveFailureCount == this.consecutiveFailureCount &&
-          other.state == this.state &&
-          other.nextAutomaticAttemptAtUtc == this.nextAutomaticAttemptAtUtc &&
-          other.lastFailureKind == this.lastFailureKind &&
-          other.lastFailureDetail == this.lastFailureDetail &&
-          other.lastRetryAfterMilliseconds == this.lastRetryAfterMilliseconds &&
-          other.updatedAtUtc == this.updatedAtUtc);
-}
-
-class SyncBackoffStatesCompanion extends UpdateCompanion<SyncBackoffState> {
-  final Value<int> semesterId;
-  final Value<int> userId;
-  final Value<int> consecutiveFailureCount;
-  final Value<String> state;
-  final Value<DateTime?> nextAutomaticAttemptAtUtc;
-  final Value<String> lastFailureKind;
-  final Value<String?> lastFailureDetail;
-  final Value<int?> lastRetryAfterMilliseconds;
-  final Value<DateTime> updatedAtUtc;
-  final Value<int> rowid;
-  const SyncBackoffStatesCompanion({
-    this.semesterId = const Value.absent(),
-    this.userId = const Value.absent(),
-    this.consecutiveFailureCount = const Value.absent(),
-    this.state = const Value.absent(),
-    this.nextAutomaticAttemptAtUtc = const Value.absent(),
-    this.lastFailureKind = const Value.absent(),
-    this.lastFailureDetail = const Value.absent(),
-    this.lastRetryAfterMilliseconds = const Value.absent(),
-    this.updatedAtUtc = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncBackoffStatesCompanion.insert({
-    required int semesterId,
-    required int userId,
-    required int consecutiveFailureCount,
-    required String state,
-    this.nextAutomaticAttemptAtUtc = const Value.absent(),
-    required String lastFailureKind,
-    this.lastFailureDetail = const Value.absent(),
-    this.lastRetryAfterMilliseconds = const Value.absent(),
-    required DateTime updatedAtUtc,
-    this.rowid = const Value.absent(),
-  }) : semesterId = Value(semesterId),
-       userId = Value(userId),
-       consecutiveFailureCount = Value(consecutiveFailureCount),
-       state = Value(state),
-       lastFailureKind = Value(lastFailureKind),
-       updatedAtUtc = Value(updatedAtUtc);
-  static Insertable<SyncBackoffState> custom({
-    Expression<int>? semesterId,
-    Expression<int>? userId,
-    Expression<int>? consecutiveFailureCount,
-    Expression<String>? state,
-    Expression<int>? nextAutomaticAttemptAtUtc,
-    Expression<String>? lastFailureKind,
-    Expression<String>? lastFailureDetail,
-    Expression<int>? lastRetryAfterMilliseconds,
-    Expression<int>? updatedAtUtc,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (semesterId != null) 'semester_id': semesterId,
-      if (userId != null) 'user_id': userId,
-      if (consecutiveFailureCount != null)
-        'consecutive_failure_count': consecutiveFailureCount,
-      if (state != null) 'state': state,
-      if (nextAutomaticAttemptAtUtc != null)
-        'next_automatic_attempt_at_utc': nextAutomaticAttemptAtUtc,
-      if (lastFailureKind != null) 'last_failure_kind': lastFailureKind,
-      if (lastFailureDetail != null) 'last_failure_detail': lastFailureDetail,
-      if (lastRetryAfterMilliseconds != null)
-        'last_retry_after_milliseconds': lastRetryAfterMilliseconds,
-      if (updatedAtUtc != null) 'updated_at_utc': updatedAtUtc,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncBackoffStatesCompanion copyWith({
-    Value<int>? semesterId,
-    Value<int>? userId,
-    Value<int>? consecutiveFailureCount,
-    Value<String>? state,
-    Value<DateTime?>? nextAutomaticAttemptAtUtc,
-    Value<String>? lastFailureKind,
-    Value<String?>? lastFailureDetail,
-    Value<int?>? lastRetryAfterMilliseconds,
-    Value<DateTime>? updatedAtUtc,
-    Value<int>? rowid,
-  }) {
-    return SyncBackoffStatesCompanion(
-      semesterId: semesterId ?? this.semesterId,
-      userId: userId ?? this.userId,
-      consecutiveFailureCount:
-          consecutiveFailureCount ?? this.consecutiveFailureCount,
-      state: state ?? this.state,
-      nextAutomaticAttemptAtUtc:
-          nextAutomaticAttemptAtUtc ?? this.nextAutomaticAttemptAtUtc,
-      lastFailureKind: lastFailureKind ?? this.lastFailureKind,
-      lastFailureDetail: lastFailureDetail ?? this.lastFailureDetail,
-      lastRetryAfterMilliseconds:
-          lastRetryAfterMilliseconds ?? this.lastRetryAfterMilliseconds,
-      updatedAtUtc: updatedAtUtc ?? this.updatedAtUtc,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (userId.present) {
-      map['user_id'] = Variable<int>(userId.value);
-    }
-    if (consecutiveFailureCount.present) {
-      map['consecutive_failure_count'] = Variable<int>(
-        consecutiveFailureCount.value,
-      );
-    }
-    if (state.present) {
-      map['state'] = Variable<String>(state.value);
-    }
-    if (nextAutomaticAttemptAtUtc.present) {
-      map['next_automatic_attempt_at_utc'] = Variable<int>(
-        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn.toSql(
-          nextAutomaticAttemptAtUtc.value,
-        ),
-      );
-    }
-    if (lastFailureKind.present) {
-      map['last_failure_kind'] = Variable<String>(lastFailureKind.value);
-    }
-    if (lastFailureDetail.present) {
-      map['last_failure_detail'] = Variable<String>(lastFailureDetail.value);
-    }
-    if (lastRetryAfterMilliseconds.present) {
-      map['last_retry_after_milliseconds'] = Variable<int>(
-        lastRetryAfterMilliseconds.value,
-      );
-    }
-    if (updatedAtUtc.present) {
-      map['updated_at_utc'] = Variable<int>(
-        $SyncBackoffStatesTable.$converterupdatedAtUtc.toSql(
-          updatedAtUtc.value,
-        ),
-      );
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncBackoffStatesCompanion(')
-          ..write('semesterId: $semesterId, ')
-          ..write('userId: $userId, ')
-          ..write('consecutiveFailureCount: $consecutiveFailureCount, ')
-          ..write('state: $state, ')
-          ..write('nextAutomaticAttemptAtUtc: $nextAutomaticAttemptAtUtc, ')
-          ..write('lastFailureKind: $lastFailureKind, ')
-          ..write('lastFailureDetail: $lastFailureDetail, ')
-          ..write('lastRetryAfterMilliseconds: $lastRetryAfterMilliseconds, ')
-          ..write('updatedAtUtc: $updatedAtUtc, ')
-          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -7235,49 +5577,8 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _leb2UserIdMeta = const VerificationMeta(
-    'leb2UserId',
-  );
   @override
-  late final GeneratedColumn<int> leb2UserId = GeneratedColumn<int>(
-    'leb2_user_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _sessionLifecycleMeta = const VerificationMeta(
-    'sessionLifecycle',
-  );
-  @override
-  late final GeneratedColumn<String> sessionLifecycle = GeneratedColumn<String>(
-    'session_lifecycle',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('unknown'),
-  );
-  static const VerificationMeta _sessionRevisionMeta = const VerificationMeta(
-    'sessionRevision',
-  );
-  @override
-  late final GeneratedColumn<int> sessionRevision = GeneratedColumn<int>(
-    'session_revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    singletonId,
-    activeSemesterId,
-    leb2UserId,
-    sessionLifecycle,
-    sessionRevision,
-  ];
+  List<GeneratedColumn> get $columns => [singletonId, activeSemesterId];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -7308,33 +5609,6 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
-    if (data.containsKey('leb2_user_id')) {
-      context.handle(
-        _leb2UserIdMeta,
-        leb2UserId.isAcceptableOrUnknown(
-          data['leb2_user_id']!,
-          _leb2UserIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('session_lifecycle')) {
-      context.handle(
-        _sessionLifecycleMeta,
-        sessionLifecycle.isAcceptableOrUnknown(
-          data['session_lifecycle']!,
-          _sessionLifecycleMeta,
-        ),
-      );
-    }
-    if (data.containsKey('session_revision')) {
-      context.handle(
-        _sessionRevisionMeta,
-        sessionRevision.isAcceptableOrUnknown(
-          data['session_revision']!,
-          _sessionRevisionMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -7352,18 +5626,6 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}active_semester_id'],
       ),
-      leb2UserId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}leb2_user_id'],
-      ),
-      sessionLifecycle: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}session_lifecycle'],
-      )!,
-      sessionRevision: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}session_revision'],
-      )!,
     );
   }
 
@@ -7376,16 +5638,7 @@ class $AppSettingsTable extends AppSettings
 class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int singletonId;
   final int? activeSemesterId;
-  final int? leb2UserId;
-  final String sessionLifecycle;
-  final int sessionRevision;
-  const AppSetting({
-    required this.singletonId,
-    this.activeSemesterId,
-    this.leb2UserId,
-    required this.sessionLifecycle,
-    required this.sessionRevision,
-  });
+  const AppSetting({required this.singletonId, this.activeSemesterId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -7393,11 +5646,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || activeSemesterId != null) {
       map['active_semester_id'] = Variable<int>(activeSemesterId);
     }
-    if (!nullToAbsent || leb2UserId != null) {
-      map['leb2_user_id'] = Variable<int>(leb2UserId);
-    }
-    map['session_lifecycle'] = Variable<String>(sessionLifecycle);
-    map['session_revision'] = Variable<int>(sessionRevision);
     return map;
   }
 
@@ -7407,11 +5655,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       activeSemesterId: activeSemesterId == null && nullToAbsent
           ? const Value.absent()
           : Value(activeSemesterId),
-      leb2UserId: leb2UserId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(leb2UserId),
-      sessionLifecycle: Value(sessionLifecycle),
-      sessionRevision: Value(sessionRevision),
     );
   }
 
@@ -7423,9 +5666,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return AppSetting(
       singletonId: serializer.fromJson<int>(json['singletonId']),
       activeSemesterId: serializer.fromJson<int?>(json['activeSemesterId']),
-      leb2UserId: serializer.fromJson<int?>(json['leb2UserId']),
-      sessionLifecycle: serializer.fromJson<String>(json['sessionLifecycle']),
-      sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
     );
   }
   @override
@@ -7434,26 +5674,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return <String, dynamic>{
       'singletonId': serializer.toJson<int>(singletonId),
       'activeSemesterId': serializer.toJson<int?>(activeSemesterId),
-      'leb2UserId': serializer.toJson<int?>(leb2UserId),
-      'sessionLifecycle': serializer.toJson<String>(sessionLifecycle),
-      'sessionRevision': serializer.toJson<int>(sessionRevision),
     };
   }
 
   AppSetting copyWith({
     int? singletonId,
     Value<int?> activeSemesterId = const Value.absent(),
-    Value<int?> leb2UserId = const Value.absent(),
-    String? sessionLifecycle,
-    int? sessionRevision,
   }) => AppSetting(
     singletonId: singletonId ?? this.singletonId,
     activeSemesterId: activeSemesterId.present
         ? activeSemesterId.value
         : this.activeSemesterId,
-    leb2UserId: leb2UserId.present ? leb2UserId.value : this.leb2UserId,
-    sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
-    sessionRevision: sessionRevision ?? this.sessionRevision,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -7463,15 +5694,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       activeSemesterId: data.activeSemesterId.present
           ? data.activeSemesterId.value
           : this.activeSemesterId,
-      leb2UserId: data.leb2UserId.present
-          ? data.leb2UserId.value
-          : this.leb2UserId,
-      sessionLifecycle: data.sessionLifecycle.present
-          ? data.sessionLifecycle.value
-          : this.sessionLifecycle,
-      sessionRevision: data.sessionRevision.present
-          ? data.sessionRevision.value
-          : this.sessionRevision,
     );
   }
 
@@ -7479,82 +5701,49 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   String toString() {
     return (StringBuffer('AppSetting(')
           ..write('singletonId: $singletonId, ')
-          ..write('activeSemesterId: $activeSemesterId, ')
-          ..write('leb2UserId: $leb2UserId, ')
-          ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('activeSemesterId: $activeSemesterId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    singletonId,
-    activeSemesterId,
-    leb2UserId,
-    sessionLifecycle,
-    sessionRevision,
-  );
+  int get hashCode => Object.hash(singletonId, activeSemesterId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSetting &&
           other.singletonId == this.singletonId &&
-          other.activeSemesterId == this.activeSemesterId &&
-          other.leb2UserId == this.leb2UserId &&
-          other.sessionLifecycle == this.sessionLifecycle &&
-          other.sessionRevision == this.sessionRevision);
+          other.activeSemesterId == this.activeSemesterId);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> singletonId;
   final Value<int?> activeSemesterId;
-  final Value<int?> leb2UserId;
-  final Value<String> sessionLifecycle;
-  final Value<int> sessionRevision;
   const AppSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
-    this.leb2UserId = const Value.absent(),
-    this.sessionLifecycle = const Value.absent(),
-    this.sessionRevision = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
-    this.leb2UserId = const Value.absent(),
-    this.sessionLifecycle = const Value.absent(),
-    this.sessionRevision = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? singletonId,
     Expression<int>? activeSemesterId,
-    Expression<int>? leb2UserId,
-    Expression<String>? sessionLifecycle,
-    Expression<int>? sessionRevision,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
       if (activeSemesterId != null) 'active_semester_id': activeSemesterId,
-      if (leb2UserId != null) 'leb2_user_id': leb2UserId,
-      if (sessionLifecycle != null) 'session_lifecycle': sessionLifecycle,
-      if (sessionRevision != null) 'session_revision': sessionRevision,
     });
   }
 
   AppSettingsCompanion copyWith({
     Value<int>? singletonId,
     Value<int?>? activeSemesterId,
-    Value<int?>? leb2UserId,
-    Value<String>? sessionLifecycle,
-    Value<int>? sessionRevision,
   }) {
     return AppSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
       activeSemesterId: activeSemesterId ?? this.activeSemesterId,
-      leb2UserId: leb2UserId ?? this.leb2UserId,
-      sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
-      sessionRevision: sessionRevision ?? this.sessionRevision,
     );
   }
 
@@ -7567,15 +5756,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (activeSemesterId.present) {
       map['active_semester_id'] = Variable<int>(activeSemesterId.value);
     }
-    if (leb2UserId.present) {
-      map['leb2_user_id'] = Variable<int>(leb2UserId.value);
-    }
-    if (sessionLifecycle.present) {
-      map['session_lifecycle'] = Variable<String>(sessionLifecycle.value);
-    }
-    if (sessionRevision.present) {
-      map['session_revision'] = Variable<int>(sessionRevision.value);
-    }
     return map;
   }
 
@@ -7583,22 +5763,17 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   String toString() {
     return (StringBuffer('AppSettingsCompanion(')
           ..write('singletonId: $singletonId, ')
-          ..write('activeSemesterId: $activeSemesterId, ')
-          ..write('leb2UserId: $leb2UserId, ')
-          ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('activeSemesterId: $activeSemesterId')
           ..write(')'))
         .toString();
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+abstract class _$V6AppDatabase extends GeneratedDatabase {
+  _$V6AppDatabase(QueryExecutor e) : super(e);
+  $V6AppDatabaseManager get managers => $V6AppDatabaseManager(this);
   late final $SemestersTable semesters = $SemestersTable(this);
   late final $CoursesTable courses = $CoursesTable(this);
-  late final $CoursePreferencesTable coursePreferences =
-      $CoursePreferencesTable(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
   late final $SeenActivitiesTable seenActivities = $SeenActivitiesTable(this);
   late final $ActivityFingerprintsTable activityFingerprints =
@@ -7609,12 +5784,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $NotificationHistoryTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
-  late final $AssignmentBaselinesTable assignmentBaselines =
-      $AssignmentBaselinesTable(this);
-  late final $SyncOperationChangesTable syncOperationChanges =
-      $SyncOperationChangesTable(this);
-  late final $SyncBackoffStatesTable syncBackoffStates =
-      $SyncBackoffStatesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -7640,10 +5809,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'scheduled_reminders_by_scheduled_time',
     'CREATE INDEX scheduled_reminders_by_scheduled_time ON scheduled_reminders (scheduled_for_utc)',
   );
-  late final Index scheduledRemindersPendingReconciliation = Index(
-    'scheduled_reminders_pending_reconciliation',
-    'CREATE INDEX scheduled_reminders_pending_reconciliation ON scheduled_reminders (semester_id, identity_key) WHERE needs_reconciliation = 1',
-  );
   late final Index notificationHistoryByAssignmentKind = Index(
     'notification_history_by_assignment_kind',
     'CREATE INDEX notification_history_by_assignment_kind ON notification_history (semester_id, identity_key, kind)',
@@ -7668,14 +5833,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'sync_operations_terminal_cleanup',
     'CREATE INDEX sync_operations_terminal_cleanup ON sync_operations (completed_at_utc, operation_id)',
   );
-  late final Index syncOperationsOperationSemester = Index(
-    'sync_operations_operation_semester',
-    'CREATE UNIQUE INDEX sync_operations_operation_semester ON sync_operations (operation_id, semester_id)',
-  );
-  late final Index syncBackoffStatesByNextAttempt = Index(
-    'sync_backoff_states_by_next_attempt',
-    'CREATE INDEX sync_backoff_states_by_next_attempt ON sync_backoff_states (state, next_automatic_attempt_at_utc, semester_id, user_id)',
-  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7683,7 +5840,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     semesters,
     courses,
-    coursePreferences,
     activities,
     seenActivities,
     activityFingerprints,
@@ -7691,9 +5847,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notificationHistory,
     syncRuns,
     syncOperations,
-    assignmentBaselines,
-    syncOperationChanges,
-    syncBackoffStates,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -7701,15 +5854,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     activityFingerprintsByValue,
     scheduledRemindersByAssignmentOffset,
     scheduledRemindersByScheduledTime,
-    scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
     syncRunsByStartedTime,
     syncOperationsOneRunning,
     syncOperationsOneActiveKey,
     syncOperationsQueue,
     syncOperationsTerminalCleanup,
-    syncOperationsOperationSemester,
-    syncBackoffStatesByNextAttempt,
   ];
 }
 
@@ -7719,7 +5869,7 @@ typedef $$SemestersTableUpdateCompanionBuilder =
     SemestersCompanion Function({Value<int> semesterId});
 
 class $$SemestersTableFilterComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V6AppDatabase, $SemestersTable> {
   $$SemestersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7734,7 +5884,7 @@ class $$SemestersTableFilterComposer
 }
 
 class $$SemestersTableOrderingComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V6AppDatabase, $SemestersTable> {
   $$SemestersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7749,7 +5899,7 @@ class $$SemestersTableOrderingComposer
 }
 
 class $$SemestersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V6AppDatabase, $SemestersTable> {
   $$SemestersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7766,7 +5916,7 @@ class $$SemestersTableAnnotationComposer
 class $$SemestersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $SemestersTable,
           Semester,
           $$SemestersTableFilterComposer,
@@ -7774,11 +5924,14 @@ class $$SemestersTableTableManager
           $$SemestersTableAnnotationComposer,
           $$SemestersTableCreateCompanionBuilder,
           $$SemestersTableUpdateCompanionBuilder,
-          (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+          (
+            Semester,
+            BaseReferences<_$V6AppDatabase, $SemestersTable, Semester>,
+          ),
           Semester,
           PrefetchHooks Function()
         > {
-  $$SemestersTableTableManager(_$AppDatabase db, $SemestersTable table)
+  $$SemestersTableTableManager(_$V6AppDatabase db, $SemestersTable table)
     : super(
         TableManagerState(
           db: db,
@@ -7805,7 +5958,7 @@ class $$SemestersTableTableManager
 
 typedef $$SemestersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $SemestersTable,
       Semester,
       $$SemestersTableFilterComposer,
@@ -7813,7 +5966,7 @@ typedef $$SemestersTableProcessedTableManager =
       $$SemestersTableAnnotationComposer,
       $$SemestersTableCreateCompanionBuilder,
       $$SemestersTableUpdateCompanionBuilder,
-      (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+      (Semester, BaseReferences<_$V6AppDatabase, $SemestersTable, Semester>),
       Semester,
       PrefetchHooks Function()
     >;
@@ -7833,7 +5986,7 @@ typedef $$CoursesTableUpdateCompanionBuilder =
     });
 
 class $$CoursesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V6AppDatabase, $CoursesTable> {
   $$CoursesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7858,7 +6011,7 @@ class $$CoursesTableFilterComposer
 }
 
 class $$CoursesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V6AppDatabase, $CoursesTable> {
   $$CoursesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7883,7 +6036,7 @@ class $$CoursesTableOrderingComposer
 }
 
 class $$CoursesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V6AppDatabase, $CoursesTable> {
   $$CoursesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7906,7 +6059,7 @@ class $$CoursesTableAnnotationComposer
 class $$CoursesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $CoursesTable,
           Course,
           $$CoursesTableFilterComposer,
@@ -7914,11 +6067,11 @@ class $$CoursesTableTableManager
           $$CoursesTableAnnotationComposer,
           $$CoursesTableCreateCompanionBuilder,
           $$CoursesTableUpdateCompanionBuilder,
-          (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+          (Course, BaseReferences<_$V6AppDatabase, $CoursesTable, Course>),
           Course,
           PrefetchHooks Function()
         > {
-  $$CoursesTableTableManager(_$AppDatabase db, $CoursesTable table)
+  $$CoursesTableTableManager(_$V6AppDatabase db, $CoursesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -7963,7 +6116,7 @@ class $$CoursesTableTableManager
 
 typedef $$CoursesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $CoursesTable,
       Course,
       $$CoursesTableFilterComposer,
@@ -7971,208 +6124,8 @@ typedef $$CoursesTableProcessedTableManager =
       $$CoursesTableAnnotationComposer,
       $$CoursesTableCreateCompanionBuilder,
       $$CoursesTableUpdateCompanionBuilder,
-      (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+      (Course, BaseReferences<_$V6AppDatabase, $CoursesTable, Course>),
       Course,
-      PrefetchHooks Function()
-    >;
-typedef $$CoursePreferencesTableCreateCompanionBuilder =
-    CoursePreferencesCompanion Function({
-      required int semesterId,
-      required int courseId,
-      Value<bool> notificationsMuted,
-      Value<bool> backgroundMonitoringEnabled,
-      Value<int> rowid,
-    });
-typedef $$CoursePreferencesTableUpdateCompanionBuilder =
-    CoursePreferencesCompanion Function({
-      Value<int> semesterId,
-      Value<int> courseId,
-      Value<bool> notificationsMuted,
-      Value<bool> backgroundMonitoringEnabled,
-      Value<int> rowid,
-    });
-
-class $$CoursePreferencesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
-  $$CoursePreferencesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get courseId => $composableBuilder(
-    column: $table.courseId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get notificationsMuted => $composableBuilder(
-    column: $table.notificationsMuted,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get backgroundMonitoringEnabled => $composableBuilder(
-    column: $table.backgroundMonitoringEnabled,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$CoursePreferencesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
-  $$CoursePreferencesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get courseId => $composableBuilder(
-    column: $table.courseId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get notificationsMuted => $composableBuilder(
-    column: $table.notificationsMuted,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get backgroundMonitoringEnabled => $composableBuilder(
-    column: $table.backgroundMonitoringEnabled,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$CoursePreferencesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
-  $$CoursePreferencesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get courseId =>
-      $composableBuilder(column: $table.courseId, builder: (column) => column);
-
-  GeneratedColumn<bool> get notificationsMuted => $composableBuilder(
-    column: $table.notificationsMuted,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get backgroundMonitoringEnabled => $composableBuilder(
-    column: $table.backgroundMonitoringEnabled,
-    builder: (column) => column,
-  );
-}
-
-class $$CoursePreferencesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $CoursePreferencesTable,
-          CoursePreference,
-          $$CoursePreferencesTableFilterComposer,
-          $$CoursePreferencesTableOrderingComposer,
-          $$CoursePreferencesTableAnnotationComposer,
-          $$CoursePreferencesTableCreateCompanionBuilder,
-          $$CoursePreferencesTableUpdateCompanionBuilder,
-          (
-            CoursePreference,
-            BaseReferences<
-              _$AppDatabase,
-              $CoursePreferencesTable,
-              CoursePreference
-            >,
-          ),
-          CoursePreference,
-          PrefetchHooks Function()
-        > {
-  $$CoursePreferencesTableTableManager(
-    _$AppDatabase db,
-    $CoursePreferencesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$CoursePreferencesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$CoursePreferencesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$CoursePreferencesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<int> courseId = const Value.absent(),
-                Value<bool> notificationsMuted = const Value.absent(),
-                Value<bool> backgroundMonitoringEnabled = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => CoursePreferencesCompanion(
-                semesterId: semesterId,
-                courseId: courseId,
-                notificationsMuted: notificationsMuted,
-                backgroundMonitoringEnabled: backgroundMonitoringEnabled,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required int semesterId,
-                required int courseId,
-                Value<bool> notificationsMuted = const Value.absent(),
-                Value<bool> backgroundMonitoringEnabled = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => CoursePreferencesCompanion.insert(
-                semesterId: semesterId,
-                courseId: courseId,
-                notificationsMuted: notificationsMuted,
-                backgroundMonitoringEnabled: backgroundMonitoringEnabled,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$CoursePreferencesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $CoursePreferencesTable,
-      CoursePreference,
-      $$CoursePreferencesTableFilterComposer,
-      $$CoursePreferencesTableOrderingComposer,
-      $$CoursePreferencesTableAnnotationComposer,
-      $$CoursePreferencesTableCreateCompanionBuilder,
-      $$CoursePreferencesTableUpdateCompanionBuilder,
-      (
-        CoursePreference,
-        BaseReferences<
-          _$AppDatabase,
-          $CoursePreferencesTable,
-          CoursePreference
-        >,
-      ),
-      CoursePreference,
       PrefetchHooks Function()
     >;
 typedef $$ActivitiesTableCreateCompanionBuilder =
@@ -8249,7 +6202,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$ActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8422,7 +6375,7 @@ class $$ActivitiesTableFilterComposer
 }
 
 class $$ActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8595,7 +6548,7 @@ class $$ActivitiesTableOrderingComposer
 }
 
 class $$ActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8760,7 +6713,7 @@ class $$ActivitiesTableAnnotationComposer
 class $$ActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $ActivitiesTable,
           Activity,
           $$ActivitiesTableFilterComposer,
@@ -8768,11 +6721,14 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableAnnotationComposer,
           $$ActivitiesTableCreateCompanionBuilder,
           $$ActivitiesTableUpdateCompanionBuilder,
-          (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+          (
+            Activity,
+            BaseReferences<_$V6AppDatabase, $ActivitiesTable, Activity>,
+          ),
           Activity,
           PrefetchHooks Function()
         > {
-  $$ActivitiesTableTableManager(_$AppDatabase db, $ActivitiesTable table)
+  $$ActivitiesTableTableManager(_$V6AppDatabase db, $ActivitiesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -8945,7 +6901,7 @@ class $$ActivitiesTableTableManager
 
 typedef $$ActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $ActivitiesTable,
       Activity,
       $$ActivitiesTableFilterComposer,
@@ -8953,7 +6909,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableAnnotationComposer,
       $$ActivitiesTableCreateCompanionBuilder,
       $$ActivitiesTableUpdateCompanionBuilder,
-      (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+      (Activity, BaseReferences<_$V6AppDatabase, $ActivitiesTable, Activity>),
       Activity,
       PrefetchHooks Function()
     >;
@@ -8979,7 +6935,7 @@ typedef $$SeenActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$SeenActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9021,7 +6977,7 @@ class $$SeenActivitiesTableFilterComposer
 }
 
 class $$SeenActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9061,7 +7017,7 @@ class $$SeenActivitiesTableOrderingComposer
 }
 
 class $$SeenActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V6AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9103,7 +7059,7 @@ class $$SeenActivitiesTableAnnotationComposer
 class $$SeenActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $SeenActivitiesTable,
           SeenActivity,
           $$SeenActivitiesTableFilterComposer,
@@ -9113,13 +7069,13 @@ class $$SeenActivitiesTableTableManager
           $$SeenActivitiesTableUpdateCompanionBuilder,
           (
             SeenActivity,
-            BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+            BaseReferences<_$V6AppDatabase, $SeenActivitiesTable, SeenActivity>,
           ),
           SeenActivity,
           PrefetchHooks Function()
         > {
   $$SeenActivitiesTableTableManager(
-    _$AppDatabase db,
+    _$V6AppDatabase db,
     $SeenActivitiesTable table,
   ) : super(
         TableManagerState(
@@ -9177,7 +7133,7 @@ class $$SeenActivitiesTableTableManager
 
 typedef $$SeenActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $SeenActivitiesTable,
       SeenActivity,
       $$SeenActivitiesTableFilterComposer,
@@ -9187,7 +7143,7 @@ typedef $$SeenActivitiesTableProcessedTableManager =
       $$SeenActivitiesTableUpdateCompanionBuilder,
       (
         SeenActivity,
-        BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+        BaseReferences<_$V6AppDatabase, $SeenActivitiesTable, SeenActivity>,
       ),
       SeenActivity,
       PrefetchHooks Function()
@@ -9210,7 +7166,7 @@ typedef $$ActivityFingerprintsTableUpdateCompanionBuilder =
     });
 
 class $$ActivityFingerprintsTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V6AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9240,7 +7196,7 @@ class $$ActivityFingerprintsTableFilterComposer
 }
 
 class $$ActivityFingerprintsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V6AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9270,7 +7226,7 @@ class $$ActivityFingerprintsTableOrderingComposer
 }
 
 class $$ActivityFingerprintsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V6AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9302,7 +7258,7 @@ class $$ActivityFingerprintsTableAnnotationComposer
 class $$ActivityFingerprintsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint,
           $$ActivityFingerprintsTableFilterComposer,
@@ -9313,7 +7269,7 @@ class $$ActivityFingerprintsTableTableManager
           (
             ActivityFingerprint,
             BaseReferences<
-              _$AppDatabase,
+              _$V6AppDatabase,
               $ActivityFingerprintsTable,
               ActivityFingerprint
             >,
@@ -9322,7 +7278,7 @@ class $$ActivityFingerprintsTableTableManager
           PrefetchHooks Function()
         > {
   $$ActivityFingerprintsTableTableManager(
-    _$AppDatabase db,
+    _$V6AppDatabase db,
     $ActivityFingerprintsTable table,
   ) : super(
         TableManagerState(
@@ -9378,7 +7334,7 @@ class $$ActivityFingerprintsTableTableManager
 
 typedef $$ActivityFingerprintsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $ActivityFingerprintsTable,
       ActivityFingerprint,
       $$ActivityFingerprintsTableFilterComposer,
@@ -9389,7 +7345,7 @@ typedef $$ActivityFingerprintsTableProcessedTableManager =
       (
         ActivityFingerprint,
         BaseReferences<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint
         >,
@@ -9406,7 +7362,6 @@ typedef $$ScheduledRemindersTableCreateCompanionBuilder =
       required DateTime deadlineAtUtc,
       required DateTime scheduledForUtc,
       required DateTime createdAtUtc,
-      Value<bool> needsReconciliation,
     });
 typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
     ScheduledRemindersCompanion Function({
@@ -9417,11 +7372,10 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
       Value<DateTime> deadlineAtUtc,
       Value<DateTime> scheduledForUtc,
       Value<DateTime> createdAtUtc,
-      Value<bool> needsReconciliation,
     });
 
 class $$ScheduledRemindersTableFilterComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V6AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9466,15 +7420,10 @@ class $$ScheduledRemindersTableFilterComposer
         column: $table.createdAtUtc,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
-
-  ColumnFilters<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => ColumnFilters(column),
-  );
 }
 
 class $$ScheduledRemindersTableOrderingComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V6AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9516,15 +7465,10 @@ class $$ScheduledRemindersTableOrderingComposer
     column: $table.createdAtUtc,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$ScheduledRemindersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V6AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9569,17 +7513,12 @@ class $$ScheduledRemindersTableAnnotationComposer
         column: $table.createdAtUtc,
         builder: (column) => column,
       );
-
-  GeneratedColumn<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => column,
-  );
 }
 
 class $$ScheduledRemindersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder,
           $$ScheduledRemindersTableFilterComposer,
@@ -9590,7 +7529,7 @@ class $$ScheduledRemindersTableTableManager
           (
             ScheduledReminder,
             BaseReferences<
-              _$AppDatabase,
+              _$V6AppDatabase,
               $ScheduledRemindersTable,
               ScheduledReminder
             >,
@@ -9599,7 +7538,7 @@ class $$ScheduledRemindersTableTableManager
           PrefetchHooks Function()
         > {
   $$ScheduledRemindersTableTableManager(
-    _$AppDatabase db,
+    _$V6AppDatabase db,
     $ScheduledRemindersTable table,
   ) : super(
         TableManagerState(
@@ -9623,7 +7562,6 @@ class $$ScheduledRemindersTableTableManager
                 Value<DateTime> deadlineAtUtc = const Value.absent(),
                 Value<DateTime> scheduledForUtc = const Value.absent(),
                 Value<DateTime> createdAtUtc = const Value.absent(),
-                Value<bool> needsReconciliation = const Value.absent(),
               }) => ScheduledRemindersCompanion(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -9632,7 +7570,6 @@ class $$ScheduledRemindersTableTableManager
                 deadlineAtUtc: deadlineAtUtc,
                 scheduledForUtc: scheduledForUtc,
                 createdAtUtc: createdAtUtc,
-                needsReconciliation: needsReconciliation,
               ),
           createCompanionCallback:
               ({
@@ -9643,7 +7580,6 @@ class $$ScheduledRemindersTableTableManager
                 required DateTime deadlineAtUtc,
                 required DateTime scheduledForUtc,
                 required DateTime createdAtUtc,
-                Value<bool> needsReconciliation = const Value.absent(),
               }) => ScheduledRemindersCompanion.insert(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -9652,7 +7588,6 @@ class $$ScheduledRemindersTableTableManager
                 deadlineAtUtc: deadlineAtUtc,
                 scheduledForUtc: scheduledForUtc,
                 createdAtUtc: createdAtUtc,
-                needsReconciliation: needsReconciliation,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -9664,7 +7599,7 @@ class $$ScheduledRemindersTableTableManager
 
 typedef $$ScheduledRemindersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $ScheduledRemindersTable,
       ScheduledReminder,
       $$ScheduledRemindersTableFilterComposer,
@@ -9675,7 +7610,7 @@ typedef $$ScheduledRemindersTableProcessedTableManager =
       (
         ScheduledReminder,
         BaseReferences<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder
         >,
@@ -9705,7 +7640,7 @@ typedef $$NotificationHistoryTableUpdateCompanionBuilder =
     });
 
 class $$NotificationHistoryTableFilterComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V6AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9746,7 +7681,7 @@ class $$NotificationHistoryTableFilterComposer
 }
 
 class $$NotificationHistoryTableOrderingComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V6AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9786,7 +7721,7 @@ class $$NotificationHistoryTableOrderingComposer
 }
 
 class $$NotificationHistoryTableAnnotationComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V6AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9825,7 +7760,7 @@ class $$NotificationHistoryTableAnnotationComposer
 class $$NotificationHistoryTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData,
           $$NotificationHistoryTableFilterComposer,
@@ -9836,7 +7771,7 @@ class $$NotificationHistoryTableTableManager
           (
             NotificationHistoryData,
             BaseReferences<
-              _$AppDatabase,
+              _$V6AppDatabase,
               $NotificationHistoryTable,
               NotificationHistoryData
             >,
@@ -9845,7 +7780,7 @@ class $$NotificationHistoryTableTableManager
           PrefetchHooks Function()
         > {
   $$NotificationHistoryTableTableManager(
-    _$AppDatabase db,
+    _$V6AppDatabase db,
     $NotificationHistoryTable table,
   ) : super(
         TableManagerState(
@@ -9909,7 +7844,7 @@ class $$NotificationHistoryTableTableManager
 
 typedef $$NotificationHistoryTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $NotificationHistoryTable,
       NotificationHistoryData,
       $$NotificationHistoryTableFilterComposer,
@@ -9920,7 +7855,7 @@ typedef $$NotificationHistoryTableProcessedTableManager =
       (
         NotificationHistoryData,
         BaseReferences<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData
         >,
@@ -9950,7 +7885,7 @@ typedef $$SyncRunsTableUpdateCompanionBuilder =
     });
 
 class $$SyncRunsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V6AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9997,7 +7932,7 @@ class $$SyncRunsTableFilterComposer
 }
 
 class $$SyncRunsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V6AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -10042,7 +7977,7 @@ class $$SyncRunsTableOrderingComposer
 }
 
 class $$SyncRunsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V6AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10085,7 +8020,7 @@ class $$SyncRunsTableAnnotationComposer
 class $$SyncRunsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $SyncRunsTable,
           SyncRun,
           $$SyncRunsTableFilterComposer,
@@ -10093,11 +8028,11 @@ class $$SyncRunsTableTableManager
           $$SyncRunsTableAnnotationComposer,
           $$SyncRunsTableCreateCompanionBuilder,
           $$SyncRunsTableUpdateCompanionBuilder,
-          (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+          (SyncRun, BaseReferences<_$V6AppDatabase, $SyncRunsTable, SyncRun>),
           SyncRun,
           PrefetchHooks Function()
         > {
-  $$SyncRunsTableTableManager(_$AppDatabase db, $SyncRunsTable table)
+  $$SyncRunsTableTableManager(_$V6AppDatabase db, $SyncRunsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -10154,7 +8089,7 @@ class $$SyncRunsTableTableManager
 
 typedef $$SyncRunsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $SyncRunsTable,
       SyncRun,
       $$SyncRunsTableFilterComposer,
@@ -10162,7 +8097,7 @@ typedef $$SyncRunsTableProcessedTableManager =
       $$SyncRunsTableAnnotationComposer,
       $$SyncRunsTableCreateCompanionBuilder,
       $$SyncRunsTableUpdateCompanionBuilder,
-      (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+      (SyncRun, BaseReferences<_$V6AppDatabase, $SyncRunsTable, SyncRun>),
       SyncRun,
       PrefetchHooks Function()
     >;
@@ -10179,7 +8114,6 @@ typedef $$SyncOperationsTableCreateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> cancellationRequested,
-      Value<int> sessionRevision,
       Value<String?> resultFailureKind,
       Value<String?> resultFailureDetail,
       Value<int?> resultRetryAfterMilliseconds,
@@ -10199,7 +8133,6 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> cancellationRequested,
-      Value<int> sessionRevision,
       Value<String?> resultFailureKind,
       Value<String?> resultFailureDetail,
       Value<int?> resultRetryAfterMilliseconds,
@@ -10208,7 +8141,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
     });
 
 class $$SyncOperationsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V6AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -10275,11 +8208,6 @@ class $$SyncOperationsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get resultFailureKind => $composableBuilder(
     column: $table.resultFailureKind,
     builder: (column) => ColumnFilters(column),
@@ -10307,7 +8235,7 @@ class $$SyncOperationsTableFilterComposer
 }
 
 class $$SyncOperationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V6AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -10370,11 +8298,6 @@ class $$SyncOperationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get resultFailureKind => $composableBuilder(
     column: $table.resultFailureKind,
     builder: (column) => ColumnOrderings(column),
@@ -10402,7 +8325,7 @@ class $$SyncOperationsTableOrderingComposer
 }
 
 class $$SyncOperationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V6AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10463,11 +8386,6 @@ class $$SyncOperationsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<String> get resultFailureKind => $composableBuilder(
     column: $table.resultFailureKind,
     builder: (column) => column,
@@ -10497,7 +8415,7 @@ class $$SyncOperationsTableAnnotationComposer
 class $$SyncOperationsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $SyncOperationsTable,
           SyncOperation,
           $$SyncOperationsTableFilterComposer,
@@ -10507,13 +8425,17 @@ class $$SyncOperationsTableTableManager
           $$SyncOperationsTableUpdateCompanionBuilder,
           (
             SyncOperation,
-            BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+            BaseReferences<
+              _$V6AppDatabase,
+              $SyncOperationsTable,
+              SyncOperation
+            >,
           ),
           SyncOperation,
           PrefetchHooks Function()
         > {
   $$SyncOperationsTableTableManager(
-    _$AppDatabase db,
+    _$V6AppDatabase db,
     $SyncOperationsTable table,
   ) : super(
         TableManagerState(
@@ -10538,7 +8460,6 @@ class $$SyncOperationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> cancellationRequested = const Value.absent(),
-                Value<int> sessionRevision = const Value.absent(),
                 Value<String?> resultFailureKind = const Value.absent(),
                 Value<String?> resultFailureDetail = const Value.absent(),
                 Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -10556,7 +8477,6 @@ class $$SyncOperationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 cancellationRequested: cancellationRequested,
-                sessionRevision: sessionRevision,
                 resultFailureKind: resultFailureKind,
                 resultFailureDetail: resultFailureDetail,
                 resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
@@ -10576,7 +8496,6 @@ class $$SyncOperationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> cancellationRequested = const Value.absent(),
-                Value<int> sessionRevision = const Value.absent(),
                 Value<String?> resultFailureKind = const Value.absent(),
                 Value<String?> resultFailureDetail = const Value.absent(),
                 Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -10594,7 +8513,6 @@ class $$SyncOperationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 cancellationRequested: cancellationRequested,
-                sessionRevision: sessionRevision,
                 resultFailureKind: resultFailureKind,
                 resultFailureDetail: resultFailureDetail,
                 resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
@@ -10611,7 +8529,7 @@ class $$SyncOperationsTableTableManager
 
 typedef $$SyncOperationsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $SyncOperationsTable,
       SyncOperation,
       $$SyncOperationsTableFilterComposer,
@@ -10621,701 +8539,24 @@ typedef $$SyncOperationsTableProcessedTableManager =
       $$SyncOperationsTableUpdateCompanionBuilder,
       (
         SyncOperation,
-        BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+        BaseReferences<_$V6AppDatabase, $SyncOperationsTable, SyncOperation>,
       ),
       SyncOperation,
-      PrefetchHooks Function()
-    >;
-typedef $$AssignmentBaselinesTableCreateCompanionBuilder =
-    AssignmentBaselinesCompanion Function({
-      Value<int> semesterId,
-      Value<DateTime?> establishedAtUtc,
-    });
-typedef $$AssignmentBaselinesTableUpdateCompanionBuilder =
-    AssignmentBaselinesCompanion Function({
-      Value<int> semesterId,
-      Value<DateTime?> establishedAtUtc,
-    });
-
-class $$AssignmentBaselinesTableFilterComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
-  get establishedAtUtc => $composableBuilder(
-    column: $table.establishedAtUtc,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-}
-
-class $$AssignmentBaselinesTableOrderingComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get establishedAtUtc => $composableBuilder(
-    column: $table.establishedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$AssignmentBaselinesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumnWithTypeConverter<DateTime?, int> get establishedAtUtc =>
-      $composableBuilder(
-        column: $table.establishedAtUtc,
-        builder: (column) => column,
-      );
-}
-
-class $$AssignmentBaselinesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AssignmentBaselinesTable,
-          AssignmentBaseline,
-          $$AssignmentBaselinesTableFilterComposer,
-          $$AssignmentBaselinesTableOrderingComposer,
-          $$AssignmentBaselinesTableAnnotationComposer,
-          $$AssignmentBaselinesTableCreateCompanionBuilder,
-          $$AssignmentBaselinesTableUpdateCompanionBuilder,
-          (
-            AssignmentBaseline,
-            BaseReferences<
-              _$AppDatabase,
-              $AssignmentBaselinesTable,
-              AssignmentBaseline
-            >,
-          ),
-          AssignmentBaseline,
-          PrefetchHooks Function()
-        > {
-  $$AssignmentBaselinesTableTableManager(
-    _$AppDatabase db,
-    $AssignmentBaselinesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$AssignmentBaselinesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$AssignmentBaselinesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$AssignmentBaselinesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<DateTime?> establishedAtUtc = const Value.absent(),
-              }) => AssignmentBaselinesCompanion(
-                semesterId: semesterId,
-                establishedAtUtc: establishedAtUtc,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<DateTime?> establishedAtUtc = const Value.absent(),
-              }) => AssignmentBaselinesCompanion.insert(
-                semesterId: semesterId,
-                establishedAtUtc: establishedAtUtc,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$AssignmentBaselinesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AssignmentBaselinesTable,
-      AssignmentBaseline,
-      $$AssignmentBaselinesTableFilterComposer,
-      $$AssignmentBaselinesTableOrderingComposer,
-      $$AssignmentBaselinesTableAnnotationComposer,
-      $$AssignmentBaselinesTableCreateCompanionBuilder,
-      $$AssignmentBaselinesTableUpdateCompanionBuilder,
-      (
-        AssignmentBaseline,
-        BaseReferences<
-          _$AppDatabase,
-          $AssignmentBaselinesTable,
-          AssignmentBaseline
-        >,
-      ),
-      AssignmentBaseline,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncOperationChangesTableCreateCompanionBuilder =
-    SyncOperationChangesCompanion Function({
-      required int operationId,
-      required int semesterId,
-      required String identityKey,
-      required String kind,
-      Value<int> rowid,
-    });
-typedef $$SyncOperationChangesTableUpdateCompanionBuilder =
-    SyncOperationChangesCompanion Function({
-      Value<int> operationId,
-      Value<int> semesterId,
-      Value<String> identityKey,
-      Value<String> kind,
-      Value<int> rowid,
-    });
-
-class $$SyncOperationChangesTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncOperationChangesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncOperationChangesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
-}
-
-class $$SyncOperationChangesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SyncOperationChangesTable,
-          SyncOperationChange,
-          $$SyncOperationChangesTableFilterComposer,
-          $$SyncOperationChangesTableOrderingComposer,
-          $$SyncOperationChangesTableAnnotationComposer,
-          $$SyncOperationChangesTableCreateCompanionBuilder,
-          $$SyncOperationChangesTableUpdateCompanionBuilder,
-          (
-            SyncOperationChange,
-            BaseReferences<
-              _$AppDatabase,
-              $SyncOperationChangesTable,
-              SyncOperationChange
-            >,
-          ),
-          SyncOperationChange,
-          PrefetchHooks Function()
-        > {
-  $$SyncOperationChangesTableTableManager(
-    _$AppDatabase db,
-    $SyncOperationChangesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncOperationChangesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncOperationChangesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncOperationChangesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> operationId = const Value.absent(),
-                Value<int> semesterId = const Value.absent(),
-                Value<String> identityKey = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOperationChangesCompanion(
-                operationId: operationId,
-                semesterId: semesterId,
-                identityKey: identityKey,
-                kind: kind,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required int operationId,
-                required int semesterId,
-                required String identityKey,
-                required String kind,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOperationChangesCompanion.insert(
-                operationId: operationId,
-                semesterId: semesterId,
-                identityKey: identityKey,
-                kind: kind,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncOperationChangesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SyncOperationChangesTable,
-      SyncOperationChange,
-      $$SyncOperationChangesTableFilterComposer,
-      $$SyncOperationChangesTableOrderingComposer,
-      $$SyncOperationChangesTableAnnotationComposer,
-      $$SyncOperationChangesTableCreateCompanionBuilder,
-      $$SyncOperationChangesTableUpdateCompanionBuilder,
-      (
-        SyncOperationChange,
-        BaseReferences<
-          _$AppDatabase,
-          $SyncOperationChangesTable,
-          SyncOperationChange
-        >,
-      ),
-      SyncOperationChange,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncBackoffStatesTableCreateCompanionBuilder =
-    SyncBackoffStatesCompanion Function({
-      required int semesterId,
-      required int userId,
-      required int consecutiveFailureCount,
-      required String state,
-      Value<DateTime?> nextAutomaticAttemptAtUtc,
-      required String lastFailureKind,
-      Value<String?> lastFailureDetail,
-      Value<int?> lastRetryAfterMilliseconds,
-      required DateTime updatedAtUtc,
-      Value<int> rowid,
-    });
-typedef $$SyncBackoffStatesTableUpdateCompanionBuilder =
-    SyncBackoffStatesCompanion Function({
-      Value<int> semesterId,
-      Value<int> userId,
-      Value<int> consecutiveFailureCount,
-      Value<String> state,
-      Value<DateTime?> nextAutomaticAttemptAtUtc,
-      Value<String> lastFailureKind,
-      Value<String?> lastFailureDetail,
-      Value<int?> lastRetryAfterMilliseconds,
-      Value<DateTime> updatedAtUtc,
-      Value<int> rowid,
-    });
-
-class $$SyncBackoffStatesTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
-  $$SyncBackoffStatesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get userId => $composableBuilder(
-    column: $table.userId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get consecutiveFailureCount => $composableBuilder(
-    column: $table.consecutiveFailureCount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
-  get nextAutomaticAttemptAtUtc => $composableBuilder(
-    column: $table.nextAutomaticAttemptAtUtc,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<String> get lastFailureKind => $composableBuilder(
-    column: $table.lastFailureKind,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get lastFailureDetail => $composableBuilder(
-    column: $table.lastFailureDetail,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get lastRetryAfterMilliseconds => $composableBuilder(
-    column: $table.lastRetryAfterMilliseconds,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAtUtc =>
-      $composableBuilder(
-        column: $table.updatedAtUtc,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-}
-
-class $$SyncBackoffStatesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
-  $$SyncBackoffStatesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get userId => $composableBuilder(
-    column: $table.userId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get consecutiveFailureCount => $composableBuilder(
-    column: $table.consecutiveFailureCount,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get nextAutomaticAttemptAtUtc => $composableBuilder(
-    column: $table.nextAutomaticAttemptAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get lastFailureKind => $composableBuilder(
-    column: $table.lastFailureKind,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get lastFailureDetail => $composableBuilder(
-    column: $table.lastFailureDetail,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get lastRetryAfterMilliseconds => $composableBuilder(
-    column: $table.lastRetryAfterMilliseconds,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedAtUtc => $composableBuilder(
-    column: $table.updatedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncBackoffStatesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
-  $$SyncBackoffStatesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get userId =>
-      $composableBuilder(column: $table.userId, builder: (column) => column);
-
-  GeneratedColumn<int> get consecutiveFailureCount => $composableBuilder(
-    column: $table.consecutiveFailureCount,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get state =>
-      $composableBuilder(column: $table.state, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<DateTime?, int>
-  get nextAutomaticAttemptAtUtc => $composableBuilder(
-    column: $table.nextAutomaticAttemptAtUtc,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get lastFailureKind => $composableBuilder(
-    column: $table.lastFailureKind,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get lastFailureDetail => $composableBuilder(
-    column: $table.lastFailureDetail,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get lastRetryAfterMilliseconds => $composableBuilder(
-    column: $table.lastRetryAfterMilliseconds,
-    builder: (column) => column,
-  );
-
-  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAtUtc =>
-      $composableBuilder(
-        column: $table.updatedAtUtc,
-        builder: (column) => column,
-      );
-}
-
-class $$SyncBackoffStatesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SyncBackoffStatesTable,
-          SyncBackoffState,
-          $$SyncBackoffStatesTableFilterComposer,
-          $$SyncBackoffStatesTableOrderingComposer,
-          $$SyncBackoffStatesTableAnnotationComposer,
-          $$SyncBackoffStatesTableCreateCompanionBuilder,
-          $$SyncBackoffStatesTableUpdateCompanionBuilder,
-          (
-            SyncBackoffState,
-            BaseReferences<
-              _$AppDatabase,
-              $SyncBackoffStatesTable,
-              SyncBackoffState
-            >,
-          ),
-          SyncBackoffState,
-          PrefetchHooks Function()
-        > {
-  $$SyncBackoffStatesTableTableManager(
-    _$AppDatabase db,
-    $SyncBackoffStatesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncBackoffStatesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncBackoffStatesTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$SyncBackoffStatesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<int> userId = const Value.absent(),
-                Value<int> consecutiveFailureCount = const Value.absent(),
-                Value<String> state = const Value.absent(),
-                Value<DateTime?> nextAutomaticAttemptAtUtc =
-                    const Value.absent(),
-                Value<String> lastFailureKind = const Value.absent(),
-                Value<String?> lastFailureDetail = const Value.absent(),
-                Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
-                Value<DateTime> updatedAtUtc = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncBackoffStatesCompanion(
-                semesterId: semesterId,
-                userId: userId,
-                consecutiveFailureCount: consecutiveFailureCount,
-                state: state,
-                nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc,
-                lastFailureKind: lastFailureKind,
-                lastFailureDetail: lastFailureDetail,
-                lastRetryAfterMilliseconds: lastRetryAfterMilliseconds,
-                updatedAtUtc: updatedAtUtc,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required int semesterId,
-                required int userId,
-                required int consecutiveFailureCount,
-                required String state,
-                Value<DateTime?> nextAutomaticAttemptAtUtc =
-                    const Value.absent(),
-                required String lastFailureKind,
-                Value<String?> lastFailureDetail = const Value.absent(),
-                Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
-                required DateTime updatedAtUtc,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncBackoffStatesCompanion.insert(
-                semesterId: semesterId,
-                userId: userId,
-                consecutiveFailureCount: consecutiveFailureCount,
-                state: state,
-                nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc,
-                lastFailureKind: lastFailureKind,
-                lastFailureDetail: lastFailureDetail,
-                lastRetryAfterMilliseconds: lastRetryAfterMilliseconds,
-                updatedAtUtc: updatedAtUtc,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncBackoffStatesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SyncBackoffStatesTable,
-      SyncBackoffState,
-      $$SyncBackoffStatesTableFilterComposer,
-      $$SyncBackoffStatesTableOrderingComposer,
-      $$SyncBackoffStatesTableAnnotationComposer,
-      $$SyncBackoffStatesTableCreateCompanionBuilder,
-      $$SyncBackoffStatesTableUpdateCompanionBuilder,
-      (
-        SyncBackoffState,
-        BaseReferences<
-          _$AppDatabase,
-          $SyncBackoffStatesTable,
-          SyncBackoffState
-        >,
-      ),
-      SyncBackoffState,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> singletonId,
       Value<int?> activeSemesterId,
-      Value<int?> leb2UserId,
-      Value<String> sessionLifecycle,
-      Value<int> sessionRevision,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> singletonId,
       Value<int?> activeSemesterId,
-      Value<int?> leb2UserId,
-      Value<String> sessionLifecycle,
-      Value<int> sessionRevision,
     });
 
 class $$AppSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V6AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -11332,25 +8573,10 @@ class $$AppSettingsTableFilterComposer
     column: $table.activeSemesterId,
     builder: (column) => ColumnFilters(column),
   );
-
-  ColumnFilters<int> get leb2UserId => $composableBuilder(
-    column: $table.leb2UserId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get sessionLifecycle => $composableBuilder(
-    column: $table.sessionLifecycle,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => ColumnFilters(column),
-  );
 }
 
 class $$AppSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V6AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -11367,25 +8593,10 @@ class $$AppSettingsTableOrderingComposer
     column: $table.activeSemesterId,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get leb2UserId => $composableBuilder(
-    column: $table.leb2UserId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get sessionLifecycle => $composableBuilder(
-    column: $table.sessionLifecycle,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$AppSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V6AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -11402,27 +8613,12 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.activeSemesterId,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get leb2UserId => $composableBuilder(
-    column: $table.leb2UserId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get sessionLifecycle => $composableBuilder(
-    column: $table.sessionLifecycle,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get sessionRevision => $composableBuilder(
-    column: $table.sessionRevision,
-    builder: (column) => column,
-  );
 }
 
 class $$AppSettingsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V6AppDatabase,
           $AppSettingsTable,
           AppSetting,
           $$AppSettingsTableFilterComposer,
@@ -11432,12 +8628,12 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableUpdateCompanionBuilder,
           (
             AppSetting,
-            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+            BaseReferences<_$V6AppDatabase, $AppSettingsTable, AppSetting>,
           ),
           AppSetting,
           PrefetchHooks Function()
         > {
-  $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
+  $$AppSettingsTableTableManager(_$V6AppDatabase db, $AppSettingsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -11452,29 +8648,17 @@ class $$AppSettingsTableTableManager
               ({
                 Value<int> singletonId = const Value.absent(),
                 Value<int?> activeSemesterId = const Value.absent(),
-                Value<int?> leb2UserId = const Value.absent(),
-                Value<String> sessionLifecycle = const Value.absent(),
-                Value<int> sessionRevision = const Value.absent(),
               }) => AppSettingsCompanion(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
-                leb2UserId: leb2UserId,
-                sessionLifecycle: sessionLifecycle,
-                sessionRevision: sessionRevision,
               ),
           createCompanionCallback:
               ({
                 Value<int> singletonId = const Value.absent(),
                 Value<int?> activeSemesterId = const Value.absent(),
-                Value<int?> leb2UserId = const Value.absent(),
-                Value<String> sessionLifecycle = const Value.absent(),
-                Value<int> sessionRevision = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
-                leb2UserId: leb2UserId,
-                sessionLifecycle: sessionLifecycle,
-                sessionRevision: sessionRevision,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -11486,7 +8670,7 @@ class $$AppSettingsTableTableManager
 
 typedef $$AppSettingsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V6AppDatabase,
       $AppSettingsTable,
       AppSetting,
       $$AppSettingsTableFilterComposer,
@@ -11496,21 +8680,19 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableUpdateCompanionBuilder,
       (
         AppSetting,
-        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+        BaseReferences<_$V6AppDatabase, $AppSettingsTable, AppSetting>,
       ),
       AppSetting,
       PrefetchHooks Function()
     >;
 
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
+class $V6AppDatabaseManager {
+  final _$V6AppDatabase _db;
+  $V6AppDatabaseManager(this._db);
   $$SemestersTableTableManager get semesters =>
       $$SemestersTableTableManager(_db, _db.semesters);
   $$CoursesTableTableManager get courses =>
       $$CoursesTableTableManager(_db, _db.courses);
-  $$CoursePreferencesTableTableManager get coursePreferences =>
-      $$CoursePreferencesTableTableManager(_db, _db.coursePreferences);
   $$ActivitiesTableTableManager get activities =>
       $$ActivitiesTableTableManager(_db, _db.activities);
   $$SeenActivitiesTableTableManager get seenActivities =>
@@ -11525,12 +8707,6 @@ class $AppDatabaseManager {
       $$SyncRunsTableTableManager(_db, _db.syncRuns);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
-  $$AssignmentBaselinesTableTableManager get assignmentBaselines =>
-      $$AssignmentBaselinesTableTableManager(_db, _db.assignmentBaselines);
-  $$SyncOperationChangesTableTableManager get syncOperationChanges =>
-      $$SyncOperationChangesTableTableManager(_db, _db.syncOperationChanges);
-  $$SyncBackoffStatesTableTableManager get syncBackoffStates =>
-      $$SyncBackoffStatesTableTableManager(_db, _db.syncBackoffStates);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
 }

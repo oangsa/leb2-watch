@@ -14,6 +14,8 @@ import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
+import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
@@ -50,7 +52,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('compact-courses')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('courses-surface')), findsOneWidget);
+    expect(find.text('No saved courses yet'), findsOneWidget);
 
     await _resize(tester, width: 600);
     expect(find.byKey(AdaptiveAppShell.mediumKey), findsOneWidget);
@@ -61,7 +63,7 @@ void main() {
 
     await _resize(tester, width: 1200);
     expect(find.byKey(AdaptiveAppShell.expandedKey), findsOneWidget);
-    expect(find.byKey(const Key('courses-surface')), findsOneWidget);
+    expect(find.text('No saved courses yet'), findsOneWidget);
     expect(
       tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
       AppDestination.courses.index,
@@ -82,7 +84,7 @@ void main() {
     await tester.tap(find.byKey(const Key('compact-courses')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('courses-surface')), findsOneWidget);
+    expect(find.text('No saved courses yet'), findsOneWidget);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       AppDestination.courses.index,
@@ -161,7 +163,14 @@ void main() {
         await tester.sendKeyEvent(testCase.$1);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
         await tester.pumpAndSettle();
-        expect(find.byKey(Key('${testCase.$2.name}-surface')), findsOneWidget);
+        if (testCase.$2 == AppDestination.courses) {
+          expect(find.text('No saved courses yet'), findsOneWidget);
+        } else {
+          expect(
+            find.byKey(Key('${testCase.$2.name}-surface')),
+            findsOneWidget,
+          );
+        }
       }
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -186,7 +195,14 @@ void main() {
         await tester.sendKeyEvent(testCase.$1);
         await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
         await tester.pumpAndSettle();
-        expect(find.byKey(Key('${testCase.$2.name}-surface')), findsOneWidget);
+        if (testCase.$2 == AppDestination.courses) {
+          expect(find.text('No saved courses yet'), findsOneWidget);
+        } else {
+          expect(
+            find.byKey(Key('${testCase.$2.name}-surface')),
+            findsOneWidget,
+          );
+        }
       }
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -312,7 +328,7 @@ void main() {
     await tester.tap(find.byKey(const Key('compact-courses')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('courses-surface')), findsOneWidget);
+    expect(find.text('No saved courses yet'), findsOneWidget);
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       AppDestination.courses.index,
@@ -434,6 +450,9 @@ Future<_ShellSetup> _pumpShell(
         semesterSelectionServiceProvider.overrideWith(
           (_) => _ShellSemesterSelectionService(),
         ),
+        coursePreferencesServiceProvider.overrideWith(
+          (_) => _ShellCoursePreferencesService(),
+        ),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
@@ -469,6 +488,27 @@ final class _ShellSemesterSelectionService implements SemesterSelectionService {
   @override
   Future<SemesterSelectionResult> select(int semesterId) async =>
       SemesterSelectionSuccess(_catalog);
+}
+
+final class _ShellCoursePreferencesService implements CoursePreferencesService {
+  @override
+  Stream<ActiveCourseCatalog> watchCatalog() {
+    return Stream.value(
+      ActiveCourseCatalog(activeSemesterId: 202, courses: const []),
+    );
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setBackgroundMonitoringEnabled(
+    CourseKey key, {
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setNotificationsMuted(
+    CourseKey key, {
+    required bool muted,
+  }) async => const CoursePreferenceUpdateSuccess();
 }
 
 Future<void> _resize(

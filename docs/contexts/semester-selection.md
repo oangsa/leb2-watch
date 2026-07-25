@@ -35,7 +35,7 @@ offline, stale, backend-error, and expired-session states.
 - Semester names, years, terms, dates, or chronology not present in the
   verified backend contract.
 - Removing cached semesters absent from a response.
-- Database schema changes or migrations.
+- Database schema changes or migrations within this feature.
 - Course and assignment retrieval or presentation.
 - Synchronization scheduling, notifications, or automatic
   reauthentication.
@@ -150,7 +150,9 @@ empty catalog.
 
 ## Data model
 
-This feature uses schema version 6 unchanged:
+This feature originally used schema version 6 unchanged. Feature 10.2 later
+raised the live database to schema version 7 without changing the semester
+selection contracts:
 
 - `semesters.semester_id` owns each positive numeric identifier.
 - `app_settings.active_semester_id` stores the optional selection and
@@ -419,7 +421,8 @@ changed.
 
 ## Future considerations
 
-- Feature 10.2 can layer course preferences beneath the selected semester.
+- Course preferences are layered beneath the selected semester; see the
+  completed Feature 10.2 context.
 - Assignment synchronization should read the active semester through its own
   local application boundary.
 - Feature 15.1 should own intentional removal of cached semester-related data.
@@ -435,3 +438,4 @@ changed.
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Session Setup and Verification](session-setup.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Course Preferences](course-preferences.md)

@@ -15,6 +15,8 @@ import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
+import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
+import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 
 void main() {
   test('shares the exact configuration and Dio transport instance', () {
@@ -87,6 +89,21 @@ void main() {
       final secondSemesterService = await container.read(
         semesterSelectionServiceProvider.future,
       );
+      final firstCourseStore = await container.read(
+        coursePreferencesStoreProvider.future,
+      );
+      final secondCourseStore = await container.read(
+        coursePreferencesStoreProvider.future,
+      );
+      final firstCourseService = await container.read(
+        coursePreferencesServiceProvider.future,
+      );
+      final secondCourseService = await container.read(
+        coursePreferencesServiceProvider.future,
+      );
+      final policyReader = await container.read(
+        courseEffectPolicyReaderProvider.future,
+      );
 
       expect(storage.openCalls, 1);
       expect(firstDatabase, same(database));
@@ -98,6 +115,11 @@ void main() {
       expect(secondSemesterStore, same(firstSemesterStore));
       expect(firstSemesterService, isA<LocalSemesterSelectionService>());
       expect(secondSemesterService, same(firstSemesterService));
+      expect(firstCourseStore, isA<DriftCoursePreferencesStore>());
+      expect(secondCourseStore, same(firstCourseStore));
+      expect(firstCourseService, isA<LocalCoursePreferencesService>());
+      expect(secondCourseService, same(firstCourseService));
+      expect(policyReader, same(firstCourseService));
       expect(backend.requestCalls, 0);
 
       lifecycleSubscription.close();

@@ -29,6 +29,26 @@ class Courses extends Table {
   ];
 }
 
+class CoursePreferences extends Table {
+  IntColumn get semesterId => integer()();
+  IntColumn get courseId => integer()();
+  BoolColumn get notificationsMuted =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get backgroundMonitoringEnabled =>
+      boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {semesterId, courseId};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (semester_id > 0)',
+    'CHECK (course_id > 0)',
+    'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
 @TableIndex.sql(
   'CREATE UNIQUE INDEX activities_backend_identity '
   'ON activities (semester_id, backend_activity_id) '
