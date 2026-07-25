@@ -45,8 +45,9 @@ completed.
 
 ## User-visible behavior
 
-The application opens on the onboarding placeholder until a later feature
-advances the flow state. Authentication and semester-selection stages each
+The application opens on the real `PrivacyOnboardingPage` now owned by Feature
+9.1. The shell's process-local guard remains responsible for keeping users at
+the current flow gate. Authentication and semester-selection stages each
 permit only their matching gate and the privacy page. A ready user lands on
 assignments and may move among assignments, courses, settings, and diagnostics.
 

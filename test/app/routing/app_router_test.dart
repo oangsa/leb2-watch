@@ -74,7 +74,11 @@ void main() {
     });
 
     for (final testCase in <(AppFlowStage, String, String)>[
-      (AppFlowStage.onboarding, '/assignments', 'Onboarding'),
+      (
+        AppFlowStage.onboarding,
+        '/assignments',
+        'Assignments, ready when you are',
+      ),
       (AppFlowStage.authentication, '/assignments', 'Authentication'),
       (AppFlowStage.semesterSelection, '/assignments', 'Semesters'),
       (AppFlowStage.ready, '/', 'Assignments'),
@@ -126,7 +130,7 @@ void main() {
 
       await tester.pumpWidget(_RouterHarness(router: router));
       await tester.pumpAndSettle();
-      expect(find.text('Onboarding'), findsOneWidget);
+      expect(find.text('Assignments, ready when you are'), findsWidgets);
 
       controller.updateStage(AppFlowStage.authentication);
       await tester.pumpAndSettle();
@@ -140,6 +144,35 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Assignments'), findsWidgets);
       expect(router, same(originalRouter));
+    });
+
+    testWidgets('authentication stays blocked until onboarding completes', (
+      tester,
+    ) async {
+      final controller = AppFlowController();
+      final router = createAppRouter(
+        controller,
+        initialLocation: AppRoute.authentication.path,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(_RouterHarness(router: router));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Assignments, ready when you are'), findsWidgets);
+      expect(find.text('Authentication'), findsNothing);
+
+      for (var step = 0; step < 5; step++) {
+        final primary = find.byKey(const Key('onboarding-primary-button'));
+        await tester.ensureVisible(primary);
+        await tester.tap(primary);
+        await tester.pumpAndSettle();
+      }
+
+      expect(controller.stage, AppFlowStage.authentication);
+      expect(find.text('Authentication'), findsOneWidget);
+      expect(find.text('Assignments, ready when you are'), findsNothing);
     });
 
     for (final route in <AppRoute>[
@@ -244,7 +277,7 @@ class _RouterHarness extends StatelessWidget {
 
 String _labelForRoute(AppRoute route) {
   return switch (route) {
-    AppRoute.onboarding => 'Onboarding',
+    AppRoute.onboarding => 'Assignments, ready when you are',
     AppRoute.authentication => 'Authentication',
     AppRoute.semesters => 'Semesters',
     _ => throw ArgumentError.value(route),

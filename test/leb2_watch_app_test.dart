@@ -35,7 +35,7 @@ void main() {
     expect(app.themeAnimationStyle?.duration, Duration.zero);
     expect(app.themeAnimationStyle?.reverseDuration, Duration.zero);
     expect(find.text('LEB2 Watch'), findsOneWidget);
-    expect(find.text('Onboarding'), findsOneWidget);
+    expect(find.text('Assignments, ready when you are'), findsWidgets);
     expect(root.configuration, same(configuration));
   });
 
