@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/app_dependencies.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/routing/app_flow.dart';
+import '../../../app/routing/app_route.dart';
 import 'session_setup_page.dart';
 
 class SessionSetupRoute extends ConsumerWidget {
@@ -16,9 +18,12 @@ class SessionSetupRoute extends ConsumerWidget {
       data: (value) => SessionSetupPage(
         service: value,
         onCompleted: () {
-          ref
-              .read(appFlowControllerProvider)
-              .updateStage(AppFlowStage.semesterSelection);
+          final flow = ref.read(appFlowControllerProvider);
+          if (flow.stage == AppFlowStage.ready) {
+            context.go(AppRoute.assignments.path);
+          } else {
+            flow.updateStage(AppFlowStage.semesterSelection);
+          }
         },
       ),
       error: (_, _) => Scaffold(

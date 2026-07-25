@@ -6,6 +6,8 @@ Completed for live device-local callers using independent connections to the
 same SQLite file, with the standard fenced-lease limitation documented below.
 Feature 8.2 now extends successful results with committed assignment changes.
 Feature 8.3 now adds durable automatic-trigger admission and backoff outcomes.
+Feature 9.3 now adds a durable global session-expiration gate and revision
+fence.
 Platform background entry points and end-to-end native background execution
 are not part of this feature.
 
@@ -27,6 +29,8 @@ success is visible only after its snapshot transaction commits.
   courses/activities, durable baseline/change state, and bounded success
   history.
 - Active-join-before-policy admission and fenced exact-once backoff mutation.
+- Global lifecycle admission before enqueue, all-queued terminalization while
+  expired, and per-operation running-response revision fencing.
 - Safe failure/cancellation history and a local persistence failure category.
 - Real file-backed multi-connection, rollback, migration, constraint, codec,
   and security tests.
@@ -35,7 +39,7 @@ success is visible only after its snapshot transaction commits.
 
 - User-ID or credential acquisition.
 - Notification/reminder callbacks or effects.
-- Background scheduling, platform entry points, providers, or UI.
+- Background scheduling or platform entry points.
 - Absolute duplicate-dispatch prevention after arbitrary lease expiry.
 
 ## User-visible behavior
@@ -47,6 +51,8 @@ validation, cancellation, and persistence failures retain the previous
 snapshot. Automatic triggers can return a redacted deferred outcome without
 enqueueing while policy is waiting or blocked. Successful completion means the
 new rows and policy reset are already committed.
+While the saved session is expired, every reason returns a redacted paused
+outcome before enqueue, history, or HTTP.
 
 ## Architecture
 
@@ -58,6 +64,7 @@ snapshot-to-row reconciliation and diff persistence.
 `SyncOperationStore` owns the durable coordination state machine and fenced
 transactions. `SyncBackoffStore` owns durable admission and failure-delay
 policy. `AppDatabase` owns the generated schema.
+`DriftSessionLifecycleStore` owns the global active/expired state and revision.
 
 The public layer imports no Dio or Drift type. The concrete service consumes
 `BackendApiClient`, whose implementation reads the current secure credential
@@ -79,9 +86,11 @@ per request.
   admission and durable waiting/blocked policy.
 - `lib/src/features/assignments/sync/sync_failure_codec.dart` — shared bounded
   operation/backoff failure codec.
+- `lib/src/core/session/session_lifecycle.dart` — durable global lifecycle and
+  revision fence.
 - `lib/src/core/database/database_tables.dart` — synchronization and change
   persistence schema.
-- `lib/src/core/database/app_database.dart` — v4 migration and transactional
+- `lib/src/core/database/app_database.dart` — v6 migration and transactional
   history primitive.
 - `test/features/assignments/sync/assignment_sync_service_test.dart` — focused
   service and multi-connection tests.
@@ -112,15 +121,17 @@ Reasons are exactly `initialSetup`, `appLaunch`, `appResume`,
 `manualRefresh`, `backgroundTask`, `desktopTimer`, and `trayAction`.
 
 Terminal results are `SyncSuccess`, `SyncFailed`, or `SyncCancelled`.
-`SyncDeferred` represents a request suppressed before enqueue. Terminal values
-contain only operation/semester IDs, leader reason, UTC start/completion times,
+`SyncDeferred` represents a request suppressed by lane backoff before enqueue;
+`SyncPausedForSession` represents every reason suppressed by global expiry.
+Public values contain only operation/semester IDs, leader reason, UTC
+start/completion times,
 safe counts, one immutable identity/kind change batch, or one existing
 `SyncFailure`. Debug output is fixed and redacted. Backoff status exposes safe
 failure/count/time metadata but no user ID.
 
 The selected semester must already exist locally before enqueue. `userId`
-remains explicit because the verified API requires it and no identity owner
-exists yet.
+remains explicit because the verified API requires it; session setup persists
+the current non-secret identity separately.
 
 ## Data model
 
@@ -129,6 +140,8 @@ work is keyed by `(semester_id, user_id)`. Reasons and states are checked enum
 names. Running rows have an unpredictable owner nonce and lease. Terminal rows
 clear ownership and store either counts, a bounded failure codec, or no result
 metadata for cancellation.
+Each row also captures the session revision used by that operation so late
+expiration from an older credential cannot disable a verified replacement.
 
 `sync_operation_changes` references the unique
 `sync_operations(operation_id, semester_id)` parent key and the existing
@@ -156,22 +169,27 @@ seen, fingerprint, and reminder-state details are documented in
 
 ## State and control flow
 
-1. Validate both IDs and enter a short admission transaction.
-2. Join active same-key work before applying automatic-trigger backoff.
-3. Return `SyncDeferred` before enqueue when policy is not eligible.
-4. Read the requested operation. Return immediately if terminal.
-5. If no unexpired global owner exists, requeue an expired owner and claim the
+1. Validate both IDs at the public service boundary.
+2. Read durable lifecycle state and return `SyncPausedForSession` before
+   semester lookup, enqueue, history, or HTTP when expired.
+3. Join active same-key work before applying automatic-trigger backoff.
+4. Return `SyncDeferred` before enqueue when policy is not eligible.
+5. Persist the current lifecycle revision with a newly enqueued operation.
+6. Read the requested operation. Return immediately if terminal.
+7. If no unexpired global owner exists, requeue an expired owner and claim the
    oldest queued operation with a fresh nonce and lease.
-6. Execute that operation's snapshot GET outside any database transaction.
-7. Heartbeat every 15 seconds and extend the 2-minute lease.
-8. On requested cancellation, ownership loss, or heartbeat storage failure,
+8. Execute that operation's snapshot GET outside any database transaction.
+9. Heartbeat every 15 seconds and extend the 2-minute lease.
+10. On requested cancellation, ownership loss, or heartbeat storage failure,
    cancel the private transport token while preserving the stop cause.
-9. On success, re-check ownership/cancellation, reconcile one semester
+11. On success, re-check ownership/cancellation, reconcile one semester
    snapshot and change batch, add bounded success history, and terminalize in
    one transaction with the policy reset.
-10. On transport failure, terminalize safe result/history and mutate policy in
-    one short transaction. Cancellation leaves policy unchanged.
-11. Poll the requested row every 250 ms until its shared terminal result
+12. On exact current-revision expiration, terminalize the owner and every
+    queued operation and persist global expiry in one transaction.
+13. On other transport failure, terminalize safe result/history and mutate
+    policy in one short transaction. Cancellation leaves policy unchanged.
+14. Poll the requested row every 250 ms until its shared terminal result
     exists.
 
 A service may execute an older queued operation inserted by another caller
@@ -210,6 +228,8 @@ is cleared on terminal completion.
   does not depend on one Dart isolate.
 - Complete the Future only after the transaction returns.
 - Gate automatic triggers without sleeping or dispatching a second request.
+- Gate all reasons globally after exact saved-session expiration and fence
+  stale failures by the persisted session revision.
 - Let committed terminal ownership mutate policy exactly once.
 - Add no observer or notification callback before an effect owner exists.
 - Map local database failure to non-retryable
@@ -249,7 +269,11 @@ Programming/configuration errors still surface, while a best-effort fenced
 release returns live owned work to the queue.
 
 An absent semester is a composition error raised before HTTP or operation
-insertion.
+insertion when lifecycle is not expired. A lifecycle storage failure fails
+closed before HTTP. Exact current-revision `SESSION_EXPIRED` preserves cached
+snapshots, terminalizes all queued callers regardless of captured revision,
+and pauses later requests. An old-revision expiration completes only that old
+running operation and cannot mutate current lifecycle or backoff policy.
 
 ## Tests
 
@@ -280,6 +304,9 @@ Focused tests cover:
 - exact reasons/ID validation, redacted results, and source ownership scans.
 - backoff gate, exact-once mutation, cancellation neutrality, and fail-closed
   policy-storage behavior.
+- all-reason expiration gating, cache preservation, same- and older-revision
+  queued-caller completion, stale-running-session fencing, non-expiration
+  `401`, and lifecycle read failure.
 
 Tests use sanitized in-memory models and real temporary-file SQLite. They do
 not call a production backend or use a real credential.
@@ -309,6 +336,12 @@ Feature 8.3 verification passed repository formatting, both analyzers, 158
 focused synchronization/database/network tests, 258 full-suite tests, stable
 generated-file hashes, and the Linux release build.
 
+Feature 9.3's focused expiration/fence suite contains eight cases, including
+the migrated-v5 runtime gate and older-revision queued terminalization. The
+complete synchronization, migration, and lifecycle matrix passed 100/100;
+final broad evidence is recorded in
+`session-expiration.md`.
+
 ## Known limitations
 
 - A lease cannot guarantee zero duplicate HTTP dispatch after arbitrary
@@ -322,8 +355,8 @@ generated-file hashes, and the Linux release build.
 - Deadline timezone and inclusivity semantics remain unresolved; Feature 8.2
   only detects safe source-level changes and durable reminder work.
 - Snapshot state is semester-scoped rather than account-scoped.
-- The service requires an existing semester and explicit user ID; setup and
-  identity acquisition are not implemented.
+- The service requires an existing semester and explicit user ID; the composed
+  setup flow owns identity acquisition, while callers still pass it explicitly.
 - No native background entry point is runtime-tested yet.
 
 ## Future considerations
@@ -342,3 +375,4 @@ generated-file hashes, and the Linux release build.
 - [Authenticated Backend API Client](backend-api-client.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Verified Backend API Contract](backend-api-contract.md)
+- [Session Expiration Recovery](session-expiration.md)

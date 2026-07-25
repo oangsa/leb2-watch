@@ -3,14 +3,17 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:leb2_watch/src/app/app_dependencies.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 
 void main() {
   for (final testCase in <(double, Key, Type, bool)>[
@@ -334,6 +337,37 @@ void main() {
     expect(find.textContaining('due tomorrow'), findsNothing);
     expect(find.textContaining('3 new'), findsNothing);
   });
+
+  for (final testCase in <(double, Key)>[
+    (375, AdaptiveAppShell.compactKey),
+    (1200, AdaptiveAppShell.expandedKey),
+  ]) {
+    testWidgets(
+      'expired session keeps cached content visible at ${testCase.$1} px',
+      (tester) async {
+        final setup = await _pumpShell(
+          tester,
+          width: testCase.$1,
+          height: 520,
+          textScaler: const TextScaler.linear(2),
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 3,
+          ),
+        );
+        addTearDown(setup.dispose);
+
+        expect(find.byKey(testCase.$2), findsOneWidget);
+        expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+        expect(
+          find.text('Your LEB2 session expired. Showing saved data.'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 Future<_ShellSetup> _pumpShell(
@@ -341,6 +375,10 @@ Future<_ShellSetup> _pumpShell(
   required double width,
   double height = 720,
   TextScaler textScaler = TextScaler.noScaling,
+  SessionLifecycleSnapshot lifecycle = const SessionLifecycleSnapshot(
+    state: SessionLifecycleState.active,
+    revision: 1,
+  ),
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, height);
@@ -350,16 +388,21 @@ Future<_ShellSetup> _pumpShell(
   final controller = AppFlowController(initialStage: AppFlowStage.ready);
   final router = createAppRouter(controller);
   await tester.pumpWidget(
-    MaterialApp.router(
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      routerConfig: router,
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
-          child: child!,
-        );
-      },
+    ProviderScope(
+      overrides: [
+        sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
+      ],
+      child: MaterialApp.router(
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        routerConfig: router,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+            child: child!,
+          );
+        },
+      ),
     ),
   );
   await tester.pumpAndSettle();

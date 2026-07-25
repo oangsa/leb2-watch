@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 5', () {
+  group('schema version 6', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 5);
+        expect(database.schemaVersion, 6);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -45,7 +45,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 5);
+        expect(await _pragmaInt(database, 'user_version'), 6);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -124,6 +124,51 @@ void main() {
           expect(entry.column, isNot(contains(fragment)));
         }
       }
+    });
+
+    test('constrains lifecycle state and session revisions', () async {
+      await database
+          .into(database.appSettings)
+          .insert(const AppSettingsCompanion(singletonId: drift.Value(1)));
+      final setting = await database.select(database.appSettings).getSingle();
+      expect(setting.sessionLifecycle, 'unknown');
+      expect(setting.sessionRevision, 0);
+
+      for (final statement in [
+        "UPDATE app_settings SET session_lifecycle = 'invalid'",
+        'UPDATE app_settings SET session_revision = -1',
+        'UPDATE app_settings SET session_revision = 2147483648',
+      ]) {
+        await expectLater(database.customStatement(statement), throwsException);
+      }
+
+      await database
+          .into(database.semesters)
+          .insert(
+            SemestersCompanion.insert(semesterId: const drift.Value(101)),
+          );
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              reason: 'manualRefresh',
+              state: 'queued',
+              enqueuedAtUtc: DateTime.utc(2026, 7, 25),
+            ),
+          );
+      expect(
+        (await database.select(database.syncOperations).getSingle())
+            .sessionRevision,
+        0,
+      );
+      await expectLater(
+        database.customStatement(
+          'UPDATE sync_operations SET session_revision = -1',
+        ),
+        throwsException,
+      );
     });
   });
 

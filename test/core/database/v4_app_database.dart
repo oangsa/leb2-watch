@@ -1,28 +1,10 @@
 import 'package:drift/drift.dart';
-import 'package:leb2_watch/src/core/database/database_tables.dart'
-    hide AppSettings;
 import 'package:leb2_watch/src/core/database/utc_date_time_converter.dart';
 
+import 'legacy_v2_tables.dart';
+import 'v5_app_database.dart' show createFrozenV4Schema;
+
 part 'v4_app_database.g.dart';
-
-class V4AppSettings extends Table {
-  @override
-  String get tableName => 'app_settings';
-
-  IntColumn get singletonId => integer()();
-  IntColumn get activeSemesterId => integer().nullable()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {singletonId};
-
-  @override
-  List<String> get customConstraints => const [
-    'CHECK (singleton_id = 1)',
-    'CHECK (active_semester_id IS NULL OR active_semester_id > 0)',
-    'FOREIGN KEY (active_semester_id) REFERENCES semesters (semester_id) '
-        'ON DELETE SET NULL',
-  ];
-}
 
 @DriftDatabase(
   tables: [
@@ -35,10 +17,7 @@ class V4AppSettings extends Table {
     NotificationHistory,
     SyncRuns,
     SyncOperations,
-    AssignmentBaselines,
-    SyncOperationChanges,
-    SyncBackoffStates,
-    V4AppSettings,
+    AppSettings,
   ],
 )
 class V4AppDatabase extends _$V4AppDatabase {
@@ -49,7 +28,10 @@ class V4AppDatabase extends _$V4AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (migrator) => migrator.createAll(),
+    onCreate: (migrator) async {
+      await migrator.createAll();
+      await createFrozenV4Schema(this);
+    },
     beforeOpen: (details) => customStatement('PRAGMA foreign_keys = ON'),
   );
 }

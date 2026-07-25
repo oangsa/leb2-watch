@@ -2,7 +2,7 @@
 
 ## Status
 
-Completed for schema version 5, including ordered v1/v2/v3/v4-to-v5
+Completed for schema version 6, including ordered v1/v2/v3/v4/v5-to-v6
 migration, generated Drift source, in-memory relational tests, and real
 file-backed migration and independent-connection tests. Linux remains the only
 build-verified native target on this host.
@@ -42,7 +42,7 @@ There is no database screen. Once composed by application features, cached
 assignments survive process restarts and synchronization callers can share a
 terminal result without persisting user credentials. Existing v1 and v2
 installations retain recoverable snapshot, ledger, reminder, and sync-history
-rows through the ordered v1/v2/v3/v4-to-v5 upgrade.
+rows through the ordered v1/v2/v3/v4/v5-to-v6 upgrade.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ existing synchronization transaction, avoiding a required nested transaction.
 
 - `lib/src/core/database/database_tables.dart` — thirteen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 5, migration,
+- `lib/src/core/database/app_database.dart` — schema version 6, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -74,17 +74,19 @@ existing synchronization transaction, avoiding a required nested transaction.
 - `test/core/database/v3_app_database.dart` — frozen v3 fixture built from
   frozen v2 definitions plus explicit v3-only SQL.
 - `test/core/database/v3_app_database.g.dart` — generated v3 fixture support.
-- `test/core/database/v4_app_database.dart` — pre-v5 app-settings migration
-  fixture over the otherwise unchanged v4 table set.
+- `test/core/database/v4_app_database.dart` — frozen physical v4 schema.
 - `test/core/database/v4_app_database.g.dart` — generated v4 fixture support.
+- `test/core/database/v5_app_database.dart` — frozen physical v5 schema.
+- `test/core/database/v5_app_database.g.dart` — generated v5 fixture support.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `5`. Fresh databases call `createAll`.
-Supported upgrades are exactly `1 -> 5`, `2 -> 5`, `3 -> 5`, and `4 -> 5`,
+`AppDatabase.schemaVersion` is `6`. Fresh databases call `createAll`.
+Supported upgrades are exactly `1 -> 6`, `2 -> 6`, `3 -> 6`, `4 -> 6`, and
+`5 -> 6`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -128,6 +130,11 @@ Schema v5 adds nullable `app_settings.leb2_user_id`. A table check permits only
 verified snapshot contract, not a credential. The session-setup adapter updates
 it without replacing active-semester or unrelated setting values.
 
+Schema v6 adds checked `app_settings.session_lifecycle` and
+`session_revision` fields plus `sync_operations.session_revision`. Lifecycle
+and revision are bounded local coordination state. The operation revision
+fences late responses from credentials that have since been replaced.
+
 Five indices enforce/serve coordination and result ownership:
 
 - `sync_operations_one_running` — at most one `running` row globally.
@@ -170,6 +177,13 @@ The v3-to-v4 step creates only the backoff table and its named index and does
 not infer historical per-user state.
 The v4-to-v5 step adds only the nullable checked LEB2 user-ID column and does
 not infer an identity for existing installations.
+The v5-to-v6 step adds lifecycle and revision defaults, then preserves exact
+legacy `sessionExpired` evidence conservatively. A known current user is
+expired only by a matching row; a null or absent current user is expired by
+any exact row; a different known user's row cannot expire the known current
+user. Backoff rows remain intact. A real v1 upgrade already creates the current
+`sync_operations` shape during its v1-to-v2 step, so the final migration avoids
+adding the operation revision twice.
 
 ## Platform behavior
 
@@ -232,7 +246,7 @@ bounded non-retryable failure without storing the SQLite message.
 
 Database tests cover:
 
-- fresh thirteen-table v5 creation, all named indices, foreign keys, and busy
+- fresh thirteen-table v6 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -240,11 +254,12 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, frozen v3, and pre-v5 v4 databases upgraded in place to v5 with
-  assignment,
-  seen, reminder, operation, and history rows preserved, empty baseline
-  recovery, empty initial backoff/identity state, and clean
-  `foreign_key_check`;
+- real v1, v2, and frozen physical v3/v4/v5 databases upgraded in place to v6
+  with assignment, seen, reminder, operation, and history rows preserved,
+  empty baseline recovery, correct lifecycle/revision defaults or conservative
+  exact-expiration state, and clean `foreign_key_check`;
+- frozen-v5 matching-user, null-current-user, and mismatched-known-user
+  expiration regressions with every backoff row preserved;
 - raw rejection of negative, zero, and out-of-range user IDs after every
   v1/v2/v3/v4 upgrade, while preserving active-semester foreign keys;
 - positive identity CRUD, invalid identity rejection, and preservation of
@@ -273,6 +288,14 @@ Feature 9.2 raised the live schema to v5, added the pre-v5 v4 fixture, and
 verified real v1/v2/v3/v4-to-v5 upgrades plus identity-store behavior. Its
 focused database/migration/identity group passed 31/31.
 
+Feature 9.3 raised the live schema to v6, replaced the v4 fixture with a frozen
+physical schema, added a frozen physical v5 fixture, and verified lifecycle and
+operation-revision checks plus real v1/v2/v3/v4/v5 upgrades. The focused
+lifecycle store suite passed 5/5. After independent validation, the corrected
+v5 expiration-preservation migration passed the complete synchronization,
+migration, and lifecycle matrix at 99/99; final broad evidence is recorded in
+`session-expiration.md`.
+
 ## Known limitations
 
 - Lease recovery cannot mathematically prevent a second GET after an owner is
@@ -287,9 +310,9 @@ focused database/migration/identity group passed 31/31.
 - Snapshot state remains semester-scoped rather than account-scoped.
 - Drift runtime/development preview-schema versions remain mismatched, so
   normal generation works but CLI schema export does not.
-- The v4 migration fixture freezes the changed pre-v5 `app_settings` table but
-  reuses live definitions for tables unchanged by v5; a later migration that
-  changes another table must first extract a fully versioned v4 definition.
+- Frozen v4 and v5 fixtures build their historical added tables with explicit
+  SQL over frozen v2 Dart definitions. They validate the physical schema but
+  do not expose generated typed APIs for every historical table.
 - Android, iOS, macOS, and Windows database runtime behavior is not verified on
   this Linux host.
 
@@ -310,3 +333,4 @@ focused database/migration/identity group passed 31/31.
 - [Backend API Contract](backend-api-contract.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Secure Credential Storage](secure-credential-storage.md)
+- [Session Expiration Recovery](session-expiration.md)

@@ -11,7 +11,11 @@ import '../design_system/app_tokens.dart';
 import '../routing/app_route.dart';
 
 class AdaptiveAppShell extends StatelessWidget {
-  const AdaptiveAppShell({required this.navigationShell, super.key});
+  const AdaptiveAppShell({
+    required this.navigationShell,
+    this.globalBanner,
+    super.key,
+  });
 
   static const compactKey = Key('adaptive-shell-compact');
   static const mediumKey = Key('adaptive-shell-medium');
@@ -22,6 +26,7 @@ class AdaptiveAppShell extends StatelessWidget {
   static const expandedFocusKey = Key('expanded-navigation-focus');
 
   final StatefulNavigationShell navigationShell;
+  final Widget? globalBanner;
 
   void _selectDestination(int index) {
     navigationShell.goBranch(index);
@@ -32,14 +37,17 @@ class AdaptiveAppShell extends StatelessWidget {
     return switch (AppBreakpoints.of(context)) {
       AppWindowClass.compact => _CompactShell(
         navigationShell: navigationShell,
+        globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
       ),
       AppWindowClass.medium => _MediumShell(
         navigationShell: navigationShell,
+        globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
       ),
       AppWindowClass.expanded => _ExpandedShell(
         navigationShell: navigationShell,
+        globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
       ),
     };
@@ -49,17 +57,19 @@ class AdaptiveAppShell extends StatelessWidget {
 class _CompactShell extends StatelessWidget {
   const _CompactShell({
     required this.navigationShell,
+    required this.globalBanner,
     required this.onDestinationSelected,
   });
 
   final StatefulNavigationShell navigationShell;
+  final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: AdaptiveAppShell.compactKey,
-      body: navigationShell,
+      body: _ShellContent(globalBanner: globalBanner, child: navigationShell),
       bottomNavigationBar: NavigationBar(
         key: AdaptiveAppShell.compactNavigationKey,
         selectedIndex: navigationShell.currentIndex,
@@ -82,10 +92,12 @@ class _CompactShell extends StatelessWidget {
 class _MediumShell extends StatelessWidget {
   const _MediumShell({
     required this.navigationShell,
+    required this.globalBanner,
     required this.onDestinationSelected,
   });
 
   final StatefulNavigationShell navigationShell;
+  final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
 
   @override
@@ -103,7 +115,12 @@ class _MediumShell extends StatelessWidget {
             destinations: _railDestinations('medium'),
           ),
           const VerticalDivider(),
-          Expanded(child: navigationShell),
+          Expanded(
+            child: _ShellContent(
+              globalBanner: globalBanner,
+              child: navigationShell,
+            ),
+          ),
         ],
       ),
     );
@@ -113,10 +130,12 @@ class _MediumShell extends StatelessWidget {
 class _ExpandedShell extends StatelessWidget {
   const _ExpandedShell({
     required this.navigationShell,
+    required this.globalBanner,
     required this.onDestinationSelected,
   });
 
   final StatefulNavigationShell navigationShell;
+  final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
 
   @override
@@ -150,11 +169,45 @@ class _ExpandedShell extends StatelessWidget {
                 destinations: _railDestinations('expanded'),
               ),
               const VerticalDivider(),
-              Expanded(child: navigationShell),
+              Expanded(
+                child: _ShellContent(
+                  globalBanner: globalBanner,
+                  child: navigationShell,
+                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ShellContent extends StatelessWidget {
+  const _ShellContent({required this.globalBanner, required this.child});
+
+  final Widget? globalBanner;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final banner = globalBanner;
+    if (banner == null) {
+      return child;
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            0,
+          ),
+          child: banner,
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

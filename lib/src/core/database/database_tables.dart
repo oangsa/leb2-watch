@@ -262,6 +262,7 @@ class SyncOperations extends Table {
       integer().map(const UtcDateTimeConverter()).nullable()();
   BoolColumn get cancellationRequested =>
       boolean().withDefault(const Constant(false))();
+  IntColumn get sessionRevision => integer().withDefault(const Constant(0))();
   TextColumn get resultFailureKind => text().nullable()();
   TextColumn get resultFailureDetail => text().nullable()();
   IntColumn get resultRetryAfterMilliseconds => integer().nullable()();
@@ -272,6 +273,7 @@ class SyncOperations extends Table {
   List<String> get customConstraints => const [
     'CHECK (semester_id > 0)',
     'CHECK (user_id > 0)',
+    'CHECK (session_revision >= 0 AND session_revision <= 2147483647)',
     "CHECK (reason IN ('initialSetup', 'appLaunch', 'appResume', "
         "'manualRefresh', 'backgroundTask', 'desktopTimer', 'trayAction'))",
     "CHECK (state IN ('queued', 'running', 'success', 'failure', "
@@ -448,6 +450,9 @@ class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();
   IntColumn get leb2UserId => integer().nullable()();
+  TextColumn get sessionLifecycle =>
+      text().withDefault(const Constant('unknown'))();
+  IntColumn get sessionRevision => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
@@ -458,6 +463,8 @@ class AppSettings extends Table {
     'CHECK (active_semester_id IS NULL OR active_semester_id > 0)',
     'CHECK (leb2_user_id IS NULL OR '
         '(leb2_user_id > 0 AND leb2_user_id <= 2147483647))',
+    "CHECK (session_lifecycle IN ('unknown', 'active', 'expired'))",
+    'CHECK (session_revision >= 0 AND session_revision <= 2147483647)',
     'FOREIGN KEY (active_semester_id) REFERENCES semesters (semester_id) '
         'ON DELETE SET NULL',
   ];

@@ -6,6 +6,7 @@ import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
 import 'package:leb2_watch/src/features/authentication/data/session_identity_store.dart';
 
@@ -16,6 +17,15 @@ const _password = '<PASSWORD>';
 const _oldCredentials = StoredCredentials(
   username: '<OLD_USERNAME>',
   password: '<OLD_PASSWORD>',
+);
+const _expiredResponse = BackendTransportException(
+  kind: BackendTransportFailureKind.httpResponse,
+  httpError: BackendHttpErrorEvidence(
+    statusCode: 401,
+    responseCode: 'SESSION_EXPIRED',
+    envelopeKind: BackendErrorEnvelopeKind.standard,
+    hasBearerChallenge: true,
+  ),
 );
 
 void main() {
@@ -77,8 +87,47 @@ void main() {
         expect(fixture.backend.lastCandidate, _oldCookie);
         expect(fixture.credentials.mutations, isEmpty);
         expect(fixture.identity.mutations, isEmpty);
+        expect(
+          fixture.lifecycle.snapshot,
+          const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.active,
+            revision: 1,
+          ),
+        );
         expect(result.toString(), isNot(contains(_oldCookie)));
         expect(result.toString(), isNot(contains('2001')));
+      },
+    );
+
+    test(
+      'exact saved-session expiry persists the global pause state',
+      () async {
+        const active = SessionLifecycleSnapshot(
+          state: SessionLifecycleState.active,
+          revision: 7,
+        );
+        final fixture = _fixture(
+          cookie: _oldCookie,
+          userId: 2001,
+          lifecycle: active,
+        )..backend.verifyFailure = _expiredResponse;
+
+        final result = await fixture.service.verifySavedSession();
+
+        expect(
+          _failureKind(result),
+          SessionSetupFailureKind.invalidOrExpiredSession,
+        );
+        expect(
+          fixture.lifecycle.snapshot,
+          const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 7,
+          ),
+        );
+        expect(fixture.lifecycle.mutations, ['expire']);
+        expect(fixture.credentials.mutations, isEmpty);
+        expect(fixture.identity.mutations, isEmpty);
       },
     );
 
@@ -136,6 +185,10 @@ void main() {
           cookie: _oldCookie,
           credentials: _oldCredentials,
           userId: 2001,
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 4,
+          ),
         );
 
         final result = await fixture.service.connectWithCookie(
@@ -149,14 +202,23 @@ void main() {
         expect(fixture.credentials.cookie, _newCookie);
         expect(fixture.credentials.credentials, isNull);
         expect(fixture.identity.userId, 2001);
+        expect(
+          fixture.lifecycle.snapshot,
+          const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.active,
+            revision: 5,
+          ),
+        );
         expect(fixture.combinedLog, [
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
+          'lifecycle:read',
           'backend:verify',
           'secure:saveCookie',
           'secure:deleteCredentials',
           'identity:save',
+          'lifecycle:activate',
         ]);
       },
     );
@@ -212,12 +274,14 @@ void main() {
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
+          'lifecycle:read',
           'backend:login',
           'backend:cookie',
           'backend:verify',
           'secure:saveCookie',
           'secure:saveCredentials',
           'identity:save',
+          'lifecycle:activate',
         ]);
       },
     );
@@ -344,6 +408,10 @@ void main() {
           cookie: _oldCookie,
           credentials: _oldCredentials,
           userId: 2001,
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.active,
+            revision: 7,
+          ),
         )..backend.verifyFailure = error;
 
         final result = await fixture.service.connectWithCookie(
@@ -363,6 +431,14 @@ void main() {
         expect(fixture.identity.userId, 2001);
         expect(fixture.credentials.mutations, isEmpty);
         expect(fixture.identity.mutations, isEmpty);
+        expect(
+          fixture.lifecycle.snapshot,
+          const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.active,
+            revision: 7,
+          ),
+        );
+        expect(fixture.lifecycle.mutations, isEmpty);
       }
     });
 
@@ -527,6 +603,69 @@ void main() {
         expect(fixture.credentials.cookie, _oldCookie);
         expect(fixture.credentials.credentials, _oldCredentials);
         expect(fixture.identity.userId, 2001);
+      },
+    );
+
+    test(
+      'lifecycle activation failure restores the previous session',
+      () async {
+        const expired = SessionLifecycleSnapshot(
+          state: SessionLifecycleState.expired,
+          revision: 4,
+        );
+        final fixture = _fixture(
+          cookie: _oldCookie,
+          credentials: _oldCredentials,
+          userId: 2001,
+          lifecycle: expired,
+        )..lifecycle.failAlways.add('activate');
+
+        final result = await fixture.service.connectWithCookie(
+          sessionCookie: _newCookie,
+          userId: 2001,
+        );
+
+        expect(
+          _failureKind(result),
+          SessionSetupFailureKind.localStorageUnavailable,
+        );
+        expect(fixture.credentials.cookie, _oldCookie);
+        expect(fixture.credentials.credentials, _oldCredentials);
+        expect(fixture.identity.userId, 2001);
+        expect(fixture.lifecycle.snapshot, expired);
+      },
+    );
+
+    test(
+      'activation that mutates then fails reports persistence uncertainty',
+      () async {
+        const expired = SessionLifecycleSnapshot(
+          state: SessionLifecycleState.expired,
+          revision: 4,
+        );
+        final fixture = _fixture(
+          cookie: _oldCookie,
+          credentials: _oldCredentials,
+          userId: 2001,
+          lifecycle: expired,
+        )..lifecycle.failAfterActivate = true;
+
+        final result = await fixture.service.connectWithCookie(
+          sessionCookie: _newCookie,
+          userId: 2001,
+        );
+
+        expect(
+          _failureKind(result),
+          SessionSetupFailureKind.persistenceUncertain,
+        );
+        expect(
+          fixture.lifecycle.snapshot,
+          const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.active,
+            revision: 5,
+          ),
+        );
       },
     );
 
@@ -767,6 +906,7 @@ _Fixture _fixture({
   String? cookie,
   StoredCredentials? credentials,
   int? userId,
+  SessionLifecycleSnapshot lifecycle = SessionLifecycleSnapshot.initial,
 }) {
   final log = <String>[];
   final backend = _FakeBackendSessionClient(log);
@@ -776,11 +916,18 @@ _Fixture _fixture({
     credentials: credentials,
   );
   final identityStore = _MemoryIdentityStore(log, userId: userId);
+  final lifecycleStore = _MemorySessionLifecycleStore(log, snapshot: lifecycle);
   return _Fixture(
     backend: backend,
     credentials: credentialStore,
     identity: identityStore,
-    service: LocalSessionSetupService(backend, credentialStore, identityStore),
+    lifecycle: lifecycleStore,
+    service: LocalSessionSetupService(
+      backend,
+      credentialStore,
+      identityStore,
+      lifecycleStore,
+    ),
     combinedLog: log,
   );
 }
@@ -790,6 +937,7 @@ final class _Fixture {
     required this.backend,
     required this.credentials,
     required this.identity,
+    required this.lifecycle,
     required this.service,
     required this.combinedLog,
   });
@@ -797,6 +945,7 @@ final class _Fixture {
   final _FakeBackendSessionClient backend;
   final _MemoryCredentialStore credentials;
   final _MemoryIdentityStore identity;
+  final _MemorySessionLifecycleStore lifecycle;
   final LocalSessionSetupService service;
   final List<String> combinedLog;
 }
@@ -998,4 +1147,64 @@ final class _MemoryIdentityStore implements SessionIdentityStore {
     _record('saveIdentity', mutation: true);
     userId = value;
   }
+}
+
+final class _MemorySessionLifecycleStore implements SessionLifecycleStore {
+  _MemorySessionLifecycleStore(
+    this._log, {
+    this.snapshot = SessionLifecycleSnapshot.initial,
+  });
+
+  final List<String> _log;
+  SessionLifecycleSnapshot snapshot;
+  final Set<String> failAlways = {};
+  final List<String> mutations = [];
+  bool failAfterActivate = false;
+
+  void _record(String operation, {required bool mutation}) {
+    _log.add('lifecycle:$operation');
+    if (mutation) {
+      mutations.add(operation);
+    }
+    if (failAlways.contains(operation)) {
+      throw StateError('synthetic lifecycle failure');
+    }
+  }
+
+  @override
+  Future<bool> markExpired({required int expectedRevision}) async {
+    _record('expire', mutation: true);
+    if (snapshot.revision != expectedRevision) {
+      return false;
+    }
+    snapshot = SessionLifecycleSnapshot(
+      state: SessionLifecycleState.expired,
+      revision: snapshot.revision,
+    );
+    return true;
+  }
+
+  @override
+  Future<SessionLifecycleSnapshot> markVerifiedActive({
+    required int userId,
+  }) async {
+    _record('activate', mutation: true);
+    snapshot = SessionLifecycleSnapshot(
+      state: SessionLifecycleState.active,
+      revision: snapshot.revision + 1,
+    );
+    if (failAfterActivate) {
+      throw StateError('synthetic post-activation failure');
+    }
+    return snapshot;
+  }
+
+  @override
+  Future<SessionLifecycleSnapshot> read() async {
+    _record('read', mutation: false);
+    return snapshot;
+  }
+
+  @override
+  Stream<SessionLifecycleSnapshot> watch() => Stream.value(snapshot);
 }

@@ -4722,6 +4722,18 @@ class $SyncOperationsTable extends SyncOperations
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _sessionRevisionMeta = const VerificationMeta(
+    'sessionRevision',
+  );
+  @override
+  late final GeneratedColumn<int> sessionRevision = GeneratedColumn<int>(
+    'session_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _resultFailureKindMeta = const VerificationMeta(
     'resultFailureKind',
   );
@@ -4790,6 +4802,7 @@ class $SyncOperationsTable extends SyncOperations
     ownerToken,
     leaseExpiresAtUtc,
     cancellationRequested,
+    sessionRevision,
     resultFailureKind,
     resultFailureDetail,
     resultRetryAfterMilliseconds,
@@ -4861,6 +4874,15 @@ class $SyncOperationsTable extends SyncOperations
         cancellationRequested.isAcceptableOrUnknown(
           data['cancellation_requested']!,
           _cancellationRequestedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('session_revision')) {
+      context.handle(
+        _sessionRevisionMeta,
+        sessionRevision.isAcceptableOrUnknown(
+          data['session_revision']!,
+          _sessionRevisionMeta,
         ),
       );
     }
@@ -4971,6 +4993,10 @@ class $SyncOperationsTable extends SyncOperations
         DriftSqlType.bool,
         data['${effectivePrefix}cancellation_requested'],
       )!,
+      sessionRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_revision'],
+      )!,
       resultFailureKind: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}result_failure_kind'],
@@ -5027,6 +5053,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
   final bool cancellationRequested;
+  final int sessionRevision;
   final String? resultFailureKind;
   final String? resultFailureDetail;
   final int? resultRetryAfterMilliseconds;
@@ -5044,6 +5071,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     this.ownerToken,
     this.leaseExpiresAtUtc,
     required this.cancellationRequested,
+    required this.sessionRevision,
     this.resultFailureKind,
     this.resultFailureDetail,
     this.resultRetryAfterMilliseconds,
@@ -5084,6 +5112,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       );
     }
     map['cancellation_requested'] = Variable<bool>(cancellationRequested);
+    map['session_revision'] = Variable<int>(sessionRevision);
     if (!nullToAbsent || resultFailureKind != null) {
       map['result_failure_kind'] = Variable<String>(resultFailureKind);
     }
@@ -5125,6 +5154,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ? const Value.absent()
           : Value(leaseExpiresAtUtc),
       cancellationRequested: Value(cancellationRequested),
+      sessionRevision: Value(sessionRevision),
       resultFailureKind: resultFailureKind == null && nullToAbsent
           ? const Value.absent()
           : Value(resultFailureKind),
@@ -5165,6 +5195,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       cancellationRequested: serializer.fromJson<bool>(
         json['cancellationRequested'],
       ),
+      sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
       resultFailureKind: serializer.fromJson<String?>(
         json['resultFailureKind'],
       ),
@@ -5195,6 +5226,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       'ownerToken': serializer.toJson<String?>(ownerToken),
       'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
       'cancellationRequested': serializer.toJson<bool>(cancellationRequested),
+      'sessionRevision': serializer.toJson<int>(sessionRevision),
       'resultFailureKind': serializer.toJson<String?>(resultFailureKind),
       'resultFailureDetail': serializer.toJson<String?>(resultFailureDetail),
       'resultRetryAfterMilliseconds': serializer.toJson<int?>(
@@ -5217,6 +5249,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     Value<String?> ownerToken = const Value.absent(),
     Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
     bool? cancellationRequested,
+    int? sessionRevision,
     Value<String?> resultFailureKind = const Value.absent(),
     Value<String?> resultFailureDetail = const Value.absent(),
     Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -5238,6 +5271,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
         ? leaseExpiresAtUtc.value
         : this.leaseExpiresAtUtc,
     cancellationRequested: cancellationRequested ?? this.cancellationRequested,
+    sessionRevision: sessionRevision ?? this.sessionRevision,
     resultFailureKind: resultFailureKind.present
         ? resultFailureKind.value
         : this.resultFailureKind,
@@ -5283,6 +5317,9 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
       cancellationRequested: data.cancellationRequested.present
           ? data.cancellationRequested.value
           : this.cancellationRequested,
+      sessionRevision: data.sessionRevision.present
+          ? data.sessionRevision.value
+          : this.sessionRevision,
       resultFailureKind: data.resultFailureKind.present
           ? data.resultFailureKind.value
           : this.resultFailureKind,
@@ -5315,6 +5352,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
           ..write('cancellationRequested: $cancellationRequested, ')
+          ..write('sessionRevision: $sessionRevision, ')
           ..write('resultFailureKind: $resultFailureKind, ')
           ..write('resultFailureDetail: $resultFailureDetail, ')
           ..write(
@@ -5339,6 +5377,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
     ownerToken,
     leaseExpiresAtUtc,
     cancellationRequested,
+    sessionRevision,
     resultFailureKind,
     resultFailureDetail,
     resultRetryAfterMilliseconds,
@@ -5360,6 +5399,7 @@ class SyncOperation extends DataClass implements Insertable<SyncOperation> {
           other.ownerToken == this.ownerToken &&
           other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
           other.cancellationRequested == this.cancellationRequested &&
+          other.sessionRevision == this.sessionRevision &&
           other.resultFailureKind == this.resultFailureKind &&
           other.resultFailureDetail == this.resultFailureDetail &&
           other.resultRetryAfterMilliseconds ==
@@ -5380,6 +5420,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
   final Value<String?> ownerToken;
   final Value<DateTime?> leaseExpiresAtUtc;
   final Value<bool> cancellationRequested;
+  final Value<int> sessionRevision;
   final Value<String?> resultFailureKind;
   final Value<String?> resultFailureDetail;
   final Value<int?> resultRetryAfterMilliseconds;
@@ -5397,6 +5438,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.cancellationRequested = const Value.absent(),
+    this.sessionRevision = const Value.absent(),
     this.resultFailureKind = const Value.absent(),
     this.resultFailureDetail = const Value.absent(),
     this.resultRetryAfterMilliseconds = const Value.absent(),
@@ -5415,6 +5457,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.cancellationRequested = const Value.absent(),
+    this.sessionRevision = const Value.absent(),
     this.resultFailureKind = const Value.absent(),
     this.resultFailureDetail = const Value.absent(),
     this.resultRetryAfterMilliseconds = const Value.absent(),
@@ -5437,6 +5480,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Expression<String>? ownerToken,
     Expression<int>? leaseExpiresAtUtc,
     Expression<bool>? cancellationRequested,
+    Expression<int>? sessionRevision,
     Expression<String>? resultFailureKind,
     Expression<String>? resultFailureDetail,
     Expression<int>? resultRetryAfterMilliseconds,
@@ -5456,6 +5500,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
       if (cancellationRequested != null)
         'cancellation_requested': cancellationRequested,
+      if (sessionRevision != null) 'session_revision': sessionRevision,
       if (resultFailureKind != null) 'result_failure_kind': resultFailureKind,
       if (resultFailureDetail != null)
         'result_failure_detail': resultFailureDetail,
@@ -5479,6 +5524,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
     Value<String?>? ownerToken,
     Value<DateTime?>? leaseExpiresAtUtc,
     Value<bool>? cancellationRequested,
+    Value<int>? sessionRevision,
     Value<String?>? resultFailureKind,
     Value<String?>? resultFailureDetail,
     Value<int?>? resultRetryAfterMilliseconds,
@@ -5498,6 +5544,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
       leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
       cancellationRequested:
           cancellationRequested ?? this.cancellationRequested,
+      sessionRevision: sessionRevision ?? this.sessionRevision,
       resultFailureKind: resultFailureKind ?? this.resultFailureKind,
       resultFailureDetail: resultFailureDetail ?? this.resultFailureDetail,
       resultRetryAfterMilliseconds:
@@ -5557,6 +5604,9 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
         cancellationRequested.value,
       );
     }
+    if (sessionRevision.present) {
+      map['session_revision'] = Variable<int>(sessionRevision.value);
+    }
     if (resultFailureKind.present) {
       map['result_failure_kind'] = Variable<String>(resultFailureKind.value);
     }
@@ -5593,6 +5643,7 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
           ..write('cancellationRequested: $cancellationRequested, ')
+          ..write('sessionRevision: $sessionRevision, ')
           ..write('resultFailureKind: $resultFailureKind, ')
           ..write('resultFailureDetail: $resultFailureDetail, ')
           ..write(
@@ -6844,11 +6895,37 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sessionLifecycleMeta = const VerificationMeta(
+    'sessionLifecycle',
+  );
+  @override
+  late final GeneratedColumn<String> sessionLifecycle = GeneratedColumn<String>(
+    'session_lifecycle',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('unknown'),
+  );
+  static const VerificationMeta _sessionRevisionMeta = const VerificationMeta(
+    'sessionRevision',
+  );
+  @override
+  late final GeneratedColumn<int> sessionRevision = GeneratedColumn<int>(
+    'session_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
     activeSemesterId,
     leb2UserId,
+    sessionLifecycle,
+    sessionRevision,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6889,6 +6966,24 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('session_lifecycle')) {
+      context.handle(
+        _sessionLifecycleMeta,
+        sessionLifecycle.isAcceptableOrUnknown(
+          data['session_lifecycle']!,
+          _sessionLifecycleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('session_revision')) {
+      context.handle(
+        _sessionRevisionMeta,
+        sessionRevision.isAcceptableOrUnknown(
+          data['session_revision']!,
+          _sessionRevisionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6910,6 +7005,14 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}leb2_user_id'],
       ),
+      sessionLifecycle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_lifecycle'],
+      )!,
+      sessionRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_revision'],
+      )!,
     );
   }
 
@@ -6923,10 +7026,14 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int singletonId;
   final int? activeSemesterId;
   final int? leb2UserId;
+  final String sessionLifecycle;
+  final int sessionRevision;
   const AppSetting({
     required this.singletonId,
     this.activeSemesterId,
     this.leb2UserId,
+    required this.sessionLifecycle,
+    required this.sessionRevision,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6938,6 +7045,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || leb2UserId != null) {
       map['leb2_user_id'] = Variable<int>(leb2UserId);
     }
+    map['session_lifecycle'] = Variable<String>(sessionLifecycle);
+    map['session_revision'] = Variable<int>(sessionRevision);
     return map;
   }
 
@@ -6950,6 +7059,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       leb2UserId: leb2UserId == null && nullToAbsent
           ? const Value.absent()
           : Value(leb2UserId),
+      sessionLifecycle: Value(sessionLifecycle),
+      sessionRevision: Value(sessionRevision),
     );
   }
 
@@ -6962,6 +7073,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       singletonId: serializer.fromJson<int>(json['singletonId']),
       activeSemesterId: serializer.fromJson<int?>(json['activeSemesterId']),
       leb2UserId: serializer.fromJson<int?>(json['leb2UserId']),
+      sessionLifecycle: serializer.fromJson<String>(json['sessionLifecycle']),
+      sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
     );
   }
   @override
@@ -6971,6 +7084,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'singletonId': serializer.toJson<int>(singletonId),
       'activeSemesterId': serializer.toJson<int?>(activeSemesterId),
       'leb2UserId': serializer.toJson<int?>(leb2UserId),
+      'sessionLifecycle': serializer.toJson<String>(sessionLifecycle),
+      'sessionRevision': serializer.toJson<int>(sessionRevision),
     };
   }
 
@@ -6978,12 +7093,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     int? singletonId,
     Value<int?> activeSemesterId = const Value.absent(),
     Value<int?> leb2UserId = const Value.absent(),
+    String? sessionLifecycle,
+    int? sessionRevision,
   }) => AppSetting(
     singletonId: singletonId ?? this.singletonId,
     activeSemesterId: activeSemesterId.present
         ? activeSemesterId.value
         : this.activeSemesterId,
     leb2UserId: leb2UserId.present ? leb2UserId.value : this.leb2UserId,
+    sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
+    sessionRevision: sessionRevision ?? this.sessionRevision,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -6996,6 +7115,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       leb2UserId: data.leb2UserId.present
           ? data.leb2UserId.value
           : this.leb2UserId,
+      sessionLifecycle: data.sessionLifecycle.present
+          ? data.sessionLifecycle.value
+          : this.sessionLifecycle,
+      sessionRevision: data.sessionRevision.present
+          ? data.sessionRevision.value
+          : this.sessionRevision,
     );
   }
 
@@ -7004,45 +7129,65 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     return (StringBuffer('AppSetting(')
           ..write('singletonId: $singletonId, ')
           ..write('activeSemesterId: $activeSemesterId, ')
-          ..write('leb2UserId: $leb2UserId')
+          ..write('leb2UserId: $leb2UserId, ')
+          ..write('sessionLifecycle: $sessionLifecycle, ')
+          ..write('sessionRevision: $sessionRevision')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(singletonId, activeSemesterId, leb2UserId);
+  int get hashCode => Object.hash(
+    singletonId,
+    activeSemesterId,
+    leb2UserId,
+    sessionLifecycle,
+    sessionRevision,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSetting &&
           other.singletonId == this.singletonId &&
           other.activeSemesterId == this.activeSemesterId &&
-          other.leb2UserId == this.leb2UserId);
+          other.leb2UserId == this.leb2UserId &&
+          other.sessionLifecycle == this.sessionLifecycle &&
+          other.sessionRevision == this.sessionRevision);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> singletonId;
   final Value<int?> activeSemesterId;
   final Value<int?> leb2UserId;
+  final Value<String> sessionLifecycle;
+  final Value<int> sessionRevision;
   const AppSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
     this.leb2UserId = const Value.absent(),
+    this.sessionLifecycle = const Value.absent(),
+    this.sessionRevision = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
     this.leb2UserId = const Value.absent(),
+    this.sessionLifecycle = const Value.absent(),
+    this.sessionRevision = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? singletonId,
     Expression<int>? activeSemesterId,
     Expression<int>? leb2UserId,
+    Expression<String>? sessionLifecycle,
+    Expression<int>? sessionRevision,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
       if (activeSemesterId != null) 'active_semester_id': activeSemesterId,
       if (leb2UserId != null) 'leb2_user_id': leb2UserId,
+      if (sessionLifecycle != null) 'session_lifecycle': sessionLifecycle,
+      if (sessionRevision != null) 'session_revision': sessionRevision,
     });
   }
 
@@ -7050,11 +7195,15 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int>? singletonId,
     Value<int?>? activeSemesterId,
     Value<int?>? leb2UserId,
+    Value<String>? sessionLifecycle,
+    Value<int>? sessionRevision,
   }) {
     return AppSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
       activeSemesterId: activeSemesterId ?? this.activeSemesterId,
       leb2UserId: leb2UserId ?? this.leb2UserId,
+      sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
+      sessionRevision: sessionRevision ?? this.sessionRevision,
     );
   }
 
@@ -7070,6 +7219,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (leb2UserId.present) {
       map['leb2_user_id'] = Variable<int>(leb2UserId.value);
     }
+    if (sessionLifecycle.present) {
+      map['session_lifecycle'] = Variable<String>(sessionLifecycle.value);
+    }
+    if (sessionRevision.present) {
+      map['session_revision'] = Variable<int>(sessionRevision.value);
+    }
     return map;
   }
 
@@ -7078,7 +7233,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     return (StringBuffer('AppSettingsCompanion(')
           ..write('singletonId: $singletonId, ')
           ..write('activeSemesterId: $activeSemesterId, ')
-          ..write('leb2UserId: $leb2UserId')
+          ..write('leb2UserId: $leb2UserId, ')
+          ..write('sessionLifecycle: $sessionLifecycle, ')
+          ..write('sessionRevision: $sessionRevision')
           ..write(')'))
         .toString();
   }
@@ -9468,6 +9625,7 @@ typedef $$SyncOperationsTableCreateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> cancellationRequested,
+      Value<int> sessionRevision,
       Value<String?> resultFailureKind,
       Value<String?> resultFailureDetail,
       Value<int?> resultRetryAfterMilliseconds,
@@ -9487,6 +9645,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> cancellationRequested,
+      Value<int> sessionRevision,
       Value<String?> resultFailureKind,
       Value<String?> resultFailureDetail,
       Value<int?> resultRetryAfterMilliseconds,
@@ -9559,6 +9718,11 @@ class $$SyncOperationsTableFilterComposer
 
   ColumnFilters<bool> get cancellationRequested => $composableBuilder(
     column: $table.cancellationRequested,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9652,6 +9816,11 @@ class $$SyncOperationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get resultFailureKind => $composableBuilder(
     column: $table.resultFailureKind,
     builder: (column) => ColumnOrderings(column),
@@ -9740,6 +9909,11 @@ class $$SyncOperationsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get resultFailureKind => $composableBuilder(
     column: $table.resultFailureKind,
     builder: (column) => column,
@@ -9810,6 +9984,7 @@ class $$SyncOperationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> cancellationRequested = const Value.absent(),
+                Value<int> sessionRevision = const Value.absent(),
                 Value<String?> resultFailureKind = const Value.absent(),
                 Value<String?> resultFailureDetail = const Value.absent(),
                 Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -9827,6 +10002,7 @@ class $$SyncOperationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 cancellationRequested: cancellationRequested,
+                sessionRevision: sessionRevision,
                 resultFailureKind: resultFailureKind,
                 resultFailureDetail: resultFailureDetail,
                 resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
@@ -9846,6 +10022,7 @@ class $$SyncOperationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> cancellationRequested = const Value.absent(),
+                Value<int> sessionRevision = const Value.absent(),
                 Value<String?> resultFailureKind = const Value.absent(),
                 Value<String?> resultFailureDetail = const Value.absent(),
                 Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
@@ -9863,6 +10040,7 @@ class $$SyncOperationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 cancellationRequested: cancellationRequested,
+                sessionRevision: sessionRevision,
                 resultFailureKind: resultFailureKind,
                 resultFailureDetail: resultFailureDetail,
                 resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
@@ -10570,12 +10748,16 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> singletonId,
       Value<int?> activeSemesterId,
       Value<int?> leb2UserId,
+      Value<String> sessionLifecycle,
+      Value<int> sessionRevision,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> singletonId,
       Value<int?> activeSemesterId,
       Value<int?> leb2UserId,
+      Value<String> sessionLifecycle,
+      Value<int> sessionRevision,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -10599,6 +10781,16 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<int> get leb2UserId => $composableBuilder(
     column: $table.leb2UserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionLifecycle => $composableBuilder(
+    column: $table.sessionLifecycle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10626,6 +10818,16 @@ class $$AppSettingsTableOrderingComposer
     column: $table.leb2UserId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get sessionLifecycle => $composableBuilder(
+    column: $table.sessionLifecycle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -10649,6 +10851,16 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<int> get leb2UserId => $composableBuilder(
     column: $table.leb2UserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sessionLifecycle => $composableBuilder(
+    column: $table.sessionLifecycle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
     builder: (column) => column,
   );
 }
@@ -10687,20 +10899,28 @@ class $$AppSettingsTableTableManager
                 Value<int> singletonId = const Value.absent(),
                 Value<int?> activeSemesterId = const Value.absent(),
                 Value<int?> leb2UserId = const Value.absent(),
+                Value<String> sessionLifecycle = const Value.absent(),
+                Value<int> sessionRevision = const Value.absent(),
               }) => AppSettingsCompanion(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
+                sessionLifecycle: sessionLifecycle,
+                sessionRevision: sessionRevision,
               ),
           createCompanionCallback:
               ({
                 Value<int> singletonId = const Value.absent(),
                 Value<int?> activeSemesterId = const Value.absent(),
                 Value<int?> leb2UserId = const Value.absent(),
+                Value<String> sessionLifecycle = const Value.absent(),
+                Value<int> sessionRevision = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
+                sessionLifecycle: sessionLifecycle,
+                sessionRevision: sessionRevision,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

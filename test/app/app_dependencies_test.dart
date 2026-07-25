@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
     as backend;
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 
 void main() {
   test('shares the exact configuration and Dio transport instance', () {
@@ -38,13 +39,14 @@ void main() {
     () async {
       final database = _TrackingDatabase();
       final storage = _TrackingDatabaseStorage(database);
-      final backend = _NoRequestBackendSessionClient();
+      final backend = _NoRequestBackendClient();
       final container = ProviderContainer(
         overrides: [
           appConfigurationProvider.overrideWithValue(AppConfiguration.parse()),
           credentialStoreProvider.overrideWithValue(_MemoryCredentialStore()),
           localDatabaseStorageProvider.overrideWithValue(storage),
           backendSessionClientProvider.overrideWithValue(backend),
+          backendApiClientProvider.overrideWithValue(backend),
         ],
       );
 
@@ -56,13 +58,31 @@ void main() {
       final secondService = await container.read(
         sessionSetupServiceProvider.future,
       );
+      final lifecycleObserved = Completer<SessionLifecycleSnapshot>();
+      final lifecycleSubscription = container.listen(sessionLifecycleProvider, (
+        _,
+        next,
+      ) {
+        next.whenData((value) {
+          if (!lifecycleObserved.isCompleted) {
+            lifecycleObserved.complete(value);
+          }
+        });
+      }, fireImmediately: true);
+      final lifecycle = await lifecycleObserved.future;
+      final syncService = await container.read(
+        assignmentSyncServiceProvider.future,
+      );
 
       expect(storage.openCalls, 1);
       expect(firstDatabase, same(database));
       expect(secondDatabase, same(database));
       expect(secondService, same(firstService));
+      expect(lifecycle, SessionLifecycleSnapshot.initial);
+      expect(syncService, isNotNull);
       expect(backend.requestCalls, 0);
 
+      lifecycleSubscription.close();
       container.dispose();
       await Future<void>.delayed(Duration.zero);
 
@@ -164,8 +184,14 @@ final class _MemoryCredentialStore implements CredentialStore {
   }
 }
 
-final class _NoRequestBackendSessionClient implements BackendSessionClient {
+final class _NoRequestBackendClient
+    implements BackendApiClient, BackendSessionClient {
   int requestCalls = 0;
+
+  Never _unexpectedRequest() {
+    requestCalls += 1;
+    throw StateError('Unexpected test request.');
+  }
 
   @override
   Future<BackendUserIdentity> authenticateUser({
@@ -173,8 +199,7 @@ final class _NoRequestBackendSessionClient implements BackendSessionClient {
     required String password,
     BackendRequestCancellation? cancellation,
   }) {
-    requestCalls += 1;
-    throw StateError('Unexpected test request.');
+    return _unexpectedRequest();
   }
 
   @override
@@ -183,8 +208,31 @@ final class _NoRequestBackendSessionClient implements BackendSessionClient {
     required String password,
     BackendRequestCancellation? cancellation,
   }) {
-    requestCalls += 1;
-    throw StateError('Unexpected test request.');
+    return _unexpectedRequest();
+  }
+
+  @override
+  Future<List<backend.Course>> getCourses({
+    required int semesterId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    return _unexpectedRequest();
+  }
+
+  @override
+  Future<List<backend.Semester>> getSemesters({
+    BackendRequestCancellation? cancellation,
+  }) {
+    return _unexpectedRequest();
+  }
+
+  @override
+  Future<backend.AssignmentSnapshot> getSemesterSnapshot({
+    required int semesterId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    return _unexpectedRequest();
   }
 
   @override
@@ -192,7 +240,6 @@ final class _NoRequestBackendSessionClient implements BackendSessionClient {
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) {
-    requestCalls += 1;
-    throw StateError('Unexpected test request.');
+    return _unexpectedRequest();
   }
 }

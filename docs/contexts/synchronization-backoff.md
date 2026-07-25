@@ -4,6 +4,7 @@
 
 Completed for durable per-semester/user admission policy, exact-once terminal
 mutation, fake-clock behavior, and real schema v1/v2/v3-to-v4 migration.
+Feature 9.3 integrates exact session-expiration gates with selective recovery.
 Platform schedulers remain separate features.
 
 ## Purpose
@@ -27,7 +28,7 @@ explicit user path to retry immediately.
 
 - Sleeping, timers, or a second automatic HTTP request.
 - WorkManager, BGTaskScheduler, desktop timers, or tray implementation.
-- Session-expiration UI, credential acquisition, or account lifecycle.
+- Credential acquisition or account switching.
 - Notifications, reminder effects, and assignment diff changes.
 - A new invalid-credentials transport failure.
 
@@ -37,6 +38,9 @@ An automatic launch, resume, background, or desktop-timer request is deferred
 while a transient wait remains or a deterministic failure is blocked. Initial
 setup, manual refresh, and the future “Synchronize now” tray action can still
 try immediately. A successful user-driven recovery clears policy state.
+Global session expiration takes priority over these lanes and pauses every
+reason. Verified session recovery clears exact expiration gates for the
+current user without clearing unrelated policy.
 
 ## Architecture
 
@@ -53,6 +57,7 @@ terminal transition succeeds. The shared failure codec was extracted to
 `sync_failure_codec.dart`. `LocalAssignmentSyncService` coalesces same-key work
 only within separate automatic and user-driven lanes, so a user bypass can
 still enter durable admission while SQLite remains the single-flight authority.
+The global `SessionLifecycleStore` gate executes before this per-key policy.
 
 ## Important files
 
@@ -65,10 +70,13 @@ still enter durable admission while SQLite remains the single-flight authority.
 - `lib/src/features/assignments/sync/sync_operation_store.dart` — atomic
   admission and fenced terminal policy mutation.
 - `lib/src/core/database/database_tables.dart` — backoff schema and checks.
-- `lib/src/core/database/app_database.dart` — schema v4 migration.
+- `lib/src/core/database/app_database.dart` — ordered migration containing the
+  schema v4 backoff step.
 - `test/features/assignments/sync/synchronization_backoff_test.dart` — policy,
   concurrency, cancellation, rollback, and fake-clock tests.
 - `test/core/database/v3_app_database.dart` — frozen v3 migration fixture.
+- `lib/src/core/session/session_lifecycle.dart` — verified activation clears
+  only exact current-user expiration gates.
 
 ## Contracts and interfaces
 
@@ -76,7 +84,8 @@ still enter durable admission while SQLite remains the single-flight authority.
 seven established reasons. It now returns:
 
 - `SyncSuccess`, `SyncFailed`, or `SyncCancelled` after an operation existed;
-- `SyncDeferred` when automatic admission is suppressed before enqueue.
+- `SyncDeferred` when automatic admission is suppressed before enqueue;
+- `SyncPausedForSession` when global lifecycle is expired, for any reason.
 
 `getBackoffStatus` returns null, `SyncBackoffWaiting`, or
 `SyncBackoffBlocked` and never mutates policy. Deferred/status values use
@@ -98,21 +107,26 @@ Checks reject cancellation, negative retry duration, codec mismatch, and
 retry-eligibility/state mismatch. Semester deletion cascades the row. The
 `sync_backoff_states_by_next_attempt` index supports later diagnostics and
 scheduler queries. Migration deliberately seeds no historical state.
+Verified activation deletes only rows for the current user whose fixed failure
+kind is exactly `sessionExpired`.
 
 ## State and control flow
 
-1. Validate identifiers and enter the existing short admission transaction.
-2. Verify the semester, prune terminal operations, and join active same-key
+1. Validate positive-int32 semester and user identifiers at the public service
+   boundary.
+2. Read the global lifecycle during admission and pause every reason when
+   expired.
+3. Verify the semester, prune terminal operations, and join active same-key
    work before reading policy.
-3. Read policy storage for every reason, then bypass its gate for
+4. Read policy storage for every reason, then bypass its gate for
    `initialSetup`, `manualRefresh`, and `trayAction`.
-4. Defer `appLaunch`, `appResume`, `backgroundTask`, or `desktopTimer` while
+5. Defer `appLaunch`, `appResume`, `backgroundTask`, or `desktopTimer` while
    waiting before next-at or while blocked.
-5. Admit at exact next-at equality or later.
-6. On fenced failure, terminalize and update policy in one transaction.
-7. On fenced success, reconcile, terminalize, and delete policy in one
+6. Admit at exact next-at equality or later.
+7. On fenced failure, terminalize and update policy in one transaction.
+8. On fenced success, reconcile, terminalize, and delete policy in one
    transaction.
-8. Joined callers reconstruct the stored result and never mutate policy.
+9. Joined callers reconstruct the stored result and never mutate policy.
 
 Cancellation is neutral. A manual failure advances or blocks the existing
 streak; a manual success resets it.
@@ -169,9 +183,11 @@ when policy storage remains writable.
 
 If sync-history insertion fails, its transaction rolls back and the existing
 fallback commits terminal failure plus one policy mutation without history.
-Session expiration, invalid response, deterministic client/credential
-categories, and local persistence failure remain blocked. Cancellation remains
-neutral.
+Exact session expiration blocks the affected lane and also marks the matching
+global session revision expired. Invalid response, deterministic
+client/credential categories, and local persistence failure remain blocked.
+Verified activation clears only exact current-user session-expiration rows.
+Cancellation remains neutral.
 
 ## Tests
 
@@ -190,7 +206,9 @@ Tests cover:
 - history fallback, backoff-write rollback, reset rollback, automatic and
   user-driven admission failure before HTTP, and stale-owner fencing;
 - fresh schema constraints/index/cascade/security ownership;
-- real v1/v2/v3-to-v4 migration with empty initial policy.
+- real v1/v2/v3-to-v4 migration with empty initial policy;
+- current-user exact expiration-gate clearing without touching other failures
+  or users.
 
 ## Validation evidence
 
@@ -224,13 +242,17 @@ Passed: build/linux/x64/release/bundle/leb2-watch.
 Secret, unfinished-marker, generated-source, context-heading, and changed-file
 scan evidence is recorded in the Feature 8.3 worker handoff.
 
+Feature 9.3 verified the combined synchronization directory at 84/84,
+including selective expiration-gate recovery; final broad evidence is recorded
+in `session-expiration.md`.
+
 ## Known limitations
 
 - Persisted eligibility uses wall-clock UTC, so backward and forward clock
   jumps can lengthen or shorten the observed wait.
 - A failure of the backoff table itself cannot be durably gated.
-- Old per-user rows remain until semester/local-data deletion; account-switch
-  ownership is not yet defined.
+- Non-expiration per-user rows remain until success, semester deletion, or
+  local-data deletion; account switching remains intentionally blocked.
 - Snapshot data remains semester-scoped while policy is semester/user-scoped.
 - This feature suppresses triggers but does not create a future trigger.
 
@@ -238,7 +260,6 @@ scan evidence is recorded in the Feature 8.3 worker handoff.
 
 - Platform schedulers should use the status to communicate approximate
   eligibility without promising exact execution.
-- Account/session ownership should clear or partition old user policy.
 - Diagnostics may display the safe status fields without exposing raw failure
   evidence.
 
@@ -248,3 +269,4 @@ scan evidence is recorded in the Feature 8.3 worker handoff.
 - [Assignment Diffing](assignment-diffing.md)
 - [Local Database](local-database.md)
 - [API Error Mapping](api-error-mapping.md)
+- [Session Expiration Recovery](session-expiration.md)

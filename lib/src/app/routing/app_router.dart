@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../app_dependencies.dart';
+import '../design_system/widgets/app_status_banner.dart';
 import '../design_system/widgets/app_state_view.dart';
 import '../shell/adaptive_app_shell.dart';
+import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
 import 'app_flow.dart';
@@ -43,7 +47,7 @@ GoRouter createAppRouter(
       _placeholderRoute(AppRoute.semesters, 'Semesters'),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) =>
-            AdaptiveAppShell(navigationShell: navigationShell),
+            _SessionAwareShell(navigationShell: navigationShell),
         branches: [
           for (final destination in AppDestination.values)
             StatefulShellBranch(
@@ -92,9 +96,28 @@ String? _redirectForStage(AppFlowStage stage, String requestedPath) {
     AppFlowStage.ready =>
       requestedPath == '/' ||
               requestedPath == AppRoute.onboarding.path ||
-              requestedPath == AppRoute.authentication.path ||
               requestedPath == AppRoute.semesters.path
           ? AppRoute.assignments.path
           : null,
   };
+}
+
+class _SessionAwareShell extends ConsumerWidget {
+  const _SessionAwareShell({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lifecycle = ref.watch(sessionLifecycleProvider).value;
+    return AdaptiveAppShell(
+      navigationShell: navigationShell,
+      globalBanner: lifecycle?.state == SessionLifecycleState.expired
+          ? AppStatusBanner.sessionExpired(
+              key: const Key('session-expired-banner'),
+              onAction: () => context.push(AppRoute.authentication.path),
+            )
+          : null,
+    );
+  }
 }

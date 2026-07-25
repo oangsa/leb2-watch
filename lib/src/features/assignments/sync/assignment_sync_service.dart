@@ -92,6 +92,25 @@ sealed class SyncOutcome {
   const SyncOutcome();
 }
 
+final class SyncPausedForSession extends SyncOutcome {
+  const SyncPausedForSession({required this.semesterId, required this.reason});
+
+  final int semesterId;
+  final SyncReason reason;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncPausedForSession &&
+      other.semesterId == semesterId &&
+      other.reason == reason;
+
+  @override
+  int get hashCode => Object.hash(semesterId, reason);
+
+  @override
+  String toString() => 'SyncPausedForSession(redacted: true)';
+}
+
 final class SyncDeferred extends SyncOutcome {
   const SyncDeferred({
     required this.semesterId,

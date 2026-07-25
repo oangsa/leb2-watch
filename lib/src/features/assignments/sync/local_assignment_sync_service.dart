@@ -145,6 +145,9 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
         status: status,
       );
     }
+    if (admission is SyncPausedForSessionAdmission) {
+      return SyncPausedForSession(semesterId: semesterId, reason: reason);
+    }
     final operationId = (admission as SyncOperationAdmission).operationId;
 
     while (true) {

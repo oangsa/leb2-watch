@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 
 import 'assignment_sync_service.dart';
 import 'sync_backoff_store.dart';
@@ -37,6 +38,9 @@ final class SyncOperationStore {
       SyncDeferredAdmission() => throw StateError(
         'The synchronization request was deferred by backoff policy.',
       ),
+      SyncPausedForSessionAdmission() => throw StateError(
+        'Synchronization is paused while the session is expired.',
+      ),
     };
   }
 
@@ -46,6 +50,11 @@ final class SyncOperationStore {
     required SyncReason reason,
   }) {
     return _database.transaction(() async {
+      final lifecycle = await _readLifecycle();
+      if (lifecycle.isExpired) {
+        return const SyncPausedForSessionAdmission();
+      }
+
       final semester = await (_database.select(
         _database.semesters,
       )..where((row) => row.semesterId.equals(semesterId))).getSingleOrNull();
@@ -93,6 +102,7 @@ final class SyncOperationStore {
               reason: reason.name,
               state: 'queued',
               enqueuedAtUtc: now,
+              sessionRevision: Value(lifecycle.revision),
             ),
           );
       return SyncOperationAdmission(operationId);
@@ -125,6 +135,11 @@ final class SyncOperationStore {
   Future<OwnedSyncOperation?> claimNext(String ownerToken) {
     return _database.transaction(() async {
       final now = _utcClock().toUtc();
+      final lifecycle = await _readLifecycle();
+      if (lifecycle.isExpired) {
+        await _finishAllQueuedForExpiredSession(completedAtUtc: now);
+        return null;
+      }
       final running =
           await (_database.select(_database.syncOperations)
                 ..where((row) => row.state.equals('running'))
@@ -186,6 +201,7 @@ final class SyncOperationStore {
                     startedAtUtc: Value(startedAtUtc),
                     ownerToken: Value(ownerToken),
                     leaseExpiresAtUtc: Value(leaseExpiresAtUtc),
+                    sessionRevision: Value(lifecycle.revision),
                   ),
                 );
         if (updated == 1) {
@@ -195,6 +211,7 @@ final class SyncOperationStore {
               startedAtUtc: Value(startedAtUtc),
               ownerToken: Value(ownerToken),
               leaseExpiresAtUtc: Value(leaseExpiresAtUtc),
+              sessionRevision: lifecycle.revision,
             ),
             ownerToken: ownerToken,
           );
@@ -366,9 +383,8 @@ final class SyncOperationStore {
         if (!updated) {
           return false;
         }
-        await _backoff.recordFailure(
-          semesterId: current.semesterId,
-          userId: current.userId,
+        await _recordFailureAndExpireSessionWhenCurrent(
+          current: current,
           failure: failure,
           completedAtUtc: completedAtUtc,
         );
@@ -400,9 +416,8 @@ final class SyncOperationStore {
         if (!updated) {
           return false;
         }
-        await _backoff.recordFailure(
-          semesterId: current.semesterId,
-          userId: current.userId,
+        await _recordFailureAndExpireSessionWhenCurrent(
+          current: current,
           failure: failure,
           completedAtUtc: completedAtUtc,
         );
@@ -601,6 +616,101 @@ final class SyncOperationStore {
     return updated == 1;
   }
 
+  Future<void> _recordFailureAndExpireSessionWhenCurrent({
+    required SyncOperation current,
+    required SyncFailure failure,
+    required DateTime completedAtUtc,
+  }) async {
+    if (failure is! SessionExpiredFailure) {
+      await _backoff.recordFailure(
+        semesterId: current.semesterId,
+        userId: current.userId,
+        failure: failure,
+        completedAtUtc: completedAtUtc,
+      );
+      return;
+    }
+
+    final lifecycle = await _readLifecycle();
+    if (lifecycle.revision != current.sessionRevision) {
+      return;
+    }
+
+    await _backoff.recordFailure(
+      semesterId: current.semesterId,
+      userId: current.userId,
+      failure: failure,
+      completedAtUtc: completedAtUtc,
+    );
+    await _writeExpiredLifecycle(lifecycle);
+    await _finishAllQueuedForExpiredSession(completedAtUtc: completedAtUtc);
+  }
+
+  Future<SessionLifecycleSnapshot> _readLifecycle() async {
+    return decodeStoredSessionLifecycle(
+      await _database.select(_database.appSettings).getSingleOrNull(),
+    );
+  }
+
+  Future<void> _writeExpiredLifecycle(
+    SessionLifecycleSnapshot lifecycle,
+  ) async {
+    final existing = await _database
+        .select(_database.appSettings)
+        .getSingleOrNull();
+    if (existing == null) {
+      await _database
+          .into(_database.appSettings)
+          .insert(
+            AppSettingsCompanion.insert(
+              singletonId: const Value(1),
+              sessionLifecycle: const Value('expired'),
+              sessionRevision: Value(lifecycle.revision),
+            ),
+          );
+      return;
+    }
+    final updated =
+        await (_database.update(_database.appSettings)..where(
+              (row) =>
+                  row.singletonId.equals(1) &
+                  row.sessionRevision.equals(lifecycle.revision),
+            ))
+            .write(
+              const AppSettingsCompanion(sessionLifecycle: Value('expired')),
+            );
+    if (updated != 1) {
+      throw StateError('The session revision changed before expiration.');
+    }
+  }
+
+  Future<void> _finishAllQueuedForExpiredSession({
+    required DateTime completedAtUtc,
+  }) async {
+    final encoded = encodeFailure(const SessionExpiredFailure());
+    final queued = await (_database.select(
+      _database.syncOperations,
+    )..where((row) => row.state.equals('queued'))).get();
+    for (final operation in queued) {
+      await (_database.update(_database.syncOperations)..where(
+            (row) =>
+                row.operationId.equals(operation.operationId) &
+                row.state.equals('queued'),
+          ))
+          .write(
+            SyncOperationsCompanion(
+              state: const Value('failure'),
+              completedAtUtc: Value(completedAtUtc),
+              resultFailureKind: Value(encoded.kind),
+              resultFailureDetail: Value(encoded.detail),
+              resultRetryAfterMilliseconds: Value(
+                encoded.retryAfterMilliseconds,
+              ),
+            ),
+          );
+    }
+  }
+
   bool _isOwned(SyncOperation? current, OwnedSyncOperation owned) {
     return current != null &&
         current.state == 'running' &&
@@ -656,4 +766,8 @@ final class SyncDeferredAdmission extends SyncAdmission {
   const SyncDeferredAdmission(this.status);
 
   final SyncBackoffStatus status;
+}
+
+final class SyncPausedForSessionAdmission extends SyncAdmission {
+  const SyncPausedForSessionAdmission();
 }

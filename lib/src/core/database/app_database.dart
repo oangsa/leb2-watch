@@ -31,14 +31,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) => migrator.createAll(),
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 4 || to != 5) {
+        if (from < 1 || from > 5 || to != 6) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -52,7 +52,10 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 3) {
           await _migrateFrom3To4(migrator);
         }
-        await _migrateFrom4To5();
+        if (from <= 4) {
+          await _migrateFrom4To5();
+        }
+        await _migrateFrom5To6(addSyncOperationRevision: from != 1);
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -155,6 +158,51 @@ class AppDatabase extends _$AppDatabase {
       'ALTER TABLE app_settings ADD COLUMN leb2_user_id INTEGER NULL '
       'CHECK (leb2_user_id IS NULL OR '
       '(leb2_user_id > 0 AND leb2_user_id <= 2147483647))',
+    );
+  }
+
+  Future<void> _migrateFrom5To6({
+    required bool addSyncOperationRevision,
+  }) async {
+    await customStatement(
+      'ALTER TABLE app_settings '
+      "ADD COLUMN session_lifecycle TEXT NOT NULL DEFAULT 'unknown' "
+      "CHECK (session_lifecycle IN ('unknown', 'active', 'expired'))",
+    );
+    await customStatement(
+      'ALTER TABLE app_settings '
+      'ADD COLUMN session_revision INTEGER NOT NULL DEFAULT 0 '
+      'CHECK (session_revision >= 0 AND session_revision <= 2147483647)',
+    );
+    if (addSyncOperationRevision) {
+      await customStatement(
+        'ALTER TABLE sync_operations '
+        'ADD COLUMN session_revision INTEGER NOT NULL DEFAULT 0 '
+        'CHECK (session_revision >= 0 AND session_revision <= 2147483647)',
+      );
+    }
+    await _preserveLegacySessionExpiration();
+  }
+
+  Future<void> _preserveLegacySessionExpiration() async {
+    await customStatement(
+      'INSERT OR IGNORE INTO app_settings '
+      '(singleton_id, session_lifecycle, session_revision) '
+      "SELECT 1, 'expired', 0 "
+      'WHERE EXISTS ('
+      'SELECT 1 FROM sync_backoff_states '
+      "WHERE last_failure_kind = 'sessionExpired'"
+      ')',
+    );
+    await customStatement(
+      "UPDATE app_settings SET session_lifecycle = 'expired', "
+      'session_revision = 0 '
+      'WHERE singleton_id = 1 AND EXISTS ('
+      'SELECT 1 FROM sync_backoff_states '
+      "WHERE last_failure_kind = 'sessionExpired' "
+      'AND (app_settings.leb2_user_id IS NULL '
+      'OR sync_backoff_states.user_id = app_settings.leb2_user_id)'
+      ')',
     );
   }
 

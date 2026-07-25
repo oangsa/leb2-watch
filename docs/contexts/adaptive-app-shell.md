@@ -3,7 +3,8 @@
 ## Status
 
 Completed for guarded application routing, compact/medium/expanded navigation,
-desktop keyboard shortcuts, responsive behavior, and the Linux release build.
+desktop keyboard shortcuts, responsive behavior, durable session-expiration
+banner composition, and the Linux release build.
 Android, iOS, macOS, and Windows use the same Dart route and shell code but
 remain unverified on their native toolchains.
 
@@ -29,6 +30,8 @@ completed.
   shortcuts.
 - Safe route-error, session-setup, and remaining label-only placeholder
   surfaces.
+- A global status slot that preserves route content in all three layouts.
+- Ready-stage reauthentication access and return-to-assignments recovery.
 - Root `MaterialApp.router` and router lifecycle ownership.
 - Focused controller, router, shell, accessibility, and root-widget tests.
 
@@ -38,8 +41,7 @@ completed.
   behavior.
 - Persisting the temporary application-flow stage.
 - Preserving a blocked deep-link target through the incomplete flow.
-- API, database, credential, notification, synchronization, or background
-  services.
+- Credential, notification, or native background services.
 - Production records, mock assignments, counts, deadlines, or timestamps.
 - New dependencies, generated code, native configuration, CI, assets, fonts,
   or design-system token changes.
@@ -72,6 +74,12 @@ Control+4 on Windows and Linux. The authentication route presents the real
 session-setup workflow. Remaining product routes show only truthful route
 labels; no unfinished workflow is presented as usable.
 
+When the durable session lifecycle is expired, the shell keeps the current
+ready route mounted and shows one warning that saved data remains available.
+`Reconnect` opens authentication without discarding the ready flow stage.
+Successful verification returns to assignments; first-time authentication
+still advances to semester selection.
+
 ## Architecture
 
 `AppRoute` is the stable product route declaration. `AppDestination` owns the
@@ -94,8 +102,9 @@ location.
 once, supplies it to `MaterialApp.router`, and disposes the router with the
 widget. The root `ProviderScope` remains in `bootstrap()`. Feature 9.2 replaces
 the authentication placeholder with `SessionSetupRoute`; successful verified
-persistence updates the same flow controller to `semesterSelection`, so the
-existing router redirects to `/semesters` without reconstruction.
+persistence updates an initial flow to `semesterSelection`, so the existing
+router redirects to `/semesters` without reconstruction. A ready-user recovery
+keeps the flow ready and navigates back to `/assignments`.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -105,6 +114,11 @@ label role, then measures every full destination label against one equal
 destination width. It chooses Material's `alwaysHide` when text is enlarged or
 any label would wrap and `onlyShowSelected` otherwise. Only the expanded layout
 adds deterministic autofocus and `CallbackShortcuts`.
+
+`_SessionAwareShell` watches the local `sessionLifecycleProvider` and supplies
+`AppStatusBanner.sessionExpired` through the shell's global banner slot. The
+watch performs no request. `_ShellContent` lays the banner above the indexed
+route child rather than replacing it.
 
 ## Important files
 
@@ -119,7 +133,11 @@ adds deterministic autofocus and `CallbackShortcuts`.
   authentication provider loading/error adapter and successful flow
   transition.
 - `lib/src/app/shell/adaptive_app_shell.dart` — compact, medium, and expanded
-  navigation.
+  navigation plus the route-preserving global banner slot.
+- `lib/src/app/design_system/widgets/app_status_banner.dart` — warning banner,
+  reconnect action, and live-region semantics.
+- `lib/src/core/session/session_lifecycle.dart` — durable state watched by the
+  shell.
 - `lib/src/app/leb2_watch_app.dart` — root router lifecycle and themes.
 - `test/app/routing/app_router_test.dart` — controller and routing behavior.
 - `test/app/shell/adaptive_app_shell_test.dart` — responsive navigation,
@@ -168,17 +186,17 @@ The exact guard contract is:
   redirects to authentication.
 - Semester selection allows only semesters and privacy; every other path
   redirects to semesters.
-- Ready redirects `/`, onboarding, authentication, and semesters to
-  assignments.
-- Ready allows the four shell routes and privacy.
+- Ready redirects `/`, onboarding, and semesters to assignments.
+- Ready allows authentication for reauthentication, the four shell routes,
+  and privacy.
 - Unknown ready routes fall through to the application-owned error surface.
 
 ## Data model
 
-The shell itself adds no domain, transport, database, credential, or settings
-data model. `AppFlowStage` is process-local navigation state and is
-intentionally not persisted. Route and destination enums are compile-time
-presentation contracts.
+The shell itself adds no domain, transport, credential, or settings data
+model. `AppFlowStage` is process-local navigation state and is intentionally
+not persisted. It watches the separately owned durable session lifecycle
+snapshot. Route and destination enums are compile-time presentation contracts.
 
 ## State and control flow
 
@@ -190,6 +208,10 @@ At startup:
 4. The initial assignments request is redirected to the current flow gate.
 5. Updating the stage notifies once and re-evaluates the current route.
 6. Reaching `ready` redirects gate routes to assignments.
+7. An expired lifecycle adds the warning without changing the ready stage or
+   unmounting the selected branch.
+8. Reconnect pushes authentication; successful ready-user setup returns to
+   assignments.
 
 Inside the shell, selecting a destination calls `goBranch(index)`. The indexed
 stack retains branch navigators, and responsive layout changes reuse the same
@@ -272,7 +294,8 @@ diagnostic payload. Placeholder pages contain only product and route labels.
 ## Failure behavior
 
 Incomplete flow stages redirect any non-privacy location to their one allowed
-gate. Ready users requesting a gate or `/` are returned to assignments.
+gate. Ready users requesting onboarding, semesters, or `/` are returned to
+assignments; authentication remains reachable for session recovery.
 Unknown ready paths show `Page unavailable` with fixed explanatory copy and a
 safe `Open assignments` action. No raw route detail is exposed.
 
@@ -281,8 +304,9 @@ scroll and wrap naturally for large text and short viewports. Scrollable rails
 avoid vertical destination overflow. Compact navigation removes visual labels
 before they wrap while retaining full Material semantics and tooltips.
 
-This feature does not own session expiration, networking timeouts, invalid API
-responses, retries, synchronization failures, or database rollback.
+Exact session-expiration detection remains owned by synchronization and
+session setup. The shell owns only the route-preserving warning and reconnect
+interaction; it does not expose transport evidence.
 
 ## Tests
 
@@ -297,6 +321,7 @@ responses, retries, synchronization failures, or database rollback.
   without router reconstruction, including verified session-setup success.
 - Authentication provider loading, redacted initialization failure, retry,
   and successful progression to the semester route.
+- Ready-stage expired-session reconnect and return to cached assignments.
 - Ready-stage gate redirects and all four shell branches.
 - Safe unknown-route copy without URI, query, or router exception disclosure.
 - Listener safety after router disposal.
@@ -320,6 +345,8 @@ responses, retries, synchronization failures, or database rollback.
 - Every full destination label and selected state remain exposed through
   Material semantics while visual labels are hidden.
 - Label-only placeholder content without sample records.
+- Expired banner plus cached route visibility in compact and expanded layouts
+  at 200-percent text.
 
 `test/leb2_watch_app_test.dart` verifies:
 
@@ -379,13 +406,20 @@ resolver uses these same theme/text-measurement inputs rather than a fixed
 device breakpoint. Final tests verify visible geometry, hidden-label
 semantics, tooltips' full label source, and pointer selection.
 
+Feature 9.3's combined feedback, shell, router, and dependency-provider batch
+passed 59/59. It covers the live-region reconnect action, 200-percent reflow,
+compact/expanded cached-content preservation, recovery navigation, and
+provider watching without a backend request. Final broad evidence is recorded
+in `session-expiration.md`.
+
 ## Known limitations
 
 - Android, iOS, macOS, and Windows are not build-verified on this Linux host.
 - Native keyboard layouts and screen-reader output require device-level
   validation even though Flutter semantics and key dispatch tests pass.
-- The application-flow stage is temporary in-memory state. Later session-state
-  restoration and semester features must derive and persist the real state.
+- The application-flow stage is temporary in-memory state. Later restoration
+  and semester features must derive the initial flow stage. Session expiration
+  itself is independently durable.
 - Blocked deep links do not resume after flow completion.
 - Remaining product route surfaces are honest labels only; their real
   workflows belong to later features.
@@ -412,3 +446,4 @@ semantics, tooltips' full label source, and pointer selection.
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
 - [Session Setup and Verification](session-setup.md)
+- [Session Expiration Recovery](session-expiration.md)

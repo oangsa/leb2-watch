@@ -8,6 +8,9 @@ import '../core/database/local_database_storage.dart';
 import '../core/network/backend_api_client.dart';
 import '../core/security/credential_store.dart';
 import '../core/security/flutter_secure_credential_store.dart';
+import '../core/session/session_lifecycle.dart';
+import '../features/assignments/sync/assignment_sync_service.dart';
+import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
 
@@ -74,13 +77,39 @@ final sessionIdentityStoreProvider = FutureProvider<SessionIdentityStore>((
   return DriftSessionIdentityStore(database);
 });
 
+final sessionLifecycleStoreProvider = FutureProvider<SessionLifecycleStore>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return DriftSessionLifecycleStore(database);
+});
+
+final sessionLifecycleProvider = StreamProvider<SessionLifecycleSnapshot>((
+  ref,
+) async* {
+  final store = await ref.watch(sessionLifecycleStoreProvider.future);
+  yield* store.watch();
+});
+
+final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return LocalAssignmentSyncService(
+    apiClient: ref.watch(backendApiClientProvider),
+    database: database,
+  );
+});
+
 final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
   ref,
 ) async {
   final identityStore = await ref.watch(sessionIdentityStoreProvider.future);
+  final lifecycleStore = await ref.watch(sessionLifecycleStoreProvider.future);
   return LocalSessionSetupService(
     ref.watch(backendSessionClientProvider),
     ref.watch(credentialStoreProvider),
     identityStore,
+    lifecycleStore,
   );
 });

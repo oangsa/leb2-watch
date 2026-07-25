@@ -2,6 +2,7 @@ import '../../../core/network/backend_api_client.dart';
 import '../../../core/network/backend_transport_failure.dart';
 import '../../../core/security/credential_store.dart';
 import '../../../core/security/stored_credentials.dart';
+import '../../../core/session/session_lifecycle.dart';
 import '../data/session_identity_store.dart';
 
 const _maximumInt32 = 2147483647;
@@ -106,11 +107,13 @@ final class LocalSessionSetupService implements SessionSetupService {
     this._backendSessionClient,
     this._credentialStore,
     this._identityStore,
+    this._lifecycleStore,
   );
 
   final BackendSessionClient _backendSessionClient;
   final CredentialStore _credentialStore;
   final SessionIdentityStore _identityStore;
+  final SessionLifecycleStore _lifecycleStore;
 
   bool _operationInProgress = false;
 
@@ -171,14 +174,48 @@ final class LocalSessionSetupService implements SessionSetupService {
         );
       }
 
-      final verification = await _verifyCandidate(
-        prior.cookie!,
-        cancellation: cancellation,
-      );
+      SessionSetupResult verification;
+      try {
+        await _backendSessionClient.verifySessionCookie(
+          candidateCookie: prior.cookie!,
+          cancellation: cancellation?._transport,
+        );
+        verification = const SessionSetupSuccess();
+      } on BackendTransportException catch (error) {
+        if (_isExactSessionExpired(error)) {
+          try {
+            await _lifecycleStore.markExpired(
+              expectedRevision: prior.lifecycle.revision,
+            );
+          } on Object {
+            return const SessionSetupFailure(
+              SessionSetupFailureKind.localStorageUnavailable,
+            );
+          }
+        }
+        verification = _mapTransportFailure(
+          error,
+          _SessionRequest.verification,
+        );
+      } on Object {
+        verification = const SessionSetupFailure(
+          SessionSetupFailureKind.unexpected,
+        );
+      }
       if (cancellation?.isCancelled ?? false) {
         return const SessionSetupFailure(SessionSetupFailureKind.cancelled);
       }
-      return verification;
+      if (!verification.isSuccess) {
+        return verification;
+      }
+      try {
+        await _lifecycleStore.markVerifiedActive(userId: prior.userId!);
+      } on Object {
+        return const SessionSetupFailure(
+          SessionSetupFailureKind.localStorageUnavailable,
+        );
+      }
+      return const SessionSetupSuccess();
     });
   }
 
@@ -353,6 +390,7 @@ final class LocalSessionSetupService implements SessionSetupService {
         cookie: cookie,
         credentials: credentials,
         userId: await _identityStore.readUserId(),
+        lifecycle: await _lifecycleStore.read(),
       );
     } on Object {
       throw const _PriorSessionReadException();
@@ -404,6 +442,14 @@ final class LocalSessionSetupService implements SessionSetupService {
     }
 
     if (commitFailure == null) {
+      try {
+        await _lifecycleStore.markVerifiedActive(userId: candidateUserId);
+      } on Object {
+        commitFailure = SessionSetupFailureKind.localStorageUnavailable;
+      }
+    }
+
+    if (commitFailure == null) {
       return const SessionSetupSuccess();
     }
 
@@ -425,6 +471,14 @@ final class LocalSessionSetupService implements SessionSetupService {
           return cookie == null
               ? _credentialStore.deleteSessionCookie()
               : _credentialStore.saveSessionCookie(cookie);
+        }) &&
+        restored;
+    restored =
+        await _attempt(() async {
+          final current = await _lifecycleStore.read();
+          if (current != prior.lifecycle) {
+            throw StateError('The session lifecycle changed during rollback.');
+          }
         }) &&
         restored;
     restored =
@@ -559,14 +613,23 @@ final class _PriorSession {
     required this.cookie,
     required this.credentials,
     required this.userId,
+    required this.lifecycle,
   });
 
   final String? cookie;
   final StoredCredentials? credentials;
   final int? userId;
+  final SessionLifecycleSnapshot lifecycle;
 
   @override
   String toString() => '_PriorSession(redacted: true)';
+}
+
+bool _isExactSessionExpired(BackendTransportException error) {
+  final evidence = error.httpError;
+  return error.kind == BackendTransportFailureKind.httpResponse &&
+      evidence?.statusCode == 401 &&
+      evidence?.responseCode == 'SESSION_EXPIRED';
 }
 
 final class _PriorSessionReadException implements Exception {

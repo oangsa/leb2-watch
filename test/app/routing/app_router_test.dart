@@ -9,6 +9,7 @@ import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
 
 void main() {
@@ -224,6 +225,55 @@ void main() {
       expect(find.text('Connect LEB2'), findsNothing);
     });
 
+    testWidgets(
+      'ready expired session reconnects and returns to cached assignments',
+      (tester) async {
+        final controller = AppFlowController(initialStage: AppFlowStage.ready);
+        final router = createAppRouter(controller);
+        final service = _RouteSessionSetupService(
+          cookieResult: const SessionSetupSuccess(),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            flowController: controller,
+            sessionServiceLoader: () => service,
+            lifecycle: const SessionLifecycleSnapshot(
+              state: SessionLifecycleState.expired,
+              revision: 3,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+        expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+        await tester.tap(find.text('Reconnect'));
+        await tester.pumpAndSettle();
+        expect(find.text('Connect LEB2'), findsOneWidget);
+
+        await tester.enterText(
+          find.byKey(const Key('session-cookie-field')),
+          '<SESSION_COOKIE>',
+        );
+        await tester.enterText(
+          find.byKey(const Key('session-user-id-field')),
+          '2001',
+        );
+        final submit = find.byKey(const Key('session-submit'));
+        await tester.ensureVisible(submit);
+        await tester.tap(submit);
+        await tester.pumpAndSettle();
+
+        expect(service.cookieCalls, 1);
+        expect(controller.stage, AppFlowStage.ready);
+        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+      },
+    );
+
     testWidgets('authentication route exposes a bounded loading state', (
       tester,
     ) async {
@@ -297,11 +347,7 @@ void main() {
       expect(find.text('Connect LEB2'), findsOneWidget);
     });
 
-    for (final route in <AppRoute>[
-      AppRoute.onboarding,
-      AppRoute.authentication,
-      AppRoute.semesters,
-    ]) {
+    for (final route in <AppRoute>[AppRoute.onboarding, AppRoute.semesters]) {
       testWidgets('ready stage redirects ${route.path} to assignments', (
         tester,
       ) async {
@@ -387,11 +433,16 @@ class _RouterHarness extends StatelessWidget {
     required this.router,
     this.flowController,
     this.sessionServiceLoader,
+    this.lifecycle = const SessionLifecycleSnapshot(
+      state: SessionLifecycleState.active,
+      revision: 1,
+    ),
   });
 
   final GoRouter router;
   final AppFlowController? flowController;
   final FutureOr<SessionSetupService> Function()? sessionServiceLoader;
+  final SessionLifecycleSnapshot lifecycle;
 
   @override
   Widget build(BuildContext context) {
@@ -402,6 +453,7 @@ class _RouterHarness extends StatelessWidget {
         sessionSetupServiceProvider.overrideWith(
           (_) => sessionServiceLoader?.call() ?? _RouteSessionSetupService(),
         ),
+        sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,

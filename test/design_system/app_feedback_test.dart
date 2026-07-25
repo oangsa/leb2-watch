@@ -117,6 +117,38 @@ void main() {
     },
   );
 
+  testWidgets('expired-session banner explains cached data and reconnects', (
+    tester,
+  ) async {
+    var reconnects = 0;
+    final semanticsHandle = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      _harness(AppStatusBanner.sessionExpired(onAction: () => reconnects++)),
+    );
+
+    expect(
+      find.text('Your LEB2 session expired. Showing saved data.'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.lock_clock_outlined), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Session expired: Your LEB2 session expired. Showing saved data.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Reconnect'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(TextButton)).height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.tap(find.text('Reconnect'));
+    expect(reconnects, 1);
+    semanticsHandle.dispose();
+  });
+
   testWidgets('all feedback states reflow from 320 to 768 px at 200% text', (
     tester,
   ) async {
@@ -139,6 +171,7 @@ void main() {
       ),
       const AppStatusBanner.offline(actionLabel: null, onAction: null),
       const AppStatusBanner.stale(actionLabel: null, onAction: null),
+      AppStatusBanner.sessionExpired(onAction: () {}),
     ];
 
     for (final width in [320.0, 375.0, 414.0, 768.0]) {

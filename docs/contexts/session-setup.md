@@ -4,15 +4,17 @@
 
 Completed for manual session-cookie setup, verified username/password setup,
 saved-session verification, local identity persistence, responsive UI, and
-application composition. Linux is the only build-verified native target on
-this host.
+application composition. Feature 9.3 adds durable expiration and recovery
+activation to this boundary. Linux is the only build-verified native target
+on this host.
 
 ## Purpose
 
 Let a user prove a candidate LEB2 session before LEB2 Watch changes the saved
 session. The flow keeps secrets in operating-system secure storage, keeps the
 numeric backend user ID in local SQLite, and advances to semester selection
-only after verification and persistence both succeed.
+for first-time setup only after verification and persistence both succeed. A
+ready user replacing an expired session returns to assignments.
 
 ## Scope
 
@@ -28,11 +30,13 @@ only after verification and persistence both succeed.
   identity store, and setup service.
 - Responsive, accessible mobile and desktop authentication UI.
 - Authentication-route loading, initialization-error, retry, and success
-  progression to `/semesters`.
+  progression to `/semesters` for initial setup or `/assignments` for recovery.
+- Exact saved-session expiration persistence, candidate isolation, and verified
+  lifecycle activation.
 
 ## Non-scope
 
-- Session-expiration lifecycle, reauthentication banners, or pausing schedulers.
+- Native background-scheduler registration or cancellation.
 - Semester fetching or selection.
 - Assignment synchronization and snapshot persistence.
 - Automatic reauthentication execution.
@@ -53,9 +57,10 @@ cookie. Saving the username/password for automatic reauthentication is a
 separate switch and remains off by default.
 
 A ready saved session can be verified without displaying or copying any saved
-value into the form. Successful setup moves to semester selection. Invalid
-candidates, timeouts, offline state, rate limiting, malformed responses, and
-storage failures use bounded messages and do not display transport details.
+value into the form. Successful first-time setup moves to semester selection;
+successful ready-user recovery returns to assignments. Invalid candidates,
+timeouts, offline state, rate limiting, malformed responses, and storage
+failures use bounded messages and do not display transport details.
 
 ## Architecture
 
@@ -66,9 +71,11 @@ credential routes so the persisted-cookie interceptor cannot replace a
 candidate or attach a saved secret.
 
 `SessionIdentityStore` owns the non-secret numeric LEB2 user ID in the singleton
-`app_settings` row. `LocalSessionSetupService` orchestrates candidate
-verification and the secure-storage/SQLite commit. Widgets depend only on
-`SessionSetupService` and redacted result values.
+`app_settings` row. `SessionLifecycleStore` owns durable active/expired state
+and its revision. `LocalSessionSetupService` orchestrates candidate
+verification and the secure-storage/SQLite commit, then activates the verified
+revision as its final commit step. Widgets depend only on `SessionSetupService`
+and redacted result values.
 
 `app_dependencies.dart` owns the Riverpod composition root. One
 `FutureProvider<AppDatabase>` opens the database lazily and closes it when the
@@ -86,6 +93,8 @@ loading and initialization failure into safe route states.
   request/response DTOs.
 - `lib/src/features/authentication/data/session_identity_store.dart` — local
   numeric identity interface and Drift adapter.
+- `lib/src/core/session/session_lifecycle.dart` — durable session state and
+  revision interface and Drift adapter.
 - `lib/src/features/authentication/application/session_setup_service.dart` —
   verification, failure mapping, identity guard, commit, and compensation.
 - `lib/src/features/authentication/presentation/session_setup_page.dart` —
@@ -149,12 +158,13 @@ The secure store remains the only owner of:
 - optional username/password payload;
 - credential schema version.
 
-Drift schema version 5 adds nullable `app_settings.leb2_user_id`. A database
-check permits only `NULL` or a positive int32 value. Fresh databases receive
-the Drift-declared check, while the v4-to-v5 migration adds the same check with
-explicit SQLite `ALTER TABLE` SQL. The additive migration preserves every
-prior table and setting. Identity updates preserve the active semester and
-unrelated settings.
+Drift schema version 5 added nullable `app_settings.leb2_user_id`; version 6
+adds checked `session_lifecycle` and `session_revision` fields. A database
+check permits the identity only when `NULL` or a positive int32 value. Fresh
+databases receive the Drift-declared check, while the v4-to-v5 migration adds
+the same check with explicit SQLite `ALTER TABLE` SQL. The additive migration
+preserves every prior table and setting. Identity updates preserve the active
+semester and unrelated settings.
 
 No password, username, cookie, authorization header, or response body is added
 to SQLite.
@@ -167,8 +177,10 @@ Cookie setup:
 2. Read the prior secure and identity state.
 3. Block before network access if that known identity differs.
 4. Verify the candidate cookie directly against `GET /Semester`.
-5. Save the cookie, delete optional credentials, then save the user ID.
-6. Advance to semester selection only after the full commit succeeds.
+5. Save the cookie, delete optional credentials, save the user ID, then mark
+   the session active at a new revision.
+6. Advance to semester selection for initial setup, or return to assignments
+   for recovery, only after the full commit succeeds.
 
 Credential setup:
 
@@ -178,14 +190,16 @@ Credential setup:
 4. Block before cookie acquisition if that known identity differs.
 5. Acquire and verify the candidate cookie.
 6. Save the cookie, either save or delete optional credentials according to the
-   explicit switch, then save the user ID.
-7. Advance to semester selection.
+   explicit switch, save the user ID, then activate a new session revision.
+7. Advance to semester selection for initial setup or assignments for recovery.
 
 Only one setup operation may run per service instance. Cancellation is checked
 after every awaited network boundary and immediately before persistence. Once
 persistence begins, the application operation is deliberately not cancelled
 midway. The secure store and SQLite cannot share an atomic transaction:
-failures instead trigger best-effort restoration of all prior values.
+failures instead trigger best-effort restoration of all prior values. If
+lifecycle activation may have committed before reporting failure, the service
+returns `persistenceUncertain`.
 
 ## Platform behavior
 
@@ -255,7 +269,9 @@ transaction can eliminate those windows.
 ## Failure behavior
 
 `SESSION_EXPIRED` on candidate verification maps only to
-`invalidOrExpiredSession`. A verified login `404 RESOURCE_NOT_FOUND` maps to
+`invalidOrExpiredSession` and does not expire the saved session. The same exact
+evidence while verifying the saved cookie marks that captured revision
+expired. A verified login `404 RESOURCE_NOT_FOUND` maps to
 `invalidCredentials`; the same evidence on cookie acquisition is not silently
 reclassified. Timeouts, offline state, backend unavailability, rate limiting,
 invalid responses, secure-storage failures, SQLite failures, cancellation,
@@ -276,6 +292,8 @@ Focused behavior covers:
 - strict profile, cookie, semester, content-type, JSON, and error validation;
 - exact unauthenticated login/cookie POST bodies and redacted events;
 - saved-session summaries and verification without value exposure;
+- saved-session exact expiration, candidate-expiration isolation, active
+  revision advancement, and lifecycle compensation;
 - local validation, operation ordering, identity guard, and opt-in credential
   retention;
 - preservation across every pre-commit transport failure;
@@ -363,16 +381,14 @@ tests, migration fixture, and context updates.
   uncertain.
 - A different account requires the dedicated delete-local-data workflow before
   setup can proceed.
-- Session expiration after setup is not yet connected to lifecycle or
-  background-scheduler state.
+- Native background schedulers are not implemented; the shared synchronization
+  service is already gated by durable lifecycle state.
 - Backend login and cookie acquisition remain expensive upstream operations and
   are never retried automatically here.
 - Android, iOS, macOS, and Windows builds are not verified on this Linux host.
 
 ## Future considerations
 
-- Feature 9.3 should derive session-expired application state without deleting
-  cached assignments or credentials.
 - Feature 10.1 should replace the semester placeholder after successful setup.
 - Feature 15.1 should use the account guard's prescribed delete-all workflow.
 - Future automatic reauthentication must reuse this service boundary without
@@ -387,3 +403,4 @@ tests, migration fixture, and context updates.
 - [Local Database](local-database.md)
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Privacy-First Onboarding](privacy-onboarding.md)
+- [Session Expiration Recovery](session-expiration.md)
