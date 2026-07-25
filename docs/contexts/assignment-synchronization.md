@@ -4,8 +4,9 @@
 
 Completed for live device-local callers using independent connections to the
 same SQLite file, with the standard fenced-lease limitation documented below.
-Platform background entry points and end-to-end native background execution are
-not part of this feature.
+Feature 8.2 now extends successful results with committed assignment changes.
+Platform background entry points and end-to-end native background execution
+are not part of this feature.
 
 ## Purpose
 
@@ -21,8 +22,9 @@ success is visible only after its snapshot transaction commits.
 - Same-key Future joining inside one service instance.
 - Database-backed enqueue/join, global FIFO claim, lease heartbeat, owner
   fencing, cancellation, and terminal result reconstruction.
-- Transactional replacement of one semester's validated courses/activities and
-  bounded success history.
+- Transactional reconciliation of one semester's validated
+  courses/activities, durable baseline/change state, and bounded success
+  history.
 - Safe failure/cancellation history and a local persistence failure category.
 - Real file-backed multi-connection, rollback, migration, constraint, codec,
   and security tests.
@@ -30,7 +32,6 @@ success is visible only after its snapshot transaction commits.
 ## Non-scope
 
 - User-ID or credential acquisition.
-- Assignment baseline, diffing, fallback fingerprints, or change detection.
 - Notification/reminder callbacks or effects.
 - Retry, backoff, background scheduling, platform entry points, providers, or
   UI.
@@ -48,9 +49,10 @@ snapshot. Successful completion means the new rows are already committed.
 
 `AssignmentSyncService` is the public application seam.
 `LocalAssignmentSyncService` owns local Future joining, API execution,
-heartbeat lifetime, transport mapping, and validated snapshot-to-row mapping.
-`SyncOperationStore` owns the durable coordination state machine and result
-codec. `AppDatabase` owns the transaction boundary and generated schema.
+heartbeat lifetime, and transport mapping. `AssignmentSnapshotReconciler` owns
+validated snapshot-to-row reconciliation and diff persistence.
+`SyncOperationStore` owns the durable coordination state machine, fenced
+transaction, and result codec. `AppDatabase` owns the generated schema.
 
 The public layer imports no Dio or Drift type. The concrete service consumes
 `BackendApiClient`, whose implementation reads the current secure credential
@@ -61,11 +63,16 @@ per request.
 - `lib/src/features/assignments/sync/assignment_sync_service.dart` — public
   reasons, service interface, and results.
 - `lib/src/features/assignments/sync/local_assignment_sync_service.dart` —
-  live orchestration and snapshot persistence mapping.
+  live orchestration and reconciliation delegation.
+- `lib/src/features/assignments/sync/assignment_snapshot_reconciler.dart` —
+  baseline, diff, snapshot, ledger, and reminder-state reconciliation.
+- `lib/src/features/assignments/sync/activity_identity.dart` — stable identity
+  and source-date canonicalization.
 - `lib/src/features/assignments/sync/sync_operation_store.dart` — SQLite
   coordination, fencing, cancellation, retention, and result codec.
-- `lib/src/core/database/database_tables.dart` — `sync_operations` schema.
-- `lib/src/core/database/app_database.dart` — v2 migration and transactional
+- `lib/src/core/database/database_tables.dart` — synchronization and change
+  persistence schema.
+- `lib/src/core/database/app_database.dart` — v3 migration and transactional
   history primitive.
 - `test/features/assignments/sync/assignment_sync_service_test.dart` — focused
   service and multi-connection tests.
@@ -92,7 +99,8 @@ Reasons are exactly `initialSetup`, `appLaunch`, `appResume`,
 
 Results are `SyncSuccess`, `SyncFailed`, or `SyncCancelled`. They contain only
 operation/semester IDs, leader reason, UTC start/completion times, safe counts,
-or one existing `SyncFailure`. Debug output is fixed and redacted.
+one immutable identity/kind change batch, or one existing `SyncFailure`. Debug
+output is fixed and redacted.
 
 The selected semester must already exist locally before enqueue. `userId`
 remains explicit because the verified API requires it and no identity owner
@@ -106,6 +114,12 @@ names. Running rows have an unpredictable owner nonce and lease. Terminal rows
 clear ownership and store either counts, a bounded failure codec, or no result
 metadata for cancellation.
 
+`sync_operation_changes` references the unique
+`sync_operations(operation_id, semester_id)` parent key and the existing
+`seen_activities(semester_id, identity_key)` key. Result reconstruction filters
+on both the operation and semester IDs even if foreign-key enforcement was
+deliberately bypassed.
+
 Safe history outcomes are `success`, `failure`, and `cancelled`. Failure
 categories are `sessionExpired`, `networkUnavailable`, `requestTimeout`,
 `backendUnavailable`, `rateLimited`, `invalidResponse`, `unknown`, and
@@ -115,8 +129,10 @@ Timeout and unknown operation results require a non-null checked enum detail;
 malformed NULL details are rejected by SQLite before result decoding.
 
 Activities use `backend:<positive activity id>` because the verified current
-snapshot guarantees stable unique backend IDs. Fallback fingerprints belong to
-Feature 8.2.
+snapshot guarantees stable unique backend IDs. Operation-owned change rows let
+independent callers reconstruct equal committed success results. Baseline,
+seen, fingerprint, and reminder-state details are documented in
+`assignment-diffing.md`.
 
 ## State and control flow
 
@@ -128,8 +144,9 @@ Feature 8.2.
 5. Heartbeat every 15 seconds and extend the 2-minute lease.
 6. On requested cancellation, ownership loss, or heartbeat storage failure,
    cancel the private transport token while preserving the stop cause.
-7. On success, re-check ownership/cancellation, replace one semester snapshot,
-   add bounded success history, and terminalize in one transaction.
+7. On success, re-check ownership/cancellation, reconcile one semester
+   snapshot and change batch, add bounded success history, and terminalize in
+   one transaction.
 8. On transport failure or cancellation, terminalize safe result/history in a
    short transaction.
 9. Poll the requested row every 250 ms until its shared terminal result exists.
@@ -153,9 +170,9 @@ platform features.
 
 Credentials are never arguments to the sync service and never enter SQLite.
 The API client reads secure storage internally. Public results and stored
-coordination metadata contain fixed enums/counts only. No Authorization header,
-cookie, body, stack trace, URL, Dio object, or assignment content is logged or
-retained by synchronization.
+coordination metadata contain fixed enums/counts and stable assignment identity
+keys only. No Authorization header, cookie, body, title, description, stack
+trace, URL, or Dio object is logged or retained by synchronization metadata.
 
 The owner nonce is random coordination state, not an authentication token, and
 is cleared on terminal completion.
@@ -172,6 +189,8 @@ is cleared on terminal completion.
 - Add no observer or notification callback before an effect owner exists.
 - Map local database failure to non-retryable
   `UnknownSyncFailure(persistenceFailed)`.
+- Return committed change evidence in `SyncSuccess` instead of exposing a
+  second event-reader interface.
 
 ## Alternatives rejected
 
@@ -186,11 +205,12 @@ is cleared on terminal completion.
 
 ## Failure behavior
 
-Mapped transport failures never open the snapshot replacement transaction.
-Invalid responses leave current rows unchanged. Snapshot or success-history
-failure rolls back the whole success transaction, then terminalizes a bounded
-`persistenceFailed` result in a separate transaction. Failure-history writes
-are best effort and never replace the primary result.
+Mapped transport failures never open the snapshot reconciliation transaction.
+Invalid responses leave current rows unchanged. Snapshot, change-ledger,
+reminder-flag, or success-history failure rolls back the whole success
+transaction, then terminalizes a bounded `persistenceFailed` result in a
+separate transaction. Failure-history writes are best effort and never replace
+the primary result.
 
 Queued cancellation terminalizes without HTTP. Running cancellation is
 operation-wide; local owners cancel immediately and remote owners observe the
@@ -217,6 +237,12 @@ Focused tests cover:
 - queued, local running, and cross-connection cancellation;
 - every snapshot scalar, nullable/source field, canonical opaque JSON value,
   stable identity, and post-commit visibility;
+- populated/empty baselines, new/deadline/removed changes, repeated snapshots,
+  reminder retention/flags, and independent joined change reconstruction;
+- signed-year formatting equivalence and stable identity movement between
+  courses without false changes or reminder churn;
+- composite operation/semester ownership rejection and result-reader filtering
+  of deliberately corrupted cross-semester evidence;
 - invalid-response cache preservation;
 - activity-write and sync-history-write rollback with safe persistence failure;
 - v1 migration, state constraints, partial unique indices, cascades, and busy
@@ -232,21 +258,9 @@ not call a production backend or use a real credential.
 
 ## Validation evidence
 
-The worker used one newly opened zsh before Flutter/Dart commands.
-
-Final verification:
+Feature 8.2 verification:
 
 ```text
-dart run build_runner build --delete-conflicting-outputs
-Passed; the first run synchronized AppDatabase v2 and the test-only v1
-fixture. A repeat run wrote zero outputs.
-
-dart analyze <focused sync and database paths>
-No issues found.
-
-dart format --output=none --set-exit-if-changed .
-68 files checked; no changes required.
-
 dart analyze
 No issues found.
 
@@ -254,14 +268,14 @@ flutter analyze
 No issues found.
 
 flutter test test/features/assignments/sync test/core/database test/core/network
-97 tests passed.
+134 tests passed.
 
 flutter test
-197 tests passed.
-
-flutter build linux
-Built build/linux/x64/release/bundle/leb2-watch.
+234 tests passed.
 ```
+
+Final generator, formatting, and Linux build evidence is recorded in
+`assignment-diffing.md` and the Feature 8.2 worker handoff.
 
 ## Known limitations
 
@@ -273,17 +287,15 @@ Built build/linux/x64/release/bundle/leb2-watch.
   do not notify separate connections.
 - A caller suspended longer than the 24-hour terminal retention window may no
   longer reconstruct its result.
-- Current snapshot replacement deletes scheduled reminders through foreign-key
-  cascade. Reminder reconciliation must replace this strategy before reminders
-  are enabled.
+- Deadline timezone and inclusivity semantics remain unresolved; Feature 8.2
+  only detects safe source-level changes and durable reminder work.
+- Snapshot state is semester-scoped rather than account-scoped.
 - The service requires an existing semester and explicit user ID; setup and
   identity acquisition are not implemented.
 - No native background entry point is runtime-tested yet.
 
 ## Future considerations
 
-- Feature 8.2 should add baseline/diff/fingerprint logic and reminder-safe
-  reconciliation without changing the single-flight seam.
 - Notification features should consume only post-commit terminal success.
 - Retry/backoff should use `SyncFailure.isRetryEligible` and `retryAfter`.
 - Platform schedulers should open the same local database and reuse this
@@ -293,6 +305,7 @@ Built build/linux/x64/release/bundle/leb2-watch.
 
 ## Related contexts
 
+- [Assignment Diffing](assignment-diffing.md)
 - [Local Database](local-database.md)
 - [Authenticated Backend API Client](backend-api-client.md)
 - [API Error Mapping](api-error-mapping.md)

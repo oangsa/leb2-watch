@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 2', () {
+  group('schema version 3', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,20 +29,22 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 2);
+        expect(database.schemaVersion, 3);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
           'app_settings',
+          'assignment_baselines',
           'courses',
           'notification_history',
           'scheduled_reminders',
           'seen_activities',
           'semesters',
+          'sync_operation_changes',
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 2);
+        expect(await _pragmaInt(database, 'user_version'), 3);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -65,12 +67,14 @@ void main() {
           'activity_fingerprints_by_value',
           'scheduled_reminders_by_assignment_offset',
           'scheduled_reminders_by_scheduled_time',
+          'scheduled_reminders_pending_reconciliation',
           'notification_history_by_assignment_kind',
           'sync_runs_by_started_time',
           'sync_operations_one_running',
           'sync_operations_one_active_key',
           'sync_operations_queue',
           'sync_operations_terminal_cleanup',
+          'sync_operations_operation_semester',
         }),
       );
     });
@@ -398,7 +402,10 @@ void main() {
           ))
           .go();
 
-      expect(await database.select(database.scheduledReminders).get(), isEmpty);
+      expect(
+        await database.select(database.scheduledReminders).get(),
+        hasLength(1),
+      );
       expect(
         await database.select(database.seenActivities).get(),
         hasLength(1),
@@ -427,6 +434,7 @@ void main() {
       );
 
       await database.delete(database.seenActivities).go();
+      expect(await database.select(database.scheduledReminders).get(), isEmpty);
       expect(
         await database.select(database.activityFingerprints).get(),
         isEmpty,
@@ -526,6 +534,39 @@ void main() {
           startedAtUtc: DateTime.utc(2026, 7, 1),
         );
         await database
+            .into(database.assignmentBaselines)
+            .insert(
+              AssignmentBaselinesCompanion.insert(
+                semesterId: const drift.Value(101),
+                establishedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+              ),
+            );
+        final operationId = await database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'manualRefresh',
+                state: 'success',
+                enqueuedAtUtc: DateTime.utc(2026, 7, 1),
+                startedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                completedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                resultCourseCount: const drift.Value(1),
+                resultActivityCount: const drift.Value(1),
+              ),
+            );
+        await database
+            .into(database.syncOperationChanges)
+            .insert(
+              SyncOperationChangesCompanion.insert(
+                operationId: operationId,
+                semesterId: 101,
+                identityKey: 'backend:1001',
+                kind: 'newActivity',
+              ),
+            );
+        await database
             .into(database.appSettings)
             .insert(
               const AppSettingsCompanion(
@@ -553,9 +594,159 @@ void main() {
         );
         expect(await database.select(database.syncRuns).get(), isEmpty);
         expect(
+          await database.select(database.assignmentBaselines).get(),
+          isEmpty,
+        );
+        expect(
+          await database.select(database.syncOperationChanges).get(),
+          isEmpty,
+        );
+        expect(
           (await database.select(database.appSettings).getSingle())
               .activeSemesterId,
           isNull,
+        );
+      },
+    );
+
+    test(
+      'change kinds and reminder ownership follow durable ledger constraints',
+      () async {
+        await _insertSemesterAndCourse(database);
+        await database.into(database.activities).insert(_activity());
+        await database
+            .into(database.seenActivities)
+            .insert(
+              SeenActivitiesCompanion.insert(
+                semesterId: 101,
+                identityKey: 'backend:1001',
+                courseId: 3001,
+                firstSeenAtUtc: DateTime.utc(2026, 7, 1),
+                lastSeenAtUtc: DateTime.utc(2026, 7, 1),
+                isBaseline: true,
+              ),
+            );
+        final operationId = await database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'manualRefresh',
+                state: 'success',
+                enqueuedAtUtc: DateTime.utc(2026, 7, 1),
+                startedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                completedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                resultCourseCount: const drift.Value(1),
+                resultActivityCount: const drift.Value(1),
+              ),
+            );
+        await database
+            .into(database.syncOperationChanges)
+            .insert(
+              SyncOperationChangesCompanion.insert(
+                operationId: operationId,
+                semesterId: 101,
+                identityKey: 'backend:1001',
+                kind: 'removed',
+              ),
+            );
+        await expectLater(
+          database
+              .into(database.syncOperationChanges)
+              .insert(
+                SyncOperationChangesCompanion.insert(
+                  operationId: operationId,
+                  semesterId: 101,
+                  identityKey: 'backend:1001',
+                  kind: 'unknown',
+                ),
+              ),
+          throwsException,
+        );
+        await database
+            .into(database.scheduledReminders)
+            .insert(
+              ScheduledRemindersCompanion.insert(
+                notificationId: const drift.Value(7001),
+                semesterId: 101,
+                identityKey: 'backend:1001',
+                offsetMinutes: 60,
+                deadlineAtUtc: DateTime.utc(2026, 7, 31),
+                scheduledForUtc: DateTime.utc(2026, 7, 30),
+                createdAtUtc: DateTime.utc(2026, 7, 1),
+              ),
+            );
+
+        await database.delete(database.activities).go();
+        expect(
+          await database.select(database.scheduledReminders).get(),
+          hasLength(1),
+        );
+        await (database.delete(
+          database.syncOperations,
+        )..where((row) => row.operationId.equals(operationId))).go();
+        expect(
+          await database.select(database.syncOperationChanges).get(),
+          isEmpty,
+        );
+        await database.delete(database.seenActivities).go();
+        expect(
+          await database.select(database.scheduledReminders).get(),
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'rejects change evidence owned by a different operation semester',
+      () async {
+        await _insertSemesterAndCourse(database);
+        await _insertSemesterAndCourse(
+          database,
+          semesterId: 102,
+          courseId: 3002,
+        );
+        await database
+            .into(database.seenActivities)
+            .insert(
+              SeenActivitiesCompanion.insert(
+                semesterId: 102,
+                identityKey: 'backend:2002',
+                courseId: 3002,
+                firstSeenAtUtc: DateTime.utc(2026, 7, 1),
+                lastSeenAtUtc: DateTime.utc(2026, 7, 1),
+                isBaseline: false,
+              ),
+            );
+        final operationId = await database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'manualRefresh',
+                state: 'success',
+                enqueuedAtUtc: DateTime.utc(2026, 7, 1),
+                startedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                completedAtUtc: drift.Value(DateTime.utc(2026, 7, 1)),
+                resultCourseCount: const drift.Value(1),
+                resultActivityCount: const drift.Value(1),
+              ),
+            );
+
+        await expectLater(
+          database
+              .into(database.syncOperationChanges)
+              .insert(
+                SyncOperationChangesCompanion.insert(
+                  operationId: operationId,
+                  semesterId: 102,
+                  identityKey: 'backend:2002',
+                  kind: 'newActivity',
+                ),
+              ),
+          throwsException,
         );
       },
     );
@@ -681,6 +872,32 @@ void main() {
       expect(
         await database.select(database.activityFingerprints).get(),
         hasLength(1),
+      );
+      await database
+          .into(database.seenActivities)
+          .insert(
+            SeenActivitiesCompanion.insert(
+              semesterId: 101,
+              identityKey: 'fingerprint:v1:other',
+              courseId: 3001,
+              firstSeenAtUtc: DateTime.utc(2026, 7, 2),
+              lastSeenAtUtc: DateTime.utc(2026, 7, 2),
+              isBaseline: false,
+            ),
+          );
+      await expectLater(
+        database
+            .into(database.activityFingerprints)
+            .insert(
+              ActivityFingerprintsCompanion.insert(
+                semesterId: 101,
+                identityKey: 'fingerprint:v1:other',
+                fingerprintVersion: 1,
+                fingerprint: 'synthetic-fingerprint',
+              ),
+            ),
+        throwsException,
+        reason: 'one fingerprint cannot alias two assignment identities',
       );
 
       await expectLater(

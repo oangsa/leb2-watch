@@ -3,7 +3,7 @@ import 'package:leb2_watch/src/core/database/utc_date_time_converter.dart';
 
 import 'legacy_v2_tables.dart';
 
-part 'v1_app_database.g.dart';
+part 'v2_app_database.g.dart';
 
 @DriftDatabase(
   tables: [
@@ -15,14 +15,15 @@ part 'v1_app_database.g.dart';
     ScheduledReminders,
     NotificationHistory,
     SyncRuns,
+    SyncOperations,
     AppSettings,
   ],
 )
-class V1AppDatabase extends _$V1AppDatabase {
-  V1AppDatabase(super.executor);
+class V2AppDatabase extends _$V2AppDatabase {
+  V2AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(

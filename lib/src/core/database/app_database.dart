@@ -19,6 +19,8 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     NotificationHistory,
     SyncRuns,
     SyncOperations,
+    AssignmentBaselines,
+    SyncOperationChanges,
     AppSettings,
   ],
 )
@@ -28,37 +30,22 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) => migrator.createAll(),
       onUpgrade: (migrator, from, to) async {
-        if (from == 1 && to == 2) {
-          await migrator.createTable(syncOperations);
-          await customStatement(
-            'CREATE UNIQUE INDEX sync_operations_one_running '
-            'ON sync_operations (state) WHERE state = \'running\'',
+        if (from < 1 || from > 2 || to != 3) {
+          throw UnsupportedError(
+            'No database migration is defined from schema $from to schema $to.',
           );
-          await customStatement(
-            'CREATE UNIQUE INDEX sync_operations_one_active_key '
-            'ON sync_operations (semester_id, user_id) '
-            'WHERE state IN (\'queued\', \'running\')',
-          );
-          await customStatement(
-            'CREATE INDEX sync_operations_queue '
-            'ON sync_operations (state, operation_id)',
-          );
-          await customStatement(
-            'CREATE INDEX sync_operations_terminal_cleanup '
-            'ON sync_operations (completed_at_utc, operation_id)',
-          );
-          return;
         }
-        throw UnsupportedError(
-          'No database migration is defined from schema $from to schema $to.',
-        );
+        if (from == 1) {
+          await _migrateFrom1To2(migrator);
+        }
+        await _migrateFrom2To3(migrator);
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -66,6 +53,84 @@ class AppDatabase extends _$AppDatabase {
           'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
         );
       },
+    );
+  }
+
+  Future<void> _migrateFrom1To2(Migrator migrator) async {
+    await migrator.createTable(syncOperations);
+    await customStatement(
+      'CREATE UNIQUE INDEX sync_operations_one_running '
+      'ON sync_operations (state) WHERE state = \'running\'',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX sync_operations_one_active_key '
+      'ON sync_operations (semester_id, user_id) '
+      'WHERE state IN (\'queued\', \'running\')',
+    );
+    await customStatement(
+      'CREATE INDEX sync_operations_queue '
+      'ON sync_operations (state, operation_id)',
+    );
+    await customStatement(
+      'CREATE INDEX sync_operations_terminal_cleanup '
+      'ON sync_operations (completed_at_utc, operation_id)',
+    );
+  }
+
+  Future<void> _migrateFrom2To3(Migrator migrator) async {
+    await migrator.createTable(assignmentBaselines);
+    await customStatement(
+      'CREATE UNIQUE INDEX sync_operations_operation_semester '
+      'ON sync_operations (operation_id, semester_id)',
+    );
+    await migrator.createTable(syncOperationChanges);
+
+    await customStatement(
+      'INSERT OR IGNORE INTO assignment_baselines '
+      '(semester_id, established_at_utc) '
+      'SELECT semester_id, NULL FROM semesters '
+      'WHERE EXISTS ('
+      'SELECT 1 FROM courses WHERE courses.semester_id = semesters.semester_id'
+      ') OR EXISTS ('
+      'SELECT 1 FROM seen_activities '
+      'WHERE seen_activities.semester_id = semesters.semester_id'
+      ') OR EXISTS ('
+      "SELECT 1 FROM sync_runs WHERE sync_runs.semester_id = semesters.semester_id "
+      "AND sync_runs.outcome = 'success'"
+      ')',
+    );
+    await customStatement(
+      'INSERT OR IGNORE INTO seen_activities '
+      '(semester_id, identity_key, course_id, first_seen_at_utc, '
+      'last_seen_at_utc, is_baseline) '
+      'SELECT activities.semester_id, activities.identity_key, '
+      'activities.course_id, '
+      'COALESCE(('
+      'SELECT MAX(COALESCE(sync_runs.completed_at_utc, '
+      'sync_runs.started_at_utc)) FROM sync_runs '
+      "WHERE sync_runs.semester_id = activities.semester_id "
+      "AND sync_runs.outcome = 'success'"
+      '), (unixepoch() * 1000)), '
+      'COALESCE(('
+      'SELECT MAX(COALESCE(sync_runs.completed_at_utc, '
+      'sync_runs.started_at_utc)) FROM sync_runs '
+      "WHERE sync_runs.semester_id = activities.semester_id "
+      "AND sync_runs.outcome = 'success'"
+      '), (unixepoch() * 1000)), 1 '
+      'FROM activities',
+    );
+
+    await migrator.alterTable(
+      TableMigration(
+        scheduledReminders,
+        newColumns: [scheduledReminders.needsReconciliation],
+      ),
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS '
+      'scheduled_reminders_pending_reconciliation '
+      'ON scheduled_reminders (semester_id, identity_key) '
+      'WHERE needs_reconciliation = 1',
     );
   }
 

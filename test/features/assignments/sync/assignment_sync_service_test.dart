@@ -619,6 +619,74 @@ void main() {
     },
   );
 
+  test(
+    'result reader ignores cross-semester evidence in a corrupted database',
+    () async {
+      final now = DateTime.utc(2026, 7, 25, 12);
+      final store = SyncOperationStore(
+        database,
+        () => now,
+        const Duration(minutes: 2),
+        const Duration(hours: 24),
+      );
+      await _insertSemester(database, 102);
+      await database
+          .into(database.courses)
+          .insert(
+            CoursesCompanion.insert(
+              semesterId: 102,
+              courseId: 3002,
+              name: 'Foreign semester course',
+            ),
+          );
+      await database
+          .into(database.seenActivities)
+          .insert(
+            SeenActivitiesCompanion.insert(
+              semesterId: 102,
+              identityKey: 'backend:2002',
+              courseId: 3002,
+              firstSeenAtUtc: now,
+              lastSeenAtUtc: now,
+              isBaseline: false,
+            ),
+          );
+      final operationId = await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              reason: 'manualRefresh',
+              state: 'success',
+              enqueuedAtUtc: now,
+              startedAtUtc: Value(now),
+              completedAtUtc: Value(now),
+              resultCourseCount: const Value(0),
+              resultActivityCount: const Value(0),
+            ),
+          );
+      await database.customStatement('PRAGMA foreign_keys = OFF');
+      await database
+          .into(database.syncOperationChanges)
+          .insert(
+            SyncOperationChangesCompanion.insert(
+              operationId: operationId,
+              semesterId: 102,
+              identityKey: 'backend:2002',
+              kind: 'newActivity',
+            ),
+          );
+      await database.customStatement('PRAGMA foreign_keys = ON');
+      final operation = await store.read(operationId);
+
+      final result = await store.readResult(operation!);
+
+      expect(result, isA<SyncSuccess>());
+      expect((result as SyncSuccess).changes, AssignmentChangeBatch.empty);
+    },
+  );
+
   group('independent database connections', () {
     late Directory temporaryDirectory;
     late AppDatabase firstDatabase;
@@ -843,14 +911,16 @@ void main() {
       var staleWriteRan = false;
       final staleCompleted = await firstStore.completeSuccess(
         owned: staleOwner!,
-        writeSnapshot: () async {
-          staleWriteRan = true;
-        },
+        reconcileSnapshot:
+            ({required operationId, required observedAtUtc}) async {
+              staleWriteRan = true;
+              return AssignmentChangeBatch.empty;
+            },
         courseCount: 0,
         activityCount: 0,
       );
 
-      expect(staleCompleted, isFalse);
+      expect(staleCompleted, null);
       expect(staleWriteRan, isFalse);
       expect((await firstStore.read(operationId))?.ownerToken, 'owner-b');
     });

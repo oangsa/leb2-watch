@@ -10,6 +10,69 @@ enum SyncReason {
   trayAction,
 }
 
+enum AssignmentChangeKind { newActivity, deadlineChanged, removed }
+
+final class AssignmentChange {
+  const AssignmentChange({required this.identityKey, required this.kind});
+
+  final String identityKey;
+  final AssignmentChangeKind kind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AssignmentChange &&
+      other.identityKey == identityKey &&
+      other.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(identityKey, kind);
+
+  @override
+  String toString() => 'AssignmentChange(redacted: true)';
+}
+
+final class AssignmentChangeBatch {
+  factory AssignmentChangeBatch(Iterable<AssignmentChange> changes) {
+    final sorted = changes.toList()
+      ..sort((left, right) {
+        final kindOrder = left.kind.index.compareTo(right.kind.index);
+        return kindOrder != 0
+            ? kindOrder
+            : left.identityKey.compareTo(right.identityKey);
+      });
+    return AssignmentChangeBatch._(List.unmodifiable(sorted));
+  }
+
+  const AssignmentChangeBatch._(this.changes);
+
+  static const empty = AssignmentChangeBatch._(<AssignmentChange>[]);
+
+  final List<AssignmentChange> changes;
+
+  int count(AssignmentChangeKind kind) =>
+      changes.where((change) => change.kind == kind).length;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! AssignmentChangeBatch ||
+        other.changes.length != changes.length) {
+      return false;
+    }
+    for (var index = 0; index < changes.length; index++) {
+      if (changes[index] != other.changes[index]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(changes);
+
+  @override
+  String toString() => 'AssignmentChangeBatch(redacted: true)';
+}
+
 abstract interface class AssignmentSyncService {
   Future<SyncResult> synchronize({
     required int semesterId,
@@ -73,13 +136,15 @@ final class SyncSuccess extends SyncResult {
     required super.completedAtUtc,
     required this.courseCount,
     required this.activityCount,
+    this.changes = AssignmentChangeBatch.empty,
   });
 
   final int courseCount;
   final int activityCount;
+  final AssignmentChangeBatch changes;
 
   @override
-  Object get resultEqualityKey => (courseCount, activityCount);
+  Object get resultEqualityKey => (courseCount, activityCount, changes);
 }
 
 final class SyncFailed extends SyncResult {

@@ -238,20 +238,27 @@ final class SyncOperationStore {
     });
   }
 
-  Future<bool> completeSuccess({
+  Future<AssignmentChangeBatch?> completeSuccess({
     required OwnedSyncOperation owned,
-    required Future<void> Function() writeSnapshot,
+    required Future<AssignmentChangeBatch> Function({
+      required int operationId,
+      required DateTime observedAtUtc,
+    })
+    reconcileSnapshot,
     required int courseCount,
     required int activityCount,
   }) {
     return _database.transaction(() async {
       final current = await read(owned.operation.operationId);
       if (!_isOwned(current, owned) || current!.cancellationRequested) {
-        return false;
+        return null;
       }
 
-      await writeSnapshot();
       final completedAtUtc = _utcClock().toUtc();
+      final changes = await reconcileSnapshot(
+        operationId: current.operationId,
+        observedAtUtc: completedAtUtc,
+      );
       await _database.insertAndPruneSyncRun(
         semesterId: current.semesterId,
         reason: current.reason,
@@ -279,7 +286,7 @@ final class SyncOperationStore {
       if (updated != 1) {
         throw StateError('Synchronization ownership changed before commit.');
       }
-      return true;
+      return changes;
     });
   }
 
@@ -386,7 +393,7 @@ final class SyncOperationStore {
         );
   }
 
-  SyncResult decodeResult(SyncOperation operation) {
+  Future<SyncResult> readResult(SyncOperation operation) async {
     final reason = SyncReason.values
         .where((value) => value.name == operation.reason)
         .singleOrNull;
@@ -395,6 +402,25 @@ final class SyncOperationStore {
     if (reason == null || completedAtUtc == null) {
       throw StateError('Stored synchronization result is malformed.');
     }
+
+    final changes = operation.state == 'success'
+        ? AssignmentChangeBatch(
+            (await (_database.select(_database.syncOperationChanges)..where(
+                      (row) =>
+                          row.operationId.equals(operation.operationId) &
+                          row.semesterId.equals(operation.semesterId),
+                    ))
+                    .get())
+                .map(
+                  (row) => AssignmentChange(
+                    identityKey: row.identityKey,
+                    kind: AssignmentChangeKind.values
+                        .where((kind) => kind.name == row.kind)
+                        .single,
+                  ),
+                ),
+          )
+        : AssignmentChangeBatch.empty;
 
     return switch (operation.state) {
       'success'
@@ -408,6 +434,7 @@ final class SyncOperationStore {
           completedAtUtc: completedAtUtc,
           courseCount: operation.resultCourseCount!,
           activityCount: operation.resultActivityCount!,
+          changes: changes,
         ),
       'failure' => SyncFailed(
         operationId: operation.operationId,

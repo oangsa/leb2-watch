@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'app_database.dart';
+part of 'v2_app_database.dart';
 
 // ignore_for_file: type=lint
 class $SemestersTable extends Semesters
@@ -3212,20 +3212,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
       ).withConverter<DateTime>(
         $ScheduledRemindersTable.$convertercreatedAtUtc,
       );
-  static const VerificationMeta _needsReconciliationMeta =
-      const VerificationMeta('needsReconciliation');
-  @override
-  late final GeneratedColumn<bool> needsReconciliation = GeneratedColumn<bool>(
-    'needs_reconciliation',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("needs_reconciliation" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   @override
   List<GeneratedColumn> get $columns => [
     notificationId,
@@ -3235,7 +3221,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
     deadlineAtUtc,
     scheduledForUtc,
     createdAtUtc,
-    needsReconciliation,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3288,15 +3273,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
     } else if (isInserting) {
       context.missing(_offsetMinutesMeta);
     }
-    if (data.containsKey('needs_reconciliation')) {
-      context.handle(
-        _needsReconciliationMeta,
-        needsReconciliation.isAcceptableOrUnknown(
-          data['needs_reconciliation']!,
-          _needsReconciliationMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -3341,10 +3317,6 @@ class $ScheduledRemindersTable extends ScheduledReminders
           data['${effectivePrefix}created_at_utc'],
         )!,
       ),
-      needsReconciliation: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}needs_reconciliation'],
-      )!,
     );
   }
 
@@ -3370,7 +3342,6 @@ class ScheduledReminder extends DataClass
   final DateTime deadlineAtUtc;
   final DateTime scheduledForUtc;
   final DateTime createdAtUtc;
-  final bool needsReconciliation;
   const ScheduledReminder({
     required this.notificationId,
     required this.semesterId,
@@ -3379,7 +3350,6 @@ class ScheduledReminder extends DataClass
     required this.deadlineAtUtc,
     required this.scheduledForUtc,
     required this.createdAtUtc,
-    required this.needsReconciliation,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3405,7 +3375,6 @@ class ScheduledReminder extends DataClass
         $ScheduledRemindersTable.$convertercreatedAtUtc.toSql(createdAtUtc),
       );
     }
-    map['needs_reconciliation'] = Variable<bool>(needsReconciliation);
     return map;
   }
 
@@ -3418,7 +3387,6 @@ class ScheduledReminder extends DataClass
       deadlineAtUtc: Value(deadlineAtUtc),
       scheduledForUtc: Value(scheduledForUtc),
       createdAtUtc: Value(createdAtUtc),
-      needsReconciliation: Value(needsReconciliation),
     );
   }
 
@@ -3435,9 +3403,6 @@ class ScheduledReminder extends DataClass
       deadlineAtUtc: serializer.fromJson<DateTime>(json['deadlineAtUtc']),
       scheduledForUtc: serializer.fromJson<DateTime>(json['scheduledForUtc']),
       createdAtUtc: serializer.fromJson<DateTime>(json['createdAtUtc']),
-      needsReconciliation: serializer.fromJson<bool>(
-        json['needsReconciliation'],
-      ),
     );
   }
   @override
@@ -3451,7 +3416,6 @@ class ScheduledReminder extends DataClass
       'deadlineAtUtc': serializer.toJson<DateTime>(deadlineAtUtc),
       'scheduledForUtc': serializer.toJson<DateTime>(scheduledForUtc),
       'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
-      'needsReconciliation': serializer.toJson<bool>(needsReconciliation),
     };
   }
 
@@ -3463,7 +3427,6 @@ class ScheduledReminder extends DataClass
     DateTime? deadlineAtUtc,
     DateTime? scheduledForUtc,
     DateTime? createdAtUtc,
-    bool? needsReconciliation,
   }) => ScheduledReminder(
     notificationId: notificationId ?? this.notificationId,
     semesterId: semesterId ?? this.semesterId,
@@ -3472,7 +3435,6 @@ class ScheduledReminder extends DataClass
     deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
     scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
     createdAtUtc: createdAtUtc ?? this.createdAtUtc,
-    needsReconciliation: needsReconciliation ?? this.needsReconciliation,
   );
   ScheduledReminder copyWithCompanion(ScheduledRemindersCompanion data) {
     return ScheduledReminder(
@@ -3497,9 +3459,6 @@ class ScheduledReminder extends DataClass
       createdAtUtc: data.createdAtUtc.present
           ? data.createdAtUtc.value
           : this.createdAtUtc,
-      needsReconciliation: data.needsReconciliation.present
-          ? data.needsReconciliation.value
-          : this.needsReconciliation,
     );
   }
 
@@ -3512,8 +3471,7 @@ class ScheduledReminder extends DataClass
           ..write('offsetMinutes: $offsetMinutes, ')
           ..write('deadlineAtUtc: $deadlineAtUtc, ')
           ..write('scheduledForUtc: $scheduledForUtc, ')
-          ..write('createdAtUtc: $createdAtUtc, ')
-          ..write('needsReconciliation: $needsReconciliation')
+          ..write('createdAtUtc: $createdAtUtc')
           ..write(')'))
         .toString();
   }
@@ -3527,7 +3485,6 @@ class ScheduledReminder extends DataClass
     deadlineAtUtc,
     scheduledForUtc,
     createdAtUtc,
-    needsReconciliation,
   );
   @override
   bool operator ==(Object other) =>
@@ -3539,8 +3496,7 @@ class ScheduledReminder extends DataClass
           other.offsetMinutes == this.offsetMinutes &&
           other.deadlineAtUtc == this.deadlineAtUtc &&
           other.scheduledForUtc == this.scheduledForUtc &&
-          other.createdAtUtc == this.createdAtUtc &&
-          other.needsReconciliation == this.needsReconciliation);
+          other.createdAtUtc == this.createdAtUtc);
 }
 
 class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
@@ -3551,7 +3507,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
   final Value<DateTime> deadlineAtUtc;
   final Value<DateTime> scheduledForUtc;
   final Value<DateTime> createdAtUtc;
-  final Value<bool> needsReconciliation;
   const ScheduledRemindersCompanion({
     this.notificationId = const Value.absent(),
     this.semesterId = const Value.absent(),
@@ -3560,7 +3515,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     this.deadlineAtUtc = const Value.absent(),
     this.scheduledForUtc = const Value.absent(),
     this.createdAtUtc = const Value.absent(),
-    this.needsReconciliation = const Value.absent(),
   });
   ScheduledRemindersCompanion.insert({
     this.notificationId = const Value.absent(),
@@ -3570,7 +3524,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     required DateTime deadlineAtUtc,
     required DateTime scheduledForUtc,
     required DateTime createdAtUtc,
-    this.needsReconciliation = const Value.absent(),
   }) : semesterId = Value(semesterId),
        identityKey = Value(identityKey),
        offsetMinutes = Value(offsetMinutes),
@@ -3585,7 +3538,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Expression<int>? deadlineAtUtc,
     Expression<int>? scheduledForUtc,
     Expression<int>? createdAtUtc,
-    Expression<bool>? needsReconciliation,
   }) {
     return RawValuesInsertable({
       if (notificationId != null) 'notification_id': notificationId,
@@ -3595,8 +3547,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       if (deadlineAtUtc != null) 'deadline_at_utc': deadlineAtUtc,
       if (scheduledForUtc != null) 'scheduled_for_utc': scheduledForUtc,
       if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
-      if (needsReconciliation != null)
-        'needs_reconciliation': needsReconciliation,
     });
   }
 
@@ -3608,7 +3558,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Value<DateTime>? deadlineAtUtc,
     Value<DateTime>? scheduledForUtc,
     Value<DateTime>? createdAtUtc,
-    Value<bool>? needsReconciliation,
   }) {
     return ScheduledRemindersCompanion(
       notificationId: notificationId ?? this.notificationId,
@@ -3618,7 +3567,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
       scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
       createdAtUtc: createdAtUtc ?? this.createdAtUtc,
-      needsReconciliation: needsReconciliation ?? this.needsReconciliation,
     );
   }
 
@@ -3658,9 +3606,6 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
         ),
       );
     }
-    if (needsReconciliation.present) {
-      map['needs_reconciliation'] = Variable<bool>(needsReconciliation.value);
-    }
     return map;
   }
 
@@ -3673,8 +3618,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
           ..write('offsetMinutes: $offsetMinutes, ')
           ..write('deadlineAtUtc: $deadlineAtUtc, ')
           ..write('scheduledForUtc: $scheduledForUtc, ')
-          ..write('createdAtUtc: $createdAtUtc, ')
-          ..write('needsReconciliation: $needsReconciliation')
+          ..write('createdAtUtc: $createdAtUtc')
           ..write(')'))
         .toString();
   }
@@ -5605,565 +5549,6 @@ class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
   }
 }
 
-class $AssignmentBaselinesTable extends AssignmentBaselines
-    with TableInfo<$AssignmentBaselinesTable, AssignmentBaseline> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $AssignmentBaselinesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int> establishedAtUtc =
-      GeneratedColumn<int>(
-        'established_at_utc',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      ).withConverter<DateTime?>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [semesterId, establishedAtUtc];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'assignment_baselines';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<AssignmentBaseline> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {semesterId};
-  @override
-  AssignmentBaseline map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AssignmentBaseline(
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      establishedAtUtc: $AssignmentBaselinesTable.$converterestablishedAtUtcn
-          .fromSql(
-            attachedDatabase.typeMapping.read(
-              DriftSqlType.int,
-              data['${effectivePrefix}established_at_utc'],
-            ),
-          ),
-    );
-  }
-
-  @override
-  $AssignmentBaselinesTable createAlias(String alias) {
-    return $AssignmentBaselinesTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<DateTime, int> $converterestablishedAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $converterestablishedAtUtcn =
-      NullAwareTypeConverter.wrap($converterestablishedAtUtc);
-}
-
-class AssignmentBaseline extends DataClass
-    implements Insertable<AssignmentBaseline> {
-  final int semesterId;
-  final DateTime? establishedAtUtc;
-  const AssignmentBaseline({required this.semesterId, this.establishedAtUtc});
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['semester_id'] = Variable<int>(semesterId);
-    if (!nullToAbsent || establishedAtUtc != null) {
-      map['established_at_utc'] = Variable<int>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn.toSql(
-          establishedAtUtc,
-        ),
-      );
-    }
-    return map;
-  }
-
-  AssignmentBaselinesCompanion toCompanion(bool nullToAbsent) {
-    return AssignmentBaselinesCompanion(
-      semesterId: Value(semesterId),
-      establishedAtUtc: establishedAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(establishedAtUtc),
-    );
-  }
-
-  factory AssignmentBaseline.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AssignmentBaseline(
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      establishedAtUtc: serializer.fromJson<DateTime?>(
-        json['establishedAtUtc'],
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'semesterId': serializer.toJson<int>(semesterId),
-      'establishedAtUtc': serializer.toJson<DateTime?>(establishedAtUtc),
-    };
-  }
-
-  AssignmentBaseline copyWith({
-    int? semesterId,
-    Value<DateTime?> establishedAtUtc = const Value.absent(),
-  }) => AssignmentBaseline(
-    semesterId: semesterId ?? this.semesterId,
-    establishedAtUtc: establishedAtUtc.present
-        ? establishedAtUtc.value
-        : this.establishedAtUtc,
-  );
-  AssignmentBaseline copyWithCompanion(AssignmentBaselinesCompanion data) {
-    return AssignmentBaseline(
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      establishedAtUtc: data.establishedAtUtc.present
-          ? data.establishedAtUtc.value
-          : this.establishedAtUtc,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AssignmentBaseline(')
-          ..write('semesterId: $semesterId, ')
-          ..write('establishedAtUtc: $establishedAtUtc')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(semesterId, establishedAtUtc);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is AssignmentBaseline &&
-          other.semesterId == this.semesterId &&
-          other.establishedAtUtc == this.establishedAtUtc);
-}
-
-class AssignmentBaselinesCompanion extends UpdateCompanion<AssignmentBaseline> {
-  final Value<int> semesterId;
-  final Value<DateTime?> establishedAtUtc;
-  const AssignmentBaselinesCompanion({
-    this.semesterId = const Value.absent(),
-    this.establishedAtUtc = const Value.absent(),
-  });
-  AssignmentBaselinesCompanion.insert({
-    this.semesterId = const Value.absent(),
-    this.establishedAtUtc = const Value.absent(),
-  });
-  static Insertable<AssignmentBaseline> custom({
-    Expression<int>? semesterId,
-    Expression<int>? establishedAtUtc,
-  }) {
-    return RawValuesInsertable({
-      if (semesterId != null) 'semester_id': semesterId,
-      if (establishedAtUtc != null) 'established_at_utc': establishedAtUtc,
-    });
-  }
-
-  AssignmentBaselinesCompanion copyWith({
-    Value<int>? semesterId,
-    Value<DateTime?>? establishedAtUtc,
-  }) {
-    return AssignmentBaselinesCompanion(
-      semesterId: semesterId ?? this.semesterId,
-      establishedAtUtc: establishedAtUtc ?? this.establishedAtUtc,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (establishedAtUtc.present) {
-      map['established_at_utc'] = Variable<int>(
-        $AssignmentBaselinesTable.$converterestablishedAtUtcn.toSql(
-          establishedAtUtc.value,
-        ),
-      );
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AssignmentBaselinesCompanion(')
-          ..write('semesterId: $semesterId, ')
-          ..write('establishedAtUtc: $establishedAtUtc')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $SyncOperationChangesTable extends SyncOperationChanges
-    with TableInfo<$SyncOperationChangesTable, SyncOperationChange> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncOperationChangesTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _operationIdMeta = const VerificationMeta(
-    'operationId',
-  );
-  @override
-  late final GeneratedColumn<int> operationId = GeneratedColumn<int>(
-    'operation_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _identityKeyMeta = const VerificationMeta(
-    'identityKey',
-  );
-  @override
-  late final GeneratedColumn<String> identityKey = GeneratedColumn<String>(
-    'identity_key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
-  @override
-  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
-    'kind',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    operationId,
-    semesterId,
-    identityKey,
-    kind,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_operation_changes';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SyncOperationChange> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('operation_id')) {
-      context.handle(
-        _operationIdMeta,
-        operationId.isAcceptableOrUnknown(
-          data['operation_id']!,
-          _operationIdMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_operationIdMeta);
-    }
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('identity_key')) {
-      context.handle(
-        _identityKeyMeta,
-        identityKey.isAcceptableOrUnknown(
-          data['identity_key']!,
-          _identityKeyMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_identityKeyMeta);
-    }
-    if (data.containsKey('kind')) {
-      context.handle(
-        _kindMeta,
-        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_kindMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {operationId, identityKey, kind};
-  @override
-  SyncOperationChange map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncOperationChange(
-      operationId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}operation_id'],
-      )!,
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      identityKey: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}identity_key'],
-      )!,
-      kind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}kind'],
-      )!,
-    );
-  }
-
-  @override
-  $SyncOperationChangesTable createAlias(String alias) {
-    return $SyncOperationChangesTable(attachedDatabase, alias);
-  }
-}
-
-class SyncOperationChange extends DataClass
-    implements Insertable<SyncOperationChange> {
-  final int operationId;
-  final int semesterId;
-  final String identityKey;
-  final String kind;
-  const SyncOperationChange({
-    required this.operationId,
-    required this.semesterId,
-    required this.identityKey,
-    required this.kind,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['operation_id'] = Variable<int>(operationId);
-    map['semester_id'] = Variable<int>(semesterId);
-    map['identity_key'] = Variable<String>(identityKey);
-    map['kind'] = Variable<String>(kind);
-    return map;
-  }
-
-  SyncOperationChangesCompanion toCompanion(bool nullToAbsent) {
-    return SyncOperationChangesCompanion(
-      operationId: Value(operationId),
-      semesterId: Value(semesterId),
-      identityKey: Value(identityKey),
-      kind: Value(kind),
-    );
-  }
-
-  factory SyncOperationChange.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncOperationChange(
-      operationId: serializer.fromJson<int>(json['operationId']),
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      identityKey: serializer.fromJson<String>(json['identityKey']),
-      kind: serializer.fromJson<String>(json['kind']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'operationId': serializer.toJson<int>(operationId),
-      'semesterId': serializer.toJson<int>(semesterId),
-      'identityKey': serializer.toJson<String>(identityKey),
-      'kind': serializer.toJson<String>(kind),
-    };
-  }
-
-  SyncOperationChange copyWith({
-    int? operationId,
-    int? semesterId,
-    String? identityKey,
-    String? kind,
-  }) => SyncOperationChange(
-    operationId: operationId ?? this.operationId,
-    semesterId: semesterId ?? this.semesterId,
-    identityKey: identityKey ?? this.identityKey,
-    kind: kind ?? this.kind,
-  );
-  SyncOperationChange copyWithCompanion(SyncOperationChangesCompanion data) {
-    return SyncOperationChange(
-      operationId: data.operationId.present
-          ? data.operationId.value
-          : this.operationId,
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      identityKey: data.identityKey.present
-          ? data.identityKey.value
-          : this.identityKey,
-      kind: data.kind.present ? data.kind.value : this.kind,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperationChange(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('identityKey: $identityKey, ')
-          ..write('kind: $kind')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(operationId, semesterId, identityKey, kind);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SyncOperationChange &&
-          other.operationId == this.operationId &&
-          other.semesterId == this.semesterId &&
-          other.identityKey == this.identityKey &&
-          other.kind == this.kind);
-}
-
-class SyncOperationChangesCompanion
-    extends UpdateCompanion<SyncOperationChange> {
-  final Value<int> operationId;
-  final Value<int> semesterId;
-  final Value<String> identityKey;
-  final Value<String> kind;
-  final Value<int> rowid;
-  const SyncOperationChangesCompanion({
-    this.operationId = const Value.absent(),
-    this.semesterId = const Value.absent(),
-    this.identityKey = const Value.absent(),
-    this.kind = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  SyncOperationChangesCompanion.insert({
-    required int operationId,
-    required int semesterId,
-    required String identityKey,
-    required String kind,
-    this.rowid = const Value.absent(),
-  }) : operationId = Value(operationId),
-       semesterId = Value(semesterId),
-       identityKey = Value(identityKey),
-       kind = Value(kind);
-  static Insertable<SyncOperationChange> custom({
-    Expression<int>? operationId,
-    Expression<int>? semesterId,
-    Expression<String>? identityKey,
-    Expression<String>? kind,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (operationId != null) 'operation_id': operationId,
-      if (semesterId != null) 'semester_id': semesterId,
-      if (identityKey != null) 'identity_key': identityKey,
-      if (kind != null) 'kind': kind,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  SyncOperationChangesCompanion copyWith({
-    Value<int>? operationId,
-    Value<int>? semesterId,
-    Value<String>? identityKey,
-    Value<String>? kind,
-    Value<int>? rowid,
-  }) {
-    return SyncOperationChangesCompanion(
-      operationId: operationId ?? this.operationId,
-      semesterId: semesterId ?? this.semesterId,
-      identityKey: identityKey ?? this.identityKey,
-      kind: kind ?? this.kind,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (operationId.present) {
-      map['operation_id'] = Variable<int>(operationId.value);
-    }
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (identityKey.present) {
-      map['identity_key'] = Variable<String>(identityKey.value);
-    }
-    if (kind.present) {
-      map['kind'] = Variable<String>(kind.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperationChangesCompanion(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('identityKey: $identityKey, ')
-          ..write('kind: $kind, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $AppSettingsTable extends AppSettings
     with TableInfo<$AppSettingsTable, AppSetting> {
   @override
@@ -6384,9 +5769,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+abstract class _$V2AppDatabase extends GeneratedDatabase {
+  _$V2AppDatabase(QueryExecutor e) : super(e);
+  $V2AppDatabaseManager get managers => $V2AppDatabaseManager(this);
   late final $SemestersTable semesters = $SemestersTable(this);
   late final $CoursesTable courses = $CoursesTable(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
@@ -6399,10 +5784,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $NotificationHistoryTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
-  late final $AssignmentBaselinesTable assignmentBaselines =
-      $AssignmentBaselinesTable(this);
-  late final $SyncOperationChangesTable syncOperationChanges =
-      $SyncOperationChangesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -6428,10 +5809,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'scheduled_reminders_by_scheduled_time',
     'CREATE INDEX scheduled_reminders_by_scheduled_time ON scheduled_reminders (scheduled_for_utc)',
   );
-  late final Index scheduledRemindersPendingReconciliation = Index(
-    'scheduled_reminders_pending_reconciliation',
-    'CREATE INDEX scheduled_reminders_pending_reconciliation ON scheduled_reminders (semester_id, identity_key) WHERE needs_reconciliation = 1',
-  );
   late final Index notificationHistoryByAssignmentKind = Index(
     'notification_history_by_assignment_kind',
     'CREATE INDEX notification_history_by_assignment_kind ON notification_history (semester_id, identity_key, kind)',
@@ -6456,10 +5833,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'sync_operations_terminal_cleanup',
     'CREATE INDEX sync_operations_terminal_cleanup ON sync_operations (completed_at_utc, operation_id)',
   );
-  late final Index syncOperationsOperationSemester = Index(
-    'sync_operations_operation_semester',
-    'CREATE UNIQUE INDEX sync_operations_operation_semester ON sync_operations (operation_id, semester_id)',
-  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6474,8 +5847,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notificationHistory,
     syncRuns,
     syncOperations,
-    assignmentBaselines,
-    syncOperationChanges,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -6483,14 +5854,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     activityFingerprintsByValue,
     scheduledRemindersByAssignmentOffset,
     scheduledRemindersByScheduledTime,
-    scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
     syncRunsByStartedTime,
     syncOperationsOneRunning,
     syncOperationsOneActiveKey,
     syncOperationsQueue,
     syncOperationsTerminalCleanup,
-    syncOperationsOperationSemester,
   ];
 }
 
@@ -6500,7 +5869,7 @@ typedef $$SemestersTableUpdateCompanionBuilder =
     SemestersCompanion Function({Value<int> semesterId});
 
 class $$SemestersTableFilterComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V2AppDatabase, $SemestersTable> {
   $$SemestersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6515,7 +5884,7 @@ class $$SemestersTableFilterComposer
 }
 
 class $$SemestersTableOrderingComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V2AppDatabase, $SemestersTable> {
   $$SemestersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6530,7 +5899,7 @@ class $$SemestersTableOrderingComposer
 }
 
 class $$SemestersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V2AppDatabase, $SemestersTable> {
   $$SemestersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6547,7 +5916,7 @@ class $$SemestersTableAnnotationComposer
 class $$SemestersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $SemestersTable,
           Semester,
           $$SemestersTableFilterComposer,
@@ -6555,11 +5924,14 @@ class $$SemestersTableTableManager
           $$SemestersTableAnnotationComposer,
           $$SemestersTableCreateCompanionBuilder,
           $$SemestersTableUpdateCompanionBuilder,
-          (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+          (
+            Semester,
+            BaseReferences<_$V2AppDatabase, $SemestersTable, Semester>,
+          ),
           Semester,
           PrefetchHooks Function()
         > {
-  $$SemestersTableTableManager(_$AppDatabase db, $SemestersTable table)
+  $$SemestersTableTableManager(_$V2AppDatabase db, $SemestersTable table)
     : super(
         TableManagerState(
           db: db,
@@ -6586,7 +5958,7 @@ class $$SemestersTableTableManager
 
 typedef $$SemestersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $SemestersTable,
       Semester,
       $$SemestersTableFilterComposer,
@@ -6594,7 +5966,7 @@ typedef $$SemestersTableProcessedTableManager =
       $$SemestersTableAnnotationComposer,
       $$SemestersTableCreateCompanionBuilder,
       $$SemestersTableUpdateCompanionBuilder,
-      (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+      (Semester, BaseReferences<_$V2AppDatabase, $SemestersTable, Semester>),
       Semester,
       PrefetchHooks Function()
     >;
@@ -6614,7 +5986,7 @@ typedef $$CoursesTableUpdateCompanionBuilder =
     });
 
 class $$CoursesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V2AppDatabase, $CoursesTable> {
   $$CoursesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6639,7 +6011,7 @@ class $$CoursesTableFilterComposer
 }
 
 class $$CoursesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V2AppDatabase, $CoursesTable> {
   $$CoursesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6664,7 +6036,7 @@ class $$CoursesTableOrderingComposer
 }
 
 class $$CoursesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V2AppDatabase, $CoursesTable> {
   $$CoursesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6687,7 +6059,7 @@ class $$CoursesTableAnnotationComposer
 class $$CoursesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $CoursesTable,
           Course,
           $$CoursesTableFilterComposer,
@@ -6695,11 +6067,11 @@ class $$CoursesTableTableManager
           $$CoursesTableAnnotationComposer,
           $$CoursesTableCreateCompanionBuilder,
           $$CoursesTableUpdateCompanionBuilder,
-          (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+          (Course, BaseReferences<_$V2AppDatabase, $CoursesTable, Course>),
           Course,
           PrefetchHooks Function()
         > {
-  $$CoursesTableTableManager(_$AppDatabase db, $CoursesTable table)
+  $$CoursesTableTableManager(_$V2AppDatabase db, $CoursesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -6744,7 +6116,7 @@ class $$CoursesTableTableManager
 
 typedef $$CoursesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $CoursesTable,
       Course,
       $$CoursesTableFilterComposer,
@@ -6752,7 +6124,7 @@ typedef $$CoursesTableProcessedTableManager =
       $$CoursesTableAnnotationComposer,
       $$CoursesTableCreateCompanionBuilder,
       $$CoursesTableUpdateCompanionBuilder,
-      (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+      (Course, BaseReferences<_$V2AppDatabase, $CoursesTable, Course>),
       Course,
       PrefetchHooks Function()
     >;
@@ -6830,7 +6202,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$ActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7003,7 +6375,7 @@ class $$ActivitiesTableFilterComposer
 }
 
 class $$ActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7176,7 +6548,7 @@ class $$ActivitiesTableOrderingComposer
 }
 
 class $$ActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7341,7 +6713,7 @@ class $$ActivitiesTableAnnotationComposer
 class $$ActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $ActivitiesTable,
           Activity,
           $$ActivitiesTableFilterComposer,
@@ -7349,11 +6721,14 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableAnnotationComposer,
           $$ActivitiesTableCreateCompanionBuilder,
           $$ActivitiesTableUpdateCompanionBuilder,
-          (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+          (
+            Activity,
+            BaseReferences<_$V2AppDatabase, $ActivitiesTable, Activity>,
+          ),
           Activity,
           PrefetchHooks Function()
         > {
-  $$ActivitiesTableTableManager(_$AppDatabase db, $ActivitiesTable table)
+  $$ActivitiesTableTableManager(_$V2AppDatabase db, $ActivitiesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -7526,7 +6901,7 @@ class $$ActivitiesTableTableManager
 
 typedef $$ActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $ActivitiesTable,
       Activity,
       $$ActivitiesTableFilterComposer,
@@ -7534,7 +6909,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableAnnotationComposer,
       $$ActivitiesTableCreateCompanionBuilder,
       $$ActivitiesTableUpdateCompanionBuilder,
-      (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+      (Activity, BaseReferences<_$V2AppDatabase, $ActivitiesTable, Activity>),
       Activity,
       PrefetchHooks Function()
     >;
@@ -7560,7 +6935,7 @@ typedef $$SeenActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$SeenActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7602,7 +6977,7 @@ class $$SeenActivitiesTableFilterComposer
 }
 
 class $$SeenActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7642,7 +7017,7 @@ class $$SeenActivitiesTableOrderingComposer
 }
 
 class $$SeenActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V2AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7684,7 +7059,7 @@ class $$SeenActivitiesTableAnnotationComposer
 class $$SeenActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $SeenActivitiesTable,
           SeenActivity,
           $$SeenActivitiesTableFilterComposer,
@@ -7694,13 +7069,13 @@ class $$SeenActivitiesTableTableManager
           $$SeenActivitiesTableUpdateCompanionBuilder,
           (
             SeenActivity,
-            BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+            BaseReferences<_$V2AppDatabase, $SeenActivitiesTable, SeenActivity>,
           ),
           SeenActivity,
           PrefetchHooks Function()
         > {
   $$SeenActivitiesTableTableManager(
-    _$AppDatabase db,
+    _$V2AppDatabase db,
     $SeenActivitiesTable table,
   ) : super(
         TableManagerState(
@@ -7758,7 +7133,7 @@ class $$SeenActivitiesTableTableManager
 
 typedef $$SeenActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $SeenActivitiesTable,
       SeenActivity,
       $$SeenActivitiesTableFilterComposer,
@@ -7768,7 +7143,7 @@ typedef $$SeenActivitiesTableProcessedTableManager =
       $$SeenActivitiesTableUpdateCompanionBuilder,
       (
         SeenActivity,
-        BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+        BaseReferences<_$V2AppDatabase, $SeenActivitiesTable, SeenActivity>,
       ),
       SeenActivity,
       PrefetchHooks Function()
@@ -7791,7 +7166,7 @@ typedef $$ActivityFingerprintsTableUpdateCompanionBuilder =
     });
 
 class $$ActivityFingerprintsTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V2AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7821,7 +7196,7 @@ class $$ActivityFingerprintsTableFilterComposer
 }
 
 class $$ActivityFingerprintsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V2AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7851,7 +7226,7 @@ class $$ActivityFingerprintsTableOrderingComposer
 }
 
 class $$ActivityFingerprintsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V2AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7883,7 +7258,7 @@ class $$ActivityFingerprintsTableAnnotationComposer
 class $$ActivityFingerprintsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint,
           $$ActivityFingerprintsTableFilterComposer,
@@ -7894,7 +7269,7 @@ class $$ActivityFingerprintsTableTableManager
           (
             ActivityFingerprint,
             BaseReferences<
-              _$AppDatabase,
+              _$V2AppDatabase,
               $ActivityFingerprintsTable,
               ActivityFingerprint
             >,
@@ -7903,7 +7278,7 @@ class $$ActivityFingerprintsTableTableManager
           PrefetchHooks Function()
         > {
   $$ActivityFingerprintsTableTableManager(
-    _$AppDatabase db,
+    _$V2AppDatabase db,
     $ActivityFingerprintsTable table,
   ) : super(
         TableManagerState(
@@ -7959,7 +7334,7 @@ class $$ActivityFingerprintsTableTableManager
 
 typedef $$ActivityFingerprintsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $ActivityFingerprintsTable,
       ActivityFingerprint,
       $$ActivityFingerprintsTableFilterComposer,
@@ -7970,7 +7345,7 @@ typedef $$ActivityFingerprintsTableProcessedTableManager =
       (
         ActivityFingerprint,
         BaseReferences<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint
         >,
@@ -7987,7 +7362,6 @@ typedef $$ScheduledRemindersTableCreateCompanionBuilder =
       required DateTime deadlineAtUtc,
       required DateTime scheduledForUtc,
       required DateTime createdAtUtc,
-      Value<bool> needsReconciliation,
     });
 typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
     ScheduledRemindersCompanion Function({
@@ -7998,11 +7372,10 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
       Value<DateTime> deadlineAtUtc,
       Value<DateTime> scheduledForUtc,
       Value<DateTime> createdAtUtc,
-      Value<bool> needsReconciliation,
     });
 
 class $$ScheduledRemindersTableFilterComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V2AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8047,15 +7420,10 @@ class $$ScheduledRemindersTableFilterComposer
         column: $table.createdAtUtc,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
-
-  ColumnFilters<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => ColumnFilters(column),
-  );
 }
 
 class $$ScheduledRemindersTableOrderingComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V2AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8097,15 +7465,10 @@ class $$ScheduledRemindersTableOrderingComposer
     column: $table.createdAtUtc,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$ScheduledRemindersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V2AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8150,17 +7513,12 @@ class $$ScheduledRemindersTableAnnotationComposer
         column: $table.createdAtUtc,
         builder: (column) => column,
       );
-
-  GeneratedColumn<bool> get needsReconciliation => $composableBuilder(
-    column: $table.needsReconciliation,
-    builder: (column) => column,
-  );
 }
 
 class $$ScheduledRemindersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder,
           $$ScheduledRemindersTableFilterComposer,
@@ -8171,7 +7529,7 @@ class $$ScheduledRemindersTableTableManager
           (
             ScheduledReminder,
             BaseReferences<
-              _$AppDatabase,
+              _$V2AppDatabase,
               $ScheduledRemindersTable,
               ScheduledReminder
             >,
@@ -8180,7 +7538,7 @@ class $$ScheduledRemindersTableTableManager
           PrefetchHooks Function()
         > {
   $$ScheduledRemindersTableTableManager(
-    _$AppDatabase db,
+    _$V2AppDatabase db,
     $ScheduledRemindersTable table,
   ) : super(
         TableManagerState(
@@ -8204,7 +7562,6 @@ class $$ScheduledRemindersTableTableManager
                 Value<DateTime> deadlineAtUtc = const Value.absent(),
                 Value<DateTime> scheduledForUtc = const Value.absent(),
                 Value<DateTime> createdAtUtc = const Value.absent(),
-                Value<bool> needsReconciliation = const Value.absent(),
               }) => ScheduledRemindersCompanion(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -8213,7 +7570,6 @@ class $$ScheduledRemindersTableTableManager
                 deadlineAtUtc: deadlineAtUtc,
                 scheduledForUtc: scheduledForUtc,
                 createdAtUtc: createdAtUtc,
-                needsReconciliation: needsReconciliation,
               ),
           createCompanionCallback:
               ({
@@ -8224,7 +7580,6 @@ class $$ScheduledRemindersTableTableManager
                 required DateTime deadlineAtUtc,
                 required DateTime scheduledForUtc,
                 required DateTime createdAtUtc,
-                Value<bool> needsReconciliation = const Value.absent(),
               }) => ScheduledRemindersCompanion.insert(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -8233,7 +7588,6 @@ class $$ScheduledRemindersTableTableManager
                 deadlineAtUtc: deadlineAtUtc,
                 scheduledForUtc: scheduledForUtc,
                 createdAtUtc: createdAtUtc,
-                needsReconciliation: needsReconciliation,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -8245,7 +7599,7 @@ class $$ScheduledRemindersTableTableManager
 
 typedef $$ScheduledRemindersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $ScheduledRemindersTable,
       ScheduledReminder,
       $$ScheduledRemindersTableFilterComposer,
@@ -8256,7 +7610,7 @@ typedef $$ScheduledRemindersTableProcessedTableManager =
       (
         ScheduledReminder,
         BaseReferences<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder
         >,
@@ -8286,7 +7640,7 @@ typedef $$NotificationHistoryTableUpdateCompanionBuilder =
     });
 
 class $$NotificationHistoryTableFilterComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V2AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8327,7 +7681,7 @@ class $$NotificationHistoryTableFilterComposer
 }
 
 class $$NotificationHistoryTableOrderingComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V2AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8367,7 +7721,7 @@ class $$NotificationHistoryTableOrderingComposer
 }
 
 class $$NotificationHistoryTableAnnotationComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V2AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8406,7 +7760,7 @@ class $$NotificationHistoryTableAnnotationComposer
 class $$NotificationHistoryTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData,
           $$NotificationHistoryTableFilterComposer,
@@ -8417,7 +7771,7 @@ class $$NotificationHistoryTableTableManager
           (
             NotificationHistoryData,
             BaseReferences<
-              _$AppDatabase,
+              _$V2AppDatabase,
               $NotificationHistoryTable,
               NotificationHistoryData
             >,
@@ -8426,7 +7780,7 @@ class $$NotificationHistoryTableTableManager
           PrefetchHooks Function()
         > {
   $$NotificationHistoryTableTableManager(
-    _$AppDatabase db,
+    _$V2AppDatabase db,
     $NotificationHistoryTable table,
   ) : super(
         TableManagerState(
@@ -8490,7 +7844,7 @@ class $$NotificationHistoryTableTableManager
 
 typedef $$NotificationHistoryTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $NotificationHistoryTable,
       NotificationHistoryData,
       $$NotificationHistoryTableFilterComposer,
@@ -8501,7 +7855,7 @@ typedef $$NotificationHistoryTableProcessedTableManager =
       (
         NotificationHistoryData,
         BaseReferences<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData
         >,
@@ -8531,7 +7885,7 @@ typedef $$SyncRunsTableUpdateCompanionBuilder =
     });
 
 class $$SyncRunsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V2AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8578,7 +7932,7 @@ class $$SyncRunsTableFilterComposer
 }
 
 class $$SyncRunsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V2AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8623,7 +7977,7 @@ class $$SyncRunsTableOrderingComposer
 }
 
 class $$SyncRunsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V2AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8666,7 +8020,7 @@ class $$SyncRunsTableAnnotationComposer
 class $$SyncRunsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $SyncRunsTable,
           SyncRun,
           $$SyncRunsTableFilterComposer,
@@ -8674,11 +8028,11 @@ class $$SyncRunsTableTableManager
           $$SyncRunsTableAnnotationComposer,
           $$SyncRunsTableCreateCompanionBuilder,
           $$SyncRunsTableUpdateCompanionBuilder,
-          (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+          (SyncRun, BaseReferences<_$V2AppDatabase, $SyncRunsTable, SyncRun>),
           SyncRun,
           PrefetchHooks Function()
         > {
-  $$SyncRunsTableTableManager(_$AppDatabase db, $SyncRunsTable table)
+  $$SyncRunsTableTableManager(_$V2AppDatabase db, $SyncRunsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -8735,7 +8089,7 @@ class $$SyncRunsTableTableManager
 
 typedef $$SyncRunsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $SyncRunsTable,
       SyncRun,
       $$SyncRunsTableFilterComposer,
@@ -8743,7 +8097,7 @@ typedef $$SyncRunsTableProcessedTableManager =
       $$SyncRunsTableAnnotationComposer,
       $$SyncRunsTableCreateCompanionBuilder,
       $$SyncRunsTableUpdateCompanionBuilder,
-      (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+      (SyncRun, BaseReferences<_$V2AppDatabase, $SyncRunsTable, SyncRun>),
       SyncRun,
       PrefetchHooks Function()
     >;
@@ -8787,7 +8141,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
     });
 
 class $$SyncOperationsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V2AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8881,7 +8235,7 @@ class $$SyncOperationsTableFilterComposer
 }
 
 class $$SyncOperationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V2AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8971,7 +8325,7 @@ class $$SyncOperationsTableOrderingComposer
 }
 
 class $$SyncOperationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V2AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9061,7 +8415,7 @@ class $$SyncOperationsTableAnnotationComposer
 class $$SyncOperationsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $SyncOperationsTable,
           SyncOperation,
           $$SyncOperationsTableFilterComposer,
@@ -9071,13 +8425,17 @@ class $$SyncOperationsTableTableManager
           $$SyncOperationsTableUpdateCompanionBuilder,
           (
             SyncOperation,
-            BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+            BaseReferences<
+              _$V2AppDatabase,
+              $SyncOperationsTable,
+              SyncOperation
+            >,
           ),
           SyncOperation,
           PrefetchHooks Function()
         > {
   $$SyncOperationsTableTableManager(
-    _$AppDatabase db,
+    _$V2AppDatabase db,
     $SyncOperationsTable table,
   ) : super(
         TableManagerState(
@@ -9171,7 +8529,7 @@ class $$SyncOperationsTableTableManager
 
 typedef $$SyncOperationsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $SyncOperationsTable,
       SyncOperation,
       $$SyncOperationsTableFilterComposer,
@@ -9181,371 +8539,9 @@ typedef $$SyncOperationsTableProcessedTableManager =
       $$SyncOperationsTableUpdateCompanionBuilder,
       (
         SyncOperation,
-        BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+        BaseReferences<_$V2AppDatabase, $SyncOperationsTable, SyncOperation>,
       ),
       SyncOperation,
-      PrefetchHooks Function()
-    >;
-typedef $$AssignmentBaselinesTableCreateCompanionBuilder =
-    AssignmentBaselinesCompanion Function({
-      Value<int> semesterId,
-      Value<DateTime?> establishedAtUtc,
-    });
-typedef $$AssignmentBaselinesTableUpdateCompanionBuilder =
-    AssignmentBaselinesCompanion Function({
-      Value<int> semesterId,
-      Value<DateTime?> establishedAtUtc,
-    });
-
-class $$AssignmentBaselinesTableFilterComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
-  get establishedAtUtc => $composableBuilder(
-    column: $table.establishedAtUtc,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-}
-
-class $$AssignmentBaselinesTableOrderingComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get establishedAtUtc => $composableBuilder(
-    column: $table.establishedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$AssignmentBaselinesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
-  $$AssignmentBaselinesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumnWithTypeConverter<DateTime?, int> get establishedAtUtc =>
-      $composableBuilder(
-        column: $table.establishedAtUtc,
-        builder: (column) => column,
-      );
-}
-
-class $$AssignmentBaselinesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AssignmentBaselinesTable,
-          AssignmentBaseline,
-          $$AssignmentBaselinesTableFilterComposer,
-          $$AssignmentBaselinesTableOrderingComposer,
-          $$AssignmentBaselinesTableAnnotationComposer,
-          $$AssignmentBaselinesTableCreateCompanionBuilder,
-          $$AssignmentBaselinesTableUpdateCompanionBuilder,
-          (
-            AssignmentBaseline,
-            BaseReferences<
-              _$AppDatabase,
-              $AssignmentBaselinesTable,
-              AssignmentBaseline
-            >,
-          ),
-          AssignmentBaseline,
-          PrefetchHooks Function()
-        > {
-  $$AssignmentBaselinesTableTableManager(
-    _$AppDatabase db,
-    $AssignmentBaselinesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$AssignmentBaselinesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$AssignmentBaselinesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$AssignmentBaselinesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<DateTime?> establishedAtUtc = const Value.absent(),
-              }) => AssignmentBaselinesCompanion(
-                semesterId: semesterId,
-                establishedAtUtc: establishedAtUtc,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> semesterId = const Value.absent(),
-                Value<DateTime?> establishedAtUtc = const Value.absent(),
-              }) => AssignmentBaselinesCompanion.insert(
-                semesterId: semesterId,
-                establishedAtUtc: establishedAtUtc,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$AssignmentBaselinesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AssignmentBaselinesTable,
-      AssignmentBaseline,
-      $$AssignmentBaselinesTableFilterComposer,
-      $$AssignmentBaselinesTableOrderingComposer,
-      $$AssignmentBaselinesTableAnnotationComposer,
-      $$AssignmentBaselinesTableCreateCompanionBuilder,
-      $$AssignmentBaselinesTableUpdateCompanionBuilder,
-      (
-        AssignmentBaseline,
-        BaseReferences<
-          _$AppDatabase,
-          $AssignmentBaselinesTable,
-          AssignmentBaseline
-        >,
-      ),
-      AssignmentBaseline,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncOperationChangesTableCreateCompanionBuilder =
-    SyncOperationChangesCompanion Function({
-      required int operationId,
-      required int semesterId,
-      required String identityKey,
-      required String kind,
-      Value<int> rowid,
-    });
-typedef $$SyncOperationChangesTableUpdateCompanionBuilder =
-    SyncOperationChangesCompanion Function({
-      Value<int> operationId,
-      Value<int> semesterId,
-      Value<String> identityKey,
-      Value<String> kind,
-      Value<int> rowid,
-    });
-
-class $$SyncOperationChangesTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncOperationChangesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get kind => $composableBuilder(
-    column: $table.kind,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncOperationChangesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
-  $$SyncOperationChangesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get identityKey => $composableBuilder(
-    column: $table.identityKey,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get kind =>
-      $composableBuilder(column: $table.kind, builder: (column) => column);
-}
-
-class $$SyncOperationChangesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SyncOperationChangesTable,
-          SyncOperationChange,
-          $$SyncOperationChangesTableFilterComposer,
-          $$SyncOperationChangesTableOrderingComposer,
-          $$SyncOperationChangesTableAnnotationComposer,
-          $$SyncOperationChangesTableCreateCompanionBuilder,
-          $$SyncOperationChangesTableUpdateCompanionBuilder,
-          (
-            SyncOperationChange,
-            BaseReferences<
-              _$AppDatabase,
-              $SyncOperationChangesTable,
-              SyncOperationChange
-            >,
-          ),
-          SyncOperationChange,
-          PrefetchHooks Function()
-        > {
-  $$SyncOperationChangesTableTableManager(
-    _$AppDatabase db,
-    $SyncOperationChangesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncOperationChangesTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncOperationChangesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$SyncOperationChangesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> operationId = const Value.absent(),
-                Value<int> semesterId = const Value.absent(),
-                Value<String> identityKey = const Value.absent(),
-                Value<String> kind = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOperationChangesCompanion(
-                operationId: operationId,
-                semesterId: semesterId,
-                identityKey: identityKey,
-                kind: kind,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required int operationId,
-                required int semesterId,
-                required String identityKey,
-                required String kind,
-                Value<int> rowid = const Value.absent(),
-              }) => SyncOperationChangesCompanion.insert(
-                operationId: operationId,
-                semesterId: semesterId,
-                identityKey: identityKey,
-                kind: kind,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncOperationChangesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SyncOperationChangesTable,
-      SyncOperationChange,
-      $$SyncOperationChangesTableFilterComposer,
-      $$SyncOperationChangesTableOrderingComposer,
-      $$SyncOperationChangesTableAnnotationComposer,
-      $$SyncOperationChangesTableCreateCompanionBuilder,
-      $$SyncOperationChangesTableUpdateCompanionBuilder,
-      (
-        SyncOperationChange,
-        BaseReferences<
-          _$AppDatabase,
-          $SyncOperationChangesTable,
-          SyncOperationChange
-        >,
-      ),
-      SyncOperationChange,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -9560,7 +8556,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
     });
 
 class $$AppSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V2AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9580,7 +8576,7 @@ class $$AppSettingsTableFilterComposer
 }
 
 class $$AppSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V2AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9600,7 +8596,7 @@ class $$AppSettingsTableOrderingComposer
 }
 
 class $$AppSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V2AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9622,7 +8618,7 @@ class $$AppSettingsTableAnnotationComposer
 class $$AppSettingsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V2AppDatabase,
           $AppSettingsTable,
           AppSetting,
           $$AppSettingsTableFilterComposer,
@@ -9632,12 +8628,12 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableUpdateCompanionBuilder,
           (
             AppSetting,
-            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+            BaseReferences<_$V2AppDatabase, $AppSettingsTable, AppSetting>,
           ),
           AppSetting,
           PrefetchHooks Function()
         > {
-  $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
+  $$AppSettingsTableTableManager(_$V2AppDatabase db, $AppSettingsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -9674,7 +8670,7 @@ class $$AppSettingsTableTableManager
 
 typedef $$AppSettingsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V2AppDatabase,
       $AppSettingsTable,
       AppSetting,
       $$AppSettingsTableFilterComposer,
@@ -9684,15 +8680,15 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableUpdateCompanionBuilder,
       (
         AppSetting,
-        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+        BaseReferences<_$V2AppDatabase, $AppSettingsTable, AppSetting>,
       ),
       AppSetting,
       PrefetchHooks Function()
     >;
 
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
+class $V2AppDatabaseManager {
+  final _$V2AppDatabase _db;
+  $V2AppDatabaseManager(this._db);
   $$SemestersTableTableManager get semesters =>
       $$SemestersTableTableManager(_db, _db.semesters);
   $$CoursesTableTableManager get courses =>
@@ -9711,10 +8707,6 @@ class $AppDatabaseManager {
       $$SyncRunsTableTableManager(_db, _db.syncRuns);
   $$SyncOperationsTableTableManager get syncOperations =>
       $$SyncOperationsTableTableManager(_db, _db.syncOperations);
-  $$AssignmentBaselinesTableTableManager get assignmentBaselines =>
-      $$AssignmentBaselinesTableTableManager(_db, _db.assignmentBaselines);
-  $$SyncOperationChangesTableTableManager get syncOperationChanges =>
-      $$SyncOperationChangesTableTableManager(_db, _db.syncOperationChanges);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
 }

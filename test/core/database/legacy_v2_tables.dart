@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
-
-import 'utc_date_time_converter.dart';
+import 'package:leb2_watch/src/core/database/utc_date_time_converter.dart';
 
 class Semesters extends Table {
   IntColumn get semesterId => integer()();
@@ -145,11 +144,6 @@ class ActivityFingerprints extends Table {
   name: 'scheduled_reminders_by_scheduled_time',
   columns: {#scheduledForUtc},
 )
-@TableIndex.sql(
-  'CREATE INDEX scheduled_reminders_pending_reconciliation '
-  'ON scheduled_reminders (semester_id, identity_key) '
-  'WHERE needs_reconciliation = 1',
-)
 class ScheduledReminders extends Table {
   IntColumn get notificationId => integer()();
   IntColumn get semesterId => integer()();
@@ -159,8 +153,6 @@ class ScheduledReminders extends Table {
   IntColumn get scheduledForUtc =>
       integer().map(const UtcDateTimeConverter())();
   IntColumn get createdAtUtc => integer().map(const UtcDateTimeConverter())();
-  BoolColumn get needsReconciliation =>
-      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {notificationId};
@@ -170,8 +162,7 @@ class ScheduledReminders extends Table {
     'CHECK (length(trim(identity_key)) > 0)',
     'CHECK (offset_minutes > 0)',
     'FOREIGN KEY (semester_id, identity_key) '
-        'REFERENCES seen_activities (semester_id, identity_key) '
-        'ON DELETE CASCADE',
+        'REFERENCES activities (semester_id, identity_key) ON DELETE CASCADE',
   ];
 }
 
@@ -241,10 +232,6 @@ class SyncRuns extends Table {
 @TableIndex.sql(
   'CREATE INDEX sync_operations_terminal_cleanup '
   'ON sync_operations (completed_at_utc, operation_id)',
-)
-@TableIndex.sql(
-  'CREATE UNIQUE INDEX sync_operations_operation_semester '
-  'ON sync_operations (operation_id, semester_id)',
 )
 class SyncOperations extends Table {
   IntColumn get operationId => integer().autoIncrement()();
@@ -332,45 +319,6 @@ class SyncOperations extends Table {
         'result_retry_after_milliseconds IS NULL AND '
         'result_course_count IS NULL AND result_activity_count IS NULL))',
     'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
-        'ON DELETE CASCADE',
-  ];
-}
-
-class AssignmentBaselines extends Table {
-  IntColumn get semesterId => integer()();
-  IntColumn get establishedAtUtc =>
-      integer().map(const UtcDateTimeConverter()).nullable()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {semesterId};
-
-  @override
-  List<String> get customConstraints => const [
-    'CHECK (semester_id > 0)',
-    'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
-        'ON DELETE CASCADE',
-  ];
-}
-
-class SyncOperationChanges extends Table {
-  IntColumn get operationId => integer()();
-  IntColumn get semesterId => integer()();
-  TextColumn get identityKey => text()();
-  TextColumn get kind => text()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {operationId, identityKey, kind};
-
-  @override
-  List<String> get customConstraints => const [
-    'CHECK (semester_id > 0)',
-    'CHECK (length(trim(identity_key)) > 0)',
-    "CHECK (kind IN ('newActivity', 'deadlineChanged', 'removed'))",
-    'FOREIGN KEY (operation_id, semester_id) '
-        'REFERENCES sync_operations (operation_id, semester_id) '
-        'ON DELETE CASCADE',
-    'FOREIGN KEY (semester_id, identity_key) '
-        'REFERENCES seen_activities (semester_id, identity_key) '
         'ON DELETE CASCADE',
   ];
 }

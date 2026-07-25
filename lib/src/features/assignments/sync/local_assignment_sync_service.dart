@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:drift/drift.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_error_mapper.dart';
@@ -10,6 +9,7 @@ import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 
+import 'assignment_snapshot_reconciler.dart';
 import 'assignment_sync_service.dart';
 import 'sync_operation_store.dart';
 
@@ -32,10 +32,10 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
     final clock = utcClock ?? DateTime.now;
     return LocalAssignmentSyncService._(
       apiClient,
-      database,
       delay ?? Future<void>.delayed,
       _positiveDuration(pollInterval, 'pollInterval'),
       _positiveDuration(heartbeatInterval, 'heartbeatInterval'),
+      AssignmentSnapshotReconciler(database),
       SyncOperationStore(
         database,
         clock,
@@ -47,20 +47,20 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
 
   LocalAssignmentSyncService._(
     this._apiClient,
-    this._database,
     this._delay,
     this._pollInterval,
     this._heartbeatInterval,
+    this._reconciler,
     this._store,
   );
 
   static const _maximumIdentifier = 2147483647;
 
   final BackendApiClient _apiClient;
-  final AppDatabase _database;
   final Future<void> Function(Duration) _delay;
   final Duration _pollInterval;
   final Duration _heartbeatInterval;
+  final AssignmentSnapshotReconciler _reconciler;
   final SyncOperationStore _store;
   final Map<_SyncKey, Future<SyncResult>> _localOperations = {};
   final Map<int, BackendRequestCancellation> _ownedCancellations = {};
@@ -130,7 +130,7 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
         throw StateError('The synchronization operation no longer exists.');
       }
       if (_isTerminal(operation.state)) {
-        return _store.decodeResult(operation);
+        return _store.readResult(operation);
       }
 
       final owned = await _store.claimNext(_newOwnerToken());
@@ -210,12 +210,18 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
         (count, course) => count + course.activities.length,
       );
       try {
-        terminalized = await _store.completeSuccess(
+        final changes = await _store.completeSuccess(
           owned: owned,
-          writeSnapshot: () => _replaceSnapshot(completedSnapshot),
+          reconcileSnapshot: ({required operationId, required observedAtUtc}) =>
+              _reconciler.reconcile(
+                snapshot: completedSnapshot,
+                operationId: operationId,
+                observedAtUtc: observedAtUtc,
+              ),
           courseCount: courseCount,
           activityCount: activityCount,
         );
+        terminalized = changes != null;
       } catch (_) {
         terminalized = await _completePersistenceFailure(owned);
       }
@@ -274,83 +280,6 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
         return _HeartbeatOutcome.storageFailure;
       }
     }
-  }
-
-  Future<void> _replaceSnapshot(AssignmentSnapshot snapshot) async {
-    await (_database.delete(
-      _database.activities,
-    )..where((row) => row.semesterId.equals(snapshot.semesterId))).go();
-    await (_database.delete(
-      _database.courses,
-    )..where((row) => row.semesterId.equals(snapshot.semesterId))).go();
-
-    for (final courseAssignments in snapshot.courses) {
-      final course = courseAssignments.course;
-      await _database
-          .into(_database.courses)
-          .insert(
-            CoursesCompanion.insert(
-              semesterId: course.semesterId,
-              courseId: course.id,
-              name: course.name,
-            ),
-          );
-      for (final activity in courseAssignments.activities) {
-        await _database
-            .into(_database.activities)
-            .insert(_activityCompanion(activity));
-      }
-    }
-  }
-
-  ActivitiesCompanion _activityCompanion(AssignmentActivity activity) {
-    final submittedAt = activity.activitySubmissionSubmittedAt;
-    return ActivitiesCompanion.insert(
-      semesterId: activity.semesterId,
-      identityKey: 'backend:${activity.id}',
-      courseId: activity.classId,
-      backendActivityId: Value(activity.id),
-      userId: activity.userId,
-      advStarred: activity.advStarred,
-      groupType: activity.groupType,
-      activityType: activity.type,
-      peerAssessment: activity.peerAssessment,
-      isAllowRepeat: activity.isAllowRepeat,
-      title: activity.title,
-      description: activity.description,
-      startDateSource: Value(activity.startDate),
-      dueDateSource: Value(activity.dueDate),
-      editGroupMode: activity.editGroupMode,
-      createdAtSource: activity.createdAt,
-      userValue: activity.user,
-      activitySubmissionId: Value(activity.activitySubmissionId),
-      classUserId: activity.classUserId,
-      activityGroupId: Value(activity.activityGroupId),
-      activityGroupName: Value(activity.activityGroupName),
-      activitySubmissionSubmittedAtJson: Value(
-        submittedAt == null
-            ? null
-            : jsonEncode({
-                'date': submittedAt.date,
-                'timezoneType': submittedAt.timezoneType,
-                'timezone': submittedAt.timezone,
-              }),
-      ),
-      dueDateExceed: activity.dueDateExceed,
-      quizSubmissionIsSubmitted: activity.quizSubmissionIsSubmitted,
-      countGroupMember: activity.countGroupMember,
-      activitySubmissionIsLate: activity.activitySubmissionIsLate,
-      fileActivitiesJson: activity.fileActivitiesJson,
-      questionsJson: jsonEncode(activity.questions),
-      submissionsJson: activity.submissionsJson,
-      lastDueDateNotificationDateSource: Value(
-        activity.lastDueDateNotificationDate,
-      ),
-      lastStatusChangeNotificationDateSource: Value(
-        activity.lastStatusChangeNotificationDate,
-      ),
-      previousSubmissionStatus: Value(activity.previousSubmissionStatus),
-    );
   }
 
   String _newOwnerToken() {
