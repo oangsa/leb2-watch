@@ -56,6 +56,12 @@ and companion code remains in `app_database.g.dart`.
 `insertAndPruneSyncRun` primitive performs the same bounded insert inside an
 existing synchronization transaction, avoiding a required nested transaction.
 
+`DriftSemesterSelectionStore` is a feature-owned adapter over the existing
+`semesters` and `app_settings.active_semester_id` schema. It reads the catalog
+and selection transactionally, merges verified IDs insert-only, and compares
+the captured session lifecycle inside the same transaction before persisting a
+network result.
+
 ## Important files
 
 - `lib/src/core/database/database_tables.dart` — thirteen table definitions,
@@ -81,6 +87,10 @@ existing synchronization transaction, avoiding a required nested transaction.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
+- `lib/src/features/semesters/data/semester_selection_store.dart` —
+  transactional semester catalog and active-selection adapter.
+- `test/features/semesters/data/semester_selection_store_test.dart` —
+  semester merge, preservation, rollback, and lifecycle-fence tests.
 
 ## Contracts and interfaces
 
@@ -134,6 +144,13 @@ Schema v6 adds checked `app_settings.session_lifecycle` and
 `session_revision` fields plus `sync_operations.session_revision`. Lifecycle
 and revision are bounded local coordination state. The operation revision
 fences late responses from credentials that have since been replaced.
+
+Feature 10.1 uses this schema unchanged. Semester refresh inserts positive
+int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
+backend contract does not define authoritative removal and the semester
+foreign key owns cached course, activity, notification, and synchronization
+state. Active selection uses a partial app-settings update that preserves
+every unrelated value.
 
 Five indices enforce/serve coordination and result ownership:
 
@@ -217,6 +234,8 @@ nullable retry duration. File deletion remains limited to
   databases enforce the same positive-int32 constraint as fresh databases.
 - Set the busy timeout on every connection and WAL in the production opener.
 - Keep source date strings unchanged until timezone semantics are verified.
+- Keep semester refresh insert-only until the backend defines authoritative
+  removal semantics.
 - Use an explicit baseline row because an empty first snapshot has no seen row.
 - Own reminders under durable seen identity so removal does not erase the
   notification ID before reconciliation.
@@ -296,6 +315,11 @@ v5 expiration-preservation migration passed the complete synchronization,
 migration, and lifecycle matrix at 99/99; final broad evidence is recorded in
 `session-expiration.md`.
 
+Feature 10.1 reused schema v6 without migration. Its focused store suite
+verified deterministic reads, partial settings updates, insert-only merge,
+preservation of every semester-owned table, lifecycle-fenced discard, and
+transaction rollback.
+
 ## Known limitations
 
 - Lease recovery cannot mathematically prevent a second GET after an owner is
@@ -334,3 +358,4 @@ migration, and lifecycle matrix at 99/99; final broad evidence is recorded in
 - [API Error Mapping](api-error-mapping.md)
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Semester Selection](semester-selection.md)

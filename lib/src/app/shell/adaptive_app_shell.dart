@@ -24,12 +24,17 @@ class AdaptiveAppShell extends StatelessWidget {
   static const mediumNavigationKey = Key('medium-navigation');
   static const expandedNavigationKey = Key('expanded-navigation');
   static const expandedFocusKey = Key('expanded-navigation-focus');
+  static const changeSemesterActionKey = Key('change-semester-action');
 
   final StatefulNavigationShell navigationShell;
   final Widget? globalBanner;
 
   void _selectDestination(int index) {
     navigationShell.goBranch(index);
+  }
+
+  void _changeSemester(BuildContext context) {
+    context.go(AppRoute.semesters.path);
   }
 
   @override
@@ -39,16 +44,19 @@ class AdaptiveAppShell extends StatelessWidget {
         navigationShell: navigationShell,
         globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
+        onChangeSemester: () => _changeSemester(context),
       ),
       AppWindowClass.medium => _MediumShell(
         navigationShell: navigationShell,
         globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
+        onChangeSemester: () => _changeSemester(context),
       ),
       AppWindowClass.expanded => _ExpandedShell(
         navigationShell: navigationShell,
         globalBanner: globalBanner,
         onDestinationSelected: _selectDestination,
+        onChangeSemester: () => _changeSemester(context),
       ),
     };
   }
@@ -59,17 +67,23 @@ class _CompactShell extends StatelessWidget {
     required this.navigationShell,
     required this.globalBanner,
     required this.onDestinationSelected,
+    required this.onChangeSemester,
   });
 
   final StatefulNavigationShell navigationShell;
   final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
+  final VoidCallback onChangeSemester;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: AdaptiveAppShell.compactKey,
-      body: _ShellContent(globalBanner: globalBanner, child: navigationShell),
+      body: _ShellContent(
+        globalBanner: globalBanner,
+        onChangeSemester: onChangeSemester,
+        child: navigationShell,
+      ),
       bottomNavigationBar: NavigationBar(
         key: AdaptiveAppShell.compactNavigationKey,
         selectedIndex: navigationShell.currentIndex,
@@ -94,11 +108,13 @@ class _MediumShell extends StatelessWidget {
     required this.navigationShell,
     required this.globalBanner,
     required this.onDestinationSelected,
+    required this.onChangeSemester,
   });
 
   final StatefulNavigationShell navigationShell;
   final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
+  final VoidCallback onChangeSemester;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +134,7 @@ class _MediumShell extends StatelessWidget {
           Expanded(
             child: _ShellContent(
               globalBanner: globalBanner,
+              onChangeSemester: onChangeSemester,
               child: navigationShell,
             ),
           ),
@@ -132,11 +149,13 @@ class _ExpandedShell extends StatelessWidget {
     required this.navigationShell,
     required this.globalBanner,
     required this.onDestinationSelected,
+    required this.onChangeSemester,
   });
 
   final StatefulNavigationShell navigationShell;
   final Widget? globalBanner;
   final ValueChanged<int> onDestinationSelected;
+  final VoidCallback onChangeSemester;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +191,7 @@ class _ExpandedShell extends StatelessWidget {
               Expanded(
                 child: _ShellContent(
                   globalBanner: globalBanner,
+                  onChangeSemester: onChangeSemester,
                   child: navigationShell,
                 ),
               ),
@@ -184,28 +204,51 @@ class _ExpandedShell extends StatelessWidget {
 }
 
 class _ShellContent extends StatelessWidget {
-  const _ShellContent({required this.globalBanner, required this.child});
+  const _ShellContent({
+    required this.globalBanner,
+    required this.onChangeSemester,
+    required this.child,
+  });
 
   final Widget? globalBanner;
+  final VoidCallback onChangeSemester;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final banner = globalBanner;
-    if (banner == null) {
-      return child;
-    }
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
-            0,
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Semantics(
+              key: AdaptiveAppShell.changeSemesterActionKey,
+              container: true,
+              excludeSemantics: true,
+              label: 'Change semester',
+              button: true,
+              enabled: true,
+              onTap: onChangeSemester,
+              child: IconButton(
+                tooltip: 'Change semester',
+                onPressed: onChangeSemester,
+                icon: const Icon(Icons.swap_horiz_rounded),
+              ),
+            ),
           ),
-          child: banner,
         ),
+        if (banner != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: banner,
+          ),
         Expanded(child: child),
       ],
     );

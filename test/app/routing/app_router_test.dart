@@ -9,8 +9,11 @@ import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
+import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
+import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
 void main() {
   group('AppFlowController', () {
@@ -86,7 +89,7 @@ void main() {
         'Assignments, ready when you are',
       ),
       (AppFlowStage.authentication, '/assignments', 'Connect LEB2'),
-      (AppFlowStage.semesterSelection, '/assignments', 'Semesters'),
+      (AppFlowStage.semesterSelection, '/assignments', 'Choose semester'),
       (AppFlowStage.ready, '/', 'Assignments'),
     ]) {
       testWidgets(
@@ -144,9 +147,13 @@ void main() {
 
       controller.updateStage(AppFlowStage.semesterSelection);
       await tester.pumpAndSettle();
-      expect(find.text('Semesters'), findsOneWidget);
+      expect(find.text('Choose semester'), findsOneWidget);
 
       controller.updateStage(AppFlowStage.ready);
+      await tester.pumpAndSettle();
+      expect(find.text('Choose semester'), findsOneWidget);
+
+      router.go(AppRoute.assignments.path);
       await tester.pumpAndSettle();
       expect(find.text('Assignments'), findsWidgets);
       expect(router, same(originalRouter));
@@ -221,7 +228,7 @@ void main() {
 
       expect(service.cookieCalls, 1);
       expect(controller.stage, AppFlowStage.semesterSelection);
-      expect(find.text('Semesters'), findsOneWidget);
+      expect(find.text('Choose semester'), findsOneWidget);
       expect(find.text('Connect LEB2'), findsNothing);
     });
 
@@ -347,7 +354,7 @@ void main() {
       expect(find.text('Connect LEB2'), findsOneWidget);
     });
 
-    for (final route in <AppRoute>[AppRoute.onboarding, AppRoute.semesters]) {
+    for (final route in <AppRoute>[AppRoute.onboarding]) {
       testWidgets('ready stage redirects ${route.path} to assignments', (
         tester,
       ) async {
@@ -363,6 +370,146 @@ void main() {
         expect(find.text(_labelForRoute(route)), findsNothing);
       });
     }
+
+    testWidgets(
+      'initial semester selection advances to ready assignments once',
+      (tester) async {
+        final controller = AppFlowController(
+          initialStage: AppFlowStage.semesterSelection,
+        );
+        final router = createAppRouter(
+          controller,
+          initialLocation: AppRoute.semesters.path,
+        );
+        final semesterService = _RouteSemesterSelectionService();
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            flowController: controller,
+            semesterServiceLoader: () => semesterService,
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('semester-row-101')));
+        await tester.pumpAndSettle();
+
+        expect(semesterService.selectCalls, 1);
+        expect(controller.stage, AppFlowStage.ready);
+        expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+      },
+    );
+
+    testWidgets('ready user can change semester and return to assignments', (
+      tester,
+    ) async {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final router = createAppRouter(
+        controller,
+        initialLocation: AppRoute.semesters.path,
+      );
+      final semesterService = _RouteSemesterSelectionService();
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _RouterHarness(
+          router: router,
+          flowController: controller,
+          semesterServiceLoader: () => semesterService,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose semester'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('semester-row-101')));
+      await tester.pumpAndSettle();
+
+      expect(semesterService.selectCalls, 1);
+      expect(controller.stage, AppFlowStage.ready);
+      expect(find.byKey(const Key('assignments-surface')), findsOneWidget);
+    });
+
+    testWidgets(
+      'expired initial selection enters authentication before reconnecting',
+      (tester) async {
+        final controller = AppFlowController(
+          initialStage: AppFlowStage.semesterSelection,
+        );
+        final router = createAppRouter(
+          controller,
+          initialLocation: AppRoute.semesters.path,
+        );
+        final semesterService = _RouteSemesterSelectionService(
+          refreshResult: const SemesterRefreshFailure(SessionExpiredFailure()),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            flowController: controller,
+            semesterServiceLoader: () => semesterService,
+            lifecycle: const SessionLifecycleSnapshot(
+              state: SessionLifecycleState.expired,
+              revision: 2,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Reconnect'));
+        await tester.pumpAndSettle();
+
+        expect(controller.stage, AppFlowStage.authentication);
+        expect(find.text('Connect LEB2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'semester route exposes bounded loading and initialization error',
+      (tester) async {
+        final pending = Completer<SemesterSelectionService>();
+        var loadCalls = 0;
+        final controller = AppFlowController(
+          initialStage: AppFlowStage.semesterSelection,
+        );
+        final router = createAppRouter(
+          controller,
+          initialLocation: AppRoute.semesters.path,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            semesterServiceLoader: () {
+              loadCalls += 1;
+              if (loadCalls == 1) {
+                return pending.future;
+              }
+              return _RouteSemesterSelectionService();
+            },
+          ),
+        );
+        await tester.pump();
+        expect(find.text('Preparing semesters'), findsOneWidget);
+
+        pending.completeError(StateError('<PRIVATE_SEMESTER_ERROR>'));
+        await tester.pumpAndSettle();
+        expect(find.text('Semester selection unavailable'), findsOneWidget);
+        expect(find.textContaining('<PRIVATE_SEMESTER_ERROR>'), findsNothing);
+        expect(find.text('Retry'), findsOneWidget);
+
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(loadCalls, 2);
+        expect(find.text('Choose semester'), findsOneWidget);
+      },
+    );
 
     testWidgets('ready stage reaches every shell branch', (tester) async {
       final controller = AppFlowController(initialStage: AppFlowStage.ready);
@@ -433,6 +580,7 @@ class _RouterHarness extends StatelessWidget {
     required this.router,
     this.flowController,
     this.sessionServiceLoader,
+    this.semesterServiceLoader,
     this.lifecycle = const SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: 1,
@@ -442,6 +590,7 @@ class _RouterHarness extends StatelessWidget {
   final GoRouter router;
   final AppFlowController? flowController;
   final FutureOr<SessionSetupService> Function()? sessionServiceLoader;
+  final FutureOr<SemesterSelectionService> Function()? semesterServiceLoader;
   final SessionLifecycleSnapshot lifecycle;
 
   @override
@@ -452,6 +601,10 @@ class _RouterHarness extends StatelessWidget {
           appFlowControllerProvider.overrideWithValue(controller),
         sessionSetupServiceProvider.overrideWith(
           (_) => sessionServiceLoader?.call() ?? _RouteSessionSetupService(),
+        ),
+        semesterSelectionServiceProvider.overrideWith(
+          (_) =>
+              semesterServiceLoader?.call() ?? _RouteSemesterSelectionService(),
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
@@ -468,9 +621,48 @@ String _labelForRoute(AppRoute route) {
   return switch (route) {
     AppRoute.onboarding => 'Assignments, ready when you are',
     AppRoute.authentication => 'Connect LEB2',
-    AppRoute.semesters => 'Semesters',
     _ => throw ArgumentError.value(route),
   };
+}
+
+final class _RouteSemesterSelectionService implements SemesterSelectionService {
+  _RouteSemesterSelectionService({this.refreshResult});
+
+  final SemesterRefreshResult? refreshResult;
+  int readCalls = 0;
+  int refreshCalls = 0;
+  int selectCalls = 0;
+
+  @override
+  Future<SemesterCatalog> readCached() async {
+    readCalls += 1;
+    return SemesterCatalog(
+      semesterIds: const [202, 101],
+      activeSemesterId: 202,
+    );
+  }
+
+  @override
+  Future<SemesterRefreshResult> refresh({
+    SemesterRefreshCancellation? cancellation,
+  }) async {
+    refreshCalls += 1;
+    return refreshResult ??
+        SemesterRefreshSuccess(
+          SemesterCatalog(semesterIds: const [202, 101], activeSemesterId: 202),
+        );
+  }
+
+  @override
+  Future<SemesterSelectionResult> select(int semesterId) async {
+    selectCalls += 1;
+    return SemesterSelectionSuccess(
+      SemesterCatalog(
+        semesterIds: const [202, 101],
+        activeSemesterId: semesterId,
+      ),
+    );
+  }
 }
 
 final class _RouteSessionSetupService implements SessionSetupService {

@@ -13,6 +13,8 @@ import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
+import '../features/semesters/application/semester_selection_service.dart';
+import '../features/semesters/data/semester_selection_store.dart';
 
 final appConfigurationProvider = Provider<AppConfiguration>((ref) {
   throw StateError('AppConfiguration was not provided.');
@@ -113,3 +115,23 @@ final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
     lifecycleStore,
   );
 });
+
+final semesterSelectionStoreProvider = FutureProvider<SemesterSelectionStore>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return DriftSemesterSelectionStore(database);
+});
+
+final semesterSelectionServiceProvider =
+    FutureProvider<SemesterSelectionService>((ref) async {
+      final store = await ref.watch(semesterSelectionStoreProvider.future);
+      final lifecycleStore = await ref.watch(
+        sessionLifecycleStoreProvider.future,
+      );
+      return LocalSemesterSelectionService(
+        ref.watch(backendApiClientProvider),
+        store,
+        lifecycleStore,
+      );
+    });

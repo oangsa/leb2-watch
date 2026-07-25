@@ -14,6 +14,8 @@ import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
+import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
 void main() {
   for (final testCase in <(double, Key, Type, bool)>[
@@ -102,6 +104,44 @@ void main() {
       AppDestination.settings.index,
     );
   });
+
+  for (final testCase in <(double, Key)>[
+    (375, AdaptiveAppShell.compactKey),
+    (1200, AdaptiveAppShell.expandedKey),
+  ]) {
+    testWidgets('change semester action is reachable at ${testCase.$1} px', (
+      tester,
+    ) async {
+      final semanticsHandle = tester.ensureSemantics();
+      try {
+        final setup = await _pumpShell(tester, width: testCase.$1);
+        addTearDown(setup.dispose);
+
+        expect(find.byKey(testCase.$2), findsOneWidget);
+        expect(find.byTooltip('Change semester'), findsOneWidget);
+        final semantics = tester.widget<Semantics>(
+          find.byKey(AdaptiveAppShell.changeSemesterActionKey),
+        );
+        expect(semantics.properties.label, 'Change semester');
+        expect(semantics.properties.onTap, isNotNull);
+
+        final action = find.descendant(
+          of: find.byKey(AdaptiveAppShell.changeSemesterActionKey),
+          matching: find.byType(IconButton),
+        );
+        await tester.tap(action);
+        await tester.pumpAndSettle();
+
+        expect(
+          setup.router.routeInformationProvider.value.uri.path,
+          AppRoute.semesters.path,
+        );
+        expect(find.text('Choose semester'), findsOneWidget);
+      } finally {
+        semanticsHandle.dispose();
+      }
+    });
+  }
 
   testWidgets('expanded Linux uses Control plus digits for destinations', (
     tester,
@@ -391,6 +431,9 @@ Future<_ShellSetup> _pumpShell(
     ProviderScope(
       overrides: [
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
+        semesterSelectionServiceProvider.overrideWith(
+          (_) => _ShellSemesterSelectionService(),
+        ),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
@@ -407,6 +450,25 @@ Future<_ShellSetup> _pumpShell(
   );
   await tester.pumpAndSettle();
   return _ShellSetup(controller: controller, router: router);
+}
+
+final class _ShellSemesterSelectionService implements SemesterSelectionService {
+  final SemesterCatalog _catalog = SemesterCatalog(
+    semesterIds: const [202],
+    activeSemesterId: 202,
+  );
+
+  @override
+  Future<SemesterCatalog> readCached() async => _catalog;
+
+  @override
+  Future<SemesterRefreshResult> refresh({
+    SemesterRefreshCancellation? cancellation,
+  }) async => SemesterRefreshSuccess(_catalog);
+
+  @override
+  Future<SemesterSelectionResult> select(int semesterId) async =>
+      SemesterSelectionSuccess(_catalog);
 }
 
 Future<void> _resize(

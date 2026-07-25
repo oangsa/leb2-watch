@@ -389,7 +389,8 @@ tests, migration fixture, and context updates.
 
 ## Future considerations
 
-- Feature 10.1 should replace the semester placeholder after successful setup.
+- Semester selection now owns the post-verification flow; see
+  [Semester Selection](semester-selection.md).
 - Feature 15.1 should use the account guard's prescribed delete-all workflow.
 - Future automatic reauthentication must reuse this service boundary without
   exposing stored username/password to widgets.
@@ -404,3 +405,4 @@ tests, migration fixture, and context updates.
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Privacy-First Onboarding](privacy-onboarding.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Semester Selection](semester-selection.md)

@@ -9,6 +9,7 @@ import '../shell/adaptive_app_shell.dart';
 import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
+import '../../features/semesters/presentation/semester_selection_route.dart';
 import 'app_flow.dart';
 import 'app_placeholder_page.dart';
 import 'app_route.dart';
@@ -44,7 +45,11 @@ GoRouter createAppRouter(
         path: AppRoute.authentication.path,
         builder: (_, _) => const SessionSetupRoute(),
       ),
-      _placeholderRoute(AppRoute.semesters, 'Semesters'),
+      GoRoute(
+        name: AppRoute.semesters.name,
+        path: AppRoute.semesters.path,
+        builder: (_, _) => const SemesterSelectionRoute(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, navigationShell) =>
             _SessionAwareShell(navigationShell: navigationShell),
@@ -94,9 +99,7 @@ String? _redirectForStage(AppFlowStage stage, String requestedPath) {
     AppFlowStage.semesterSelection =>
       requestedPath == AppRoute.semesters.path ? null : AppRoute.semesters.path,
     AppFlowStage.ready =>
-      requestedPath == '/' ||
-              requestedPath == AppRoute.onboarding.path ||
-              requestedPath == AppRoute.semesters.path
+      requestedPath == '/' || requestedPath == AppRoute.onboarding.path
           ? AppRoute.assignments.path
           : null,
   };

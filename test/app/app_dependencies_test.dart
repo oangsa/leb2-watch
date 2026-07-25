@@ -13,6 +13,8 @@ import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
+import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
 void main() {
   test('shares the exact configuration and Dio transport instance', () {
@@ -35,7 +37,7 @@ void main() {
   });
 
   test(
-    'opens one database, composes one setup service, and closes on dispose',
+    'opens one database, composes app services, and closes on dispose',
     () async {
       final database = _TrackingDatabase();
       final storage = _TrackingDatabaseStorage(database);
@@ -73,6 +75,18 @@ void main() {
       final syncService = await container.read(
         assignmentSyncServiceProvider.future,
       );
+      final firstSemesterStore = await container.read(
+        semesterSelectionStoreProvider.future,
+      );
+      final secondSemesterStore = await container.read(
+        semesterSelectionStoreProvider.future,
+      );
+      final firstSemesterService = await container.read(
+        semesterSelectionServiceProvider.future,
+      );
+      final secondSemesterService = await container.read(
+        semesterSelectionServiceProvider.future,
+      );
 
       expect(storage.openCalls, 1);
       expect(firstDatabase, same(database));
@@ -80,6 +94,10 @@ void main() {
       expect(secondService, same(firstService));
       expect(lifecycle, SessionLifecycleSnapshot.initial);
       expect(syncService, isNotNull);
+      expect(firstSemesterStore, isA<DriftSemesterSelectionStore>());
+      expect(secondSemesterStore, same(firstSemesterStore));
+      expect(firstSemesterService, isA<LocalSemesterSelectionService>());
+      expect(secondSemesterService, same(firstSemesterService));
       expect(backend.requestCalls, 0);
 
       lifecycleSubscription.close();

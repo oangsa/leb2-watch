@@ -28,17 +28,17 @@ completed.
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
   shortcuts.
-- Safe route-error, session-setup, and remaining label-only placeholder
-  surfaces.
+- Safe route-error, session-setup, semester-selection, and remaining
+  label-only placeholder surfaces.
 - A global status slot that preserves route content in all three layouts.
 - Ready-stage reauthentication access and return-to-assignments recovery.
+- One restrained `Change semester` action in shared ready-shell content.
 - Root `MaterialApp.router` and router lifecycle ownership.
 - Focused controller, router, shell, accessibility, and root-widget tests.
 
 ## Non-scope
 
-- Real semester, assignment, course, settings, diagnostics, or privacy
-  behavior.
+- Real assignment, course, settings, diagnostics, or privacy behavior.
 - Persisting the temporary application-flow stage.
 - Preserving a blocked deep-link target through the incomplete flow.
 - Credential, notification, or native background services.
@@ -53,6 +53,9 @@ The application opens on the real `PrivacyOnboardingPage` now owned by Feature
 the current flow gate. Authentication and semester-selection stages each
 permit only their matching gate and the privacy page. A ready user lands on
 assignments and may move among assignments, courses, settings, and diagnostics.
+A ready user may also open the real semester-selection route to change the
+active local semester. A semantically labeled icon action is shown at the
+upper-right of shell content on compact, medium, and expanded layouts.
 
 Navigation adapts by available width:
 
@@ -103,8 +106,11 @@ once, supplies it to `MaterialApp.router`, and disposes the router with the
 widget. The root `ProviderScope` remains in `bootstrap()`. Feature 9.2 replaces
 the authentication placeholder with `SessionSetupRoute`; successful verified
 persistence updates an initial flow to `semesterSelection`, so the existing
-router redirects to `/semesters` without reconstruction. A ready-user recovery
-keeps the flow ready and navigates back to `/assignments`.
+router redirects to `/semesters` without reconstruction. Feature 10.1 replaces
+that route's placeholder with `SemesterSelectionRoute`; initial selection
+advances to ready assignments, while ready-user changes preserve the ready
+stage. A ready-user recovery keeps the flow ready and navigates back to
+`/assignments`.
 
 `AdaptiveAppShell` reads the committed `AppBreakpoints` classification and
 selects one Material-native layout. Navigation widgets provide pointer, focus,
@@ -114,6 +120,11 @@ label role, then measures every full destination label against one equal
 destination width. It chooses Material's `alwaysHide` when text is enlarged or
 any label would wrap and `onlyShowSelected` otherwise. Only the expanded layout
 adds deterministic autofocus and `CallbackShortcuts`.
+
+`_ShellContent` owns the shared `Change semester` action above the current
+branch. It uses `go('/semesters')` to reach the top-level sibling route. The
+semester-selection gate itself stays outside the stateful shell and therefore
+does not become invented shell destination data.
 
 `_SessionAwareShell` watches the local `sessionLifecycleProvider` and supplies
 `AppStatusBanner.sessionExpired` through the shell's global banner slot. The
@@ -132,6 +143,8 @@ route child rather than replacing it.
 - `lib/src/features/authentication/presentation/session_setup_route.dart` —
   authentication provider loading/error adapter and successful flow
   transition.
+- `lib/src/features/semesters/presentation/semester_selection_route.dart` —
+  real semester route, provider states, and initial/ready flow transitions.
 - `lib/src/app/shell/adaptive_app_shell.dart` — compact, medium, and expanded
   navigation plus the route-preserving global banner slot.
 - `lib/src/app/design_system/widgets/app_status_banner.dart` — warning banner,
@@ -186,9 +199,9 @@ The exact guard contract is:
   redirects to authentication.
 - Semester selection allows only semesters and privacy; every other path
   redirects to semesters.
-- Ready redirects `/`, onboarding, and semesters to assignments.
-- Ready allows authentication for reauthentication, the four shell routes,
-  and privacy.
+- Ready redirects `/` and onboarding to assignments.
+- Ready allows authentication for reauthentication, semester changes, the four
+  shell routes, and privacy.
 - Unknown ready routes fall through to the application-owned error surface.
 
 ## Data model
@@ -212,6 +225,8 @@ At startup:
    unmounting the selected branch.
 8. Reconnect pushes authentication; successful ready-user setup returns to
    assignments.
+9. A ready user's `Change semester` action replaces the shell location with
+   the top-level semester route; selection returns to assignments.
 
 Inside the shell, selecting a destination calls `goBranch(index)`. The indexed
 stack retains branch navigators, and responsive layout changes reuse the same
@@ -262,6 +277,12 @@ diagnostic payload. Placeholder pages contain only product and route labels.
   focus, selected, and semantics behavior.
 - Preserve branch location with `goBranch(index)` rather than resetting to a
   branch root.
+- Keep semester selection out of `AppDestination` and expose one shared-shell
+  action, because it is both an initial gate and a ready-user operation rather
+  than a fifth stateful product branch.
+- Use `go('/semesters')` for the top-level sibling. A focused test proved
+  branch-context `push` was a no-op, while changing navigator topology would
+  expand this feature unnecessarily.
 - Use only established Material 3 Cobalt tokens and controls; add no new visual
   constants or ornamental motion.
 - Resolve compact label behavior locally from the theme label role, active
@@ -287,6 +308,8 @@ diagnostic payload. Placeholder pages contain only product and route labels.
   smaller native fit for this restrained desktop workbench.
 - Preserving an intended destination through onboarding was rejected because
   target validation and product behavior are unspecified.
+- Adding semesters to the bottom navigation or rail was rejected because it
+  would misrepresent the route as a fifth stateful destination.
 - Custom gesture surfaces, raw pointer listeners, fake records, decorative
   cards, and speculative workflow buttons were rejected as unnecessary or
   misleading.
@@ -294,8 +317,9 @@ diagnostic payload. Placeholder pages contain only product and route labels.
 ## Failure behavior
 
 Incomplete flow stages redirect any non-privacy location to their one allowed
-gate. Ready users requesting onboarding, semesters, or `/` are returned to
-assignments; authentication remains reachable for session recovery.
+gate. Ready users requesting onboarding or `/` are returned to assignments;
+semester selection and authentication remain reachable for semester change
+and session recovery.
 Unknown ready paths show `Page unavailable` with fixed explanatory copy and a
 safe `Open assignments` action. No raw route detail is exposed.
 
@@ -333,6 +357,8 @@ interaction; it does not expose transport evidence.
 - Scrollable medium and expanded rails.
 - Same-app resizing with selected-branch preservation.
 - Compact and expanded pointer selection and selected indices.
+- Semantically labeled `Change semester` pointer actions at compact and
+  expanded widths, both reaching the real top-level route.
 - All four Control shortcuts on Linux and all four Meta shortcuts on macOS.
 - No overflow or exception at 320, 375, 414, 600, 768, and 1200 widths with
   200-percent text and a 360-pixel-high viewport.
@@ -412,15 +438,21 @@ compact/expanded cached-content preservation, recovery navigation, and
 provider watching without a backend request. Final broad evidence is recorded
 in `session-expiration.md`.
 
+Feature 10.1's combined semester, shell, router, and provider regression group
+passed 96/96 after adding compact and expanded ready-user reachability.
+
 ## Known limitations
 
 - Android, iOS, macOS, and Windows are not build-verified on this Linux host.
 - Native keyboard layouts and screen-reader output require device-level
   validation even though Flutter semantics and key dispatch tests pass.
 - The application-flow stage is temporary in-memory state. Later restoration
-  and semester features must derive the initial flow stage. Session expiration
-  itself is independently durable.
+  must derive the initial flow stage. Session expiration and the active
+  semester itself are independently durable.
 - Blocked deep links do not resume after flow completion.
+- The `Change semester` action uses location replacement rather than a pushed
+  overlay because the current stateful-branch context cannot push that
+  top-level sibling. The selection route has no separate cancel action.
 - Remaining product route surfaces are honest labels only; their real
   workflows belong to later features.
 - There are no nested branch routes yet, so indexed-stack branch-history
@@ -429,8 +461,8 @@ in `session-expiration.md`.
 
 ## Future considerations
 
-- Replace each remaining placeholder builder in its owning product feature without
-  changing route names or shell destination order.
+- Replace each remaining placeholder builder in its owning product feature
+  without changing route names or shell destination order.
 - Derive the flow stage from completed onboarding, verified session, and active
   semester state.
 - Decide whether safe intended-destination restoration is required after the
@@ -447,3 +479,4 @@ in `session-expiration.md`.
 - [Backend API Contract](backend-api-contract.md)
 - [Session Setup and Verification](session-setup.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Semester Selection](semester-selection.md)
