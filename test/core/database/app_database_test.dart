@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 3', () {
+  group('schema version 4', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 3);
+        expect(database.schemaVersion, 4);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -40,11 +40,12 @@ void main() {
           'scheduled_reminders',
           'seen_activities',
           'semesters',
+          'sync_backoff_states',
           'sync_operation_changes',
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 3);
+        expect(await _pragmaInt(database, 'user_version'), 4);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -75,6 +76,7 @@ void main() {
           'sync_operations_queue',
           'sync_operations_terminal_cleanup',
           'sync_operations_operation_semester',
+          'sync_backoff_states_by_next_attempt',
         }),
       );
     });
@@ -122,6 +124,68 @@ void main() {
           expect(entry.column, isNot(contains(fragment)));
         }
       }
+    });
+  });
+
+  group('synchronization backoff constraints', () {
+    setUp(() async {
+      await database
+          .into(database.semesters)
+          .insert(
+            SemestersCompanion.insert(semesterId: const drift.Value(101)),
+          );
+    });
+
+    test('accepts coherent state and cascades with its semester', () async {
+      final now = DateTime.utc(2026, 7, 25, 12);
+      await database
+          .into(database.syncBackoffStates)
+          .insert(
+            SyncBackoffStatesCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              consecutiveFailureCount: 1,
+              state: 'waiting',
+              nextAutomaticAttemptAtUtc: drift.Value(
+                now.add(const Duration(minutes: 1)),
+              ),
+              lastFailureKind: 'networkUnavailable',
+              updatedAtUtc: now,
+            ),
+          );
+
+      await database.delete(database.semesters).go();
+
+      expect(await database.select(database.syncBackoffStates).get(), isEmpty);
+    });
+
+    test('rejects invalid counters, states, codecs, and eligibility', () async {
+      final now = DateTime.utc(2026, 7, 25, 12).millisecondsSinceEpoch;
+      final invalidRows = [
+        [0, 'waiting', now + 60000, 'networkUnavailable', null, null],
+        [1, 'waiting', null, 'networkUnavailable', null, null],
+        [1, 'blocked', now + 60000, 'sessionExpired', null, null],
+        [1, 'waiting', now + 60000, 'sessionExpired', null, null],
+        [1, 'blocked', null, 'networkUnavailable', null, null],
+        [1, 'blocked', null, 'unknown', 'cancelled', null],
+        [1, 'waiting', now + 60000, 'rateLimited', null, -1],
+      ];
+
+      for (final row in invalidRows) {
+        await expectLater(
+          database.customStatement(
+            'INSERT INTO sync_backoff_states '
+            '(semester_id, user_id, consecutive_failure_count, state, '
+            'next_automatic_attempt_at_utc, last_failure_kind, '
+            'last_failure_detail, last_retry_after_milliseconds, '
+            'updated_at_utc) VALUES (?, 2001, ?, ?, ?, ?, ?, ?, ?)',
+            [101, ...row, now],
+          ),
+          throwsException,
+          reason: row.toString(),
+        );
+      }
+      expect(await database.select(database.syncBackoffStates).get(), isEmpty);
     });
   });
 

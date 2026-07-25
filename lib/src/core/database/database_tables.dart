@@ -375,6 +375,75 @@ class SyncOperationChanges extends Table {
   ];
 }
 
+@TableIndex.sql(
+  'CREATE INDEX sync_backoff_states_by_next_attempt '
+  'ON sync_backoff_states '
+  '(state, next_automatic_attempt_at_utc, semester_id, user_id)',
+)
+class SyncBackoffStates extends Table {
+  IntColumn get semesterId => integer()();
+  IntColumn get userId => integer()();
+  IntColumn get consecutiveFailureCount => integer()();
+  TextColumn get state => text()();
+  IntColumn get nextAutomaticAttemptAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  TextColumn get lastFailureKind => text()();
+  TextColumn get lastFailureDetail => text().nullable()();
+  IntColumn get lastRetryAfterMilliseconds => integer().nullable()();
+  IntColumn get updatedAtUtc => integer().map(const UtcDateTimeConverter())();
+
+  @override
+  Set<Column<Object>> get primaryKey => {semesterId, userId};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (semester_id > 0)',
+    'CHECK (user_id > 0)',
+    'CHECK (consecutive_failure_count > 0)',
+    "CHECK (state IN ('waiting', 'blocked'))",
+    'CHECK (last_retry_after_milliseconds IS NULL OR '
+        'last_retry_after_milliseconds >= 0)',
+    "CHECK (last_failure_kind IN ('sessionExpired', 'networkUnavailable', "
+        "'requestTimeout', 'backendUnavailable', 'rateLimited', "
+        "'invalidResponse', 'unknown'))",
+    "CHECK ((last_failure_kind = 'requestTimeout' AND "
+        'last_failure_detail IS NOT NULL AND '
+        "last_failure_detail IN ('connection', 'send', 'receive', "
+        "'transform', 'server') AND "
+        'last_retry_after_milliseconds IS NULL) OR '
+        "(last_failure_kind = 'unknown' AND "
+        'last_failure_detail IS NOT NULL AND '
+        'last_failure_detail IN ('
+        "'missingCredential', 'credentialAccessFailed', "
+        "'badCertificate', 'authenticationRequired', 'invalidRequest', "
+        "'resourceNotFound', 'unexpectedServerFailure', "
+        "'unexpectedHttpResponse', 'unexpectedTransportFailure', "
+        "'persistenceFailed') AND "
+        'last_retry_after_milliseconds IS NULL) OR '
+        "(last_failure_kind IN ('sessionExpired', 'networkUnavailable', "
+        "'invalidResponse') AND last_failure_detail IS NULL AND "
+        'last_retry_after_milliseconds IS NULL) OR '
+        "(last_failure_kind IN ('backendUnavailable', 'rateLimited') AND "
+        'last_failure_detail IS NULL))',
+    "CHECK ((state = 'waiting' AND "
+        'next_automatic_attempt_at_utc IS NOT NULL) OR '
+        "(state = 'blocked' AND next_automatic_attempt_at_utc IS NULL))",
+    "CHECK (state != 'waiting' OR "
+        "last_failure_kind IN ('networkUnavailable', 'requestTimeout', "
+        "'backendUnavailable', 'rateLimited') OR "
+        "(last_failure_kind = 'unknown' AND last_failure_detail IN "
+        "('unexpectedServerFailure', 'unexpectedTransportFailure')))",
+    "CHECK (state != 'blocked' OR "
+        "last_failure_kind IN ('sessionExpired', 'invalidResponse') OR "
+        "(last_failure_kind = 'unknown' AND last_failure_detail IN "
+        "('missingCredential', 'credentialAccessFailed', 'badCertificate', "
+        "'authenticationRequired', 'invalidRequest', 'resourceNotFound', "
+        "'unexpectedHttpResponse', 'persistenceFailed')))",
+    'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
 class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();

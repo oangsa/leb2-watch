@@ -5,6 +5,7 @@
 Completed for live device-local callers using independent connections to the
 same SQLite file, with the standard fenced-lease limitation documented below.
 Feature 8.2 now extends successful results with committed assignment changes.
+Feature 8.3 now adds durable automatic-trigger admission and backoff outcomes.
 Platform background entry points and end-to-end native background execution
 are not part of this feature.
 
@@ -25,6 +26,7 @@ success is visible only after its snapshot transaction commits.
 - Transactional reconciliation of one semester's validated
   courses/activities, durable baseline/change state, and bounded success
   history.
+- Active-join-before-policy admission and fenced exact-once backoff mutation.
 - Safe failure/cancellation history and a local persistence failure category.
 - Real file-backed multi-connection, rollback, migration, constraint, codec,
   and security tests.
@@ -33,8 +35,7 @@ success is visible only after its snapshot transaction commits.
 
 - User-ID or credential acquisition.
 - Notification/reminder callbacks or effects.
-- Retry, backoff, background scheduling, platform entry points, providers, or
-  UI.
+- Background scheduling, platform entry points, providers, or UI.
 - Absolute duplicate-dispatch prevention after arbitrary lease expiry.
 
 ## User-visible behavior
@@ -43,16 +44,20 @@ This feature adds no screen. Once composed, callers requesting the same
 semester/user snapshot receive the same stored terminal result and issue one
 live request. Requests for different keys wait in FIFO order. Network,
 validation, cancellation, and persistence failures retain the previous
-snapshot. Successful completion means the new rows are already committed.
+snapshot. Automatic triggers can return a redacted deferred outcome without
+enqueueing while policy is waiting or blocked. Successful completion means the
+new rows and policy reset are already committed.
 
 ## Architecture
 
 `AssignmentSyncService` is the public application seam.
-`LocalAssignmentSyncService` owns local Future joining, API execution,
-heartbeat lifetime, and transport mapping. `AssignmentSnapshotReconciler` owns
-validated snapshot-to-row reconciliation and diff persistence.
-`SyncOperationStore` owns the durable coordination state machine, fenced
-transaction, and result codec. `AppDatabase` owns the generated schema.
+`LocalAssignmentSyncService` owns same-key Future joining within separate
+automatic and user-driven lanes, API execution, heartbeat lifetime, and
+transport mapping. `AssignmentSnapshotReconciler` owns validated
+snapshot-to-row reconciliation and diff persistence.
+`SyncOperationStore` owns the durable coordination state machine and fenced
+transactions. `SyncBackoffStore` owns durable admission and failure-delay
+policy. `AppDatabase` owns the generated schema.
 
 The public layer imports no Dio or Drift type. The concrete service consumes
 `BackendApiClient`, whose implementation reads the current secure credential
@@ -69,10 +74,14 @@ per request.
 - `lib/src/features/assignments/sync/activity_identity.dart` — stable identity
   and source-date canonicalization.
 - `lib/src/features/assignments/sync/sync_operation_store.dart` — SQLite
-  coordination, fencing, cancellation, retention, and result codec.
+  coordination, fencing, cancellation, retention, and result reconstruction.
+- `lib/src/features/assignments/sync/sync_backoff_store.dart` — automatic
+  admission and durable waiting/blocked policy.
+- `lib/src/features/assignments/sync/sync_failure_codec.dart` — shared bounded
+  operation/backoff failure codec.
 - `lib/src/core/database/database_tables.dart` — synchronization and change
   persistence schema.
-- `lib/src/core/database/app_database.dart` — v3 migration and transactional
+- `lib/src/core/database/app_database.dart` — v4 migration and transactional
   history primitive.
 - `test/features/assignments/sync/assignment_sync_service_test.dart` — focused
   service and multi-connection tests.
@@ -81,7 +90,7 @@ per request.
 
 ```dart
 abstract interface class AssignmentSyncService {
-  Future<SyncResult> synchronize({
+  Future<SyncOutcome> synchronize({
     required int semesterId,
     required int userId,
     required SyncReason reason,
@@ -91,16 +100,23 @@ abstract interface class AssignmentSyncService {
     required int semesterId,
     required int userId,
   });
+
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  });
 }
 ```
 
 Reasons are exactly `initialSetup`, `appLaunch`, `appResume`,
 `manualRefresh`, `backgroundTask`, `desktopTimer`, and `trayAction`.
 
-Results are `SyncSuccess`, `SyncFailed`, or `SyncCancelled`. They contain only
-operation/semester IDs, leader reason, UTC start/completion times, safe counts,
-one immutable identity/kind change batch, or one existing `SyncFailure`. Debug
-output is fixed and redacted.
+Terminal results are `SyncSuccess`, `SyncFailed`, or `SyncCancelled`.
+`SyncDeferred` represents a request suppressed before enqueue. Terminal values
+contain only operation/semester IDs, leader reason, UTC start/completion times,
+safe counts, one immutable identity/kind change batch, or one existing
+`SyncFailure`. Debug output is fixed and redacted. Backoff status exposes safe
+failure/count/time metadata but no user ID.
 
 The selected semester must already exist locally before enqueue. `userId`
 remains explicit because the verified API requires it and no identity owner
@@ -128,6 +144,10 @@ response data, assignment titles, or credentials.
 Timeout and unknown operation results require a non-null checked enum detail;
 malformed NULL details are rejected by SQLite before result decoding.
 
+`sync_backoff_states` is keyed by `(semester_id, user_id)` and stores one
+checked waiting or blocked policy state. It resets with committed success and
+cascades with semester deletion.
+
 Activities use `backend:<positive activity id>` because the verified current
 snapshot guarantees stable unique backend IDs. Operation-owned change rows let
 independent callers reconstruct equal committed success results. Baseline,
@@ -136,20 +156,23 @@ seen, fingerprint, and reminder-state details are documented in
 
 ## State and control flow
 
-1. Validate both IDs and enqueue or join in a short write transaction.
-2. Read the requested operation. Return immediately if terminal.
-3. If no unexpired global owner exists, requeue an expired owner and claim the
+1. Validate both IDs and enter a short admission transaction.
+2. Join active same-key work before applying automatic-trigger backoff.
+3. Return `SyncDeferred` before enqueue when policy is not eligible.
+4. Read the requested operation. Return immediately if terminal.
+5. If no unexpired global owner exists, requeue an expired owner and claim the
    oldest queued operation with a fresh nonce and lease.
-4. Execute that operation's snapshot GET outside any database transaction.
-5. Heartbeat every 15 seconds and extend the 2-minute lease.
-6. On requested cancellation, ownership loss, or heartbeat storage failure,
+6. Execute that operation's snapshot GET outside any database transaction.
+7. Heartbeat every 15 seconds and extend the 2-minute lease.
+8. On requested cancellation, ownership loss, or heartbeat storage failure,
    cancel the private transport token while preserving the stop cause.
-7. On success, re-check ownership/cancellation, reconcile one semester
+9. On success, re-check ownership/cancellation, reconcile one semester
    snapshot and change batch, add bounded success history, and terminalize in
-   one transaction.
-8. On transport failure or cancellation, terminalize safe result/history in a
-   short transaction.
-9. Poll the requested row every 250 ms until its shared terminal result exists.
+   one transaction with the policy reset.
+10. On transport failure, terminalize safe result/history and mutate policy in
+    one short transaction. Cancellation leaves policy unchanged.
+11. Poll the requested row every 250 ms until its shared terminal result
+    exists.
 
 A service may execute an older queued operation inserted by another caller
 before returning to the operation it originally requested. This preserves
@@ -186,6 +209,8 @@ is cleared on terminal completion.
 - Use SQLite partial unique indices plus a lease/nonce protocol so correctness
   does not depend on one Dart isolate.
 - Complete the Future only after the transaction returns.
+- Gate automatic triggers without sleeping or dispatching a second request.
+- Let committed terminal ownership mutate policy exactly once.
 - Add no observer or notification callback before an effect owner exists.
 - Map local database failure to non-retryable
   `UnknownSyncFailure(persistenceFailed)`.
@@ -207,10 +232,11 @@ is cleared on terminal completion.
 
 Mapped transport failures never open the snapshot reconciliation transaction.
 Invalid responses leave current rows unchanged. Snapshot, change-ledger,
-reminder-flag, or success-history failure rolls back the whole success
-transaction, then terminalizes a bounded `persistenceFailed` result in a
-separate transaction. Failure-history writes are best effort and never replace
-the primary result.
+reminder-flag, success-history, or policy-reset failure rolls back the whole
+success transaction, then terminalizes a bounded `persistenceFailed` result in
+a separate transaction. Failure-history writes are best effort and never
+replace the primary result; their fallback repeats terminal policy mutation
+only after the first transaction rolled back.
 
 Queued cancellation terminalizes without HTTP. Running cancellation is
 operation-wide; local owners cancel immediately and remote owners observe the
@@ -252,6 +278,8 @@ Focused tests cover:
   and backends that return a snapshot after private-token cancellation;
 - terminal retention and every safe failure codec value;
 - exact reasons/ID validation, redacted results, and source ownership scans.
+- backoff gate, exact-once mutation, cancellation neutrality, and fail-closed
+  policy-storage behavior.
 
 Tests use sanitized in-memory models and real temporary-file SQLite. They do
 not call a production backend or use a real credential.
@@ -277,6 +305,10 @@ flutter test
 Final generator, formatting, and Linux build evidence is recorded in
 `assignment-diffing.md` and the Feature 8.2 worker handoff.
 
+Feature 8.3 verification passed repository formatting, both analyzers, 158
+focused synchronization/database/network tests, 258 full-suite tests, stable
+generated-file hashes, and the Linux release build.
+
 ## Known limitations
 
 - A lease cannot guarantee zero duplicate HTTP dispatch after arbitrary
@@ -297,7 +329,6 @@ Final generator, formatting, and Linux build evidence is recorded in
 ## Future considerations
 
 - Notification features should consume only post-commit terminal success.
-- Retry/backoff should use `SyncFailure.isRetryEligible` and `retryAfter`.
 - Platform schedulers should open the same local database and reuse this
   service.
 - A backend idempotency key would be required for stronger duplicate-dispatch
@@ -306,6 +337,7 @@ Final generator, formatting, and Linux build evidence is recorded in
 ## Related contexts
 
 - [Assignment Diffing](assignment-diffing.md)
+- [Synchronization Backoff](synchronization-backoff.md)
 - [Local Database](local-database.md)
 - [Authenticated Backend API Client](backend-api-client.md)
 - [API Error Mapping](api-error-mapping.md)

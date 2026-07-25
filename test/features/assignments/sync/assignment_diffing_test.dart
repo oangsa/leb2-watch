@@ -473,8 +473,10 @@ void main() {
       final results = await Future.wait([first, second]);
 
       expect(results[0], results[1]);
-      expect(results[0].operationId, results[1].operationId);
-      expect((results[0] as SyncSuccess).changes.changes, [
+      final firstResult = results[0] as SyncSuccess;
+      final secondResult = results[1] as SyncSuccess;
+      expect(firstResult.operationId, secondResult.operationId);
+      expect(firstResult.changes.changes, [
         const AssignmentChange(
           identityKey: 'backend:1002',
           kind: AssignmentChangeKind.newActivity,
@@ -504,12 +506,13 @@ Future<SyncSuccess> _sync(LocalAssignmentSyncService service) async {
   return result as SyncSuccess;
 }
 
-Future<SyncResult> _syncResult(LocalAssignmentSyncService service) {
-  return service.synchronize(
+Future<SyncResult> _syncResult(LocalAssignmentSyncService service) async {
+  final outcome = await service.synchronize(
     semesterId: 101,
     userId: 2001,
     reason: SyncReason.manualRefresh,
   );
+  return outcome as SyncResult;
 }
 
 Future<void> _insertSemester(AppDatabase database) {

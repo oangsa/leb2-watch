@@ -37,7 +37,7 @@ void main() {
     await database.close();
   });
 
-  test('same-key local callers join one request and leader result', () async {
+  test('same-lane local callers join one request and leader result', () async {
     final started = Completer<void>();
     final release = Completer<AssignmentSnapshot>();
     client.handler = (semesterId, userId, cancellation) {
@@ -53,7 +53,7 @@ void main() {
     final second = service.synchronize(
       semesterId: 101,
       userId: 2001,
-      reason: SyncReason.manualRefresh,
+      reason: SyncReason.appResume,
     );
 
     expect(identical(first, second), isTrue);
@@ -64,7 +64,7 @@ void main() {
     final results = await Future.wait([first, second]);
     expect(results[0], results[1]);
     expect(results[0], isA<SyncSuccess>());
-    expect(results[0].reason, SyncReason.appLaunch);
+    expect((results[0] as SyncSuccess).reason, SyncReason.appLaunch);
     expect(client.requestCount, 1);
   });
 

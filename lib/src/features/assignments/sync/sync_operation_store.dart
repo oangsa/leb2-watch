@@ -3,6 +3,10 @@ import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 
 import 'assignment_sync_service.dart';
+import 'sync_backoff_store.dart';
+import 'sync_failure_codec.dart';
+
+export 'sync_failure_codec.dart';
 
 final class SyncOperationStore {
   SyncOperationStore(
@@ -10,14 +14,33 @@ final class SyncOperationStore {
     this._utcClock,
     this._leaseDuration,
     this._terminalRetention,
-  );
+  ) : _backoff = SyncBackoffStore(_database);
 
   final AppDatabase _database;
   final DateTime Function() _utcClock;
   final Duration _leaseDuration;
   final Duration _terminalRetention;
+  final SyncBackoffStore _backoff;
 
   Future<int> enqueueOrJoin({
+    required int semesterId,
+    required int userId,
+    required SyncReason reason,
+  }) async {
+    final admission = await admitOrJoin(
+      semesterId: semesterId,
+      userId: userId,
+      reason: reason,
+    );
+    return switch (admission) {
+      SyncOperationAdmission(:final operationId) => operationId,
+      SyncDeferredAdmission() => throw StateError(
+        'The synchronization request was deferred by backoff policy.',
+      ),
+    };
+  }
+
+  Future<SyncAdmission> admitOrJoin({
     required int semesterId,
     required int userId,
     required SyncReason reason,
@@ -48,10 +71,20 @@ final class SyncOperationStore {
         userId: userId,
       );
       if (existing != null) {
-        return existing.operationId;
+        return SyncOperationAdmission(existing.operationId);
       }
 
-      return _database
+      final deferred = await _backoff.deferredStatus(
+        semesterId: semesterId,
+        userId: userId,
+        reason: reason,
+        nowUtc: now,
+      );
+      if (deferred != null) {
+        return SyncDeferredAdmission(deferred);
+      }
+
+      final operationId = await _database
           .into(_database.syncOperations)
           .insert(
             SyncOperationsCompanion.insert(
@@ -62,8 +95,14 @@ final class SyncOperationStore {
               enqueuedAtUtc: now,
             ),
           );
+      return SyncOperationAdmission(operationId);
     });
   }
+
+  Future<SyncBackoffStatus?> readBackoffStatus({
+    required int semesterId,
+    required int userId,
+  }) => _backoff.readStatus(semesterId: semesterId, userId: userId);
 
   Future<SyncOperation?> read(int operationId) {
     return (_database.select(
@@ -286,6 +325,10 @@ final class SyncOperationStore {
       if (updated != 1) {
         throw StateError('Synchronization ownership changed before commit.');
       }
+      await _backoff.reset(
+        semesterId: current.semesterId,
+        userId: current.userId,
+      );
       return changes;
     });
   }
@@ -323,6 +366,12 @@ final class SyncOperationStore {
         if (!updated) {
           return false;
         }
+        await _backoff.recordFailure(
+          semesterId: current.semesterId,
+          userId: current.userId,
+          failure: failure,
+          completedAtUtc: completedAtUtc,
+        );
         await _database.insertAndPruneSyncRun(
           semesterId: owned.operation.semesterId,
           reason: owned.operation.reason,
@@ -343,11 +392,21 @@ final class SyncOperationStore {
         if (current!.cancellationRequested) {
           return _finishOwnedCancelled(owned, completedAtUtc);
         }
-        return _finishFailure(
+        final updated = await _finishFailure(
           owned: owned,
           encoded: encoded,
           completedAtUtc: completedAtUtc,
         );
+        if (!updated) {
+          return false;
+        }
+        await _backoff.recordFailure(
+          semesterId: current.semesterId,
+          userId: current.userId,
+          failure: failure,
+          completedAtUtc: completedAtUtc,
+        );
+        return true;
       });
     }
   }
@@ -583,86 +642,18 @@ final class HeartbeatStatus {
 
 enum OwnedOperationStatus { owned, cancellationRequested, lost }
 
-final class EncodedSyncFailure {
-  const EncodedSyncFailure({
-    required this.kind,
-    required this.historyCategory,
-    this.detail,
-    this.retryAfterMilliseconds,
-  });
-
-  final String kind;
-  final String historyCategory;
-  final String? detail;
-  final int? retryAfterMilliseconds;
+sealed class SyncAdmission {
+  const SyncAdmission();
 }
 
-EncodedSyncFailure encodeFailure(SyncFailure failure) => switch (failure) {
-  SessionExpiredFailure() => const EncodedSyncFailure(
-    kind: 'sessionExpired',
-    historyCategory: 'sessionExpired',
-  ),
-  NetworkUnavailableFailure() => const EncodedSyncFailure(
-    kind: 'networkUnavailable',
-    historyCategory: 'networkUnavailable',
-  ),
-  RequestTimeoutFailure(:final phase) => EncodedSyncFailure(
-    kind: 'requestTimeout',
-    detail: phase.name,
-    historyCategory: 'requestTimeout',
-  ),
-  BackendUnavailableFailure(:final retryAfter) => EncodedSyncFailure(
-    kind: 'backendUnavailable',
-    retryAfterMilliseconds: retryAfter?.inMilliseconds,
-    historyCategory: 'backendUnavailable',
-  ),
-  RateLimitedFailure(:final retryAfter) => EncodedSyncFailure(
-    kind: 'rateLimited',
-    retryAfterMilliseconds: retryAfter?.inMilliseconds,
-    historyCategory: 'rateLimited',
-  ),
-  InvalidResponseFailure() => const EncodedSyncFailure(
-    kind: 'invalidResponse',
-    historyCategory: 'invalidResponse',
-  ),
-  UnknownSyncFailure(:final reason) => EncodedSyncFailure(
-    kind: 'unknown',
-    detail: reason.name,
-    historyCategory: reason == UnknownSyncFailureReason.persistenceFailed
-        ? 'persistenceFailed'
-        : 'unknown',
-  ),
-};
+final class SyncOperationAdmission extends SyncAdmission {
+  const SyncOperationAdmission(this.operationId);
 
-SyncFailure decodeFailure({
-  required String? kind,
-  required String? detail,
-  required int? retryAfterMilliseconds,
-}) {
-  final retryAfter = retryAfterMilliseconds == null
-      ? null
-      : Duration(milliseconds: retryAfterMilliseconds);
-  return switch (kind) {
-    'sessionExpired' when detail == null && retryAfter == null =>
-      const SessionExpiredFailure(),
-    'networkUnavailable' when detail == null && retryAfter == null =>
-      const NetworkUnavailableFailure(),
-    'requestTimeout' when retryAfter == null => RequestTimeoutFailure(
-      RequestTimeoutPhase.values.where((value) => value.name == detail).single,
-    ),
-    'backendUnavailable' when detail == null => BackendUnavailableFailure(
-      retryAfter: retryAfter,
-    ),
-    'rateLimited' when detail == null => RateLimitedFailure(
-      retryAfter: retryAfter,
-    ),
-    'invalidResponse' when detail == null && retryAfter == null =>
-      const InvalidResponseFailure(),
-    'unknown' when retryAfter == null => UnknownSyncFailure(
-      UnknownSyncFailureReason.values
-          .where((value) => value.name == detail)
-          .single,
-    ),
-    _ => throw StateError('Stored synchronization failure is malformed.'),
-  };
+  final int operationId;
+}
+
+final class SyncDeferredAdmission extends SyncAdmission {
+  const SyncDeferredAdmission(this.status);
+
+  final SyncBackoffStatus status;
 }

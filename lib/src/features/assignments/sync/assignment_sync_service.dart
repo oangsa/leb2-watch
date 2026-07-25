@@ -74,23 +74,123 @@ final class AssignmentChangeBatch {
 }
 
 abstract interface class AssignmentSyncService {
-  Future<SyncResult> synchronize({
+  Future<SyncOutcome> synchronize({
     required int semesterId,
     required int userId,
     required SyncReason reason,
   });
 
   Future<void> cancelCurrent({required int semesterId, required int userId});
+
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  });
 }
 
-sealed class SyncResult {
+sealed class SyncOutcome {
+  const SyncOutcome();
+}
+
+final class SyncDeferred extends SyncOutcome {
+  const SyncDeferred({
+    required this.semesterId,
+    required this.reason,
+    required this.status,
+  });
+
+  final int semesterId;
+  final SyncReason reason;
+  final SyncBackoffStatus status;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncDeferred &&
+      other.semesterId == semesterId &&
+      other.reason == reason &&
+      other.status == status;
+
+  @override
+  int get hashCode => Object.hash(semesterId, reason, status);
+
+  @override
+  String toString() => 'SyncDeferred(redacted: true)';
+}
+
+sealed class SyncBackoffStatus {
+  const SyncBackoffStatus({
+    required this.semesterId,
+    required this.consecutiveFailureCount,
+    required this.lastFailure,
+    required this.updatedAtUtc,
+  });
+
+  final int semesterId;
+  final int consecutiveFailureCount;
+  final SyncFailure lastFailure;
+  final DateTime updatedAtUtc;
+
+  Object? get statusEqualityKey;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SyncBackoffStatus &&
+      other.runtimeType == runtimeType &&
+      other.semesterId == semesterId &&
+      other.consecutiveFailureCount == consecutiveFailureCount &&
+      other.lastFailure == lastFailure &&
+      other.updatedAtUtc == updatedAtUtc &&
+      other.statusEqualityKey == statusEqualityKey;
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    semesterId,
+    consecutiveFailureCount,
+    lastFailure,
+    updatedAtUtc,
+    statusEqualityKey,
+  );
+
+  @override
+  String toString() => '$runtimeType(redacted: true)';
+}
+
+final class SyncBackoffWaiting extends SyncBackoffStatus {
+  const SyncBackoffWaiting({
+    required super.semesterId,
+    required super.consecutiveFailureCount,
+    required super.lastFailure,
+    required super.updatedAtUtc,
+    required this.nextAutomaticAttemptAtUtc,
+  });
+
+  final DateTime nextAutomaticAttemptAtUtc;
+
+  @override
+  Object get statusEqualityKey => nextAutomaticAttemptAtUtc;
+}
+
+final class SyncBackoffBlocked extends SyncBackoffStatus {
+  const SyncBackoffBlocked({
+    required super.semesterId,
+    required super.consecutiveFailureCount,
+    required super.lastFailure,
+    required super.updatedAtUtc,
+  });
+
+  @override
+  Object? get statusEqualityKey => null;
+}
+
+sealed class SyncResult extends SyncOutcome {
   const SyncResult({
     required this.operationId,
     required this.semesterId,
     required this.reason,
     required this.startedAtUtc,
     required this.completedAtUtc,
-  });
+  }) : super();
 
   final int operationId;
   final int semesterId;

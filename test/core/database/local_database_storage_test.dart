@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 
 import 'v1_app_database.dart' as v1;
 import 'v2_app_database.dart' as v2;
+import 'v3_app_database.dart' as v3;
 
 void main() {
   late Directory temporaryDirectory;
@@ -45,7 +46,7 @@ void main() {
   });
 
   test(
-    'migrates a real v1 database to v3 and seeds durable baseline state',
+    'migrates a real v1 database to v4 and seeds durable baseline state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v1.V1AppDatabase(NativeDatabase(databaseFile));
@@ -104,7 +105,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 3);
+      expect(await _pragmaInt(database, 'user_version'), 4);
       expect(
         (await database.select(database.semesters).get())
             .map((row) => row.semesterId)
@@ -139,6 +140,7 @@ void main() {
         await database.select(database.syncOperationChanges).get(),
         isEmpty,
       );
+      expect(await database.select(database.syncBackoffStates).get(), isEmpty);
       final indices = await database
           .customSelect(
             "SELECT name FROM sqlite_schema WHERE type = 'index' "
@@ -201,7 +203,7 @@ void main() {
   );
 
   test(
-    'migrates a real v2 database to v3 preserving ledgers and reminders',
+    'migrates a real v2 database to v4 preserving ledgers and reminders',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v2.V2AppDatabase(NativeDatabase(databaseFile));
@@ -249,7 +251,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 3);
+      expect(await _pragmaInt(database, 'user_version'), 4);
       expect(await database.select(database.activities).get(), hasLength(1));
       expect(
         await database.select(database.seenActivities).get(),
@@ -268,6 +270,7 @@ void main() {
         await database.select(database.syncOperationChanges).get(),
         isEmpty,
       );
+      expect(await database.select(database.syncBackoffStates).get(), isEmpty);
       expect(
         await _uniqueIndexColumns(
           database,
@@ -301,6 +304,59 @@ void main() {
           from: 'identity_key',
         ),
         'seen_activities',
+      );
+      expect(await _foreignKeyViolations(database), isEmpty);
+    },
+  );
+
+  test(
+    'migrates a frozen real v3 database to v4 without seeding backoff',
+    () async {
+      final databaseFile = await storage.resolveDatabaseFile();
+      final legacy = v3.V3AppDatabase(NativeDatabase(databaseFile));
+      await legacy
+          .into(legacy.semesters)
+          .insert(v3.SemestersCompanion.insert(semesterId: const Value(101)));
+      await legacy
+          .into(legacy.syncOperations)
+          .insert(
+            v3.SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              reason: 'manualRefresh',
+              state: 'cancelled',
+              enqueuedAtUtc: DateTime.utc(2026, 7, 25, 12),
+              completedAtUtc: Value(DateTime.utc(2026, 7, 25, 12, 1)),
+            ),
+          );
+      expect(await _pragmaInt(legacy, 'user_version'), 3);
+      expect(
+        await legacy
+            .customSelect(
+              "SELECT name FROM sqlite_schema WHERE type = 'table' "
+              "AND name NOT LIKE 'sqlite_%'",
+            )
+            .get(),
+        hasLength(12),
+      );
+      await legacy.close();
+
+      final database = await storage.openDatabase();
+      addTearDown(database.close);
+
+      expect(await _pragmaInt(database, 'user_version'), 4);
+      expect(
+        (await database.select(database.semesters).getSingle()).semesterId,
+        101,
+      );
+      expect(
+        (await database.select(database.syncOperations).getSingle()).state,
+        'cancelled',
+      );
+      expect(await database.select(database.syncBackoffStates).get(), isEmpty);
+      expect(
+        await _indexExists(database, 'sync_backoff_states_by_next_attempt'),
+        isTrue,
       );
       expect(await _foreignKeyViolations(database), isEmpty);
     },

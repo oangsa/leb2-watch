@@ -21,6 +21,7 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     SyncOperations,
     AssignmentBaselines,
     SyncOperationChanges,
+    SyncBackoffStates,
     AppSettings,
   ],
 )
@@ -30,14 +31,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) => migrator.createAll(),
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 2 || to != 3) {
+        if (from < 1 || from > 3 || to != 4) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -45,7 +46,10 @@ class AppDatabase extends _$AppDatabase {
         if (from == 1) {
           await _migrateFrom1To2(migrator);
         }
-        await _migrateFrom2To3(migrator);
+        if (from <= 2) {
+          await _migrateFrom2To3(migrator);
+        }
+        await _migrateFrom3To4(migrator);
       },
       beforeOpen: (details) async {
         await customStatement('PRAGMA foreign_keys = ON');
@@ -131,6 +135,15 @@ class AppDatabase extends _$AppDatabase {
       'scheduled_reminders_pending_reconciliation '
       'ON scheduled_reminders (semester_id, identity_key) '
       'WHERE needs_reconciliation = 1',
+    );
+  }
+
+  Future<void> _migrateFrom3To4(Migrator migrator) async {
+    await migrator.createTable(syncBackoffStates);
+    await customStatement(
+      'CREATE INDEX sync_backoff_states_by_next_attempt '
+      'ON sync_backoff_states '
+      '(state, next_automatic_attempt_at_utc, semester_id, user_id)',
     );
   }
 

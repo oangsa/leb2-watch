@@ -146,7 +146,8 @@ joined terminal result; it does not change mapper input or retain an exception.
 6. The caller receives an immutable failure; the mapper performs no side
    effect.
 
-`isRetryEligible` is a fixed classification, not a retry instruction.
+`isRetryEligible` is a fixed classification consumed by the durable
+synchronization backoff policy, not an instruction to dispatch another request.
 Connectivity, timeout, availability, rate-limit, unexpected-server, and
 unexpected-transport failures are eligible. Session expiry, invalid responses,
 cancellation, credential failures, certificate failures, deterministic
@@ -294,9 +295,9 @@ sync/database/network run and the 197-test full suite; both passed.
   while the current backend does not emit every possible open code or status.
 - The required seven failure types intentionally place several deterministic
   cases under fixed `UnknownSyncFailureReason` values.
-- Retry eligibility is classification only; no attempts, counters, delays,
-  backoff policy, or scheduling exist yet. Feature 8.1 persists only the safe
-  terminal classification needed by joined callers.
+- Retry eligibility now drives Feature 8.3 admission state. That feature
+  persists counts and delays but still creates no timer or automatic second
+  request.
 - `persistenceFailed` intentionally represents only a bounded local
   transaction failure; it is not emitted by backend error mapping.
 - Android, iOS, Windows, and macOS builds were not available on this Linux
@@ -306,8 +307,8 @@ sync/database/network run and the 197-test full suite; both passed.
 
 - Synchronization uses mapped transport failures, retains cached data on failed
   requests, and constructs only the documented local persistence reason.
-- The backoff feature should honor `retryAfter` before its own delay sequence
-  and must never retry non-eligible failures.
+- Synchronization backoff honors `retryAfter` as an exact sequence replacement
+  and blocks non-eligible failures from automatic admission.
 - Diagnostics may later expose a bounded category, but must not recover or
   retain discarded raw transport evidence.
 - A changed versioned backend contract should update exact pair tests before
@@ -320,3 +321,4 @@ sync/database/network run and the 197-test full suite; both passed.
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Local Database](local-database.md)
 - [Assignment Synchronization](assignment-synchronization.md)
+- [Synchronization Backoff](synchronization-backoff.md)

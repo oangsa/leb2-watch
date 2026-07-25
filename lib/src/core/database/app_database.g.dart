@@ -6164,6 +6164,647 @@ class SyncOperationChangesCompanion
   }
 }
 
+class $SyncBackoffStatesTable extends SyncBackoffStates
+    with TableInfo<$SyncBackoffStatesTable, SyncBackoffState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncBackoffStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
+    'semester_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _consecutiveFailureCountMeta =
+      const VerificationMeta('consecutiveFailureCount');
+  @override
+  late final GeneratedColumn<int> consecutiveFailureCount =
+      GeneratedColumn<int>(
+        'consecutive_failure_count',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int>
+  nextAutomaticAttemptAtUtc =
+      GeneratedColumn<int>(
+        'next_automatic_attempt_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn,
+      );
+  static const VerificationMeta _lastFailureKindMeta = const VerificationMeta(
+    'lastFailureKind',
+  );
+  @override
+  late final GeneratedColumn<String> lastFailureKind = GeneratedColumn<String>(
+    'last_failure_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastFailureDetailMeta = const VerificationMeta(
+    'lastFailureDetail',
+  );
+  @override
+  late final GeneratedColumn<String> lastFailureDetail =
+      GeneratedColumn<String>(
+        'last_failure_detail',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastRetryAfterMillisecondsMeta =
+      const VerificationMeta('lastRetryAfterMilliseconds');
+  @override
+  late final GeneratedColumn<int> lastRetryAfterMilliseconds =
+      GeneratedColumn<int>(
+        'last_retry_after_milliseconds',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> updatedAtUtc =
+      GeneratedColumn<int>(
+        'updated_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($SyncBackoffStatesTable.$converterupdatedAtUtc);
+  @override
+  List<GeneratedColumn> get $columns => [
+    semesterId,
+    userId,
+    consecutiveFailureCount,
+    state,
+    nextAutomaticAttemptAtUtc,
+    lastFailureKind,
+    lastFailureDetail,
+    lastRetryAfterMilliseconds,
+    updatedAtUtc,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_backoff_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncBackoffState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_semesterIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('consecutive_failure_count')) {
+      context.handle(
+        _consecutiveFailureCountMeta,
+        consecutiveFailureCount.isAcceptableOrUnknown(
+          data['consecutive_failure_count']!,
+          _consecutiveFailureCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_consecutiveFailureCountMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('last_failure_kind')) {
+      context.handle(
+        _lastFailureKindMeta,
+        lastFailureKind.isAcceptableOrUnknown(
+          data['last_failure_kind']!,
+          _lastFailureKindMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastFailureKindMeta);
+    }
+    if (data.containsKey('last_failure_detail')) {
+      context.handle(
+        _lastFailureDetailMeta,
+        lastFailureDetail.isAcceptableOrUnknown(
+          data['last_failure_detail']!,
+          _lastFailureDetailMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_retry_after_milliseconds')) {
+      context.handle(
+        _lastRetryAfterMillisecondsMeta,
+        lastRetryAfterMilliseconds.isAcceptableOrUnknown(
+          data['last_retry_after_milliseconds']!,
+          _lastRetryAfterMillisecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {semesterId, userId};
+  @override
+  SyncBackoffState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncBackoffState(
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}semester_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}user_id'],
+      )!,
+      consecutiveFailureCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}consecutive_failure_count'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      nextAutomaticAttemptAtUtc: $SyncBackoffStatesTable
+          .$converternextAutomaticAttemptAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}next_automatic_attempt_at_utc'],
+            ),
+          ),
+      lastFailureKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_failure_kind'],
+      )!,
+      lastFailureDetail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_failure_detail'],
+      ),
+      lastRetryAfterMilliseconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_retry_after_milliseconds'],
+      ),
+      updatedAtUtc: $SyncBackoffStatesTable.$converterupdatedAtUtc.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}updated_at_utc'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $SyncBackoffStatesTable createAlias(String alias) {
+    return $SyncBackoffStatesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converternextAutomaticAttemptAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converternextAutomaticAttemptAtUtcn =
+      NullAwareTypeConverter.wrap($converternextAutomaticAttemptAtUtc);
+  static TypeConverter<DateTime, int> $converterupdatedAtUtc =
+      const UtcDateTimeConverter();
+}
+
+class SyncBackoffState extends DataClass
+    implements Insertable<SyncBackoffState> {
+  final int semesterId;
+  final int userId;
+  final int consecutiveFailureCount;
+  final String state;
+  final DateTime? nextAutomaticAttemptAtUtc;
+  final String lastFailureKind;
+  final String? lastFailureDetail;
+  final int? lastRetryAfterMilliseconds;
+  final DateTime updatedAtUtc;
+  const SyncBackoffState({
+    required this.semesterId,
+    required this.userId,
+    required this.consecutiveFailureCount,
+    required this.state,
+    this.nextAutomaticAttemptAtUtc,
+    required this.lastFailureKind,
+    this.lastFailureDetail,
+    this.lastRetryAfterMilliseconds,
+    required this.updatedAtUtc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['semester_id'] = Variable<int>(semesterId);
+    map['user_id'] = Variable<int>(userId);
+    map['consecutive_failure_count'] = Variable<int>(consecutiveFailureCount);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || nextAutomaticAttemptAtUtc != null) {
+      map['next_automatic_attempt_at_utc'] = Variable<int>(
+        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn.toSql(
+          nextAutomaticAttemptAtUtc,
+        ),
+      );
+    }
+    map['last_failure_kind'] = Variable<String>(lastFailureKind);
+    if (!nullToAbsent || lastFailureDetail != null) {
+      map['last_failure_detail'] = Variable<String>(lastFailureDetail);
+    }
+    if (!nullToAbsent || lastRetryAfterMilliseconds != null) {
+      map['last_retry_after_milliseconds'] = Variable<int>(
+        lastRetryAfterMilliseconds,
+      );
+    }
+    {
+      map['updated_at_utc'] = Variable<int>(
+        $SyncBackoffStatesTable.$converterupdatedAtUtc.toSql(updatedAtUtc),
+      );
+    }
+    return map;
+  }
+
+  SyncBackoffStatesCompanion toCompanion(bool nullToAbsent) {
+    return SyncBackoffStatesCompanion(
+      semesterId: Value(semesterId),
+      userId: Value(userId),
+      consecutiveFailureCount: Value(consecutiveFailureCount),
+      state: Value(state),
+      nextAutomaticAttemptAtUtc:
+          nextAutomaticAttemptAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAutomaticAttemptAtUtc),
+      lastFailureKind: Value(lastFailureKind),
+      lastFailureDetail: lastFailureDetail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastFailureDetail),
+      lastRetryAfterMilliseconds:
+          lastRetryAfterMilliseconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRetryAfterMilliseconds),
+      updatedAtUtc: Value(updatedAtUtc),
+    );
+  }
+
+  factory SyncBackoffState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncBackoffState(
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      userId: serializer.fromJson<int>(json['userId']),
+      consecutiveFailureCount: serializer.fromJson<int>(
+        json['consecutiveFailureCount'],
+      ),
+      state: serializer.fromJson<String>(json['state']),
+      nextAutomaticAttemptAtUtc: serializer.fromJson<DateTime?>(
+        json['nextAutomaticAttemptAtUtc'],
+      ),
+      lastFailureKind: serializer.fromJson<String>(json['lastFailureKind']),
+      lastFailureDetail: serializer.fromJson<String?>(
+        json['lastFailureDetail'],
+      ),
+      lastRetryAfterMilliseconds: serializer.fromJson<int?>(
+        json['lastRetryAfterMilliseconds'],
+      ),
+      updatedAtUtc: serializer.fromJson<DateTime>(json['updatedAtUtc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'semesterId': serializer.toJson<int>(semesterId),
+      'userId': serializer.toJson<int>(userId),
+      'consecutiveFailureCount': serializer.toJson<int>(
+        consecutiveFailureCount,
+      ),
+      'state': serializer.toJson<String>(state),
+      'nextAutomaticAttemptAtUtc': serializer.toJson<DateTime?>(
+        nextAutomaticAttemptAtUtc,
+      ),
+      'lastFailureKind': serializer.toJson<String>(lastFailureKind),
+      'lastFailureDetail': serializer.toJson<String?>(lastFailureDetail),
+      'lastRetryAfterMilliseconds': serializer.toJson<int?>(
+        lastRetryAfterMilliseconds,
+      ),
+      'updatedAtUtc': serializer.toJson<DateTime>(updatedAtUtc),
+    };
+  }
+
+  SyncBackoffState copyWith({
+    int? semesterId,
+    int? userId,
+    int? consecutiveFailureCount,
+    String? state,
+    Value<DateTime?> nextAutomaticAttemptAtUtc = const Value.absent(),
+    String? lastFailureKind,
+    Value<String?> lastFailureDetail = const Value.absent(),
+    Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
+    DateTime? updatedAtUtc,
+  }) => SyncBackoffState(
+    semesterId: semesterId ?? this.semesterId,
+    userId: userId ?? this.userId,
+    consecutiveFailureCount:
+        consecutiveFailureCount ?? this.consecutiveFailureCount,
+    state: state ?? this.state,
+    nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc.present
+        ? nextAutomaticAttemptAtUtc.value
+        : this.nextAutomaticAttemptAtUtc,
+    lastFailureKind: lastFailureKind ?? this.lastFailureKind,
+    lastFailureDetail: lastFailureDetail.present
+        ? lastFailureDetail.value
+        : this.lastFailureDetail,
+    lastRetryAfterMilliseconds: lastRetryAfterMilliseconds.present
+        ? lastRetryAfterMilliseconds.value
+        : this.lastRetryAfterMilliseconds,
+    updatedAtUtc: updatedAtUtc ?? this.updatedAtUtc,
+  );
+  SyncBackoffState copyWithCompanion(SyncBackoffStatesCompanion data) {
+    return SyncBackoffState(
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      consecutiveFailureCount: data.consecutiveFailureCount.present
+          ? data.consecutiveFailureCount.value
+          : this.consecutiveFailureCount,
+      state: data.state.present ? data.state.value : this.state,
+      nextAutomaticAttemptAtUtc: data.nextAutomaticAttemptAtUtc.present
+          ? data.nextAutomaticAttemptAtUtc.value
+          : this.nextAutomaticAttemptAtUtc,
+      lastFailureKind: data.lastFailureKind.present
+          ? data.lastFailureKind.value
+          : this.lastFailureKind,
+      lastFailureDetail: data.lastFailureDetail.present
+          ? data.lastFailureDetail.value
+          : this.lastFailureDetail,
+      lastRetryAfterMilliseconds: data.lastRetryAfterMilliseconds.present
+          ? data.lastRetryAfterMilliseconds.value
+          : this.lastRetryAfterMilliseconds,
+      updatedAtUtc: data.updatedAtUtc.present
+          ? data.updatedAtUtc.value
+          : this.updatedAtUtc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncBackoffState(')
+          ..write('semesterId: $semesterId, ')
+          ..write('userId: $userId, ')
+          ..write('consecutiveFailureCount: $consecutiveFailureCount, ')
+          ..write('state: $state, ')
+          ..write('nextAutomaticAttemptAtUtc: $nextAutomaticAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind, ')
+          ..write('lastFailureDetail: $lastFailureDetail, ')
+          ..write('lastRetryAfterMilliseconds: $lastRetryAfterMilliseconds, ')
+          ..write('updatedAtUtc: $updatedAtUtc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    semesterId,
+    userId,
+    consecutiveFailureCount,
+    state,
+    nextAutomaticAttemptAtUtc,
+    lastFailureKind,
+    lastFailureDetail,
+    lastRetryAfterMilliseconds,
+    updatedAtUtc,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncBackoffState &&
+          other.semesterId == this.semesterId &&
+          other.userId == this.userId &&
+          other.consecutiveFailureCount == this.consecutiveFailureCount &&
+          other.state == this.state &&
+          other.nextAutomaticAttemptAtUtc == this.nextAutomaticAttemptAtUtc &&
+          other.lastFailureKind == this.lastFailureKind &&
+          other.lastFailureDetail == this.lastFailureDetail &&
+          other.lastRetryAfterMilliseconds == this.lastRetryAfterMilliseconds &&
+          other.updatedAtUtc == this.updatedAtUtc);
+}
+
+class SyncBackoffStatesCompanion extends UpdateCompanion<SyncBackoffState> {
+  final Value<int> semesterId;
+  final Value<int> userId;
+  final Value<int> consecutiveFailureCount;
+  final Value<String> state;
+  final Value<DateTime?> nextAutomaticAttemptAtUtc;
+  final Value<String> lastFailureKind;
+  final Value<String?> lastFailureDetail;
+  final Value<int?> lastRetryAfterMilliseconds;
+  final Value<DateTime> updatedAtUtc;
+  final Value<int> rowid;
+  const SyncBackoffStatesCompanion({
+    this.semesterId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.consecutiveFailureCount = const Value.absent(),
+    this.state = const Value.absent(),
+    this.nextAutomaticAttemptAtUtc = const Value.absent(),
+    this.lastFailureKind = const Value.absent(),
+    this.lastFailureDetail = const Value.absent(),
+    this.lastRetryAfterMilliseconds = const Value.absent(),
+    this.updatedAtUtc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncBackoffStatesCompanion.insert({
+    required int semesterId,
+    required int userId,
+    required int consecutiveFailureCount,
+    required String state,
+    this.nextAutomaticAttemptAtUtc = const Value.absent(),
+    required String lastFailureKind,
+    this.lastFailureDetail = const Value.absent(),
+    this.lastRetryAfterMilliseconds = const Value.absent(),
+    required DateTime updatedAtUtc,
+    this.rowid = const Value.absent(),
+  }) : semesterId = Value(semesterId),
+       userId = Value(userId),
+       consecutiveFailureCount = Value(consecutiveFailureCount),
+       state = Value(state),
+       lastFailureKind = Value(lastFailureKind),
+       updatedAtUtc = Value(updatedAtUtc);
+  static Insertable<SyncBackoffState> custom({
+    Expression<int>? semesterId,
+    Expression<int>? userId,
+    Expression<int>? consecutiveFailureCount,
+    Expression<String>? state,
+    Expression<int>? nextAutomaticAttemptAtUtc,
+    Expression<String>? lastFailureKind,
+    Expression<String>? lastFailureDetail,
+    Expression<int>? lastRetryAfterMilliseconds,
+    Expression<int>? updatedAtUtc,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (semesterId != null) 'semester_id': semesterId,
+      if (userId != null) 'user_id': userId,
+      if (consecutiveFailureCount != null)
+        'consecutive_failure_count': consecutiveFailureCount,
+      if (state != null) 'state': state,
+      if (nextAutomaticAttemptAtUtc != null)
+        'next_automatic_attempt_at_utc': nextAutomaticAttemptAtUtc,
+      if (lastFailureKind != null) 'last_failure_kind': lastFailureKind,
+      if (lastFailureDetail != null) 'last_failure_detail': lastFailureDetail,
+      if (lastRetryAfterMilliseconds != null)
+        'last_retry_after_milliseconds': lastRetryAfterMilliseconds,
+      if (updatedAtUtc != null) 'updated_at_utc': updatedAtUtc,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncBackoffStatesCompanion copyWith({
+    Value<int>? semesterId,
+    Value<int>? userId,
+    Value<int>? consecutiveFailureCount,
+    Value<String>? state,
+    Value<DateTime?>? nextAutomaticAttemptAtUtc,
+    Value<String>? lastFailureKind,
+    Value<String?>? lastFailureDetail,
+    Value<int?>? lastRetryAfterMilliseconds,
+    Value<DateTime>? updatedAtUtc,
+    Value<int>? rowid,
+  }) {
+    return SyncBackoffStatesCompanion(
+      semesterId: semesterId ?? this.semesterId,
+      userId: userId ?? this.userId,
+      consecutiveFailureCount:
+          consecutiveFailureCount ?? this.consecutiveFailureCount,
+      state: state ?? this.state,
+      nextAutomaticAttemptAtUtc:
+          nextAutomaticAttemptAtUtc ?? this.nextAutomaticAttemptAtUtc,
+      lastFailureKind: lastFailureKind ?? this.lastFailureKind,
+      lastFailureDetail: lastFailureDetail ?? this.lastFailureDetail,
+      lastRetryAfterMilliseconds:
+          lastRetryAfterMilliseconds ?? this.lastRetryAfterMilliseconds,
+      updatedAtUtc: updatedAtUtc ?? this.updatedAtUtc,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (semesterId.present) {
+      map['semester_id'] = Variable<int>(semesterId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
+    }
+    if (consecutiveFailureCount.present) {
+      map['consecutive_failure_count'] = Variable<int>(
+        consecutiveFailureCount.value,
+      );
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (nextAutomaticAttemptAtUtc.present) {
+      map['next_automatic_attempt_at_utc'] = Variable<int>(
+        $SyncBackoffStatesTable.$converternextAutomaticAttemptAtUtcn.toSql(
+          nextAutomaticAttemptAtUtc.value,
+        ),
+      );
+    }
+    if (lastFailureKind.present) {
+      map['last_failure_kind'] = Variable<String>(lastFailureKind.value);
+    }
+    if (lastFailureDetail.present) {
+      map['last_failure_detail'] = Variable<String>(lastFailureDetail.value);
+    }
+    if (lastRetryAfterMilliseconds.present) {
+      map['last_retry_after_milliseconds'] = Variable<int>(
+        lastRetryAfterMilliseconds.value,
+      );
+    }
+    if (updatedAtUtc.present) {
+      map['updated_at_utc'] = Variable<int>(
+        $SyncBackoffStatesTable.$converterupdatedAtUtc.toSql(
+          updatedAtUtc.value,
+        ),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncBackoffStatesCompanion(')
+          ..write('semesterId: $semesterId, ')
+          ..write('userId: $userId, ')
+          ..write('consecutiveFailureCount: $consecutiveFailureCount, ')
+          ..write('state: $state, ')
+          ..write('nextAutomaticAttemptAtUtc: $nextAutomaticAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind, ')
+          ..write('lastFailureDetail: $lastFailureDetail, ')
+          ..write('lastRetryAfterMilliseconds: $lastRetryAfterMilliseconds, ')
+          ..write('updatedAtUtc: $updatedAtUtc, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AppSettingsTable extends AppSettings
     with TableInfo<$AppSettingsTable, AppSetting> {
   @override
@@ -6403,6 +7044,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AssignmentBaselinesTable(this);
   late final $SyncOperationChangesTable syncOperationChanges =
       $SyncOperationChangesTable(this);
+  late final $SyncBackoffStatesTable syncBackoffStates =
+      $SyncBackoffStatesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -6460,6 +7103,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'sync_operations_operation_semester',
     'CREATE UNIQUE INDEX sync_operations_operation_semester ON sync_operations (operation_id, semester_id)',
   );
+  late final Index syncBackoffStatesByNextAttempt = Index(
+    'sync_backoff_states_by_next_attempt',
+    'CREATE INDEX sync_backoff_states_by_next_attempt ON sync_backoff_states (state, next_automatic_attempt_at_utc, semester_id, user_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6476,6 +7123,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOperations,
     assignmentBaselines,
     syncOperationChanges,
+    syncBackoffStates,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -6491,6 +7139,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncOperationsQueue,
     syncOperationsTerminalCleanup,
     syncOperationsOperationSemester,
+    syncBackoffStatesByNextAttempt,
   ];
 }
 
@@ -9548,6 +10197,315 @@ typedef $$SyncOperationChangesTableProcessedTableManager =
       SyncOperationChange,
       PrefetchHooks Function()
     >;
+typedef $$SyncBackoffStatesTableCreateCompanionBuilder =
+    SyncBackoffStatesCompanion Function({
+      required int semesterId,
+      required int userId,
+      required int consecutiveFailureCount,
+      required String state,
+      Value<DateTime?> nextAutomaticAttemptAtUtc,
+      required String lastFailureKind,
+      Value<String?> lastFailureDetail,
+      Value<int?> lastRetryAfterMilliseconds,
+      required DateTime updatedAtUtc,
+      Value<int> rowid,
+    });
+typedef $$SyncBackoffStatesTableUpdateCompanionBuilder =
+    SyncBackoffStatesCompanion Function({
+      Value<int> semesterId,
+      Value<int> userId,
+      Value<int> consecutiveFailureCount,
+      Value<String> state,
+      Value<DateTime?> nextAutomaticAttemptAtUtc,
+      Value<String> lastFailureKind,
+      Value<String?> lastFailureDetail,
+      Value<int?> lastRetryAfterMilliseconds,
+      Value<DateTime> updatedAtUtc,
+      Value<int> rowid,
+    });
+
+class $$SyncBackoffStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+  $$SyncBackoffStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get consecutiveFailureCount => $composableBuilder(
+    column: $table.consecutiveFailureCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get nextAutomaticAttemptAtUtc => $composableBuilder(
+    column: $table.nextAutomaticAttemptAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastFailureDetail => $composableBuilder(
+    column: $table.lastFailureDetail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastRetryAfterMilliseconds => $composableBuilder(
+    column: $table.lastRetryAfterMilliseconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get updatedAtUtc =>
+      $composableBuilder(
+        column: $table.updatedAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+}
+
+class $$SyncBackoffStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+  $$SyncBackoffStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get consecutiveFailureCount => $composableBuilder(
+    column: $table.consecutiveFailureCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nextAutomaticAttemptAtUtc => $composableBuilder(
+    column: $table.nextAutomaticAttemptAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastFailureDetail => $composableBuilder(
+    column: $table.lastFailureDetail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastRetryAfterMilliseconds => $composableBuilder(
+    column: $table.lastRetryAfterMilliseconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtUtc => $composableBuilder(
+    column: $table.updatedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncBackoffStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+  $$SyncBackoffStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get consecutiveFailureCount => $composableBuilder(
+    column: $table.consecutiveFailureCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime?, int>
+  get nextAutomaticAttemptAtUtc => $composableBuilder(
+    column: $table.nextAutomaticAttemptAtUtc,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastFailureDetail => $composableBuilder(
+    column: $table.lastFailureDetail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastRetryAfterMilliseconds => $composableBuilder(
+    column: $table.lastRetryAfterMilliseconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get updatedAtUtc =>
+      $composableBuilder(
+        column: $table.updatedAtUtc,
+        builder: (column) => column,
+      );
+}
+
+class $$SyncBackoffStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncBackoffStatesTable,
+          SyncBackoffState,
+          $$SyncBackoffStatesTableFilterComposer,
+          $$SyncBackoffStatesTableOrderingComposer,
+          $$SyncBackoffStatesTableAnnotationComposer,
+          $$SyncBackoffStatesTableCreateCompanionBuilder,
+          $$SyncBackoffStatesTableUpdateCompanionBuilder,
+          (
+            SyncBackoffState,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncBackoffStatesTable,
+              SyncBackoffState
+            >,
+          ),
+          SyncBackoffState,
+          PrefetchHooks Function()
+        > {
+  $$SyncBackoffStatesTableTableManager(
+    _$AppDatabase db,
+    $SyncBackoffStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncBackoffStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncBackoffStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncBackoffStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> semesterId = const Value.absent(),
+                Value<int> userId = const Value.absent(),
+                Value<int> consecutiveFailureCount = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime?> nextAutomaticAttemptAtUtc =
+                    const Value.absent(),
+                Value<String> lastFailureKind = const Value.absent(),
+                Value<String?> lastFailureDetail = const Value.absent(),
+                Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
+                Value<DateTime> updatedAtUtc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncBackoffStatesCompanion(
+                semesterId: semesterId,
+                userId: userId,
+                consecutiveFailureCount: consecutiveFailureCount,
+                state: state,
+                nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                lastFailureDetail: lastFailureDetail,
+                lastRetryAfterMilliseconds: lastRetryAfterMilliseconds,
+                updatedAtUtc: updatedAtUtc,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int semesterId,
+                required int userId,
+                required int consecutiveFailureCount,
+                required String state,
+                Value<DateTime?> nextAutomaticAttemptAtUtc =
+                    const Value.absent(),
+                required String lastFailureKind,
+                Value<String?> lastFailureDetail = const Value.absent(),
+                Value<int?> lastRetryAfterMilliseconds = const Value.absent(),
+                required DateTime updatedAtUtc,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncBackoffStatesCompanion.insert(
+                semesterId: semesterId,
+                userId: userId,
+                consecutiveFailureCount: consecutiveFailureCount,
+                state: state,
+                nextAutomaticAttemptAtUtc: nextAutomaticAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                lastFailureDetail: lastFailureDetail,
+                lastRetryAfterMilliseconds: lastRetryAfterMilliseconds,
+                updatedAtUtc: updatedAtUtc,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncBackoffStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncBackoffStatesTable,
+      SyncBackoffState,
+      $$SyncBackoffStatesTableFilterComposer,
+      $$SyncBackoffStatesTableOrderingComposer,
+      $$SyncBackoffStatesTableAnnotationComposer,
+      $$SyncBackoffStatesTableCreateCompanionBuilder,
+      $$SyncBackoffStatesTableUpdateCompanionBuilder,
+      (
+        SyncBackoffState,
+        BaseReferences<
+          _$AppDatabase,
+          $SyncBackoffStatesTable,
+          SyncBackoffState
+        >,
+      ),
+      SyncBackoffState,
+      PrefetchHooks Function()
+    >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> singletonId,
@@ -9715,6 +10673,8 @@ class $AppDatabaseManager {
       $$AssignmentBaselinesTableTableManager(_db, _db.assignmentBaselines);
   $$SyncOperationChangesTableTableManager get syncOperationChanges =>
       $$SyncOperationChangesTableTableManager(_db, _db.syncOperationChanges);
+  $$SyncBackoffStatesTableTableManager get syncBackoffStates =>
+      $$SyncBackoffStatesTableTableManager(_db, _db.syncBackoffStates);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
 }

@@ -11,6 +11,7 @@ import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 
 import 'assignment_snapshot_reconciler.dart';
 import 'assignment_sync_service.dart';
+import 'sync_backoff_store.dart';
 import 'sync_operation_store.dart';
 
 const syncPollInterval = Duration(milliseconds: 250);
@@ -62,12 +63,12 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
   final Duration _heartbeatInterval;
   final AssignmentSnapshotReconciler _reconciler;
   final SyncOperationStore _store;
-  final Map<_SyncKey, Future<SyncResult>> _localOperations = {};
+  final Map<_LocalSyncLane, Future<SyncOutcome>> _localOperations = {};
   final Map<int, BackendRequestCancellation> _ownedCancellations = {};
   final Random _secureRandom = Random.secure();
 
   @override
-  Future<SyncResult> synchronize({
+  Future<SyncOutcome> synchronize({
     required int semesterId,
     required int userId,
     required SyncReason reason,
@@ -75,25 +76,39 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
     _validateIdentifier(semesterId, 'semesterId');
     _validateIdentifier(userId, 'userId');
 
-    final key = _SyncKey(semesterId, userId);
-    final existing = _localOperations[key];
+    final lane = _LocalSyncLane(
+      semesterId,
+      userId,
+      isUserDrivenSyncReason(reason),
+    );
+    final existing = _localOperations[lane];
     if (existing != null) {
       return existing;
     }
 
-    late final Future<SyncResult> operation;
+    late final Future<SyncOutcome> operation;
     operation =
         _coordinate(
           semesterId: semesterId,
           userId: userId,
           reason: reason,
         ).whenComplete(() {
-          if (identical(_localOperations[key], operation)) {
-            _localOperations.remove(key);
+          if (identical(_localOperations[lane], operation)) {
+            _localOperations.remove(lane);
           }
         });
-    _localOperations[key] = operation;
+    _localOperations[lane] = operation;
     return operation;
+  }
+
+  @override
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  }) {
+    _validateIdentifier(semesterId, 'semesterId');
+    _validateIdentifier(userId, 'userId');
+    return _store.readBackoffStatus(semesterId: semesterId, userId: userId);
   }
 
   @override
@@ -113,16 +128,24 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
     }
   }
 
-  Future<SyncResult> _coordinate({
+  Future<SyncOutcome> _coordinate({
     required int semesterId,
     required int userId,
     required SyncReason reason,
   }) async {
-    final operationId = await _store.enqueueOrJoin(
+    final admission = await _store.admitOrJoin(
       semesterId: semesterId,
       userId: userId,
       reason: reason,
     );
+    if (admission case SyncDeferredAdmission(:final status)) {
+      return SyncDeferred(
+        semesterId: semesterId,
+        reason: reason,
+        status: status,
+      );
+    }
+    final operationId = (admission as SyncOperationAdmission).operationId;
 
     while (true) {
       final operation = await _store.read(operationId);
@@ -304,20 +327,22 @@ final class LocalAssignmentSyncService implements AssignmentSyncService {
   }
 }
 
-final class _SyncKey {
-  const _SyncKey(this.semesterId, this.userId);
+final class _LocalSyncLane {
+  const _LocalSyncLane(this.semesterId, this.userId, this.userDriven);
 
   final int semesterId;
   final int userId;
+  final bool userDriven;
 
   @override
   bool operator ==(Object other) =>
-      other is _SyncKey &&
+      other is _LocalSyncLane &&
       other.semesterId == semesterId &&
-      other.userId == userId;
+      other.userId == userId &&
+      other.userDriven == userDriven;
 
   @override
-  int get hashCode => Object.hash(semesterId, userId);
+  int get hashCode => Object.hash(semesterId, userId, userDriven);
 }
 
 final class _HeartbeatTick {
