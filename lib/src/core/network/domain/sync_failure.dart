@@ -89,6 +89,7 @@ enum UnknownSyncFailureReason {
   unexpectedServerFailure,
   unexpectedHttpResponse,
   unexpectedTransportFailure,
+  persistenceFailed,
 }
 
 final class UnknownSyncFailure extends SyncFailure {
@@ -107,7 +108,8 @@ final class UnknownSyncFailure extends SyncFailure {
     UnknownSyncFailureReason.authenticationRequired ||
     UnknownSyncFailureReason.invalidRequest ||
     UnknownSyncFailureReason.resourceNotFound ||
-    UnknownSyncFailureReason.unexpectedHttpResponse => false,
+    UnknownSyncFailureReason.unexpectedHttpResponse ||
+    UnknownSyncFailureReason.persistenceFailed => false,
   };
 
   @override

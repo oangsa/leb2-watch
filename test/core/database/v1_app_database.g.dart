@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'app_database.dart';
+part of 'v1_app_database.dart';
 
 // ignore_for_file: type=lint
 class $SemestersTable extends Semesters
@@ -4543,1012 +4543,6 @@ class SyncRunsCompanion extends UpdateCompanion<SyncRun> {
   }
 }
 
-class $SyncOperationsTable extends SyncOperations
-    with TableInfo<$SyncOperationsTable, SyncOperation> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $SyncOperationsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _operationIdMeta = const VerificationMeta(
-    'operationId',
-  );
-  @override
-  late final GeneratedColumn<int> operationId = GeneratedColumn<int>(
-    'operation_id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
-    'semesterId',
-  );
-  @override
-  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
-    'semester_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
-  @override
-  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
-    'user_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
-  @override
-  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
-    'reason',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _stateMeta = const VerificationMeta('state');
-  @override
-  late final GeneratedColumn<String> state = GeneratedColumn<String>(
-    'state',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime, int> enqueuedAtUtc =
-      GeneratedColumn<int>(
-        'enqueued_at_utc',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: true,
-      ).withConverter<DateTime>($SyncOperationsTable.$converterenqueuedAtUtc);
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int> startedAtUtc =
-      GeneratedColumn<int>(
-        'started_at_utc',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      ).withConverter<DateTime?>($SyncOperationsTable.$converterstartedAtUtcn);
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int> completedAtUtc =
-      GeneratedColumn<int>(
-        'completed_at_utc',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      ).withConverter<DateTime?>(
-        $SyncOperationsTable.$convertercompletedAtUtcn,
-      );
-  static const VerificationMeta _ownerTokenMeta = const VerificationMeta(
-    'ownerToken',
-  );
-  @override
-  late final GeneratedColumn<String> ownerToken = GeneratedColumn<String>(
-    'owner_token',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<DateTime?, int>
-  leaseExpiresAtUtc = GeneratedColumn<int>(
-    'lease_expires_at_utc',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  ).withConverter<DateTime?>($SyncOperationsTable.$converterleaseExpiresAtUtcn);
-  static const VerificationMeta _cancellationRequestedMeta =
-      const VerificationMeta('cancellationRequested');
-  @override
-  late final GeneratedColumn<bool> cancellationRequested =
-      GeneratedColumn<bool>(
-        'cancellation_requested',
-        aliasedName,
-        false,
-        type: DriftSqlType.bool,
-        requiredDuringInsert: false,
-        defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("cancellation_requested" IN (0, 1))',
-        ),
-        defaultValue: const Constant(false),
-      );
-  static const VerificationMeta _resultFailureKindMeta = const VerificationMeta(
-    'resultFailureKind',
-  );
-  @override
-  late final GeneratedColumn<String> resultFailureKind =
-      GeneratedColumn<String>(
-        'result_failure_kind',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _resultFailureDetailMeta =
-      const VerificationMeta('resultFailureDetail');
-  @override
-  late final GeneratedColumn<String> resultFailureDetail =
-      GeneratedColumn<String>(
-        'result_failure_detail',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _resultRetryAfterMillisecondsMeta =
-      const VerificationMeta('resultRetryAfterMilliseconds');
-  @override
-  late final GeneratedColumn<int> resultRetryAfterMilliseconds =
-      GeneratedColumn<int>(
-        'result_retry_after_milliseconds',
-        aliasedName,
-        true,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _resultCourseCountMeta = const VerificationMeta(
-    'resultCourseCount',
-  );
-  @override
-  late final GeneratedColumn<int> resultCourseCount = GeneratedColumn<int>(
-    'result_course_count',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _resultActivityCountMeta =
-      const VerificationMeta('resultActivityCount');
-  @override
-  late final GeneratedColumn<int> resultActivityCount = GeneratedColumn<int>(
-    'result_activity_count',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    operationId,
-    semesterId,
-    userId,
-    reason,
-    state,
-    enqueuedAtUtc,
-    startedAtUtc,
-    completedAtUtc,
-    ownerToken,
-    leaseExpiresAtUtc,
-    cancellationRequested,
-    resultFailureKind,
-    resultFailureDetail,
-    resultRetryAfterMilliseconds,
-    resultCourseCount,
-    resultActivityCount,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'sync_operations';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<SyncOperation> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('operation_id')) {
-      context.handle(
-        _operationIdMeta,
-        operationId.isAcceptableOrUnknown(
-          data['operation_id']!,
-          _operationIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('semester_id')) {
-      context.handle(
-        _semesterIdMeta,
-        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_semesterIdMeta);
-    }
-    if (data.containsKey('user_id')) {
-      context.handle(
-        _userIdMeta,
-        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_userIdMeta);
-    }
-    if (data.containsKey('reason')) {
-      context.handle(
-        _reasonMeta,
-        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_reasonMeta);
-    }
-    if (data.containsKey('state')) {
-      context.handle(
-        _stateMeta,
-        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_stateMeta);
-    }
-    if (data.containsKey('owner_token')) {
-      context.handle(
-        _ownerTokenMeta,
-        ownerToken.isAcceptableOrUnknown(data['owner_token']!, _ownerTokenMeta),
-      );
-    }
-    if (data.containsKey('cancellation_requested')) {
-      context.handle(
-        _cancellationRequestedMeta,
-        cancellationRequested.isAcceptableOrUnknown(
-          data['cancellation_requested']!,
-          _cancellationRequestedMeta,
-        ),
-      );
-    }
-    if (data.containsKey('result_failure_kind')) {
-      context.handle(
-        _resultFailureKindMeta,
-        resultFailureKind.isAcceptableOrUnknown(
-          data['result_failure_kind']!,
-          _resultFailureKindMeta,
-        ),
-      );
-    }
-    if (data.containsKey('result_failure_detail')) {
-      context.handle(
-        _resultFailureDetailMeta,
-        resultFailureDetail.isAcceptableOrUnknown(
-          data['result_failure_detail']!,
-          _resultFailureDetailMeta,
-        ),
-      );
-    }
-    if (data.containsKey('result_retry_after_milliseconds')) {
-      context.handle(
-        _resultRetryAfterMillisecondsMeta,
-        resultRetryAfterMilliseconds.isAcceptableOrUnknown(
-          data['result_retry_after_milliseconds']!,
-          _resultRetryAfterMillisecondsMeta,
-        ),
-      );
-    }
-    if (data.containsKey('result_course_count')) {
-      context.handle(
-        _resultCourseCountMeta,
-        resultCourseCount.isAcceptableOrUnknown(
-          data['result_course_count']!,
-          _resultCourseCountMeta,
-        ),
-      );
-    }
-    if (data.containsKey('result_activity_count')) {
-      context.handle(
-        _resultActivityCountMeta,
-        resultActivityCount.isAcceptableOrUnknown(
-          data['result_activity_count']!,
-          _resultActivityCountMeta,
-        ),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {operationId};
-  @override
-  SyncOperation map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncOperation(
-      operationId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}operation_id'],
-      )!,
-      semesterId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}semester_id'],
-      )!,
-      userId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}user_id'],
-      )!,
-      reason: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}reason'],
-      )!,
-      state: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}state'],
-      )!,
-      enqueuedAtUtc: $SyncOperationsTable.$converterenqueuedAtUtc.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}enqueued_at_utc'],
-        )!,
-      ),
-      startedAtUtc: $SyncOperationsTable.$converterstartedAtUtcn.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}started_at_utc'],
-        ),
-      ),
-      completedAtUtc: $SyncOperationsTable.$convertercompletedAtUtcn.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.int,
-          data['${effectivePrefix}completed_at_utc'],
-        ),
-      ),
-      ownerToken: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}owner_token'],
-      ),
-      leaseExpiresAtUtc: $SyncOperationsTable.$converterleaseExpiresAtUtcn
-          .fromSql(
-            attachedDatabase.typeMapping.read(
-              DriftSqlType.int,
-              data['${effectivePrefix}lease_expires_at_utc'],
-            ),
-          ),
-      cancellationRequested: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}cancellation_requested'],
-      )!,
-      resultFailureKind: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}result_failure_kind'],
-      ),
-      resultFailureDetail: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}result_failure_detail'],
-      ),
-      resultRetryAfterMilliseconds: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}result_retry_after_milliseconds'],
-      ),
-      resultCourseCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}result_course_count'],
-      ),
-      resultActivityCount: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}result_activity_count'],
-      ),
-    );
-  }
-
-  @override
-  $SyncOperationsTable createAlias(String alias) {
-    return $SyncOperationsTable(attachedDatabase, alias);
-  }
-
-  static TypeConverter<DateTime, int> $converterenqueuedAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime, int> $converterstartedAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $converterstartedAtUtcn =
-      NullAwareTypeConverter.wrap($converterstartedAtUtc);
-  static TypeConverter<DateTime, int> $convertercompletedAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $convertercompletedAtUtcn =
-      NullAwareTypeConverter.wrap($convertercompletedAtUtc);
-  static TypeConverter<DateTime, int> $converterleaseExpiresAtUtc =
-      const UtcDateTimeConverter();
-  static TypeConverter<DateTime?, int?> $converterleaseExpiresAtUtcn =
-      NullAwareTypeConverter.wrap($converterleaseExpiresAtUtc);
-}
-
-class SyncOperation extends DataClass implements Insertable<SyncOperation> {
-  final int operationId;
-  final int semesterId;
-  final int userId;
-  final String reason;
-  final String state;
-  final DateTime enqueuedAtUtc;
-  final DateTime? startedAtUtc;
-  final DateTime? completedAtUtc;
-  final String? ownerToken;
-  final DateTime? leaseExpiresAtUtc;
-  final bool cancellationRequested;
-  final String? resultFailureKind;
-  final String? resultFailureDetail;
-  final int? resultRetryAfterMilliseconds;
-  final int? resultCourseCount;
-  final int? resultActivityCount;
-  const SyncOperation({
-    required this.operationId,
-    required this.semesterId,
-    required this.userId,
-    required this.reason,
-    required this.state,
-    required this.enqueuedAtUtc,
-    this.startedAtUtc,
-    this.completedAtUtc,
-    this.ownerToken,
-    this.leaseExpiresAtUtc,
-    required this.cancellationRequested,
-    this.resultFailureKind,
-    this.resultFailureDetail,
-    this.resultRetryAfterMilliseconds,
-    this.resultCourseCount,
-    this.resultActivityCount,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['operation_id'] = Variable<int>(operationId);
-    map['semester_id'] = Variable<int>(semesterId);
-    map['user_id'] = Variable<int>(userId);
-    map['reason'] = Variable<String>(reason);
-    map['state'] = Variable<String>(state);
-    {
-      map['enqueued_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterenqueuedAtUtc.toSql(enqueuedAtUtc),
-      );
-    }
-    if (!nullToAbsent || startedAtUtc != null) {
-      map['started_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterstartedAtUtcn.toSql(startedAtUtc),
-      );
-    }
-    if (!nullToAbsent || completedAtUtc != null) {
-      map['completed_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$convertercompletedAtUtcn.toSql(completedAtUtc),
-      );
-    }
-    if (!nullToAbsent || ownerToken != null) {
-      map['owner_token'] = Variable<String>(ownerToken);
-    }
-    if (!nullToAbsent || leaseExpiresAtUtc != null) {
-      map['lease_expires_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterleaseExpiresAtUtcn.toSql(
-          leaseExpiresAtUtc,
-        ),
-      );
-    }
-    map['cancellation_requested'] = Variable<bool>(cancellationRequested);
-    if (!nullToAbsent || resultFailureKind != null) {
-      map['result_failure_kind'] = Variable<String>(resultFailureKind);
-    }
-    if (!nullToAbsent || resultFailureDetail != null) {
-      map['result_failure_detail'] = Variable<String>(resultFailureDetail);
-    }
-    if (!nullToAbsent || resultRetryAfterMilliseconds != null) {
-      map['result_retry_after_milliseconds'] = Variable<int>(
-        resultRetryAfterMilliseconds,
-      );
-    }
-    if (!nullToAbsent || resultCourseCount != null) {
-      map['result_course_count'] = Variable<int>(resultCourseCount);
-    }
-    if (!nullToAbsent || resultActivityCount != null) {
-      map['result_activity_count'] = Variable<int>(resultActivityCount);
-    }
-    return map;
-  }
-
-  SyncOperationsCompanion toCompanion(bool nullToAbsent) {
-    return SyncOperationsCompanion(
-      operationId: Value(operationId),
-      semesterId: Value(semesterId),
-      userId: Value(userId),
-      reason: Value(reason),
-      state: Value(state),
-      enqueuedAtUtc: Value(enqueuedAtUtc),
-      startedAtUtc: startedAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(startedAtUtc),
-      completedAtUtc: completedAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(completedAtUtc),
-      ownerToken: ownerToken == null && nullToAbsent
-          ? const Value.absent()
-          : Value(ownerToken),
-      leaseExpiresAtUtc: leaseExpiresAtUtc == null && nullToAbsent
-          ? const Value.absent()
-          : Value(leaseExpiresAtUtc),
-      cancellationRequested: Value(cancellationRequested),
-      resultFailureKind: resultFailureKind == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resultFailureKind),
-      resultFailureDetail: resultFailureDetail == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resultFailureDetail),
-      resultRetryAfterMilliseconds:
-          resultRetryAfterMilliseconds == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resultRetryAfterMilliseconds),
-      resultCourseCount: resultCourseCount == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resultCourseCount),
-      resultActivityCount: resultActivityCount == null && nullToAbsent
-          ? const Value.absent()
-          : Value(resultActivityCount),
-    );
-  }
-
-  factory SyncOperation.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncOperation(
-      operationId: serializer.fromJson<int>(json['operationId']),
-      semesterId: serializer.fromJson<int>(json['semesterId']),
-      userId: serializer.fromJson<int>(json['userId']),
-      reason: serializer.fromJson<String>(json['reason']),
-      state: serializer.fromJson<String>(json['state']),
-      enqueuedAtUtc: serializer.fromJson<DateTime>(json['enqueuedAtUtc']),
-      startedAtUtc: serializer.fromJson<DateTime?>(json['startedAtUtc']),
-      completedAtUtc: serializer.fromJson<DateTime?>(json['completedAtUtc']),
-      ownerToken: serializer.fromJson<String?>(json['ownerToken']),
-      leaseExpiresAtUtc: serializer.fromJson<DateTime?>(
-        json['leaseExpiresAtUtc'],
-      ),
-      cancellationRequested: serializer.fromJson<bool>(
-        json['cancellationRequested'],
-      ),
-      resultFailureKind: serializer.fromJson<String?>(
-        json['resultFailureKind'],
-      ),
-      resultFailureDetail: serializer.fromJson<String?>(
-        json['resultFailureDetail'],
-      ),
-      resultRetryAfterMilliseconds: serializer.fromJson<int?>(
-        json['resultRetryAfterMilliseconds'],
-      ),
-      resultCourseCount: serializer.fromJson<int?>(json['resultCourseCount']),
-      resultActivityCount: serializer.fromJson<int?>(
-        json['resultActivityCount'],
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'operationId': serializer.toJson<int>(operationId),
-      'semesterId': serializer.toJson<int>(semesterId),
-      'userId': serializer.toJson<int>(userId),
-      'reason': serializer.toJson<String>(reason),
-      'state': serializer.toJson<String>(state),
-      'enqueuedAtUtc': serializer.toJson<DateTime>(enqueuedAtUtc),
-      'startedAtUtc': serializer.toJson<DateTime?>(startedAtUtc),
-      'completedAtUtc': serializer.toJson<DateTime?>(completedAtUtc),
-      'ownerToken': serializer.toJson<String?>(ownerToken),
-      'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
-      'cancellationRequested': serializer.toJson<bool>(cancellationRequested),
-      'resultFailureKind': serializer.toJson<String?>(resultFailureKind),
-      'resultFailureDetail': serializer.toJson<String?>(resultFailureDetail),
-      'resultRetryAfterMilliseconds': serializer.toJson<int?>(
-        resultRetryAfterMilliseconds,
-      ),
-      'resultCourseCount': serializer.toJson<int?>(resultCourseCount),
-      'resultActivityCount': serializer.toJson<int?>(resultActivityCount),
-    };
-  }
-
-  SyncOperation copyWith({
-    int? operationId,
-    int? semesterId,
-    int? userId,
-    String? reason,
-    String? state,
-    DateTime? enqueuedAtUtc,
-    Value<DateTime?> startedAtUtc = const Value.absent(),
-    Value<DateTime?> completedAtUtc = const Value.absent(),
-    Value<String?> ownerToken = const Value.absent(),
-    Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
-    bool? cancellationRequested,
-    Value<String?> resultFailureKind = const Value.absent(),
-    Value<String?> resultFailureDetail = const Value.absent(),
-    Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
-    Value<int?> resultCourseCount = const Value.absent(),
-    Value<int?> resultActivityCount = const Value.absent(),
-  }) => SyncOperation(
-    operationId: operationId ?? this.operationId,
-    semesterId: semesterId ?? this.semesterId,
-    userId: userId ?? this.userId,
-    reason: reason ?? this.reason,
-    state: state ?? this.state,
-    enqueuedAtUtc: enqueuedAtUtc ?? this.enqueuedAtUtc,
-    startedAtUtc: startedAtUtc.present ? startedAtUtc.value : this.startedAtUtc,
-    completedAtUtc: completedAtUtc.present
-        ? completedAtUtc.value
-        : this.completedAtUtc,
-    ownerToken: ownerToken.present ? ownerToken.value : this.ownerToken,
-    leaseExpiresAtUtc: leaseExpiresAtUtc.present
-        ? leaseExpiresAtUtc.value
-        : this.leaseExpiresAtUtc,
-    cancellationRequested: cancellationRequested ?? this.cancellationRequested,
-    resultFailureKind: resultFailureKind.present
-        ? resultFailureKind.value
-        : this.resultFailureKind,
-    resultFailureDetail: resultFailureDetail.present
-        ? resultFailureDetail.value
-        : this.resultFailureDetail,
-    resultRetryAfterMilliseconds: resultRetryAfterMilliseconds.present
-        ? resultRetryAfterMilliseconds.value
-        : this.resultRetryAfterMilliseconds,
-    resultCourseCount: resultCourseCount.present
-        ? resultCourseCount.value
-        : this.resultCourseCount,
-    resultActivityCount: resultActivityCount.present
-        ? resultActivityCount.value
-        : this.resultActivityCount,
-  );
-  SyncOperation copyWithCompanion(SyncOperationsCompanion data) {
-    return SyncOperation(
-      operationId: data.operationId.present
-          ? data.operationId.value
-          : this.operationId,
-      semesterId: data.semesterId.present
-          ? data.semesterId.value
-          : this.semesterId,
-      userId: data.userId.present ? data.userId.value : this.userId,
-      reason: data.reason.present ? data.reason.value : this.reason,
-      state: data.state.present ? data.state.value : this.state,
-      enqueuedAtUtc: data.enqueuedAtUtc.present
-          ? data.enqueuedAtUtc.value
-          : this.enqueuedAtUtc,
-      startedAtUtc: data.startedAtUtc.present
-          ? data.startedAtUtc.value
-          : this.startedAtUtc,
-      completedAtUtc: data.completedAtUtc.present
-          ? data.completedAtUtc.value
-          : this.completedAtUtc,
-      ownerToken: data.ownerToken.present
-          ? data.ownerToken.value
-          : this.ownerToken,
-      leaseExpiresAtUtc: data.leaseExpiresAtUtc.present
-          ? data.leaseExpiresAtUtc.value
-          : this.leaseExpiresAtUtc,
-      cancellationRequested: data.cancellationRequested.present
-          ? data.cancellationRequested.value
-          : this.cancellationRequested,
-      resultFailureKind: data.resultFailureKind.present
-          ? data.resultFailureKind.value
-          : this.resultFailureKind,
-      resultFailureDetail: data.resultFailureDetail.present
-          ? data.resultFailureDetail.value
-          : this.resultFailureDetail,
-      resultRetryAfterMilliseconds: data.resultRetryAfterMilliseconds.present
-          ? data.resultRetryAfterMilliseconds.value
-          : this.resultRetryAfterMilliseconds,
-      resultCourseCount: data.resultCourseCount.present
-          ? data.resultCourseCount.value
-          : this.resultCourseCount,
-      resultActivityCount: data.resultActivityCount.present
-          ? data.resultActivityCount.value
-          : this.resultActivityCount,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperation(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('userId: $userId, ')
-          ..write('reason: $reason, ')
-          ..write('state: $state, ')
-          ..write('enqueuedAtUtc: $enqueuedAtUtc, ')
-          ..write('startedAtUtc: $startedAtUtc, ')
-          ..write('completedAtUtc: $completedAtUtc, ')
-          ..write('ownerToken: $ownerToken, ')
-          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('cancellationRequested: $cancellationRequested, ')
-          ..write('resultFailureKind: $resultFailureKind, ')
-          ..write('resultFailureDetail: $resultFailureDetail, ')
-          ..write(
-            'resultRetryAfterMilliseconds: $resultRetryAfterMilliseconds, ',
-          )
-          ..write('resultCourseCount: $resultCourseCount, ')
-          ..write('resultActivityCount: $resultActivityCount')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    operationId,
-    semesterId,
-    userId,
-    reason,
-    state,
-    enqueuedAtUtc,
-    startedAtUtc,
-    completedAtUtc,
-    ownerToken,
-    leaseExpiresAtUtc,
-    cancellationRequested,
-    resultFailureKind,
-    resultFailureDetail,
-    resultRetryAfterMilliseconds,
-    resultCourseCount,
-    resultActivityCount,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is SyncOperation &&
-          other.operationId == this.operationId &&
-          other.semesterId == this.semesterId &&
-          other.userId == this.userId &&
-          other.reason == this.reason &&
-          other.state == this.state &&
-          other.enqueuedAtUtc == this.enqueuedAtUtc &&
-          other.startedAtUtc == this.startedAtUtc &&
-          other.completedAtUtc == this.completedAtUtc &&
-          other.ownerToken == this.ownerToken &&
-          other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
-          other.cancellationRequested == this.cancellationRequested &&
-          other.resultFailureKind == this.resultFailureKind &&
-          other.resultFailureDetail == this.resultFailureDetail &&
-          other.resultRetryAfterMilliseconds ==
-              this.resultRetryAfterMilliseconds &&
-          other.resultCourseCount == this.resultCourseCount &&
-          other.resultActivityCount == this.resultActivityCount);
-}
-
-class SyncOperationsCompanion extends UpdateCompanion<SyncOperation> {
-  final Value<int> operationId;
-  final Value<int> semesterId;
-  final Value<int> userId;
-  final Value<String> reason;
-  final Value<String> state;
-  final Value<DateTime> enqueuedAtUtc;
-  final Value<DateTime?> startedAtUtc;
-  final Value<DateTime?> completedAtUtc;
-  final Value<String?> ownerToken;
-  final Value<DateTime?> leaseExpiresAtUtc;
-  final Value<bool> cancellationRequested;
-  final Value<String?> resultFailureKind;
-  final Value<String?> resultFailureDetail;
-  final Value<int?> resultRetryAfterMilliseconds;
-  final Value<int?> resultCourseCount;
-  final Value<int?> resultActivityCount;
-  const SyncOperationsCompanion({
-    this.operationId = const Value.absent(),
-    this.semesterId = const Value.absent(),
-    this.userId = const Value.absent(),
-    this.reason = const Value.absent(),
-    this.state = const Value.absent(),
-    this.enqueuedAtUtc = const Value.absent(),
-    this.startedAtUtc = const Value.absent(),
-    this.completedAtUtc = const Value.absent(),
-    this.ownerToken = const Value.absent(),
-    this.leaseExpiresAtUtc = const Value.absent(),
-    this.cancellationRequested = const Value.absent(),
-    this.resultFailureKind = const Value.absent(),
-    this.resultFailureDetail = const Value.absent(),
-    this.resultRetryAfterMilliseconds = const Value.absent(),
-    this.resultCourseCount = const Value.absent(),
-    this.resultActivityCount = const Value.absent(),
-  });
-  SyncOperationsCompanion.insert({
-    this.operationId = const Value.absent(),
-    required int semesterId,
-    required int userId,
-    required String reason,
-    required String state,
-    required DateTime enqueuedAtUtc,
-    this.startedAtUtc = const Value.absent(),
-    this.completedAtUtc = const Value.absent(),
-    this.ownerToken = const Value.absent(),
-    this.leaseExpiresAtUtc = const Value.absent(),
-    this.cancellationRequested = const Value.absent(),
-    this.resultFailureKind = const Value.absent(),
-    this.resultFailureDetail = const Value.absent(),
-    this.resultRetryAfterMilliseconds = const Value.absent(),
-    this.resultCourseCount = const Value.absent(),
-    this.resultActivityCount = const Value.absent(),
-  }) : semesterId = Value(semesterId),
-       userId = Value(userId),
-       reason = Value(reason),
-       state = Value(state),
-       enqueuedAtUtc = Value(enqueuedAtUtc);
-  static Insertable<SyncOperation> custom({
-    Expression<int>? operationId,
-    Expression<int>? semesterId,
-    Expression<int>? userId,
-    Expression<String>? reason,
-    Expression<String>? state,
-    Expression<int>? enqueuedAtUtc,
-    Expression<int>? startedAtUtc,
-    Expression<int>? completedAtUtc,
-    Expression<String>? ownerToken,
-    Expression<int>? leaseExpiresAtUtc,
-    Expression<bool>? cancellationRequested,
-    Expression<String>? resultFailureKind,
-    Expression<String>? resultFailureDetail,
-    Expression<int>? resultRetryAfterMilliseconds,
-    Expression<int>? resultCourseCount,
-    Expression<int>? resultActivityCount,
-  }) {
-    return RawValuesInsertable({
-      if (operationId != null) 'operation_id': operationId,
-      if (semesterId != null) 'semester_id': semesterId,
-      if (userId != null) 'user_id': userId,
-      if (reason != null) 'reason': reason,
-      if (state != null) 'state': state,
-      if (enqueuedAtUtc != null) 'enqueued_at_utc': enqueuedAtUtc,
-      if (startedAtUtc != null) 'started_at_utc': startedAtUtc,
-      if (completedAtUtc != null) 'completed_at_utc': completedAtUtc,
-      if (ownerToken != null) 'owner_token': ownerToken,
-      if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
-      if (cancellationRequested != null)
-        'cancellation_requested': cancellationRequested,
-      if (resultFailureKind != null) 'result_failure_kind': resultFailureKind,
-      if (resultFailureDetail != null)
-        'result_failure_detail': resultFailureDetail,
-      if (resultRetryAfterMilliseconds != null)
-        'result_retry_after_milliseconds': resultRetryAfterMilliseconds,
-      if (resultCourseCount != null) 'result_course_count': resultCourseCount,
-      if (resultActivityCount != null)
-        'result_activity_count': resultActivityCount,
-    });
-  }
-
-  SyncOperationsCompanion copyWith({
-    Value<int>? operationId,
-    Value<int>? semesterId,
-    Value<int>? userId,
-    Value<String>? reason,
-    Value<String>? state,
-    Value<DateTime>? enqueuedAtUtc,
-    Value<DateTime?>? startedAtUtc,
-    Value<DateTime?>? completedAtUtc,
-    Value<String?>? ownerToken,
-    Value<DateTime?>? leaseExpiresAtUtc,
-    Value<bool>? cancellationRequested,
-    Value<String?>? resultFailureKind,
-    Value<String?>? resultFailureDetail,
-    Value<int?>? resultRetryAfterMilliseconds,
-    Value<int?>? resultCourseCount,
-    Value<int?>? resultActivityCount,
-  }) {
-    return SyncOperationsCompanion(
-      operationId: operationId ?? this.operationId,
-      semesterId: semesterId ?? this.semesterId,
-      userId: userId ?? this.userId,
-      reason: reason ?? this.reason,
-      state: state ?? this.state,
-      enqueuedAtUtc: enqueuedAtUtc ?? this.enqueuedAtUtc,
-      startedAtUtc: startedAtUtc ?? this.startedAtUtc,
-      completedAtUtc: completedAtUtc ?? this.completedAtUtc,
-      ownerToken: ownerToken ?? this.ownerToken,
-      leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
-      cancellationRequested:
-          cancellationRequested ?? this.cancellationRequested,
-      resultFailureKind: resultFailureKind ?? this.resultFailureKind,
-      resultFailureDetail: resultFailureDetail ?? this.resultFailureDetail,
-      resultRetryAfterMilliseconds:
-          resultRetryAfterMilliseconds ?? this.resultRetryAfterMilliseconds,
-      resultCourseCount: resultCourseCount ?? this.resultCourseCount,
-      resultActivityCount: resultActivityCount ?? this.resultActivityCount,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (operationId.present) {
-      map['operation_id'] = Variable<int>(operationId.value);
-    }
-    if (semesterId.present) {
-      map['semester_id'] = Variable<int>(semesterId.value);
-    }
-    if (userId.present) {
-      map['user_id'] = Variable<int>(userId.value);
-    }
-    if (reason.present) {
-      map['reason'] = Variable<String>(reason.value);
-    }
-    if (state.present) {
-      map['state'] = Variable<String>(state.value);
-    }
-    if (enqueuedAtUtc.present) {
-      map['enqueued_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterenqueuedAtUtc.toSql(enqueuedAtUtc.value),
-      );
-    }
-    if (startedAtUtc.present) {
-      map['started_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterstartedAtUtcn.toSql(startedAtUtc.value),
-      );
-    }
-    if (completedAtUtc.present) {
-      map['completed_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$convertercompletedAtUtcn.toSql(
-          completedAtUtc.value,
-        ),
-      );
-    }
-    if (ownerToken.present) {
-      map['owner_token'] = Variable<String>(ownerToken.value);
-    }
-    if (leaseExpiresAtUtc.present) {
-      map['lease_expires_at_utc'] = Variable<int>(
-        $SyncOperationsTable.$converterleaseExpiresAtUtcn.toSql(
-          leaseExpiresAtUtc.value,
-        ),
-      );
-    }
-    if (cancellationRequested.present) {
-      map['cancellation_requested'] = Variable<bool>(
-        cancellationRequested.value,
-      );
-    }
-    if (resultFailureKind.present) {
-      map['result_failure_kind'] = Variable<String>(resultFailureKind.value);
-    }
-    if (resultFailureDetail.present) {
-      map['result_failure_detail'] = Variable<String>(
-        resultFailureDetail.value,
-      );
-    }
-    if (resultRetryAfterMilliseconds.present) {
-      map['result_retry_after_milliseconds'] = Variable<int>(
-        resultRetryAfterMilliseconds.value,
-      );
-    }
-    if (resultCourseCount.present) {
-      map['result_course_count'] = Variable<int>(resultCourseCount.value);
-    }
-    if (resultActivityCount.present) {
-      map['result_activity_count'] = Variable<int>(resultActivityCount.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('SyncOperationsCompanion(')
-          ..write('operationId: $operationId, ')
-          ..write('semesterId: $semesterId, ')
-          ..write('userId: $userId, ')
-          ..write('reason: $reason, ')
-          ..write('state: $state, ')
-          ..write('enqueuedAtUtc: $enqueuedAtUtc, ')
-          ..write('startedAtUtc: $startedAtUtc, ')
-          ..write('completedAtUtc: $completedAtUtc, ')
-          ..write('ownerToken: $ownerToken, ')
-          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('cancellationRequested: $cancellationRequested, ')
-          ..write('resultFailureKind: $resultFailureKind, ')
-          ..write('resultFailureDetail: $resultFailureDetail, ')
-          ..write(
-            'resultRetryAfterMilliseconds: $resultRetryAfterMilliseconds, ',
-          )
-          ..write('resultCourseCount: $resultCourseCount, ')
-          ..write('resultActivityCount: $resultActivityCount')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $AppSettingsTable extends AppSettings
     with TableInfo<$AppSettingsTable, AppSetting> {
   @override
@@ -5769,9 +4763,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+abstract class _$V1AppDatabase extends GeneratedDatabase {
+  _$V1AppDatabase(QueryExecutor e) : super(e);
+  $V1AppDatabaseManager get managers => $V1AppDatabaseManager(this);
   late final $SemestersTable semesters = $SemestersTable(this);
   late final $CoursesTable courses = $CoursesTable(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
@@ -5783,7 +4777,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotificationHistoryTable notificationHistory =
       $NotificationHistoryTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
-  late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -5817,22 +4810,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'sync_runs_by_started_time',
     'CREATE INDEX sync_runs_by_started_time ON sync_runs (started_at_utc DESC, sync_run_id DESC)',
   );
-  late final Index syncOperationsOneRunning = Index(
-    'sync_operations_one_running',
-    'CREATE UNIQUE INDEX sync_operations_one_running ON sync_operations (state) WHERE state = \'running\'',
-  );
-  late final Index syncOperationsOneActiveKey = Index(
-    'sync_operations_one_active_key',
-    'CREATE UNIQUE INDEX sync_operations_one_active_key ON sync_operations (semester_id, user_id) WHERE state IN (\'queued\', \'running\')',
-  );
-  late final Index syncOperationsQueue = Index(
-    'sync_operations_queue',
-    'CREATE INDEX sync_operations_queue ON sync_operations (state, operation_id)',
-  );
-  late final Index syncOperationsTerminalCleanup = Index(
-    'sync_operations_terminal_cleanup',
-    'CREATE INDEX sync_operations_terminal_cleanup ON sync_operations (completed_at_utc, operation_id)',
-  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5846,7 +4823,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     scheduledReminders,
     notificationHistory,
     syncRuns,
-    syncOperations,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -5856,10 +4832,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     scheduledRemindersByScheduledTime,
     notificationHistoryByAssignmentKind,
     syncRunsByStartedTime,
-    syncOperationsOneRunning,
-    syncOperationsOneActiveKey,
-    syncOperationsQueue,
-    syncOperationsTerminalCleanup,
   ];
 }
 
@@ -5869,7 +4841,7 @@ typedef $$SemestersTableUpdateCompanionBuilder =
     SemestersCompanion Function({Value<int> semesterId});
 
 class $$SemestersTableFilterComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V1AppDatabase, $SemestersTable> {
   $$SemestersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -5884,7 +4856,7 @@ class $$SemestersTableFilterComposer
 }
 
 class $$SemestersTableOrderingComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V1AppDatabase, $SemestersTable> {
   $$SemestersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -5899,7 +4871,7 @@ class $$SemestersTableOrderingComposer
 }
 
 class $$SemestersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V1AppDatabase, $SemestersTable> {
   $$SemestersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -5916,7 +4888,7 @@ class $$SemestersTableAnnotationComposer
 class $$SemestersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $SemestersTable,
           Semester,
           $$SemestersTableFilterComposer,
@@ -5924,11 +4896,14 @@ class $$SemestersTableTableManager
           $$SemestersTableAnnotationComposer,
           $$SemestersTableCreateCompanionBuilder,
           $$SemestersTableUpdateCompanionBuilder,
-          (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+          (
+            Semester,
+            BaseReferences<_$V1AppDatabase, $SemestersTable, Semester>,
+          ),
           Semester,
           PrefetchHooks Function()
         > {
-  $$SemestersTableTableManager(_$AppDatabase db, $SemestersTable table)
+  $$SemestersTableTableManager(_$V1AppDatabase db, $SemestersTable table)
     : super(
         TableManagerState(
           db: db,
@@ -5955,7 +4930,7 @@ class $$SemestersTableTableManager
 
 typedef $$SemestersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $SemestersTable,
       Semester,
       $$SemestersTableFilterComposer,
@@ -5963,7 +4938,7 @@ typedef $$SemestersTableProcessedTableManager =
       $$SemestersTableAnnotationComposer,
       $$SemestersTableCreateCompanionBuilder,
       $$SemestersTableUpdateCompanionBuilder,
-      (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+      (Semester, BaseReferences<_$V1AppDatabase, $SemestersTable, Semester>),
       Semester,
       PrefetchHooks Function()
     >;
@@ -5983,7 +4958,7 @@ typedef $$CoursesTableUpdateCompanionBuilder =
     });
 
 class $$CoursesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V1AppDatabase, $CoursesTable> {
   $$CoursesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6008,7 +4983,7 @@ class $$CoursesTableFilterComposer
 }
 
 class $$CoursesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V1AppDatabase, $CoursesTable> {
   $$CoursesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6033,7 +5008,7 @@ class $$CoursesTableOrderingComposer
 }
 
 class $$CoursesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V1AppDatabase, $CoursesTable> {
   $$CoursesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6056,7 +5031,7 @@ class $$CoursesTableAnnotationComposer
 class $$CoursesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $CoursesTable,
           Course,
           $$CoursesTableFilterComposer,
@@ -6064,11 +5039,11 @@ class $$CoursesTableTableManager
           $$CoursesTableAnnotationComposer,
           $$CoursesTableCreateCompanionBuilder,
           $$CoursesTableUpdateCompanionBuilder,
-          (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+          (Course, BaseReferences<_$V1AppDatabase, $CoursesTable, Course>),
           Course,
           PrefetchHooks Function()
         > {
-  $$CoursesTableTableManager(_$AppDatabase db, $CoursesTable table)
+  $$CoursesTableTableManager(_$V1AppDatabase db, $CoursesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -6113,7 +5088,7 @@ class $$CoursesTableTableManager
 
 typedef $$CoursesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $CoursesTable,
       Course,
       $$CoursesTableFilterComposer,
@@ -6121,7 +5096,7 @@ typedef $$CoursesTableProcessedTableManager =
       $$CoursesTableAnnotationComposer,
       $$CoursesTableCreateCompanionBuilder,
       $$CoursesTableUpdateCompanionBuilder,
-      (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+      (Course, BaseReferences<_$V1AppDatabase, $CoursesTable, Course>),
       Course,
       PrefetchHooks Function()
     >;
@@ -6199,7 +5174,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$ActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6372,7 +5347,7 @@ class $$ActivitiesTableFilterComposer
 }
 
 class $$ActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -6545,7 +5520,7 @@ class $$ActivitiesTableOrderingComposer
 }
 
 class $$ActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -6710,7 +5685,7 @@ class $$ActivitiesTableAnnotationComposer
 class $$ActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $ActivitiesTable,
           Activity,
           $$ActivitiesTableFilterComposer,
@@ -6718,11 +5693,14 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableAnnotationComposer,
           $$ActivitiesTableCreateCompanionBuilder,
           $$ActivitiesTableUpdateCompanionBuilder,
-          (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+          (
+            Activity,
+            BaseReferences<_$V1AppDatabase, $ActivitiesTable, Activity>,
+          ),
           Activity,
           PrefetchHooks Function()
         > {
-  $$ActivitiesTableTableManager(_$AppDatabase db, $ActivitiesTable table)
+  $$ActivitiesTableTableManager(_$V1AppDatabase db, $ActivitiesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -6895,7 +5873,7 @@ class $$ActivitiesTableTableManager
 
 typedef $$ActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $ActivitiesTable,
       Activity,
       $$ActivitiesTableFilterComposer,
@@ -6903,7 +5881,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableAnnotationComposer,
       $$ActivitiesTableCreateCompanionBuilder,
       $$ActivitiesTableUpdateCompanionBuilder,
-      (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+      (Activity, BaseReferences<_$V1AppDatabase, $ActivitiesTable, Activity>),
       Activity,
       PrefetchHooks Function()
     >;
@@ -6929,7 +5907,7 @@ typedef $$SeenActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$SeenActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -6971,7 +5949,7 @@ class $$SeenActivitiesTableFilterComposer
 }
 
 class $$SeenActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7011,7 +5989,7 @@ class $$SeenActivitiesTableOrderingComposer
 }
 
 class $$SeenActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V1AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7053,7 +6031,7 @@ class $$SeenActivitiesTableAnnotationComposer
 class $$SeenActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $SeenActivitiesTable,
           SeenActivity,
           $$SeenActivitiesTableFilterComposer,
@@ -7063,13 +6041,13 @@ class $$SeenActivitiesTableTableManager
           $$SeenActivitiesTableUpdateCompanionBuilder,
           (
             SeenActivity,
-            BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+            BaseReferences<_$V1AppDatabase, $SeenActivitiesTable, SeenActivity>,
           ),
           SeenActivity,
           PrefetchHooks Function()
         > {
   $$SeenActivitiesTableTableManager(
-    _$AppDatabase db,
+    _$V1AppDatabase db,
     $SeenActivitiesTable table,
   ) : super(
         TableManagerState(
@@ -7127,7 +6105,7 @@ class $$SeenActivitiesTableTableManager
 
 typedef $$SeenActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $SeenActivitiesTable,
       SeenActivity,
       $$SeenActivitiesTableFilterComposer,
@@ -7137,7 +6115,7 @@ typedef $$SeenActivitiesTableProcessedTableManager =
       $$SeenActivitiesTableUpdateCompanionBuilder,
       (
         SeenActivity,
-        BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+        BaseReferences<_$V1AppDatabase, $SeenActivitiesTable, SeenActivity>,
       ),
       SeenActivity,
       PrefetchHooks Function()
@@ -7160,7 +6138,7 @@ typedef $$ActivityFingerprintsTableUpdateCompanionBuilder =
     });
 
 class $$ActivityFingerprintsTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V1AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7190,7 +6168,7 @@ class $$ActivityFingerprintsTableFilterComposer
 }
 
 class $$ActivityFingerprintsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V1AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7220,7 +6198,7 @@ class $$ActivityFingerprintsTableOrderingComposer
 }
 
 class $$ActivityFingerprintsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V1AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7252,7 +6230,7 @@ class $$ActivityFingerprintsTableAnnotationComposer
 class $$ActivityFingerprintsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint,
           $$ActivityFingerprintsTableFilterComposer,
@@ -7263,7 +6241,7 @@ class $$ActivityFingerprintsTableTableManager
           (
             ActivityFingerprint,
             BaseReferences<
-              _$AppDatabase,
+              _$V1AppDatabase,
               $ActivityFingerprintsTable,
               ActivityFingerprint
             >,
@@ -7272,7 +6250,7 @@ class $$ActivityFingerprintsTableTableManager
           PrefetchHooks Function()
         > {
   $$ActivityFingerprintsTableTableManager(
-    _$AppDatabase db,
+    _$V1AppDatabase db,
     $ActivityFingerprintsTable table,
   ) : super(
         TableManagerState(
@@ -7328,7 +6306,7 @@ class $$ActivityFingerprintsTableTableManager
 
 typedef $$ActivityFingerprintsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $ActivityFingerprintsTable,
       ActivityFingerprint,
       $$ActivityFingerprintsTableFilterComposer,
@@ -7339,7 +6317,7 @@ typedef $$ActivityFingerprintsTableProcessedTableManager =
       (
         ActivityFingerprint,
         BaseReferences<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint
         >,
@@ -7369,7 +6347,7 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
     });
 
 class $$ScheduledRemindersTableFilterComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V1AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7417,7 +6395,7 @@ class $$ScheduledRemindersTableFilterComposer
 }
 
 class $$ScheduledRemindersTableOrderingComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V1AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7462,7 +6440,7 @@ class $$ScheduledRemindersTableOrderingComposer
 }
 
 class $$ScheduledRemindersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V1AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7512,7 +6490,7 @@ class $$ScheduledRemindersTableAnnotationComposer
 class $$ScheduledRemindersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder,
           $$ScheduledRemindersTableFilterComposer,
@@ -7523,7 +6501,7 @@ class $$ScheduledRemindersTableTableManager
           (
             ScheduledReminder,
             BaseReferences<
-              _$AppDatabase,
+              _$V1AppDatabase,
               $ScheduledRemindersTable,
               ScheduledReminder
             >,
@@ -7532,7 +6510,7 @@ class $$ScheduledRemindersTableTableManager
           PrefetchHooks Function()
         > {
   $$ScheduledRemindersTableTableManager(
-    _$AppDatabase db,
+    _$V1AppDatabase db,
     $ScheduledRemindersTable table,
   ) : super(
         TableManagerState(
@@ -7593,7 +6571,7 @@ class $$ScheduledRemindersTableTableManager
 
 typedef $$ScheduledRemindersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $ScheduledRemindersTable,
       ScheduledReminder,
       $$ScheduledRemindersTableFilterComposer,
@@ -7604,7 +6582,7 @@ typedef $$ScheduledRemindersTableProcessedTableManager =
       (
         ScheduledReminder,
         BaseReferences<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder
         >,
@@ -7634,7 +6612,7 @@ typedef $$NotificationHistoryTableUpdateCompanionBuilder =
     });
 
 class $$NotificationHistoryTableFilterComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V1AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7675,7 +6653,7 @@ class $$NotificationHistoryTableFilterComposer
 }
 
 class $$NotificationHistoryTableOrderingComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V1AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7715,7 +6693,7 @@ class $$NotificationHistoryTableOrderingComposer
 }
 
 class $$NotificationHistoryTableAnnotationComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V1AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -7754,7 +6732,7 @@ class $$NotificationHistoryTableAnnotationComposer
 class $$NotificationHistoryTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData,
           $$NotificationHistoryTableFilterComposer,
@@ -7765,7 +6743,7 @@ class $$NotificationHistoryTableTableManager
           (
             NotificationHistoryData,
             BaseReferences<
-              _$AppDatabase,
+              _$V1AppDatabase,
               $NotificationHistoryTable,
               NotificationHistoryData
             >,
@@ -7774,7 +6752,7 @@ class $$NotificationHistoryTableTableManager
           PrefetchHooks Function()
         > {
   $$NotificationHistoryTableTableManager(
-    _$AppDatabase db,
+    _$V1AppDatabase db,
     $NotificationHistoryTable table,
   ) : super(
         TableManagerState(
@@ -7838,7 +6816,7 @@ class $$NotificationHistoryTableTableManager
 
 typedef $$NotificationHistoryTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $NotificationHistoryTable,
       NotificationHistoryData,
       $$NotificationHistoryTableFilterComposer,
@@ -7849,7 +6827,7 @@ typedef $$NotificationHistoryTableProcessedTableManager =
       (
         NotificationHistoryData,
         BaseReferences<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData
         >,
@@ -7879,7 +6857,7 @@ typedef $$SyncRunsTableUpdateCompanionBuilder =
     });
 
 class $$SyncRunsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V1AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -7926,7 +6904,7 @@ class $$SyncRunsTableFilterComposer
 }
 
 class $$SyncRunsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V1AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -7971,7 +6949,7 @@ class $$SyncRunsTableOrderingComposer
 }
 
 class $$SyncRunsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V1AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8014,7 +6992,7 @@ class $$SyncRunsTableAnnotationComposer
 class $$SyncRunsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $SyncRunsTable,
           SyncRun,
           $$SyncRunsTableFilterComposer,
@@ -8022,11 +7000,11 @@ class $$SyncRunsTableTableManager
           $$SyncRunsTableAnnotationComposer,
           $$SyncRunsTableCreateCompanionBuilder,
           $$SyncRunsTableUpdateCompanionBuilder,
-          (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+          (SyncRun, BaseReferences<_$V1AppDatabase, $SyncRunsTable, SyncRun>),
           SyncRun,
           PrefetchHooks Function()
         > {
-  $$SyncRunsTableTableManager(_$AppDatabase db, $SyncRunsTable table)
+  $$SyncRunsTableTableManager(_$V1AppDatabase db, $SyncRunsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -8083,7 +7061,7 @@ class $$SyncRunsTableTableManager
 
 typedef $$SyncRunsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $SyncRunsTable,
       SyncRun,
       $$SyncRunsTableFilterComposer,
@@ -8091,447 +7069,8 @@ typedef $$SyncRunsTableProcessedTableManager =
       $$SyncRunsTableAnnotationComposer,
       $$SyncRunsTableCreateCompanionBuilder,
       $$SyncRunsTableUpdateCompanionBuilder,
-      (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+      (SyncRun, BaseReferences<_$V1AppDatabase, $SyncRunsTable, SyncRun>),
       SyncRun,
-      PrefetchHooks Function()
-    >;
-typedef $$SyncOperationsTableCreateCompanionBuilder =
-    SyncOperationsCompanion Function({
-      Value<int> operationId,
-      required int semesterId,
-      required int userId,
-      required String reason,
-      required String state,
-      required DateTime enqueuedAtUtc,
-      Value<DateTime?> startedAtUtc,
-      Value<DateTime?> completedAtUtc,
-      Value<String?> ownerToken,
-      Value<DateTime?> leaseExpiresAtUtc,
-      Value<bool> cancellationRequested,
-      Value<String?> resultFailureKind,
-      Value<String?> resultFailureDetail,
-      Value<int?> resultRetryAfterMilliseconds,
-      Value<int?> resultCourseCount,
-      Value<int?> resultActivityCount,
-    });
-typedef $$SyncOperationsTableUpdateCompanionBuilder =
-    SyncOperationsCompanion Function({
-      Value<int> operationId,
-      Value<int> semesterId,
-      Value<int> userId,
-      Value<String> reason,
-      Value<String> state,
-      Value<DateTime> enqueuedAtUtc,
-      Value<DateTime?> startedAtUtc,
-      Value<DateTime?> completedAtUtc,
-      Value<String?> ownerToken,
-      Value<DateTime?> leaseExpiresAtUtc,
-      Value<bool> cancellationRequested,
-      Value<String?> resultFailureKind,
-      Value<String?> resultFailureDetail,
-      Value<int?> resultRetryAfterMilliseconds,
-      Value<int?> resultCourseCount,
-      Value<int?> resultActivityCount,
-    });
-
-class $$SyncOperationsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
-  $$SyncOperationsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get userId => $composableBuilder(
-    column: $table.userId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get reason => $composableBuilder(
-    column: $table.reason,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get enqueuedAtUtc =>
-      $composableBuilder(
-        column: $table.enqueuedAtUtc,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int> get startedAtUtc =>
-      $composableBuilder(
-        column: $table.startedAtUtc,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int> get completedAtUtc =>
-      $composableBuilder(
-        column: $table.completedAtUtc,
-        builder: (column) => ColumnWithTypeConverterFilters(column),
-      );
-
-  ColumnFilters<String> get ownerToken => $composableBuilder(
-    column: $table.ownerToken,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
-  get leaseExpiresAtUtc => $composableBuilder(
-    column: $table.leaseExpiresAtUtc,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  ColumnFilters<bool> get cancellationRequested => $composableBuilder(
-    column: $table.cancellationRequested,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get resultFailureKind => $composableBuilder(
-    column: $table.resultFailureKind,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get resultFailureDetail => $composableBuilder(
-    column: $table.resultFailureDetail,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get resultRetryAfterMilliseconds => $composableBuilder(
-    column: $table.resultRetryAfterMilliseconds,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get resultCourseCount => $composableBuilder(
-    column: $table.resultCourseCount,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get resultActivityCount => $composableBuilder(
-    column: $table.resultActivityCount,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$SyncOperationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
-  $$SyncOperationsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get userId => $composableBuilder(
-    column: $table.userId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get reason => $composableBuilder(
-    column: $table.reason,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get state => $composableBuilder(
-    column: $table.state,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get enqueuedAtUtc => $composableBuilder(
-    column: $table.enqueuedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get startedAtUtc => $composableBuilder(
-    column: $table.startedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get completedAtUtc => $composableBuilder(
-    column: $table.completedAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get ownerToken => $composableBuilder(
-    column: $table.ownerToken,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get leaseExpiresAtUtc => $composableBuilder(
-    column: $table.leaseExpiresAtUtc,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get cancellationRequested => $composableBuilder(
-    column: $table.cancellationRequested,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get resultFailureKind => $composableBuilder(
-    column: $table.resultFailureKind,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get resultFailureDetail => $composableBuilder(
-    column: $table.resultFailureDetail,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get resultRetryAfterMilliseconds => $composableBuilder(
-    column: $table.resultRetryAfterMilliseconds,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get resultCourseCount => $composableBuilder(
-    column: $table.resultCourseCount,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get resultActivityCount => $composableBuilder(
-    column: $table.resultActivityCount,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$SyncOperationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
-  $$SyncOperationsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get operationId => $composableBuilder(
-    column: $table.operationId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get semesterId => $composableBuilder(
-    column: $table.semesterId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get userId =>
-      $composableBuilder(column: $table.userId, builder: (column) => column);
-
-  GeneratedColumn<String> get reason =>
-      $composableBuilder(column: $table.reason, builder: (column) => column);
-
-  GeneratedColumn<String> get state =>
-      $composableBuilder(column: $table.state, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<DateTime, int> get enqueuedAtUtc =>
-      $composableBuilder(
-        column: $table.enqueuedAtUtc,
-        builder: (column) => column,
-      );
-
-  GeneratedColumnWithTypeConverter<DateTime?, int> get startedAtUtc =>
-      $composableBuilder(
-        column: $table.startedAtUtc,
-        builder: (column) => column,
-      );
-
-  GeneratedColumnWithTypeConverter<DateTime?, int> get completedAtUtc =>
-      $composableBuilder(
-        column: $table.completedAtUtc,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<String> get ownerToken => $composableBuilder(
-    column: $table.ownerToken,
-    builder: (column) => column,
-  );
-
-  GeneratedColumnWithTypeConverter<DateTime?, int> get leaseExpiresAtUtc =>
-      $composableBuilder(
-        column: $table.leaseExpiresAtUtc,
-        builder: (column) => column,
-      );
-
-  GeneratedColumn<bool> get cancellationRequested => $composableBuilder(
-    column: $table.cancellationRequested,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get resultFailureKind => $composableBuilder(
-    column: $table.resultFailureKind,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get resultFailureDetail => $composableBuilder(
-    column: $table.resultFailureDetail,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get resultRetryAfterMilliseconds => $composableBuilder(
-    column: $table.resultRetryAfterMilliseconds,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get resultCourseCount => $composableBuilder(
-    column: $table.resultCourseCount,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get resultActivityCount => $composableBuilder(
-    column: $table.resultActivityCount,
-    builder: (column) => column,
-  );
-}
-
-class $$SyncOperationsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $SyncOperationsTable,
-          SyncOperation,
-          $$SyncOperationsTableFilterComposer,
-          $$SyncOperationsTableOrderingComposer,
-          $$SyncOperationsTableAnnotationComposer,
-          $$SyncOperationsTableCreateCompanionBuilder,
-          $$SyncOperationsTableUpdateCompanionBuilder,
-          (
-            SyncOperation,
-            BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
-          ),
-          SyncOperation,
-          PrefetchHooks Function()
-        > {
-  $$SyncOperationsTableTableManager(
-    _$AppDatabase db,
-    $SyncOperationsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$SyncOperationsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$SyncOperationsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$SyncOperationsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> operationId = const Value.absent(),
-                Value<int> semesterId = const Value.absent(),
-                Value<int> userId = const Value.absent(),
-                Value<String> reason = const Value.absent(),
-                Value<String> state = const Value.absent(),
-                Value<DateTime> enqueuedAtUtc = const Value.absent(),
-                Value<DateTime?> startedAtUtc = const Value.absent(),
-                Value<DateTime?> completedAtUtc = const Value.absent(),
-                Value<String?> ownerToken = const Value.absent(),
-                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
-                Value<bool> cancellationRequested = const Value.absent(),
-                Value<String?> resultFailureKind = const Value.absent(),
-                Value<String?> resultFailureDetail = const Value.absent(),
-                Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
-                Value<int?> resultCourseCount = const Value.absent(),
-                Value<int?> resultActivityCount = const Value.absent(),
-              }) => SyncOperationsCompanion(
-                operationId: operationId,
-                semesterId: semesterId,
-                userId: userId,
-                reason: reason,
-                state: state,
-                enqueuedAtUtc: enqueuedAtUtc,
-                startedAtUtc: startedAtUtc,
-                completedAtUtc: completedAtUtc,
-                ownerToken: ownerToken,
-                leaseExpiresAtUtc: leaseExpiresAtUtc,
-                cancellationRequested: cancellationRequested,
-                resultFailureKind: resultFailureKind,
-                resultFailureDetail: resultFailureDetail,
-                resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
-                resultCourseCount: resultCourseCount,
-                resultActivityCount: resultActivityCount,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> operationId = const Value.absent(),
-                required int semesterId,
-                required int userId,
-                required String reason,
-                required String state,
-                required DateTime enqueuedAtUtc,
-                Value<DateTime?> startedAtUtc = const Value.absent(),
-                Value<DateTime?> completedAtUtc = const Value.absent(),
-                Value<String?> ownerToken = const Value.absent(),
-                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
-                Value<bool> cancellationRequested = const Value.absent(),
-                Value<String?> resultFailureKind = const Value.absent(),
-                Value<String?> resultFailureDetail = const Value.absent(),
-                Value<int?> resultRetryAfterMilliseconds = const Value.absent(),
-                Value<int?> resultCourseCount = const Value.absent(),
-                Value<int?> resultActivityCount = const Value.absent(),
-              }) => SyncOperationsCompanion.insert(
-                operationId: operationId,
-                semesterId: semesterId,
-                userId: userId,
-                reason: reason,
-                state: state,
-                enqueuedAtUtc: enqueuedAtUtc,
-                startedAtUtc: startedAtUtc,
-                completedAtUtc: completedAtUtc,
-                ownerToken: ownerToken,
-                leaseExpiresAtUtc: leaseExpiresAtUtc,
-                cancellationRequested: cancellationRequested,
-                resultFailureKind: resultFailureKind,
-                resultFailureDetail: resultFailureDetail,
-                resultRetryAfterMilliseconds: resultRetryAfterMilliseconds,
-                resultCourseCount: resultCourseCount,
-                resultActivityCount: resultActivityCount,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$SyncOperationsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $SyncOperationsTable,
-      SyncOperation,
-      $$SyncOperationsTableFilterComposer,
-      $$SyncOperationsTableOrderingComposer,
-      $$SyncOperationsTableAnnotationComposer,
-      $$SyncOperationsTableCreateCompanionBuilder,
-      $$SyncOperationsTableUpdateCompanionBuilder,
-      (
-        SyncOperation,
-        BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
-      ),
-      SyncOperation,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -8546,7 +7085,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
     });
 
 class $$AppSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V1AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -8566,7 +7105,7 @@ class $$AppSettingsTableFilterComposer
 }
 
 class $$AppSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V1AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -8586,7 +7125,7 @@ class $$AppSettingsTableOrderingComposer
 }
 
 class $$AppSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V1AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -8608,7 +7147,7 @@ class $$AppSettingsTableAnnotationComposer
 class $$AppSettingsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V1AppDatabase,
           $AppSettingsTable,
           AppSetting,
           $$AppSettingsTableFilterComposer,
@@ -8618,12 +7157,12 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableUpdateCompanionBuilder,
           (
             AppSetting,
-            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+            BaseReferences<_$V1AppDatabase, $AppSettingsTable, AppSetting>,
           ),
           AppSetting,
           PrefetchHooks Function()
         > {
-  $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
+  $$AppSettingsTableTableManager(_$V1AppDatabase db, $AppSettingsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -8660,7 +7199,7 @@ class $$AppSettingsTableTableManager
 
 typedef $$AppSettingsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V1AppDatabase,
       $AppSettingsTable,
       AppSetting,
       $$AppSettingsTableFilterComposer,
@@ -8670,15 +7209,15 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableUpdateCompanionBuilder,
       (
         AppSetting,
-        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+        BaseReferences<_$V1AppDatabase, $AppSettingsTable, AppSetting>,
       ),
       AppSetting,
       PrefetchHooks Function()
     >;
 
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
+class $V1AppDatabaseManager {
+  final _$V1AppDatabase _db;
+  $V1AppDatabaseManager(this._db);
   $$SemestersTableTableManager get semesters =>
       $$SemestersTableTableManager(_db, _db.semesters);
   $$CoursesTableTableManager get courses =>
@@ -8695,8 +7234,6 @@ class $AppDatabaseManager {
       $$NotificationHistoryTableTableManager(_db, _db.notificationHistory);
   $$SyncRunsTableTableManager get syncRuns =>
       $$SyncRunsTableTableManager(_db, _db.syncRuns);
-  $$SyncOperationsTableTableManager get syncOperations =>
-      $$SyncOperationsTableTableManager(_db, _db.syncOperations);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
 }

@@ -5,8 +5,9 @@
 Completed for pure mapping of every current backend transport category and
 verified HTTP error pair into the seven application failure types. Formatting,
 analysis, focused and full tests, generated-code stability, and the Linux
-release build are verified. Other native platforms are not build-verified on
-this Linux host.
+release build are verified. Feature 8.1 extends the safe unknown-reason enum
+with a local-only persistence failure without changing transport mappings.
+Other native platforms are not build-verified on this Linux host.
 
 ## Purpose
 
@@ -91,7 +92,8 @@ The public failure types are:
 `missingCredential`, `credentialAccessFailed`, `cancelled`, `badCertificate`,
 `authenticationRequired`, `invalidRequest`, `resourceNotFound`,
 `unexpectedServerFailure`, `unexpectedHttpResponse`, or
-`unexpectedTransportFailure`.
+`unexpectedTransportFailure`. Synchronization may additionally construct
+`persistenceFailed`; the transport mapper never produces that reason.
 
 Verified HTTP mapping:
 
@@ -130,7 +132,8 @@ type plus the only safe metadata owned by each value:
 
 No failure retains a raw response code, status, challenge, envelope message,
 body, trace ID, Dio object, exception, URL, header collection, or stack trace.
-There is no database model or migration in this feature.
+The synchronization operation codec persists only the fixed reason name for a
+joined terminal result; it does not change mapper input or retain an exception.
 
 ## State and control flow
 
@@ -148,6 +151,7 @@ Connectivity, timeout, availability, rate-limit, unexpected-server, and
 unexpected-transport failures are eligible. Session expiry, invalid responses,
 cancellation, credential failures, certificate failures, deterministic
 backend/client responses, and unexpected non-5xx HTTP responses are not.
+Local `persistenceFailed` is also non-retryable automatically.
 
 ## Platform behavior
 
@@ -233,7 +237,8 @@ distinct fixed reasons and are retry eligible.
   evidence;
 - every known response code at a non-contracted status;
 - credential, cancellation, certificate, unknown transport, and unexpected
-  server reasons and eligibility;
+  server reasons and eligibility, plus the local non-retryable
+  `persistenceFailed` reason;
 - missing HTTP evidence, fixed redaction, synthetic sensitive-code
   non-retention, and dependency/logging ownership.
 
@@ -278,6 +283,9 @@ Built build/linux/x64/release/bundle/leb2-watch.
 authored-file review produced no unresolved finding. Generated output remained
 stable.
 
+Feature 8.1 revalidated this module in the 97-test focused
+sync/database/network run and the 197-test full suite; both passed.
+
 ## Known limitations
 
 - The deployed backend revision remains unverified; mapping is based on the
@@ -287,14 +295,17 @@ stable.
 - The required seven failure types intentionally place several deterministic
   cases under fixed `UnknownSyncFailureReason` values.
 - Retry eligibility is classification only; no attempts, counters, delays,
-  persistence, or scheduling exist yet.
+  backoff policy, or scheduling exist yet. Feature 8.1 persists only the safe
+  terminal classification needed by joined callers.
+- `persistenceFailed` intentionally represents only a bounded local
+  transaction failure; it is not emitted by backend error mapping.
 - Android, iOS, Windows, and macOS builds were not available on this Linux
   host.
 
 ## Future considerations
 
-- The synchronization feature should use only the mapped failures and retain
-  cached data on every failed request.
+- Synchronization uses mapped transport failures, retains cached data on failed
+  requests, and constructs only the documented local persistence reason.
 - The backoff feature should honor `retryAfter` before its own delay sequence
   and must never retry non-eligible failures.
 - Diagnostics may later expose a bounded category, but must not recover or
@@ -308,3 +319,4 @@ stable.
 - [Authenticated Backend API Client](backend-api-client.md)
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Local Database](local-database.md)
+- [Assignment Synchronization](assignment-synchronization.md)

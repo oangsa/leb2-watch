@@ -35,6 +35,9 @@ class LocalDatabaseStorage {
         readPool: 0,
         setup: (database) {
           database.execute('PRAGMA journal_mode = WAL');
+          database.execute(
+            'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
+          );
         },
       ),
     );

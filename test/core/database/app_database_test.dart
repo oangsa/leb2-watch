@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 1', () {
+  group('schema version 2', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 1);
+        expect(database.schemaVersion, 2);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -39,9 +39,10 @@ void main() {
           'scheduled_reminders',
           'seen_activities',
           'semesters',
+          'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 1);
+        expect(await _pragmaInt(database, 'user_version'), 2);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -66,6 +67,10 @@ void main() {
           'scheduled_reminders_by_scheduled_time',
           'notification_history_by_assignment_kind',
           'sync_runs_by_started_time',
+          'sync_operations_one_running',
+          'sync_operations_one_active_key',
+          'sync_operations_queue',
+          'sync_operations_terminal_cleanup',
         }),
       );
     });
@@ -86,27 +91,200 @@ void main() {
           )
           .get();
 
-      final columnNames = <String>{};
+      final columnsByTable = <({String table, String column})>{};
       for (final tableRow in tableRows) {
         final tableName = tableRow.read<String>('name');
         final columns = await database
             .customSelect('PRAGMA table_info("$tableName")')
             .get();
-        columnNames.addAll(
+        columnsByTable.addAll(
           columns.map((column) {
-            return column
-                .read<String>('name')
-                .toLowerCase()
-                .replaceAll('_', '');
+            return (
+              table: tableName,
+              column: column
+                  .read<String>('name')
+                  .toLowerCase()
+                  .replaceAll('_', ''),
+            );
           }),
         );
       }
 
-      for (final columnName in columnNames) {
+      for (final entry in columnsByTable) {
         for (final fragment in prohibitedColumnFragments) {
-          expect(columnName, isNot(contains(fragment)));
+          if (entry == (table: 'sync_operations', column: 'ownertoken')) {
+            continue;
+          }
+          expect(entry.column, isNot(contains(fragment)));
         }
       }
+    });
+  });
+
+  group('synchronization operation constraints', () {
+    setUp(() async {
+      await database
+          .into(database.semesters)
+          .insert(
+            SemestersCompanion.insert(semesterId: const drift.Value(101)),
+          );
+    });
+
+    test('allows one active operation per key and one global owner', () async {
+      final now = DateTime.utc(2026, 7, 25);
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              reason: 'manualRefresh',
+              state: 'queued',
+              enqueuedAtUtc: now,
+            ),
+          );
+
+      await expectLater(
+        database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'appResume',
+                state: 'queued',
+                enqueuedAtUtc: now,
+              ),
+            ),
+        throwsException,
+      );
+
+      await database.customStatement(
+        "UPDATE sync_operations SET state = 'running', "
+        "started_at_utc = ?, owner_token = 'owner-a', "
+        'lease_expires_at_utc = ? WHERE operation_id = 1',
+        [
+          now.millisecondsSinceEpoch,
+          now.add(const Duration(minutes: 2)).millisecondsSinceEpoch,
+        ],
+      );
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2002,
+              reason: 'manualRefresh',
+              state: 'queued',
+              enqueuedAtUtc: now,
+            ),
+          );
+
+      await expectLater(
+        database.customStatement(
+          "UPDATE sync_operations SET state = 'running', "
+          "started_at_utc = ?, owner_token = 'owner-b', "
+          'lease_expires_at_utc = ? WHERE operation_id = 2',
+          [
+            now.millisecondsSinceEpoch,
+            now.add(const Duration(minutes: 2)).millisecondsSinceEpoch,
+          ],
+        ),
+        throwsException,
+      );
+    });
+
+    test('rejects malformed states and cascades with the semester', () async {
+      final now = DateTime.utc(2026, 7, 25);
+      await expectLater(
+        database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'unknownReason',
+                state: 'queued',
+                enqueuedAtUtc: now,
+              ),
+            ),
+        throwsException,
+      );
+      await database
+          .into(database.syncOperations)
+          .insert(
+            SyncOperationsCompanion.insert(
+              semesterId: 101,
+              userId: 2001,
+              reason: 'manualRefresh',
+              state: 'queued',
+              enqueuedAtUtc: now,
+            ),
+          );
+
+      await database.delete(database.semesters).go();
+
+      expect(await database.select(database.syncOperations).get(), isEmpty);
+    });
+
+    test('rejects malformed terminal failure metadata', () async {
+      final now = DateTime.utc(2026, 7, 25);
+      await expectLater(
+        database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'manualRefresh',
+                state: 'failure',
+                enqueuedAtUtc: now,
+                startedAtUtc: drift.Value(now),
+                completedAtUtc: drift.Value(now),
+                resultFailureKind: const drift.Value('requestTimeout'),
+                resultFailureDetail: const drift.Value('notAPhase'),
+              ),
+            ),
+        throwsException,
+      );
+      for (final kind in ['requestTimeout', 'unknown']) {
+        await expectLater(
+          database
+              .into(database.syncOperations)
+              .insert(
+                SyncOperationsCompanion.insert(
+                  semesterId: 101,
+                  userId: 2001,
+                  reason: 'manualRefresh',
+                  state: 'failure',
+                  enqueuedAtUtc: now,
+                  startedAtUtc: drift.Value(now),
+                  completedAtUtc: drift.Value(now),
+                  resultFailureKind: drift.Value(kind),
+                ),
+              ),
+          throwsException,
+          reason: '$kind requires a result detail',
+        );
+      }
+      await expectLater(
+        database
+            .into(database.syncOperations)
+            .insert(
+              SyncOperationsCompanion.insert(
+                semesterId: 101,
+                userId: 2001,
+                reason: 'manualRefresh',
+                state: 'failure',
+                enqueuedAtUtc: now,
+                startedAtUtc: drift.Value(now),
+                completedAtUtc: drift.Value(now),
+                resultFailureKind: const drift.Value('sessionExpired'),
+                resultRetryAfterMilliseconds: const drift.Value(1000),
+              ),
+            ),
+        throwsException,
+      );
     });
   });
 

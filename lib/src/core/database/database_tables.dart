@@ -217,6 +217,113 @@ class SyncRuns extends Table {
   ];
 }
 
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX sync_operations_one_running '
+  'ON sync_operations (state) WHERE state = \'running\'',
+)
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX sync_operations_one_active_key '
+  'ON sync_operations (semester_id, user_id) '
+  'WHERE state IN (\'queued\', \'running\')',
+)
+@TableIndex.sql(
+  'CREATE INDEX sync_operations_queue '
+  'ON sync_operations (state, operation_id)',
+)
+@TableIndex.sql(
+  'CREATE INDEX sync_operations_terminal_cleanup '
+  'ON sync_operations (completed_at_utc, operation_id)',
+)
+class SyncOperations extends Table {
+  IntColumn get operationId => integer().autoIncrement()();
+  IntColumn get semesterId => integer()();
+  IntColumn get userId => integer()();
+  TextColumn get reason => text()();
+  TextColumn get state => text()();
+  IntColumn get enqueuedAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get startedAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  IntColumn get completedAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  TextColumn get ownerToken => text().nullable()();
+  IntColumn get leaseExpiresAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  BoolColumn get cancellationRequested =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get resultFailureKind => text().nullable()();
+  TextColumn get resultFailureDetail => text().nullable()();
+  IntColumn get resultRetryAfterMilliseconds => integer().nullable()();
+  IntColumn get resultCourseCount => integer().nullable()();
+  IntColumn get resultActivityCount => integer().nullable()();
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (semester_id > 0)',
+    'CHECK (user_id > 0)',
+    "CHECK (reason IN ('initialSetup', 'appLaunch', 'appResume', "
+        "'manualRefresh', 'backgroundTask', 'desktopTimer', 'trayAction'))",
+    "CHECK (state IN ('queued', 'running', 'success', 'failure', "
+        "'cancelled'))",
+    'CHECK (owner_token IS NULL OR length(trim(owner_token)) > 0)',
+    'CHECK (result_retry_after_milliseconds IS NULL OR '
+        'result_retry_after_milliseconds >= 0)',
+    'CHECK (result_course_count IS NULL OR result_course_count >= 0)',
+    'CHECK (result_activity_count IS NULL OR result_activity_count >= 0)',
+    "CHECK (result_failure_kind IS NULL OR result_failure_kind IN ("
+        "'sessionExpired', 'networkUnavailable', 'requestTimeout', "
+        "'backendUnavailable', 'rateLimited', 'invalidResponse', 'unknown'))",
+    "CHECK ((result_failure_kind IS NULL AND result_failure_detail IS NULL "
+        'AND result_retry_after_milliseconds IS NULL) OR '
+        "(result_failure_kind = 'requestTimeout' AND "
+        'result_failure_detail IS NOT NULL AND '
+        "result_failure_detail IN ('connection', 'send', 'receive', "
+        "'transform', 'server') AND "
+        'result_retry_after_milliseconds IS NULL) OR '
+        "(result_failure_kind = 'unknown' AND "
+        'result_failure_detail IS NOT NULL AND '
+        'result_failure_detail IN ('
+        "'missingCredential', 'credentialAccessFailed', 'cancelled', "
+        "'badCertificate', 'authenticationRequired', 'invalidRequest', "
+        "'resourceNotFound', 'unexpectedServerFailure', "
+        "'unexpectedHttpResponse', 'unexpectedTransportFailure', "
+        "'persistenceFailed') AND "
+        'result_retry_after_milliseconds IS NULL) OR '
+        "(result_failure_kind IN ('sessionExpired', 'networkUnavailable', "
+        "'invalidResponse') AND result_failure_detail IS NULL AND "
+        'result_retry_after_milliseconds IS NULL) OR '
+        "(result_failure_kind IN ('backendUnavailable', 'rateLimited') AND "
+        'result_failure_detail IS NULL))',
+    "CHECK ((state = 'queued' AND owner_token IS NULL AND "
+        'lease_expires_at_utc IS NULL AND completed_at_utc IS NULL AND '
+        'result_failure_kind IS NULL AND result_failure_detail IS NULL AND '
+        'result_retry_after_milliseconds IS NULL AND '
+        'result_course_count IS NULL AND result_activity_count IS NULL) OR '
+        "(state = 'running' AND owner_token IS NOT NULL AND "
+        'started_at_utc IS NOT NULL AND lease_expires_at_utc IS NOT NULL AND '
+        'completed_at_utc IS NULL AND result_failure_kind IS NULL AND '
+        'result_failure_detail IS NULL AND '
+        'result_retry_after_milliseconds IS NULL AND '
+        'result_course_count IS NULL AND result_activity_count IS NULL) OR '
+        "(state = 'success' AND owner_token IS NULL AND "
+        'lease_expires_at_utc IS NULL AND completed_at_utc IS NOT NULL AND '
+        'result_failure_kind IS NULL AND result_failure_detail IS NULL AND '
+        'result_retry_after_milliseconds IS NULL AND '
+        'result_course_count IS NOT NULL AND '
+        'result_activity_count IS NOT NULL) OR '
+        "(state = 'failure' AND owner_token IS NULL AND "
+        'lease_expires_at_utc IS NULL AND completed_at_utc IS NOT NULL AND '
+        'result_failure_kind IS NOT NULL AND result_course_count IS NULL AND '
+        'result_activity_count IS NULL) OR '
+        "(state = 'cancelled' AND owner_token IS NULL AND "
+        'lease_expires_at_utc IS NULL AND completed_at_utc IS NOT NULL AND '
+        'result_failure_kind IS NULL AND result_failure_detail IS NULL AND '
+        'result_retry_after_milliseconds IS NULL AND '
+        'result_course_count IS NULL AND result_activity_count IS NULL))',
+    'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
 class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();

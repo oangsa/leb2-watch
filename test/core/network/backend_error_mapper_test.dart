@@ -332,7 +332,7 @@ void main() {
         UnknownSyncFailureReason.unexpectedTransportFailure,
       };
 
-      expect(UnknownSyncFailureReason.values, hasLength(10));
+      expect(UnknownSyncFailureReason.values, hasLength(11));
       for (final reason in UnknownSyncFailureReason.values) {
         expect(
           UnknownSyncFailure(reason).isRetryEligible,
