@@ -9,6 +9,88 @@ void main() {
   final key = AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001');
 
   test(
+    'rejects normalized date and offset overflow without changing valid forms',
+    () {
+      for (final source in [
+        '2026-02-31T16:00:00Z',
+        '2025-02-29T16:00:00+07:00',
+        '2026-13-01T16:00:00-07:00',
+        '2026-04-31T16:00:00',
+        '2026-01-01T24:00:00Z',
+        '2026-01-01T16:60:00Z',
+        '2026-01-01T16:00:60Z',
+        '2026-01-01T00:00:00+24:00',
+        '2026-01-01T00:00:00-24:00',
+        '2026-01-01T00:00:00+01:60',
+        '2026-01-01T00:00:00-01:60',
+      ]) {
+        expect(
+          AssignmentDetailTimestamp.fromSource(source),
+          isA<InvalidAssignmentDetailTimestamp>(),
+          reason: source,
+        );
+      }
+
+      expect(
+        AssignmentDetailTimestamp.fromSource('2024-02-29T16:30Z'),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'UTC instant',
+          DateTime.utc(2024, 2, 29, 16, 30),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource(
+          '+002024-02-29T16:30:45.123456789+07:00',
+        ),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'UTC instant',
+          DateTime.utc(2024, 2, 29, 9, 30, 45, 123, 456),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource('2026-01-01T00:00-00:00'),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'negative zero offset',
+          DateTime.utc(2026),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource('2026-01-01T23:59:59.1+23:59'),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'largest accepted offset and one-digit fraction',
+          DateTime.utc(2026, 1, 1, 0, 0, 59, 100),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource(
+          '-000001-01-01T00:00:00.123456789Z',
+        ),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'negative extended year and nine-digit fraction',
+          DateTime.utc(-1, 1, 1, 0, 0, 0, 123, 456),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource('+123456-01-01T00:00Z'),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'positive extended year without seconds',
+          DateTime.utc(123456),
+        ),
+      );
+      expect(
+        AssignmentDetailTimestamp.fromSource('2024-02-29T16:30'),
+        isA<UnzonedAssignmentDetailTimestamp>(),
+      );
+    },
+  );
+
+  test(
     'sanitizes current content and classifies source timestamps honestly',
     () async {
       final store = _FakeStore(

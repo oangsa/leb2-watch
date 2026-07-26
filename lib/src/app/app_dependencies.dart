@@ -20,8 +20,11 @@ import '../features/authentication/data/session_identity_store.dart';
 import '../features/courses/application/course_preferences_service.dart';
 import '../features/courses/data/course_preferences_store.dart';
 import '../features/notifications/application/local_notification_service_impl.dart';
+import '../features/notifications/application/new_assignment_notification_coordinator.dart';
+import '../features/notifications/application/notification_aware_assignment_sync_service.dart';
 import '../features/notifications/data/flutter_local_notifications_adapter.dart';
 import '../features/notifications/data/local_notifications_platform.dart';
+import '../features/notifications/data/new_assignment_notification_store.dart';
 import '../features/notifications/domain/local_notification_service.dart';
 import '../features/semesters/application/semester_selection_service.dart';
 import '../features/semesters/data/semester_selection_store.dart';
@@ -119,14 +122,41 @@ final sessionLifecycleProvider = StreamProvider<SessionLifecycleSnapshot>((
   yield* store.watch();
 });
 
+final coreAssignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>(
+  (ref) async {
+    final database = await ref.watch(appDatabaseProvider.future);
+    return LocalAssignmentSyncService(
+      apiClient: ref.watch(backendApiClientProvider),
+      database: database,
+    );
+  },
+);
+
+final newAssignmentNotificationStoreProvider =
+    FutureProvider<NewAssignmentNotificationStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftNewAssignmentNotificationStore(database);
+    });
+
+final newAssignmentNotificationCoordinatorProvider =
+    FutureProvider<NewAssignmentNotificationCoordinator>((ref) async {
+      final store = await ref.watch(
+        newAssignmentNotificationStoreProvider.future,
+      );
+      return NewAssignmentNotificationCoordinator(
+        store,
+        ref.watch(localNotificationServiceProvider),
+      );
+    });
+
 final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
   ref,
 ) async {
-  final database = await ref.watch(appDatabaseProvider.future);
-  return LocalAssignmentSyncService(
-    apiClient: ref.watch(backendApiClientProvider),
-    database: database,
+  final delegate = await ref.watch(coreAssignmentSyncServiceProvider.future);
+  final coordinator = await ref.watch(
+    newAssignmentNotificationCoordinatorProvider.future,
   );
+  return NotificationAwareAssignmentSyncService(delegate, coordinator);
 });
 
 final assignmentDashboardStoreProvider =

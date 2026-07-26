@@ -10,13 +10,17 @@ sealed class AssignmentDetailTimestamp {
       return const MissingAssignmentDetailTimestamp();
     }
     final match = _sourceTimestampPattern.firstMatch(source);
-    if (match == null || DateTime.tryParse(source) == null) {
+    final parsed = DateTime.tryParse(source);
+    if (match == null ||
+        parsed == null ||
+        !_hasExactWallClockComponents(match) ||
+        !_hasValidOffsetComponents(match)) {
       return const InvalidAssignmentDetailTimestamp();
     }
     if (match.namedGroup('zone') == null) {
       return UnzonedAssignmentDetailTimestamp(source);
     }
-    return ZonedAssignmentDetailTimestamp(DateTime.parse(source).toUtc());
+    return ZonedAssignmentDetailTimestamp(parsed.toUtc());
   }
 
   @override
@@ -268,7 +272,40 @@ final class LocalAssignmentDetailService implements AssignmentDetailService {
 }
 
 final _sourceTimestampPattern = RegExp(
-  r'^[+-]?\d{4,6}-\d{2}-\d{2}T\d{2}:\d{2}'
-  r'(?::\d{2}(?:\.\d{1,9})?)?'
+  r'^(?<year>[+-]?\d{4,6})-(?<month>\d{2})-(?<day>\d{2})'
+  r'T(?<hour>\d{2}):(?<minute>\d{2})'
+  r'(?::(?<second>\d{2})(?:\.\d{1,9})?)?'
   r'(?<zone>Z|[+-]\d{2}:\d{2})?$',
 );
+
+bool _hasExactWallClockComponents(RegExpMatch match) {
+  final year = int.parse(match.namedGroup('year')!);
+  final month = int.parse(match.namedGroup('month')!);
+  final day = int.parse(match.namedGroup('day')!);
+  final hour = int.parse(match.namedGroup('hour')!);
+  final minute = int.parse(match.namedGroup('minute')!);
+  final secondSource = match.namedGroup('second');
+  final second = secondSource == null ? 0 : int.parse(secondSource);
+  final DateTime wallClock;
+  try {
+    wallClock = DateTime.utc(year, month, day, hour, minute, second);
+  } on ArgumentError {
+    return false;
+  }
+  return wallClock.year == year &&
+      wallClock.month == month &&
+      wallClock.day == day &&
+      wallClock.hour == hour &&
+      wallClock.minute == minute &&
+      wallClock.second == second;
+}
+
+bool _hasValidOffsetComponents(RegExpMatch match) {
+  final zone = match.namedGroup('zone');
+  if (zone == null || zone == 'Z') {
+    return true;
+  }
+  final offsetHour = int.parse(zone.substring(1, 3));
+  final offsetMinute = int.parse(zone.substring(4, 6));
+  return offsetHour <= 23 && offsetMinute <= 59;
+}

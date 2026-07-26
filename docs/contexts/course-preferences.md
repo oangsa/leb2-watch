@@ -269,15 +269,16 @@ hashes remained unchanged.
   existing cache; they are not partitioned by LEB2 user ID.
 - Disabling background monitoring does not avoid the semester-wide snapshot
   request.
-- Notification and background consumers are not implemented in this feature;
-  they must use `CourseEffectPolicyReader`.
+- Feature 12.2 consumes notification mute in the same transaction as its
+  durable new-assignment decision. Background consumers remain unimplemented.
 - Android, iOS, macOS, and Windows native builds are not verified on this
   Linux host.
 
 ## Future considerations
 
-- Feature 12 notification producers should call `readPolicy` immediately
-  before emitting a local notification.
+- Feature 12.2 transactionally re-reads the course and
+  `notifications_muted`; muted discoveries are consumed without a platform
+  call and do not surface after unmuting.
 - Feature 13 background scheduling should use
   `readBackgroundMonitoredCourses` for post-download effects.
 - A separately designed read-state feature could add a true unread count.
@@ -290,3 +291,4 @@ hashes remained unchanged.
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Assignment Diffing](assignment-diffing.md)
 - [Semester Selection](semester-selection.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)

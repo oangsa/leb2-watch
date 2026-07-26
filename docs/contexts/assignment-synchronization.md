@@ -361,7 +361,10 @@ final broad evidence is recorded in
 
 ## Future considerations
 
-- Notification features should consume only post-commit terminal success.
+- Feature 12.2 now decorates the provider-level service and consumes only
+  post-commit `SyncSuccess`; the core transaction has no notification
+  callback. The decorator passes the terminal operation ID so joined callers
+  share one in-process sweep while distinct later operations serialize.
 - Platform schedulers should open the same local database and reuse this
   service.
 - A backend idempotency key would be required for stronger duplicate-dispatch
@@ -373,6 +376,7 @@ final broad evidence is recorded in
 - [Synchronization Backoff](synchronization-backoff.md)
 - [Local Database](local-database.md)
 - [Authenticated Backend API Client](backend-api-client.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Verified Backend API Contract](backend-api-contract.md)
 - [Session Expiration Recovery](session-expiration.md)

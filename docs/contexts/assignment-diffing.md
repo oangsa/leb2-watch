@@ -288,8 +288,8 @@ recorded in the worker handoff for this feature.
 
 ## Future considerations
 
-- Consume non-baseline seen rows with notification-history deduplication in
-  Feature 12.2.
+- Feature 12.2 now consumes current non-baseline seen rows with durable
+  notification-history deduplication after committed success.
 - Reconcile and clear pending reminder rows in Feature 12.3 after timezone
   semantics are resolved.
 - Define account-change ownership before allowing two users' semester caches to
@@ -303,5 +303,6 @@ recorded in the worker handoff for this feature.
 - [Local Database](local-database.md)
 - [Backend API Contract](backend-api-contract.md)
 - [Backend API Client](backend-api-client.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Course Preferences](course-preferences.md)

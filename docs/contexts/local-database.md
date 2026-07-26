@@ -172,6 +172,12 @@ notification-unmuted and background-monitoring-enabled defaults. The semester
 foreign key cascades intentional semester deletion. There is no current-course
 foreign key, so preferences survive course removal and reappearance.
 
+Feature 12.2 uses schema v7 unchanged. A canonical
+`notification_history.dedupe_key` claims each current post-baseline assignment
+before an app-level show request; kind `new-assignment-muted` records an
+intentional mute decision. Candidate IDs are checked against every history and
+scheduled-reminder ID inside the same short transaction.
+
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
 backend contract does not define authoritative removal and the semester
@@ -211,6 +217,11 @@ changes, history, reminders, and operation rows while clearing the active
 setting. Current activity removal leaves the seen ledger, notification
 history, and reminder row intact so later platform code can cancel by stable
 notification ID.
+
+After committed synchronization, the new-assignment store re-reads one current
+activity, seen row, course, and mute value per transaction. It inserts history
+before returning a showable request. Concurrent connections converge through
+the canonical dedupe primary key and SQLite writer serialization.
 
 The v1-to-v2 step creates only `sync_operations` and its four indices. The
 v2-to-v3 step creates the unique operation/semester parent index before the
@@ -404,3 +415,4 @@ database hashes stayed unchanged, and the Linux release build succeeded.
 - [Session Expiration Recovery](session-expiration.md)
 - [Semester Selection](semester-selection.md)
 - [Course Preferences](course-preferences.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)

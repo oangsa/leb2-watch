@@ -20,6 +20,10 @@ void main() {
   test('produces the versioned deterministic known candidate', () {
     final owner = NotificationOwner.newAssignment(backendAssignment);
 
+    expect(
+      factory.canonicalOwnerKey(owner),
+      'leb2-notification:v1:new:123:backend:456',
+    );
     final first = factory.candidates(owner).first;
     final repeated = factory.candidates(owner).first;
 

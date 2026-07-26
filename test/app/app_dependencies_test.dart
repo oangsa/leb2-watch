@@ -15,6 +15,9 @@ import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
+import 'package:leb2_watch/src/features/assignments/sync/local_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/notifications/application/notification_aware_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
@@ -79,6 +82,21 @@ void main() {
       final syncService = await container.read(
         assignmentSyncServiceProvider.future,
       );
+      final secondSyncService = await container.read(
+        assignmentSyncServiceProvider.future,
+      );
+      final coreSyncService = await container.read(
+        coreAssignmentSyncServiceProvider.future,
+      );
+      final secondCoreSyncService = await container.read(
+        coreAssignmentSyncServiceProvider.future,
+      );
+      final notificationStore = await container.read(
+        newAssignmentNotificationStoreProvider.future,
+      );
+      final secondNotificationStore = await container.read(
+        newAssignmentNotificationStoreProvider.future,
+      );
       final firstDashboardStore = await container.read(
         assignmentDashboardStoreProvider.future,
       );
@@ -124,7 +142,12 @@ void main() {
       expect(secondDatabase, same(database));
       expect(secondService, same(firstService));
       expect(lifecycle, SessionLifecycleSnapshot.initial);
-      expect(syncService, isNotNull);
+      expect(syncService, isA<NotificationAwareAssignmentSyncService>());
+      expect(secondSyncService, same(syncService));
+      expect(coreSyncService, isA<LocalAssignmentSyncService>());
+      expect(secondCoreSyncService, same(coreSyncService));
+      expect(notificationStore, isA<DriftNewAssignmentNotificationStore>());
+      expect(secondNotificationStore, same(notificationStore));
       expect(firstDashboardStore, isA<DriftAssignmentDashboardStore>());
       expect(secondDashboardStore, same(firstDashboardStore));
       expect(firstDashboardService, isA<LocalAssignmentDashboardService>());

@@ -2,7 +2,8 @@
 
 ## Status
 
-Completed for Feature 12.1. The application-owned service, platform adapter,
+Completed for Feature 12.1, with Feature 12.2 now supplying durable
+new-assignment claims. The application-owned service, platform adapter,
 validated assignment targets, navigation coordinator, Android native setup,
 iOS delegate setup, tests, and Linux release build are implemented. Android,
 iOS, macOS, and Windows native builds remain unverified on this Linux host.
@@ -178,9 +179,11 @@ big-endian word, masks it to 31 bits, and skips zero and reserved ID
 including `2147483647`. The factory returns a candidate sequence rather than
 claiming the truncated mapping is collision-free.
 
-Features 12.2 and 12.3 must resolve that sequence against
-`notification_history` and `scheduled_reminders` inside their own persistence
-transaction. This feature neither reads nor writes those rows.
+Feature 12.2 resolves the new-assignment sequence against
+`notification_history` and `scheduled_reminders` inside its persistence
+transaction and uses the canonical owner key as its dedupe key. Feature 12.3
+must apply the same collision rule for deadline reminders. The platform
+service itself neither reads nor writes those rows.
 
 ## State and control flow
 
@@ -384,13 +387,12 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - Linux scheduling and cold-launch notification recovery remain unsupported.
 - Current unpackaged Windows builds cannot reliably schedule-and-cancel
   reminders; MSIX runtime identity is required.
-- No notification ID is durably allocated and no history/reminder row is
-  written in this feature.
+- New-assignment history proves a committed app-level show request or muted
+  decision, not platform display or delivery. Reminder ownership remains
+  unimplemented.
 
 ## Future considerations
 
-- Feature 12.2 should resolve ID candidates against both owner tables and
-  persist new-assignment history before invoking this service.
 - Feature 12.3 should own reminder offset selection, iOS pending limits,
   persistence, reconciliation, rescheduling, and removal.
 - Feature 14.1 should explain permission purpose and platform reliability
@@ -407,6 +409,7 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - [Assignment Detail](assignment-detail.md)
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Assignment Diffing](assignment-diffing.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)
 - [Local Database](local-database.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)

@@ -65,8 +65,9 @@ layer's current-state value.
 newest validated target outside `GoRouter` until the app flow is ready.
 
 `LocalAssignmentDetailService` is the security seam: it sanitizes the
-description, classifies timestamps without assigning a timezone, maps raw
-storage values to presentation-owned states, and bounds exceptions.
+description, classifies timestamps without assigning a timezone, rejects
+date, time, and numeric-offset components that Dart would otherwise normalize,
+maps raw storage values to presentation-owned states, and bounds exceptions.
 
 `AssignmentDetailPage` owns the local stream subscription and preserves its
 last state on a later stream error. `AssignmentDetailRoute` validates path
@@ -234,6 +235,14 @@ state-neutral wording and never claims a missing assignment is saved.
 Network-unavailable evidence describes the retained last attempt and is not
 presented as live connectivity.
 
+Timestamp input must match the supported source grammar and parse as a Dart
+instant or wall clock. Its captured year, month, day, hour, minute, and second
+must also round-trip through `DateTime.utc`; normalized overflow such as
+February 31, a non-leap February 29, hour 24, minute 60, or second 60 becomes
+`InvalidAssignmentDetailTimestamp`. Numeric offsets preserve `Z`, `-00:00`,
+and the supported two-digit grammar only when their hour is `00..23` and minute
+is `00..59`; out-of-range components are invalid instead of being normalized.
+
 ## Tests
 
 - Key tests cover backend/fingerprint formats, positive-int32 bounds, equality,
@@ -248,6 +257,8 @@ presented as live connectivity.
   sync evidence, latest attempt/success ordering, current-to-seen-only commit,
   absent course, missing identity, rollback, and redaction.
 - Service tests cover sanitizer enforcement, timestamp classification,
+  valid leap/extended-year/zoned/unzoned forms, one- and nine-digit fractions,
+  optional seconds, normalized date/time/offset-overflow rejection,
   current/seen-only/missing mapping, evidence mapping, and bounded failures.
 - Page tests cover factual copy, distinct states, neutral missing-state stale
   copy, direct zoned-local and unzoned-wall-clock rendering, later-error
@@ -285,6 +296,11 @@ presented as live connectivity.
 - `git diff --check` — passed.
 - Production secret, prohibited-scope, TODO, FIXME, and placeholder scans —
   no matches in the assignment-detail implementation.
+- Feature 12.2's direct service suite passed 4/4, including timestamp
+  regressions for date/time and numeric-offset overflow, leap dates, `-00:00`,
+  `+23:59`, signed/extended years, optional seconds, one- and nine-digit
+  fractions, and unzoned classification. Final validation is recorded in
+  [New-Assignment Notifications](new-assignment-notifications.md).
 
 ## Known limitations
 
@@ -305,10 +321,12 @@ presented as live connectivity.
 
 ## Future considerations
 
-Features 12.2 and 12.3 can use the established local-notification service
-without changing the detail route identity. A later verified backend contract
-may add typed attachments or external links. Future notification features may
-enrich local evidence without changing the current sanitization boundary.
+Feature 12.2 uses the established validated key as the exact notification
+target and records an app-level show-request claim or muted decision before
+any show call. Feature 12.3 can use the same route identity for reminders. A
+later verified backend contract may add typed attachments or external links.
+Future notification features may enrich local evidence without changing the
+current sanitization boundary.
 
 ## Related contexts
 
@@ -321,3 +339,4 @@ enrich local evidence without changing the current sanitization boundary.
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
 - [Local Notification Service](local-notifications.md)
+- [New-Assignment Notifications](new-assignment-notifications.md)

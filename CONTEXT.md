@@ -56,3 +56,9 @@ A deterministic positive int32 proposed for one Notification owner and probe.
 It is not collision-free until later orchestration resolves it against durable
 owner evidence.
 _Avoid_: Collision-free notification ID, notification allocation
+
+**Local notification claim**:
+A durable assignment-scoped record that the app consumed a muted discovery or
+committed to one app-level show request. It is not evidence of platform I/O,
+OS display, delivery, acknowledgement, or read state.
+_Avoid_: Delivered notification, notification receipt
