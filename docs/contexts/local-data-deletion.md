@@ -168,10 +168,10 @@ No schema version or credential column was added.
 
 Deleting cached assignments removes every `semesters` row in one transaction.
 Foreign keys cascade through courses, course preferences, activities, seen
-identities, fingerprints, reminders, notification history, sync runs,
-operations, operation changes, backoff, and baselines. The active semester is
-cleared by `ON DELETE SET NULL`. Deadline-reconciliation ownership and
-generation are reset.
+identities, fingerprints, reminders, notification history, the retryable
+new-assignment outbox, sync runs, operations, operation changes, backoff, and
+baselines. The active semester is cleared by `ON DELETE SET NULL`.
+Deadline-reconciliation ownership and generation are reset.
 
 Full logical scrub also clears `app_settings` and all global singleton
 preference rows, then reseeds default deadline-reminder, reconciliation,

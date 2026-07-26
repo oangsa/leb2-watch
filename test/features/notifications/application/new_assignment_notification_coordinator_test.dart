@@ -55,9 +55,9 @@ void main() {
       final store = _ClaimStore(
         events: events,
         claims: [
-          NewAssignmentNotificationClaim.show(_request(1001)),
+          _leasedClaim(1001),
           const NewAssignmentNotificationClaim.consumed(),
-          NewAssignmentNotificationClaim.show(_request(1002)),
+          _leasedClaim(1002),
         ],
       );
       final service = _NotificationService(events: events);
@@ -85,10 +85,7 @@ void main() {
 
     test('invalid request does not starve the next candidate', () async {
       final store = _ClaimStore(
-        claims: [
-          NewAssignmentNotificationClaim.show(_request(1001)),
-          NewAssignmentNotificationClaim.show(_request(1002)),
-        ],
+        claims: [_leasedClaim(1001), _leasedClaim(1002)],
       );
       final service = _NotificationService()
         ..showErrors.add(
@@ -104,16 +101,66 @@ void main() {
 
       expect(store.claimCalls, 3);
       expect(service.showCalls, 2);
+      expect(store.suppressedCalls, 1);
     });
+
+    test(
+      'passive permission block releases without prompting or showing',
+      () async {
+        final store = _ClaimStore(claims: [_leasedClaim(1001)]);
+        final service = _NotificationService()
+          ..deliveryPermission = NotificationDeliveryPermissionStatus.blocked;
+
+        await NewAssignmentNotificationCoordinator(
+          store,
+          service,
+        ).processCachedPending(semesterId: 101);
+
+        expect(service.permissionCalls, 0);
+        expect(service.showCalls, 0);
+        expect(store.releasedCalls, 1);
+      },
+    );
+
+    test(
+      'deterministic unsupported is terminal but unavailable is retryable',
+      () async {
+        final unsupportedStore = _ClaimStore(claims: [_leasedClaim(1001)]);
+        final unsupportedService = _NotificationService()
+          ..showErrors.add(
+            const LocalNotificationFailure(
+              LocalNotificationFailureKind.unsupported,
+            ),
+          );
+        await NewAssignmentNotificationCoordinator(
+          unsupportedStore,
+          unsupportedService,
+        ).processCachedPending(semesterId: 101);
+
+        final unavailableStore = _ClaimStore(claims: [_leasedClaim(1002)]);
+        final unavailableService = _NotificationService()
+          ..showErrors.add(
+            const LocalNotificationFailure(
+              LocalNotificationFailureKind.platformUnavailable,
+            ),
+          );
+        await NewAssignmentNotificationCoordinator(
+          unavailableStore,
+          unavailableService,
+        ).processCachedPending(semesterId: 101);
+
+        expect(unsupportedStore.suppressedCalls, 1);
+        expect(unsupportedStore.releasedCalls, 0);
+        expect(unavailableStore.suppressedCalls, 0);
+        expect(unavailableStore.releasedCalls, 1);
+      },
+    );
 
     test(
       'infrastructure show failure leaves later candidates unclaimed',
       () async {
         final store = _ClaimStore(
-          claims: [
-            NewAssignmentNotificationClaim.show(_request(1001)),
-            NewAssignmentNotificationClaim.show(_request(1002)),
-          ],
+          claims: [_leasedClaim(1001), _leasedClaim(1002)],
         );
         final service = _NotificationService()
           ..showErrors.add(
@@ -129,6 +176,91 @@ void main() {
 
         expect(store.claimCalls, 1);
         expect(service.showCalls, 1);
+        expect(store.releasedCalls, 1);
+      },
+    );
+
+    test('heartbeats preserve the lease during a long platform call', () async {
+      final heartbeatReached = Completer<void>();
+      final store = _ClaimStore(claims: [_leasedClaim(1001)])
+        ..heartbeatTarget = 3
+        ..heartbeatReached = heartbeatReached;
+      final gate = Completer<void>();
+      final service = _NotificationService()..showGate = gate;
+      final coordinator = NewAssignmentNotificationCoordinator(
+        store,
+        service,
+        leaseDuration: const Duration(milliseconds: 30),
+        leaseHeartbeatFraction: 1 / 3,
+        platformEffectTimeout: const Duration(milliseconds: 200),
+      );
+
+      final processing = coordinator.processCachedPending(semesterId: 101);
+      await heartbeatReached.future;
+
+      expect(store.heartbeatCalls, 3);
+      gate.complete();
+      await processing;
+      expect(store.deliveredCalls, 1);
+    });
+
+    test(
+      'timeout leaves leased work and fenced late success settles it',
+      () async {
+        final delivered = Completer<void>();
+        final store = _ClaimStore(claims: [_leasedClaim(1001)])
+          ..deliveredReached = delivered;
+        final gate = Completer<void>();
+        final service = _NotificationService()..showGate = gate;
+        final coordinator = NewAssignmentNotificationCoordinator(
+          store,
+          service,
+          leaseDuration: const Duration(milliseconds: 30),
+          leaseHeartbeatFraction: 1 / 3,
+          platformEffectTimeout: const Duration(milliseconds: 20),
+        );
+
+        await coordinator.processCachedPending(semesterId: 101);
+
+        expect(store.deliveredCalls, 0);
+        expect(store.releasedCalls, 0);
+        gate.complete();
+        await delivered.future;
+        expect(store.deliveredCalls, 1);
+      },
+    );
+
+    test(
+      'late failure cannot release a claim reclaimed by another owner',
+      () async {
+        final released = Completer<void>();
+        final store = _ClaimStore(claims: [_leasedClaim(1001)])
+          ..activeOwnerToken = 'test-owner'
+          ..releasedReached = released;
+        final gate = Completer<void>();
+        final service = _NotificationService()
+          ..showGate = gate
+          ..showErrors.add(
+            const LocalNotificationFailure(
+              LocalNotificationFailureKind.platformFailure,
+            ),
+          );
+        final coordinator = NewAssignmentNotificationCoordinator(
+          store,
+          service,
+          leaseDuration: const Duration(milliseconds: 30),
+          leaseHeartbeatFraction: 1 / 3,
+          platformEffectTimeout: const Duration(milliseconds: 20),
+        );
+
+        await coordinator.processCachedPending(semesterId: 101);
+        store.activeOwnerToken = 'replacement-owner';
+        gate.complete();
+        await released.future;
+
+        expect(store.releasedCalls, 1);
+        expect(store.successfulReleaseCalls, 0);
+        expect(store.activeOwnerToken, 'replacement-owner');
       },
     );
 
@@ -434,6 +566,15 @@ NewAssignmentNotification _request(int id) {
   );
 }
 
+NewAssignmentNotificationClaim _leasedClaim(int id) {
+  final request = _request(id);
+  return NewAssignmentNotificationClaim.leased(
+    request: request,
+    dedupeKey: 'leb2-notification:v1:new:101:${request.assignment.identityKey}',
+    ownerToken: 'test-owner',
+  );
+}
+
 final class _ClaimStore implements NewAssignmentNotificationStore {
   _ClaimStore({List<NewAssignmentNotificationClaim>? claims, this.events})
     : claims = List.of(claims ?? const []);
@@ -445,10 +586,23 @@ final class _ClaimStore implements NewAssignmentNotificationStore {
   Object? claimError;
   Completer<void>? claimGate;
   int claimCalls = 0;
+  int deliveredCalls = 0;
+  int suppressedCalls = 0;
+  int releasedCalls = 0;
+  int successfulReleaseCalls = 0;
+  int heartbeatCalls = 0;
+  int heartbeatTarget = 0;
+  Completer<void>? heartbeatReached;
+  Completer<void>? deliveredReached;
+  Completer<void>? releasedReached;
+  String? activeOwnerToken;
 
   @override
   Future<NewAssignmentNotificationClaim?> claimNext({
     required int semesterId,
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
     bool backgroundTriggered = false,
   }) async {
     claimCalls += 1;
@@ -465,6 +619,61 @@ final class _ClaimStore implements NewAssignmentNotificationStore {
     }
     return claims.isEmpty ? null : claims.removeAt(0);
   }
+
+  @override
+  Future<bool> heartbeat({
+    required NewAssignmentNotificationClaim claim,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  }) async {
+    heartbeatCalls += 1;
+    if (heartbeatTarget > 0 &&
+        heartbeatCalls >= heartbeatTarget &&
+        !(heartbeatReached?.isCompleted ?? true)) {
+      heartbeatReached!.complete();
+    }
+    return true;
+  }
+
+  @override
+  Future<bool> markDelivered({
+    required NewAssignmentNotificationClaim claim,
+    required DateTime recordedAtUtc,
+  }) async {
+    deliveredCalls += 1;
+    if (!(deliveredReached?.isCompleted ?? true)) {
+      deliveredReached!.complete();
+    }
+    return true;
+  }
+
+  @override
+  Future<bool> markSuppressed({
+    required NewAssignmentNotificationClaim claim,
+    required NewAssignmentNotificationSuppression suppression,
+    required DateTime recordedAtUtc,
+  }) async {
+    suppressedCalls += 1;
+    return true;
+  }
+
+  @override
+  Future<bool> releasePending({
+    required NewAssignmentNotificationClaim claim,
+    required NewAssignmentNotificationRetryFailure failure,
+  }) async {
+    releasedCalls += 1;
+    final accepted =
+        activeOwnerToken == null || activeOwnerToken == claim.ownerToken;
+    if (accepted) {
+      successfulReleaseCalls += 1;
+      activeOwnerToken = null;
+    }
+    if (!(releasedReached?.isCompleted ?? true)) {
+      releasedReached!.complete();
+    }
+    return accepted;
+  }
 }
 
 final class _NotificationService implements LocalNotificationService {
@@ -476,8 +685,11 @@ final class _NotificationService implements LocalNotificationService {
   final StreamController<LocalNotificationTarget> _responses =
       StreamController.broadcast();
   Object? initializeError;
+  Completer<void>? showGate;
   int permissionCalls = 0;
   int showCalls = 0;
+  NotificationDeliveryPermissionStatus deliveryPermission =
+      NotificationDeliveryPermissionStatus.allowed;
 
   @override
   Stream<LocalNotificationTarget> get responses => _responses.stream;
@@ -492,6 +704,11 @@ final class _NotificationService implements LocalNotificationService {
   }
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    return deliveryPermission;
+  }
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async {
     permissionCalls += 1;
     return NotificationPermissionStatus.denied;
@@ -501,6 +718,10 @@ final class _NotificationService implements LocalNotificationService {
   Future<void> showNewAssignment(NewAssignmentNotification request) async {
     showCalls += 1;
     events?.add('show:${request.assignment.identityKey}');
+    final gate = showGate;
+    if (gate != null) {
+      await gate.future;
+    }
     if (showErrors.isNotEmpty) {
       throw showErrors.removeAt(0);
     }

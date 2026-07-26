@@ -927,6 +927,10 @@ final class _OsNotifications implements LocalNotificationService {
   }
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async {
     return NotificationPermissionStatus.denied;
   }
@@ -993,6 +997,10 @@ final class _AttemptAwareNotificationsPlatform
 
   @override
   void dispose() {}
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
 
   @override
   Future<bool?> requestPermission() async => true;

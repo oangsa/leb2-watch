@@ -830,63 +830,77 @@ void main() {
     }
   });
 
-  test('ID allocation probes history and reminder collisions', () async {
-    final owner = _ownerFor(semesterId: 101, activityId: 1001, offset: 1440);
-    final candidates = const LocalNotificationIdFactory()
-        .candidates(owner)
-        .take(3)
-        .toList();
-    await database
-        .into(database.notificationHistory)
-        .insert(
-          NotificationHistoryCompanion.insert(
-            dedupeKey: 'existing-history-owner',
-            semesterId: 101,
-            identityKey: 'backend:1001',
-            kind: 'new-assignment',
-            notificationId: candidates[0].value,
-            recordedAtUtc: now,
-          ),
-        );
-    await database
-        .into(database.scheduledReminders)
-        .insert(
-          ScheduledRemindersCompanion.insert(
-            notificationId: Value(candidates[1].value),
-            semesterId: 101,
-            identityKey: 'backend:1001',
-            offsetMinutes: 90,
-            deadlineAtUtc: DateTime.utc(2026, 8, 2, 12),
-            scheduledForUtc: DateTime.utc(2026, 8, 2, 10, 30),
-            createdAtUtc: now,
-            needsReconciliation: const Value(false),
-            scheduleState: const Value('cancelled'),
-          ),
-        );
-    final generation = await store.requestGeneration();
-    await store.tryClaim(
-      ownerToken: 'owner-a',
-      nowUtc: now,
-      leaseDuration: const Duration(minutes: 1),
-    );
+  test(
+    'ID allocation probes history, outbox, and reminder collisions',
+    () async {
+      final owner = _ownerFor(semesterId: 101, activityId: 1001, offset: 1440);
+      final candidates = const LocalNotificationIdFactory()
+          .candidates(owner)
+          .take(4)
+          .toList();
+      await database
+          .into(database.notificationHistory)
+          .insert(
+            NotificationHistoryCompanion.insert(
+              dedupeKey: 'existing-history-owner',
+              semesterId: 101,
+              identityKey: 'backend:1001',
+              kind: 'new-assignment',
+              notificationId: candidates[0].value,
+              recordedAtUtc: now,
+            ),
+          );
+      await database
+          .into(database.newAssignmentNotificationOutbox)
+          .insert(
+            NewAssignmentNotificationOutboxCompanion.insert(
+              dedupeKey: 'existing-outbox-owner',
+              semesterId: 101,
+              identityKey: 'backend:1001',
+              notificationId: candidates[1].value,
+              createdAtUtc: now,
+            ),
+          );
+      await database
+          .into(database.scheduledReminders)
+          .insert(
+            ScheduledRemindersCompanion.insert(
+              notificationId: Value(candidates[2].value),
+              semesterId: 101,
+              identityKey: 'backend:1001',
+              offsetMinutes: 90,
+              deadlineAtUtc: DateTime.utc(2026, 8, 2, 12),
+              scheduledForUtc: DateTime.utc(2026, 8, 2, 10, 30),
+              createdAtUtc: now,
+              needsReconciliation: const Value(false),
+              scheduleState: const Value('cancelled'),
+            ),
+          );
+      final generation = await store.requestGeneration();
+      await store.tryClaim(
+        ownerToken: 'owner-a',
+        nowUtc: now,
+        leaseDuration: const Duration(minutes: 1),
+      );
 
-    final plan = await store.plan(
-      ownerToken: 'owner-a',
-      generation: generation,
-      nowUtc: now,
-      policy: DeadlineReminderSchedulingPolicy.android,
-      leaseDuration: const Duration(minutes: 1),
-    );
+      final plan = await store.plan(
+        ownerToken: 'owner-a',
+        generation: generation,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
 
-    expect(
-      plan.schedules
-          .singleWhere((item) => item.request.offsetMinutes == 1440)
-          .request
-          .id
-          .value,
-      candidates[2].value,
-    );
-  });
+      expect(
+        plan.schedules
+            .singleWhere((item) => item.request.offsetMinutes == 1440)
+            .request
+            .id
+            .value,
+        candidates[3].value,
+      );
+    },
+  );
 
   test(
     'poison legacy ownership stays pending without blocking valid work',

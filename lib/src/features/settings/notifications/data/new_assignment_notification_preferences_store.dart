@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../assignments/detail/domain/assignment_detail_key.dart';
+import '../../../notifications/data/local_notification_id_allocator.dart';
 import '../../../notifications/data/new_assignment_notification_store.dart';
 import '../../../notifications/domain/local_notification_id_factory.dart';
 import '../../../notifications/domain/local_notification_models.dart';
@@ -19,10 +20,12 @@ final class DriftNewAssignmentNotificationPreferencesStore
     this._database, {
     this._idFactory = const LocalNotificationIdFactory(),
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now,
+       _idAllocator = DriftLocalNotificationIdAllocator(_database, _idFactory);
 
   final AppDatabase _database;
   final LocalNotificationIdFactory _idFactory;
+  final DriftLocalNotificationIdAllocator _idAllocator;
   final DateTime Function() _clock;
 
   @override
@@ -57,11 +60,38 @@ final class DriftNewAssignmentNotificationPreferencesStore
       if (!enabled) {
         await _writeEnabled(false);
       }
+      await _consumeOutbox();
       await _consumeUnclaimedDiscoveries();
       if (enabled) {
         await _writeEnabled(true);
       }
     });
+  }
+
+  Future<void> _consumeOutbox() async {
+    final rows =
+        await (_database.select(_database.newAssignmentNotificationOutbox)
+              ..orderBy([
+                (row) => OrderingTerm.asc(row.createdAtUtc),
+                (row) => OrderingTerm.asc(row.identityKey),
+              ]))
+            .get();
+    for (final row in rows) {
+      await _database
+          .into(_database.notificationHistory)
+          .insert(
+            NotificationHistoryCompanion.insert(
+              dedupeKey: row.dedupeKey,
+              semesterId: row.semesterId,
+              identityKey: row.identityKey,
+              kind: disabledNewAssignmentNotificationKind,
+              notificationId: row.notificationId,
+              recordedAtUtc: _clock().toUtc(),
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    }
+    await _database.delete(_database.newAssignmentNotificationOutbox).go();
   }
 
   Future<void> _writeEnabled(bool enabled) async {
@@ -94,7 +124,7 @@ WHERE seen_activities.is_baseline = 0
     FROM notification_history
     WHERE notification_history.semester_id = seen_activities.semester_id
       AND notification_history.identity_key = seen_activities.identity_key
-      AND notification_history.kind IN (?, ?, ?)
+      AND notification_history.kind IN (?, ?, ?, ?, ?, ?)
   )
 ORDER BY
   seen_activities.first_seen_at_utc,
@@ -105,6 +135,9 @@ ORDER BY
             Variable.withString(newAssignmentNotificationKind),
             Variable.withString(mutedNewAssignmentNotificationKind),
             Variable.withString(disabledNewAssignmentNotificationKind),
+            Variable.withString(invalidNewAssignmentNotificationKind),
+            Variable.withString(unsupportedNewAssignmentNotificationKind),
+            Variable.withString(obsoleteNewAssignmentNotificationKind),
           ],
           readsFrom: {_database.seenActivities, _database.notificationHistory},
         )
@@ -128,7 +161,7 @@ ORDER BY
       if (existing != null) {
         continue;
       }
-      final id = await _allocateId(owner);
+      final id = await _idAllocator.allocate(owner);
       await _database
           .into(_database.notificationHistory)
           .insert(
@@ -142,28 +175,6 @@ ORDER BY
             ),
           );
     }
-  }
-
-  Future<LocalNotificationId> _allocateId(NotificationOwner owner) async {
-    for (final candidate in _idFactory.candidates(owner)) {
-      final historyOwner =
-          await (_database.select(_database.notificationHistory)
-                ..where((row) => row.notificationId.equals(candidate.value))
-                ..limit(1))
-              .getSingleOrNull();
-      if (historyOwner != null) {
-        continue;
-      }
-      final reminderOwner =
-          await (_database.select(_database.scheduledReminders)
-                ..where((row) => row.notificationId.equals(candidate.value))
-                ..limit(1))
-              .getSingleOrNull();
-      if (reminderOwner == null) {
-        return candidate;
-      }
-    }
-    throw StateError('No local notification identifier is available.');
   }
 
   @override

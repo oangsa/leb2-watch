@@ -7,6 +7,7 @@ import '../domain/deadline_reminder_policy.dart';
 import '../domain/deadline_reminder_preferences.dart' as domain;
 import '../domain/local_notification_id_factory.dart';
 import '../domain/local_notification_models.dart';
+import 'local_notification_id_allocator.dart';
 
 const _reminderStateUnknown = 'unknown';
 const _reminderStateScheduled = 'scheduled';
@@ -760,25 +761,10 @@ ORDER BY activities.semester_id, activities.identity_key
   }
 
   Future<LocalNotificationId> _allocateId(NotificationOwner owner) async {
-    for (final candidate in idFactory.candidates(owner)) {
-      final history =
-          await (_database.select(_database.notificationHistory)
-                ..where((row) => row.notificationId.equals(candidate.value))
-                ..limit(1))
-              .getSingleOrNull();
-      if (history != null) {
-        continue;
-      }
-      final reminder =
-          await (_database.select(_database.scheduledReminders)
-                ..where((row) => row.notificationId.equals(candidate.value))
-                ..limit(1))
-              .getSingleOrNull();
-      if (reminder == null) {
-        return candidate;
-      }
-    }
-    throw StateError('No local notification identifier is available.');
+    return DriftLocalNotificationIdAllocator(
+      _database,
+      idFactory,
+    ).allocate(owner);
   }
 
   Future<int> _advanceRequestedGeneration({bool? backgroundTriggered}) async {

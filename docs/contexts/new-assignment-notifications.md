@@ -2,312 +2,446 @@
 
 ## Status
 
-Completed for post-baseline assignment discovery, durable local claim
-deduplication, per-course mute consumption, and one normal-path app-level show
-request. Background-triggered sweeps also preserve discoveries from courses
-whose background monitoring is disabled for a later foreground sweep.
-Platform I/O, operating-system display, and delivery are not inferred from the
-durable claim.
+Completed for durable, retryable delivery of assignments first observed after
+the semester baseline. The implementation includes a schema-v11 outbox,
+cross-connection leases, passive permission checks, startup and
+permission-grant recovery, stable notification IDs, terminal suppression, and
+foreground/background course policy.
+
+The operating-system API confirms only that a request was accepted. Exact-once
+display or user delivery is not claimed.
 
 ## Purpose
 
-Tell the user about assignments first observed after a semester baseline
-without notifying for historical assignments, repeating the same assignment,
-or presenting assignments from muted courses.
+Notify the user about newly published assignments without alerting for
+historical baseline data, losing retryable work after a process or platform
+failure, or producing duplicate requests from concurrent foreground and
+background synchronization.
 
 ## Scope
 
-- Process durable post-baseline discoveries after a committed successful sync.
-- Claim one current assignment at a time in deterministic order.
-- Resolve notification-ID collisions against history and reminder ownership.
-- Persist distinct normal-attempt and muted-decision history records.
-- Show valid unmuted assignment notifications through the application-owned
-  local notification service.
-- Preserve every core synchronization outcome.
+- Discover current non-baseline assignments after a committed successful sync.
+- Persist a retryable outbox item before platform I/O.
+- Serialize notification delivery globally across independent SQLite
+  connections.
+- Heartbeat and fence an in-flight owner.
+- Use the same stable notification ID for every retry.
+- Record terminal history only after a successful platform submission or an
+  intentional terminal suppression.
+- Retry blocked permission, initialization, platform, and unknown failures.
+- Consume disabled, muted, invalid, unsupported, and obsolete work
+  terminally.
+- Drain cached pending work during application startup and after an explicit
+  permission grant.
+- Reuse the same coordinator from foreground and headless synchronization.
+- Apply global enablement, per-course mute, and per-course background
+  monitoring at the transactional claim boundary.
 
 ## Non-scope
 
-- Deadline reminder scheduling or reconciliation.
-- Permission explanation or request UI, global notification settings, and test
-  actions.
-- Native background workers, timers, tray actions, or autostart.
-- A retryable notification outbox, delivery receipts, or exact-once OS
-  delivery.
-- Schema migrations, push notifications, remote user persistence, analytics,
-  and arbitrary notification routes or content.
+- Exact-once OS display, user acknowledgement, or delivery receipts.
+- Deadline-reminder scheduling and reconciliation.
+- Permission explanation UI itself.
+- Android callback lifecycle policy, automatic reauthentication, or global
+  deletion/quiescence redesign.
+- Push notifications, backend persistence, analytics, or remote crash
+  reporting.
+- Arbitrary notification content or routes.
 
 ## User-visible behavior
 
-The first successful semester snapshot is silent. A valid current assignment
-first observed by a later successful snapshot creates one local notification
-request containing its course, title, optional explicitly zoned deadline, and
-exact local assignment-detail target. An identical snapshot, removal and
-reappearance of the same seen identity, or later unmuting cannot repeat that
-request. A muted discovery is consumed silently.
+The first successful semester snapshot remains silent. An assignment first
+observed by a later successful snapshot becomes durable local work. If
+permission and the platform are ready, LEB2 Watch submits one notification
+containing the course, title, optional verified deadline, and a local
+assignment-detail target.
 
-Cached synchronization remains successful even if notification initialization,
-local claim persistence, or the app-level show request fails.
+Temporary failures leave that work pending. A later successful sync, app
+startup, or explicit permission grant retries it with the same notification
+ID. Existing cached data and the original synchronization result remain
+unaffected by notification-side failures.
+
+Muted or globally disabled discoveries are consumed without a platform call
+and are not replayed when the setting is later enabled. A background-triggered
+sweep leaves a discovery pending when that course has background monitoring
+disabled; a later foreground sweep may deliver it.
 
 ## Architecture
 
-`NotificationAwareAssignmentSyncService` decorates the single core
-`AssignmentSyncService`. After `SyncSuccess`, it invokes
-`NewAssignmentNotificationCoordinator` first and the Feature 12.3
-`DeadlineReminderReconciler` second. Each effect is caught independently, and
-the original outcome is returned unchanged.
+`NotificationAwareAssignmentSyncService` decorates the shared
+`AssignmentSyncService`. After a committed `SyncSuccess`, it runs
+`NewAssignmentNotificationCoordinator` and deadline-reminder reconciliation as
+independent side effects, then returns the original outcome unchanged.
 
-The coordinator coalesces callers that received the same semester/operation
-success, serializes distinct successful operations in process, initializes
-`LocalNotificationService`, repeatedly requests one claim from
-`DriftNewAssignmentNotificationStore`, and shows only unmuted claims. Its
-completed-operation set is bounded to 128 process-local keys. The store
-performs each candidate decision in a short Drift transaction: it re-reads
-current activity, seen evidence, course, and mute; skips malformed legacy
-identities; allocates an ID; inserts history; then returns the committed claim.
+`NewAssignmentNotificationCoordinator` owns delivery policy. It serializes
+process-local sweeps, coalesces the same committed operation, initializes the
+notification service, claims one durable item, passively reads permission,
+submits to the platform with a bounded timeout, heartbeats the lease, and
+settles the claim.
+
+`DriftNewAssignmentNotificationStore` owns discovery, stable ID allocation,
+outbox state, leases, and terminal history. Every claim decision is made under
+a SQLite writer lock obtained through the singleton notification-preference
+row. A partial unique index allows only one `inFlight` outbox row, so separate
+foreground/headless database connections share one dispatcher.
+
+Discovery starts from durable `seen_activities` and left-joins current activity
+and course data. This keeps malformed legacy identities and assignments
+removed before outbox materialization visible long enough to record terminal
+invalid or obsolete history. Their canonical owner and stable ID remain
+deterministic, so later data reappearance cannot replay them.
+
+`DriftLocalNotificationIdAllocator` is the single database-owned collision
+probe shared by new-assignment delivery, global-disable suppression, and
+deadline-reminder planning. It checks notification history, the outbox, and
+scheduled reminders for every candidate.
+
+`ActiveSemesterNewAssignmentNotificationDrain` gives startup and the explicit
+permission flow a narrow recovery API. It reads the active semester locally
+and asks the same coordinator to sweep cached pending work. It never performs
+a backend request.
+
+`LocalNotificationService.readDeliveryPermission` and the corresponding
+platform adapter method are passive. They never trigger an OS permission
+prompt.
 
 ## Important files
 
-- `lib/src/features/notifications/application/notification_aware_assignment_sync_service.dart`
-  — post-commit sync decorator.
-- `lib/src/features/notifications/application/new_assignment_notification_coordinator.dart`
-  — initialization and partial-batch show policy.
+- `lib/src/core/database/database_tables.dart` — schema-v11 outbox definition,
+  constraints, foreign key, and indices.
+- `lib/src/core/database/app_database.dart` — schema-v11 creation and ordered
+  v1 through v10 migration.
 - `lib/src/features/notifications/data/new_assignment_notification_store.dart`
-  — deterministic pending query, mute decision, ID allocation, and history
-  transaction.
-- `lib/src/features/notifications/domain/local_notification_id_factory.dart`
-  — canonical owner/dedupe key and deterministic candidates.
-- `lib/src/app/app_dependencies.dart` — shared core/decorator/store/coordinator
-  provider graph.
+  — discovery, transactional claim, lease, stable ID, retry, and terminal
+  settlement.
+- `lib/src/features/notifications/data/local_notification_id_allocator.dart` —
+  shared three-namespace stable-ID allocation.
+- `lib/src/features/notifications/application/new_assignment_notification_coordinator.dart`
+  — passive permission, heartbeat, timeout, submission, and failure policy.
+- `lib/src/features/notifications/application/new_assignment_notification_drain.dart`
+  — active-semester cached-work drain.
+- `lib/src/features/notifications/application/notification_aware_assignment_sync_service.dart`
+  — post-commit foreground/headless integration.
+- `lib/src/features/notifications/domain/local_notification_service.dart` —
+  plugin-free passive permission contract.
+- `lib/src/features/notifications/data/flutter_local_notifications_adapter.dart`
+  — Android/Apple/desktop passive permission mapping.
+- `lib/src/features/settings/notifications/data/new_assignment_notification_preferences_store.dart`
+  — atomic global-disable consumption.
+- `lib/src/features/settings/notifications/application/notification_settings_service.dart`
+  — permission-grant drain trigger.
+- `lib/src/app/leb2_watch_app.dart` — startup initialization and cached drain.
 - `test/features/notifications/data/new_assignment_notification_store_test.dart`
-  — store, collision, concurrency, rollback, and redaction coverage.
+  — durable state, fencing, independent connections, policies, and ID
+  ownership.
 - `test/features/notifications/application/new_assignment_notification_coordinator_test.dart`
-  — coordinator and decorator failure-policy coverage.
+  — permission, heartbeat, timeout, late settlement, and failure mapping.
 - `test/features/notifications/application/new_assignment_notification_sync_test.dart`
-  — real synchronization integration and commit-order evidence.
+  — real synchronization and commit-order behavior.
+- `test/core/database/new_assignment_notification_outbox_migration_test.dart`
+  — frozen v10-to-v11 migration.
+- `test/core/database/v10_app_database.dart` — frozen physical v10 fixture.
 
 ## Contracts and interfaces
 
-`NewAssignmentNotificationStore.claimNext(semesterId:,
-backgroundTriggered:)` returns:
+The store contract is owner-fenced:
 
-- `null` when no eligible current discovery remains;
-- `NewAssignmentNotificationClaim.show` after a normal history claim commits;
-- `NewAssignmentNotificationClaim.consumed` after a muted decision commits.
+```dart
+abstract interface class NewAssignmentNotificationStore {
+  Future<NewAssignmentNotificationClaim?> claimNext({
+    required int semesterId,
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+    bool backgroundTriggered = false,
+  });
 
-Canonical dedupe keys come only from
-`LocalNotificationIdFactory.canonicalOwnerKey`:
+  Future<bool> heartbeat(...);
+  Future<bool> markDelivered(...);
+  Future<bool> markSuppressed(...);
+  Future<bool> releasePending(...);
+}
+```
+
+`claimNext` returns:
+
+- `null` when no claim is currently available, including when another live
+  global owner exists;
+- a leased claim with request, dedupe key, and owner token;
+- a consumed marker when a terminal local decision was recorded and the sweep
+  should continue.
+
+Retry failure storage is bounded to `permissionBlocked`,
+`initializationFailed`, `platformFailed`, and `unknown`. Terminal history kinds
+are:
+
+```text
+new-assignment
+new-assignment-muted
+new-assignment-disabled
+new-assignment-invalid
+new-assignment-unsupported
+new-assignment-obsolete
+```
+
+The passive delivery-permission result is `allowed`, `blocked`, `notRequired`,
+or `unavailable`. It is distinct from the user-initiated permission-request
+result.
+
+The canonical dedupe key remains:
 
 ```text
 leb2-notification:v1:new:<semesterId>:<identityKey>
 ```
 
-Recognized history kinds are `new-assignment` and
-`new-assignment-muted`. Legacy rows with either kind suppress a new canonical
-claim for the same assignment. The decorator passes `SyncSuccess.operationId`
-to the coordinator. `cancelCurrent` and `getBackoffStatus` pass through the
-decorator unchanged.
-
 ## Data model
 
-Feature 12.2 itself added no migration. The application schema is now version
-9 because Feature 13.1 owns background scheduling and reminder effect scope.
+Schema v11 adds `new_assignment_notification_outbox`:
 
-`seen_activities.is_baseline = false` supplies durable discovery evidence,
-while an inner join to `activities` and `courses` requires verified current
-copy. `course_preferences.notifications_muted` defaults to false when absent.
-`notification_history.dedupe_key` stores the canonical owner; `kind`
-distinguishes an app-level show-request claim from a muted decision.
+| Column | Meaning |
+| --- | --- |
+| `dedupe_key` | Canonical primary key |
+| `semester_id`, `identity_key` | Foreign key to durable seen identity |
+| `notification_id` | Stable, globally unique local notification ID |
+| `state` | `pending` or `inFlight` |
+| `owner_token` | Present only for `inFlight` |
+| `lease_expires_at_utc` | UTC owner deadline, present only for `inFlight` |
+| `created_at_utc` | Original first-seen ordering time |
+| `last_attempt_at_utc` | Most recent claim time |
+| `last_failure_kind` | Bounded retry category |
 
-Every candidate ID is rejected if any `notification_history` or
-`scheduled_reminders` row already owns it. A history foreign key to the seen
-identity prevents a valid claim before discovery persistence.
+The seen-identity foreign key cascades intentional semester/data deletion.
+Indices provide:
+
+- global uniqueness for `notification_id`;
+- one global `inFlight` row through a partial unique index;
+- deterministic pending queue access.
+
+The v10-to-v11 migration only creates an empty outbox. Existing terminal
+history is preserved. The v10 test fixture is checked-in raw physical SQL and
+does not import live production table definitions or generated table code.
+Every earlier supported schema migrates in order and then creates the outbox.
+
+ID allocation rejects candidates already owned by notification history, the
+new-assignment outbox, or scheduled reminders. Retries reuse the ID already
+stored in the outbox.
 
 ## State and control flow
 
-1. Core synchronization finishes its fenced snapshot transaction.
-2. Only `SyncSuccess` enters notification processing for that semester and
-   operation ID.
-3. Same-operation callers share one in-process Future; distinct operations
-   serialize. Completed keys are retained in a bounded process-local set.
-4. The local notification service initializes before any claim.
-5. The store selects eligible rows ordered by
-   `(first_seen_at_utc, identity_key)`.
-6. Malformed legacy identities are skipped without history; all-invalid input
-   terminates.
-7. A short transaction rechecks eligibility and mute, probes both ID-owner
-   tables, and inserts the canonical history record.
-8. Muted claims continue the sweep without a show request.
-9. Unmuted claims call `showNewAssignment` after commit.
-10. A candidate-specific invalid request remains consumed and the sweep
-    continues; infrastructure failure stops before later candidates are
-    claimed by that in-process operation sweep.
-11. The decorator invokes deadline-reminder reconciliation independently.
-12. The decorator returns the original synchronization outcome.
+1. Snapshot persistence and its sync-run success commit.
+2. The post-commit decorator asks the coordinator to sweep the semester.
+3. The coordinator initializes local notifications without prompting.
+4. The store begins a short write transaction and locks the singleton
+   notification-preference row.
+5. Expired `inFlight` work returns to `pending`.
+6. A live global owner stops the current sweep.
+7. Existing pending work is considered before undispatched discovery.
+8. Undispatched seen rows remain visible even when current activity/course data
+   is missing. Invalid identities become terminal invalid; missing current data
+   becomes terminal obsolete.
+9. Current assignment existence, global enablement, course mute, and
+   background eligibility are rechecked transactionally.
+10. A deliverable item moves to `inFlight` with a random owner token and lease.
+11. The coordinator passively checks permission.
+12. Blocked permission or a retryable failure releases the row to `pending`;
+    deterministic unsupported capability or invalid content records terminal
+    suppression.
+13. During platform I/O, heartbeat extends the lease. A 30-second effect
+    timeout stops the sweep without releasing ownership.
+14. A successful platform future inserts `new-assignment` history and deletes
+    the owned outbox row in one transaction.
+15. A late result after timeout may settle only while the original owner token
+    still matches; a replacement owner fences it out.
+16. The sweep repeats until no claim is available.
 
-For `backgroundTask` and `desktopTimer` outcomes only, the decorator marks the
-effect sweep background-triggered. The store then joins course preferences
-inside the claim transaction and excludes rows whose
-`background_monitoring_enabled` value is false. Those rows receive no history
-claim and remain eligible for a later foreground-triggered success. Missing
-preference rows retain the documented enabled default.
+Startup calls the active-semester drain after notification initialization.
+After an explicit permission request returns granted or not-required, settings
+also runs the drain. Drain failure does not replace a successful permission
+result.
 
 ## Platform behavior
 
-The producer is platform-neutral and uses the shared local-notification
-service. Platform capability and permission behavior remain in the Feature
-12.1 adapter. No Android, iOS, Windows, macOS, or Linux native configuration
-changed in this feature. No permission request is made.
+- Android passively queries whether notifications are enabled.
+- iOS and macOS map enabled or provisional authorization to `allowed`.
+- Linux and supported unpackaged Windows immediate notifications use
+  `notRequired`.
+- Deterministically unsupported capability maps to `unavailable` and becomes
+  terminal unsupported suppression.
+- A runtime platform-unavailable or platform-failure exception remains
+  retryable.
+
+Foreground, app-resume, manual, background-task, desktop-timer, and tray
+triggers all reuse the same database-backed coordinator. Exact execution time
+is never promised.
 
 ## Security and privacy
 
-The notification request contains only verified course ID/name, assignment
-title, validated local detail identity, stable local ID, and an optional UTC
-deadline derived from a source with an explicit zone. Unzoned, invalid, and
-missing deadline sources are omitted. Date and time components must round-trip
-without Dart normalization, and numeric offset hours/minutes must remain within
-`00..23`/`00..59`, so overflows such as February 31, hour 24, `+24:00`, or
-`+01:60` are invalid.
+The outbox stores only local assignment identity, stable notification ID,
+bounded state/failure values, and lease metadata. It stores no session cookie,
+username, password, authorization header, response body, description HTML,
+attachment, or exception text.
 
-No credential, authorization header, description HTML, attachment, opaque
-backend JSON, raw database/plugin error, or stack trace is logged or stored by
-this flow. Public claims, store failures, coordinator, decorator, IDs, targets,
-and requests use redacted debug representations.
+The request contains only verified course ID/name, bounded assignment title,
+local detail target, stable ID, and an optional UTC deadline parsed from an
+explicitly zoned source. Public representations of claims, failures, services,
+and stores are redacted. Permission checks are passive and do not surprise the
+user with a prompt.
 
 ## Decisions
 
-- Decorate the provider-level sync service instead of introducing an effect
-  inside snapshot persistence.
-- Sweep durable current non-baseline seen evidence rather than relying only on
-  one process's change batch, recovering the post-sync/pre-claim crash window.
-- Claim before showing to guarantee at-most-one app invocation at the cost of
-  possible loss after claim.
-- Consume muted discoveries so unmuting never creates retroactive alerts.
-- Allocate inside the same short writer transaction as the mute/claim
-  decision.
-- Coalesce by explicit sync operation ID rather than semester alone so joined
-  callers cannot overtake one failed batch and a genuinely later success can
-  recover pending work.
-- Bound completed-operation memory to 128 process-local keys.
-- Preserve valid sync success across every notification-side failure.
-- Enforce per-course background policy at the transactional claim boundary so
-  a background-disabled discovery is neither shown nor consumed.
+- Persist retryable work before platform I/O and terminal history afterward.
+- Use at-least-once submission with a stable OS notification ID. A retry may
+  replace an already accepted notification instead of allocating a duplicate.
+- Serialize the entire new-assignment dispatcher across connections, not just
+  per assignment, so a failed first item stops later delivery consistently.
+- Use short database transactions and a renewable lease instead of holding a
+  SQLite transaction across plugin I/O.
+- Allocate every notification ID through one database-owned three-namespace
+  helper; raw canonical owner-key candidates cover legacy invalid identities
+  without inventing valid assignment models.
+- Leave timed-out work leased. Immediate release could race an uncancellable
+  late platform success.
+- Fence every heartbeat, release, and settlement by dedupe key plus owner
+  token.
+- Treat muted/disabled/invalid/unsupported/obsolete states as durable terminal
+  decisions so later settings or data changes do not replay old discoveries.
+- Retry permission denial because an explicit future grant can recover it.
+- Trigger recovery from local startup and permission grant without requiring a
+  new backend snapshot.
 
 ## Alternatives rejected
 
-- Showing before writing history can duplicate after a crash.
-- Claiming the whole batch before showing consumes later work when the platform
-  fails partway through.
-- Using only `SyncSuccess.changes` loses work if the process exits after the
-  snapshot commit.
-- Calling the general course-policy reader outside the transaction introduces
-  a mute-versus-claim race.
-- Treating a plugin future as delivery evidence overstates what the OS contract
-  proves.
-- A new outbox or schema migration would implement a different retry guarantee
-  outside this feature.
+- History-before-show loses a notification permanently when the platform call
+  fails or the process exits.
+- Show-before-persistence can produce unbounded duplicates after a crash.
+- A process-local mutex cannot coordinate foreground and headless SQLite
+  connections.
+- Per-row concurrent leases allow later notifications to overtake a failed
+  earlier item.
+- Reallocating IDs on retry can display duplicates.
+- Prompting from synchronization or startup violates the explained permission
+  flow.
+- Releasing a timed-out claim immediately cannot safely distinguish a late
+  success from a failed call.
+- Hashing whole responses or list positions does not provide stable assignment
+  identity.
 
 ## Failure behavior
 
-Initialization failure leaves all pending discoveries unclaimed. Store or
-claim failure rolls back the current decision and stops the sweep. A show
-failure leaves the already committed app-level show-request claim; platform
-infrastructure
-failures stop the batch, while `invalidRequest` consumes only that poison item
-and continues.
+Initialization failure leaves durable work unclaimed. Passive permission
+failure, blocked permission, runtime platform failure, or unknown submission
+failure returns the owned row to `pending` with a bounded category. A later
+drain retries it.
 
-Same-process callers joined to one sync operation share that stop decision.
-Distinct later operations serialize and may recover remaining work. Separate
-processes have no shared new-assignment dispatcher lock, so a second process
-can claim later work before the first learns that its show request failed.
-The schema-v8 deadline-reminder lease does not own this producer. Global
-cross-process new-assignment batch-stop would require its own durable
-dispatcher/lease; holding a SQLite transaction across platform I/O is
-deliberately rejected.
+Invalid requests and deterministically unsupported capability are terminal and
+do not starve later candidates. If the assignment disappears before delivery,
+the outbox row becomes terminal obsolete. Muting or global disable before
+claim consumes it terminally.
+
+A platform future that exceeds the bounded effect timeout leaves the lease in
+place and stops the sweep. Heartbeat has stopped, so another owner can reclaim
+after expiry. A late success or failure settles only if the original owner
+still owns the row.
 
 There is no atomic transaction spanning SQLite and the OS:
 
-- exit after sync but before claim is recovered by a later successful sweep;
-- transaction failure leaves no claim or show;
-- exit after claim but before/during show can lose the alert;
-- a retained claim prevents a duplicate app invocation after show.
-
-These are local attempt semantics, never display or delivery claims.
+- exit before outbox insertion is recovered from durable seen discovery;
+- exit after insertion is recovered from the pending outbox;
+- exit during submission is recovered after lease expiry;
+- the OS may have accepted a timed-out request, so retry is at-least-once;
+- stable IDs reduce visible duplication but do not prove user delivery.
 
 ## Tests
 
-- Factory tests preserve known ID candidates and verify the public canonical
-  owner key.
-- Store tests cover baseline/current/removed states, backend and fingerprint
-  targets, strict date/time/numeric-offset validation and omitted deadlines,
-  malformed legacy identity skipping/all-invalid termination, deterministic
-  order, missing preference, mute/unmute, canonical and legacy dedupe,
-  cross-table collision probing, trigger rollback, independent-connection
-  races, and redaction.
-- Coordinator/decorator tests cover initialization order, no permission call,
-  retry after initialization failure, muted claims, invalid versus
-  infrastructure failures, all non-success outcomes, exact success
-  preservation, operation-ID coalescing/bounded completion, and cancel/backoff
-  pass-through.
-- Real-sync tests cover silent baselines, one later show, identical-snapshot
-  dedupe, commit-before-show evidence, course mute, joined-operation
-  infrastructure-stop with later-operation recovery, same-process joiners, and
-  independent-database joiners.
-- Provider tests cover one shared database, one core service, one decorator,
-  one store, and no eager backend request.
+- Schema tests cover fresh v11 constraints, indices, foreign keys, and absence
+  of credential columns.
+- A frozen physical v10 database verifies additive v10-to-v11 migration and
+  preservation of prior history/data.
+- Store tests cover baseline/current behavior, pre-materialization removed and
+  invalid terminalization with deterministic non-replay, claim/release/retry,
+  successful terminal settlement, live global lease, heartbeat, owner fencing,
+  lease expiry/reclaim, same stable ID, independent database connections,
+  mute/disable/background policy, three-namespace ID collisions, obsolete
+  pending work, finalization rollback/recovery, cascade deletion, and
+  redaction.
+- Coordinator tests cover initialization ordering, passive permission,
+  blocked permission, deterministic unsupported versus retryable unavailable,
+  infrastructure failure, signal-driven heartbeat during long calls, bounded
+  timeout, fenced late success and late failure after owner replacement,
+  operation coalescing, and error isolation.
+- Real-sync tests cover silent baseline, exactly one later request, identical
+  snapshot dedupe, durable claim before platform I/O, terminal history after
+  success, failed first submission followed by same-ID retry before later
+  work, and independent connections.
+- Startup and permission tests verify cached draining without an additional
+  sync or permission prompt, denied versus not-required behavior, and that a
+  drain failure cannot replace permission success.
+- Preference and deletion tests verify atomic disable consumption, no replay,
+  credential/session preservation rules, cache/full deletion, and outbox
+  cascade.
 
 ## Validation evidence
 
-Feature-focused tests passed 40/40: store 16, coordinator/decorator 11, real
-synchronization 6, provider 3, and ID factory 4. The direct assignment-detail
-service suite passed 4/4, including strict date/time and numeric-offset
-validation, for a combined focused result of 44/44. The broad synchronization,
-course, detail, notification, and database regression run passed 264/264.
-`dart format --output=none --set-exit-if-changed .` checked 164 files with no
-change. Strict Dart and Flutter analysis reported no issues. The full suite
-passed 607/607.
-
-Two build-runner passes completed; the stability pass wrote zero outputs and
-`app_database.g.dart` retained SHA-256
-`8931f863d2b455ccca0dd6bca82443fabe0fc3f6bafa63bed06311790f2cd020`.
-`flutter build linux --release` produced
-`build/linux/x64/release/bundle/leb2-watch`.
+- Final affected notification group: 67/67 passed.
+- Final stable-ID factory suite: 5/5 passed.
+- Final reminder/outbox/ID allocation group: 36/36 passed.
+- Schema and migration group: 30/30 passed.
+- Passive service/adapter/settings/startup group: 46/46 passed.
+- Drain/schema/deletion group: 33/33 passed.
+- Provider/settings route group: 10/10 passed.
+- Linux integration workflow: 1/1 passed.
+- Full Flutter suite with serialized test execution: 889/889 passed.
+- The final default parallel full suite passed 889/889. An earlier run
+  reproduced an independently investigated intermittent Drift
+  background-channel shutdown in the unchanged startup database test (888
+  passed, 1 failed). The focused startup test subsequently passed 20/20 and the
+  complete startup file passed 5/5 during investigation; no
+  notification-delivery path was involved.
+- `dart format --set-exit-if-changed .`: 293 files, 0 changed.
+- `flutter analyze`: no issues.
+- `dart analyze --fatal-infos --fatal-warnings`: no issues.
+- Build runner completed; the final stability pass wrote no changed generated
+  output (`drift_dev`: 124 same).
+- `flutter test integration_test/end_to_end_mocked_workflow_test.dart -d
+  linux`: 1/1 passed and built the Linux debug application.
+- `flutter build linux --release`: produced
+  `build/linux/x64/release/bundle/leb2-watch`.
 
 ## Known limitations
 
-- Exactly-once OS display or delivery is impossible with the current SQLite
-  and platform API boundary.
-- A claim committed before a failed show is not retried.
-- Platform permission may not yet be granted because its explained request UI
-  belongs to Feature 14.1.
-- Existing post-baseline rows from before this producer existed are eligible
-  pending work; there is no feature-introduction cutover marker.
-- Assignment/history ownership remains semester-scoped under the existing
-  documented account-partition limitation.
-- New-assignment operation coalescing and batch-stop ordering remain
-  process-local. Separate processes retain one-claim-per-identity and
-  ID-collision safety but do not share a global new-assignment stop decision.
-  Feature 12.3 deadline reconciliation separately uses the schema-v8 durable
-  generation and lease.
-- Completed-operation memory is deliberately bounded to 128 keys; a very late
-  duplicate after eviction may start an empty deduplicated sweep.
+- SQLite and platform notification APIs cannot provide exact-once display or
+  proof that the user saw a notification.
+- A timed-out but accepted platform request can be retried after lease expiry.
+  Stable IDs are the available dedupe mechanism.
+- Settings or course mute changed after claim but during the platform call
+  cannot revoke a request already submitted to the OS.
+- Startup drains only the selected active semester; other semesters drain when
+  selected or synchronized.
+- Platform-specific permission status and display behavior still require
+  runtime validation on each non-Linux target.
+- Assignment ownership remains scoped by the existing semester/local-data
+  model.
+- The default parallel test command can intermittently lose the Drift
+  background-isolate channel in an unchanged startup test. Serialized
+  execution passes the complete suite; root-cause instrumentation belongs to
+  separate database-test reliability work.
 
 ## Future considerations
 
-- Feature 12.3 allocates deadline-reminder IDs through the same candidate
-  factory and both owner tables.
-- Feature 13 may invoke the shared decorated sync service from platform
-  background triggers while enforcing the appropriate monitoring policy.
-- Feature 14.1 may explain/request permission and expose global notification
-  controls without changing durable new-assignment dedupe.
-- A future explicit outbox design could choose retryable at-least-once
-  invocation semantics, but must document its duplicate tradeoff.
+- User-visible diagnostics may expose only bounded pending/in-flight counts and
+  failure categories, never payloads or owner tokens.
+- Platform runtime validation should cover permission changes made in system
+  settings while the app is stopped.
+- Any future acknowledgement model must remain local-first and should not
+  reinterpret plugin submission success as user delivery.
 
 ## Related contexts
 
 - [Assignment Synchronization](assignment-synchronization.md)
 - [Assignment Diffing](assignment-diffing.md)
 - [Course Preferences](course-preferences.md)
-- [Assignment Detail](assignment-detail.md)
 - [Local Database](local-database.md)
 - [Local Notification Service](local-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Notification Settings](notification-settings.md)
+- [Local Data Deletion](local-data-deletion.md)

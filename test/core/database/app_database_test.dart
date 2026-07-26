@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 10', () {
+  group('schema version 11', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 10);
+        expect(database.schemaVersion, 11);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -40,6 +40,7 @@ void main() {
           'courses',
           'deadline_reminder_preferences',
           'deadline_reminder_reconciliations',
+          'new_assignment_notification_outbox',
           'new_assignment_notification_preferences',
           'notification_history',
           'scheduled_reminders',
@@ -50,7 +51,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 10);
+        expect(await _pragmaInt(database, 'user_version'), 11);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -75,6 +76,9 @@ void main() {
           'scheduled_reminders_by_scheduled_time',
           'scheduled_reminders_pending_reconciliation',
           'notification_history_by_assignment_kind',
+          'new_assignment_outbox_notification_id',
+          'new_assignment_outbox_one_in_flight',
+          'new_assignment_outbox_queue',
           'sync_runs_by_started_time',
           'sync_operations_one_running',
           'sync_operations_one_active_key',
@@ -127,6 +131,11 @@ void main() {
               entry ==
                   (
                     table: 'deadline_reminder_reconciliations',
+                    column: 'ownertoken',
+                  ) ||
+              entry ==
+                  (
+                    table: 'new_assignment_notification_outbox',
                     column: 'ownertoken',
                   )) {
             continue;

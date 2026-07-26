@@ -2,8 +2,8 @@
 
 ## Status
 
-Completed through schema version 9, including ordered
-v1/v2/v3/v4/v5/v6/v7/v8-to-v9 migration, generated Drift source, in-memory
+Completed through schema version 11, including ordered
+v1/v2/v3/v4/v5/v6/v7/v8/v9/v10-to-v11 migration, generated Drift source, in-memory
 relational tests, and real
 file-backed migration, simultaneous multi-isolate startup, and
 independent-connection tests. Linux remains the only build-verified native
@@ -17,7 +17,7 @@ connections one durable coordination record for single-flight synchronization.
 
 ## Scope
 
-- Seventeen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
+- Nineteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
   notification/change and sync history, settings, and synchronization
   operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
@@ -58,10 +58,10 @@ when necessary. BUSY/LOCKED WAL transition races receive a short bounded retry.
 
 For a zero-version database only, setup creates a connection-local temporary
 marker and acquires `BEGIN IMMEDIATE` before Drift reads the version. The first
-connection creates schema v9 while later connections wait in SQLite. The
+connection creates schema v11 while later connections wait in SQLite. The
 marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`,
 drops the temporary marker, and only then enables foreign keys. A waiter
-therefore re-reads v9 and does not run a duplicate `createAll`. Existing and
+therefore re-reads v11 and does not run a duplicate `createAll`. Existing and
 legacy-version databases do not gain an outer transaction, so ordered
 migrations that use Drift table-rebuild transactions remain valid.
 `UtcDateTimeConverter` owns UTC epoch-millisecond conversion. Generated table
@@ -90,9 +90,9 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — seventeen table definitions,
+- `lib/src/core/database/database_tables.dart` — nineteen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 9, migration,
+- `lib/src/core/database/app_database.dart` — schema version 11, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -114,6 +114,7 @@ invalidation inside one explicit-semester/identity read transaction.
 - `test/core/database/v6_app_database.g.dart` — generated v6 fixture support.
 - `test/core/database/v7_app_database.dart` — frozen physical v7 schema.
 - `test/core/database/v7_app_database.g.dart` — generated v7 fixture support.
+- `test/core/database/v10_app_database.dart` — frozen physical v10 schema.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
@@ -133,10 +134,9 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `9`. Fresh databases call `createAll` and seed
-the two deadline-reminder singleton rows plus background scheduling settings.
-Supported upgrades are exactly `1 -> 9`, `2 -> 9`, `3 -> 9`, `4 -> 9`,
-`5 -> 9`, `6 -> 9`, `7 -> 9`, and `8 -> 9`,
+`AppDatabase.schemaVersion` is `11`. Fresh databases call `createAll` and seed
+the deadline-reminder, background-scheduling, and new-assignment-notification
+singleton rows. Supported upgrades are exactly `1 -> 11` through `10 -> 11`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -193,11 +193,12 @@ notification-unmuted and background-monitoring-enabled defaults. The semester
 foreign key cascades intentional semester deletion. There is no current-course
 foreign key, so preferences survive course removal and reappearance.
 
-Feature 12.2 uses schema v7 unchanged. A canonical
-`notification_history.dedupe_key` claims each current post-baseline assignment
-before an app-level show request; kind `new-assignment-muted` records an
-intentional mute decision. Candidate IDs are checked against every history and
-scheduled-reminder ID inside the same short transaction.
+Feature 12.2 now uses schema v11. A canonical dedupe key owns either one
+retryable `new_assignment_notification_outbox` row or one terminal
+`notification_history` row. Terminal history is written only after successful
+platform submission or an intentional muted, disabled, invalid, unsupported,
+or obsolete decision. Candidate IDs are checked against history, outbox, and
+scheduled reminders inside the same short transaction.
 
 Feature 12.3 raises the schema to v8 with typed singleton
 `deadline_reminder_preferences` and
@@ -218,6 +219,19 @@ stable install jitter is constrained to `0..300` seconds. It also adds
 so a pending generation retains whether only background-eligible courses may
 produce platform effects. A frozen physical v8 fixture verifies the additive
 migration and default values.
+
+Feature 14.1 raises the schema to v10 with checked singleton
+`new_assignment_notification_preferences`. New-assignment notifications
+default enabled. Disabling atomically consumes existing pending work as
+terminal disabled history so re-enabling cannot replay old discoveries.
+
+The notification-delivery hardening raises the schema to v11 with
+`new_assignment_notification_outbox`. It owns stable IDs, pending/in-flight
+state, bounded retry categories, owner/lease metadata, and deterministic queue
+timestamps. A partial unique index permits one global in-flight dispatcher
+owner across database connections. The `(semester_id, identity_key)` foreign
+key cascades local-data deletion. The additive frozen v10-to-v11 migration
+preserves existing data and history.
 
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
@@ -370,7 +384,7 @@ rolled back by connection close if schema creation fails.
 
 Database tests cover:
 
-- fresh seventeen-table v9 creation, all named indices, foreign keys, and busy
+- fresh nineteen-table v11 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;

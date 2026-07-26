@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../domain/local_notification_models.dart';
 import 'local_notifications_platform.dart';
 
 const InitializationSettings localNotificationInitializationSettings =
@@ -51,6 +52,40 @@ final class FlutterLocalNotificationsAdapter
       windowsPackaged: isPackaged,
     );
     _windowsTeardown = windowsTeardown ?? _disposeWindowsPlugin;
+  }
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    return switch (_runtimePlatform) {
+      NotificationRuntimePlatform.android => mapNotificationTogglePermission(
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.areNotificationsEnabled(),
+      ),
+      NotificationRuntimePlatform.iOS => mapDarwinDeliveryPermission(
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.checkPermissions(),
+      ),
+      NotificationRuntimePlatform.macOS => mapDarwinDeliveryPermission(
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >()
+            ?.checkPermissions(),
+      ),
+      NotificationRuntimePlatform.linux ||
+      NotificationRuntimePlatform.windows =>
+        capabilities.supportsImmediate
+            ? NotificationDeliveryPermissionStatus.notRequired
+            : NotificationDeliveryPermissionStatus.unavailable,
+      NotificationRuntimePlatform.unsupported =>
+        NotificationDeliveryPermissionStatus.unavailable,
+    };
   }
 
   static const String assignmentUpdatesChannelId = 'leb2_assignment_updates_v1';
@@ -219,6 +254,29 @@ final class FlutterLocalNotificationsAdapter
       ),
     );
   }
+}
+
+@visibleForTesting
+NotificationDeliveryPermissionStatus mapNotificationTogglePermission(
+  bool? enabled,
+) {
+  return switch (enabled) {
+    true => NotificationDeliveryPermissionStatus.allowed,
+    false => NotificationDeliveryPermissionStatus.blocked,
+    null => NotificationDeliveryPermissionStatus.unavailable,
+  };
+}
+
+@visibleForTesting
+NotificationDeliveryPermissionStatus mapDarwinDeliveryPermission(
+  NotificationsEnabledOptions? options,
+) {
+  if (options == null) {
+    return NotificationDeliveryPermissionStatus.unavailable;
+  }
+  return options.isEnabled || options.isProvisionalEnabled
+      ? NotificationDeliveryPermissionStatus.allowed
+      : NotificationDeliveryPermissionStatus.blocked;
 }
 
 NotificationRuntimePlatform _detectRuntimePlatform() {

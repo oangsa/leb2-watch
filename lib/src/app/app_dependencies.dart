@@ -31,6 +31,7 @@ import '../features/notifications/application/deadline_reminder_coordinator.dart
 import '../features/notifications/application/deadline_reminder_preferences_service.dart';
 import '../features/notifications/application/local_notification_service_impl.dart';
 import '../features/notifications/application/new_assignment_notification_coordinator.dart';
+import '../features/notifications/application/new_assignment_notification_drain.dart';
 import '../features/notifications/application/notification_aware_assignment_sync_service.dart';
 import '../features/notifications/data/deadline_reminder_store.dart';
 import '../features/notifications/data/flutter_local_notifications_adapter.dart';
@@ -353,6 +354,14 @@ final semesterSelectionServiceProvider =
         ref.watch(backendApiClientProvider),
         store,
         lifecycleStore,
+      );
+    });
+
+final newAssignmentNotificationDrainProvider =
+    FutureProvider<NewAssignmentNotificationDrain>((ref) async {
+      return ActiveSemesterNewAssignmentNotificationDrain(
+        await ref.watch(semesterSelectionStoreProvider.future),
+        await ref.watch(newAssignmentNotificationCoordinatorProvider.future),
       );
     });
 

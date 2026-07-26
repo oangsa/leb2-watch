@@ -38,11 +38,10 @@ void main() {
         leaseDuration: const Duration(seconds: 1),
       ),
       NewAssignmentNotificationCoordinator(
-        DriftNewAssignmentNotificationStore(
-          database,
-          clock: () => DateTime.utc(2026, 7, 26),
-        ),
+        DriftNewAssignmentNotificationStore(database),
         notifications,
+        nowUtc: () => DateTime.utc(2026, 7, 26),
+        ownerTokenFactory: () => 'sync-new-assignment-owner',
       ),
       DeadlineReminderCoordinator(
         DriftDeadlineReminderStore(database),
@@ -134,7 +133,7 @@ void main() {
   );
 
   test(
-    'show observes snapshot, sync, seen, and claim already committed',
+    'show observes snapshot, sync, seen, and durable claim committed',
     () async {
       client.snapshots
         ..add(_snapshot(const []))
@@ -167,13 +166,28 @@ void main() {
         );
         expect(
           await database.select(database.notificationHistory).get(),
-          hasLength(1),
+          isEmpty,
         );
+        final claim = await database
+            .select(database.newAssignmentNotificationOutbox)
+            .getSingle();
+        expect(claim.identityKey, request.assignment.identityKey);
+        expect(claim.notificationId, request.id.value);
+        expect(claim.state, 'inFlight');
+        expect(claim.ownerToken, 'sync-new-assignment-owner');
       };
 
       await _sync(service);
 
       expect(notifications.shown, hasLength(1));
+      expect(
+        await database.select(database.notificationHistory).get(),
+        hasLength(1),
+      );
+      expect(
+        await database.select(database.newAssignmentNotificationOutbox).get(),
+        isEmpty,
+      );
     },
   );
 
@@ -229,7 +243,7 @@ void main() {
   });
 
   test(
-    'joined operation shares one failed sweep and later operation recovers',
+    'failed submission remains pending and retries the same assignment',
     () async {
       client.snapshots.add(_snapshot(const []));
       await _sync(service);
@@ -267,7 +281,7 @@ void main() {
       expect(notifications.showCalls, 1);
       expect(
         await database.select(database.notificationHistory).get(),
-        hasLength(1),
+        isEmpty,
       );
 
       failShow.complete();
@@ -276,7 +290,7 @@ void main() {
       expect(notifications.showCalls, 1);
       expect(
         await database.select(database.notificationHistory).get(),
-        hasLength(1),
+        isEmpty,
       );
 
       client
@@ -287,10 +301,10 @@ void main() {
       final later = await _sync(service);
 
       expect(later.operationId, isNot(joinedResults[0].operationId));
-      expect(notifications.showCalls, 2);
+      expect(notifications.showCalls, 3);
       expect(
         notifications.shown.map((request) => request.assignment.identityKey),
-        ['backend:1002'],
+        ['backend:1001', 'backend:1002'],
       );
       expect(
         await database.select(database.notificationHistory).get(),
@@ -534,6 +548,11 @@ final class _RecordingNotificationService implements LocalNotificationService {
 
   @override
   Future<void> initialize() async {}
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    return NotificationDeliveryPermissionStatus.allowed;
+  }
 
   @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {

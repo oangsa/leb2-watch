@@ -53,6 +53,8 @@ open the existing Courses route.
 
 Notification permission is never requested merely by opening Settings. The
 explicit action first initializes notifications, then requests permission.
+After a granted or not-required result, it best-effort drains pending
+new-assignment work for the active semester without another backend request.
 The test action reports that a request was submitted to the operating system,
 not that delivery occurred.
 
@@ -72,6 +74,8 @@ modules:
 - `DeadlineReminderPreferencesService` owns reminder policy and reconciliation.
 - `DesktopAutostartService` owns OS start-at-login truth.
 - `LocalNotificationService` owns permission and test actions.
+- `NewAssignmentNotificationDrain` retries active-semester cached work after
+  an explicit successful permission action.
 
 `LocalNotificationSettingsService.watch()` combines those local streams
 without adding a stream-combination dependency. Scheduler status read failure
@@ -120,8 +124,9 @@ session-local permission/action feedback in widget state.
   session reconciliation and app-resume work.
 - `lib/src/features/notifications/data/new_assignment_notification_store.dart`
   — claim-time global policy enforcement.
-- `lib/src/core/database/database_tables.dart` — schema v10 preference table.
-- `lib/src/core/database/app_database.dart` — v1–v9 to v10 migration.
+- `lib/src/core/database/database_tables.dart` — preference table introduced
+  in schema v10 and retryable outbox introduced in schema v11.
+- `lib/src/core/database/app_database.dart` — ordered v1–v10 to v11 migration.
 - `test/core/database/v9_app_database.dart` — frozen previous-schema fixture.
 
 ## Contracts and interfaces
@@ -181,14 +186,17 @@ Existing tables remain authoritative for:
 1. The preference store starts a Drift transaction and acquires SQLite write
    serialization.
 2. Disabling writes `enabled = false`.
-3. Every unclaimed, non-baseline discovery receives one canonical notification
-   history row with kind `new-assignment-disabled`, including retained
-   `seen_activities` whose current `activities` row was removed.
-4. A concurrent `claimNext` transaction resolves to one canonical history
+3. Every pending or in-flight outbox row becomes terminal
+   `new-assignment-disabled` history with its existing stable ID, and the
+   outbox is cleared.
+4. Every remaining unclaimed, non-baseline discovery receives one canonical
+   disabled history row, including retained `seen_activities` whose current
+   `activities` row was removed.
+5. A concurrent `claimNext` transaction resolves to one canonical history
    outcome, never two.
-5. While disabled, claim-time enforcement records the disabled kind and returns
+6. While disabled, claim-time enforcement records the disabled kind and returns
    a consumed claim.
-6. Re-enabling consumes anything discovered while disabled before making the
+7. Re-enabling consumes anything discovered while disabled before making the
    saved value true, preventing a historical burst.
 
 Suppression needs only the retained seen identity, semester, and first-seen
@@ -260,8 +268,8 @@ No platform is promised exact execution or delivery.
   instead of creating duplicate writers.
 - Link to Courses rather than embedding another potentially long course list.
 - Use a thin stream aggregate instead of adding `rxdart`.
-- Keep permission status session-local because no passive, durable OS status
-  API exists.
+- Keep permission-action feedback session-local. Passive OS status exists for
+  delivery orchestration, but it is not durable application preference state.
 
 ## Alternatives rejected
 
@@ -289,9 +297,11 @@ Cached assignments and other routes remain unaffected.
 
 ## Tests
 
-- Fresh schema v10 default, singleton constraint, and credential-column scan.
+- Fresh schema v11 default, singleton and outbox constraints, and
+  credential-column scan.
 - Frozen v9 to v10 migration with prior data preserved.
-- Existing v1–v8 migrations updated through v10.
+- Frozen v10 to v11 outbox migration with prior data preserved.
+- Existing v1–v8 migrations updated through v11.
 - Preference watch/write, disable suppression, disabled-period re-enable, and
   claim/disable race convergence.
 - Removed-discovery suppression across disable, re-enable, and stable-identity
@@ -299,7 +309,8 @@ Cached assignments and other routes remain unaffected.
 - Claim-time disabled consumption and no replay.
 - Application service mapping, failure redaction, stream aggregation, separate
   scheduler status, delayed-registration authoritative status, session-gated
-  refresh, delegation, and notification action ordering.
+  refresh, delegation, permission-action ordering, and cached-work drain after
+  a successful permission grant.
 - Root lifecycle status-refresh requests after completed session reconciliation
   and app-resume work.
 - Page rendering, no permission on open, pessimistic switch writes, permission

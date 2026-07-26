@@ -390,6 +390,20 @@ void main() {
     });
   }
 
+  test('passive delivery permission read never requests permission', () async {
+    final platform = _FakeNotificationsPlatform(NotificationRuntimePlatform.iOS)
+      ..deliveryPermission = NotificationDeliveryPermissionStatus.blocked;
+    final service = serviceFor(platform);
+    await service.initialize();
+
+    expect(
+      await service.readDeliveryPermission(),
+      NotificationDeliveryPermissionStatus.blocked,
+    );
+    expect(platform.deliveryPermissionCalls, 1);
+    expect(platform.permissionCalls, 0);
+  });
+
   test('test notification uses fixed safe copy and no payload', () async {
     final platform = _FakeNotificationsPlatform(
       NotificationRuntimePlatform.android,
@@ -754,10 +768,13 @@ final class _FakeNotificationsPlatform implements LocalNotificationsPlatform {
   final List<Object> synchronousInitializeErrors = <Object>[];
   final List<Object> launchErrors = <Object>[];
   bool? permissionResult;
+  NotificationDeliveryPermissionStatus deliveryPermission =
+      NotificationDeliveryPermissionStatus.allowed;
   String? launchPayload;
   Object? showError;
   int initializeCalls = 0;
   int permissionCalls = 0;
+  int deliveryPermissionCalls = 0;
   int launchPayloadCalls = 0;
   int cancelAllCalls = 0;
   final List<PlatformNotification> shown = <PlatformNotification>[];
@@ -808,6 +825,12 @@ final class _FakeNotificationsPlatform implements LocalNotificationsPlatform {
       return Future<bool?>.value(initializeResults.removeAt(0));
     }
     return Future<bool?>.value(true);
+  }
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    deliveryPermissionCalls += 1;
+    return deliveryPermission;
   }
 
   @override

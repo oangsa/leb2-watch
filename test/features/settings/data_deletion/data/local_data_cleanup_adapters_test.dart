@@ -90,6 +90,10 @@ void main() {
       expect(await database.select(database.activities).get(), isEmpty);
       expect(await database.select(database.seenActivities).get(), isEmpty);
       expect(
+        await database.select(database.newAssignmentNotificationOutbox).get(),
+        isEmpty,
+      );
+      expect(
         await database.select(database.assignmentBaselines).get(),
         isEmpty,
       );
@@ -189,6 +193,10 @@ void main() {
 
     expect(status, LocalDataDeletionStepStatus.completed);
     expect(await database.select(database.activities).get(), hasLength(1));
+    expect(
+      await database.select(database.newAssignmentNotificationOutbox).get(),
+      hasLength(1),
+    );
     final app = await database.select(database.appSettings).getSingle();
     expect(app.sessionLifecycle, 'expired');
     expect(app.activeSemesterId, 101);
@@ -546,6 +554,17 @@ Future<void> _seedSemesterGraph(AppDatabase database) async {
         ),
       );
   await database
+      .into(database.newAssignmentNotificationOutbox)
+      .insert(
+        NewAssignmentNotificationOutboxCompanion.insert(
+          dedupeKey: 'leb2-notification:v1:new:101:backend:1001',
+          semesterId: 101,
+          identityKey: 'backend:1001',
+          notificationId: 7001,
+          createdAtUtc: DateTime.utc(2026, 7, 26),
+        ),
+      );
+  await database
       .into(database.appSettings)
       .insertOnConflictUpdate(
         const AppSettingsCompanion(
@@ -628,6 +647,10 @@ final class _Notifications implements LocalNotificationService {
   Future<void> initialize() async {
     initializeCalls += 1;
   }
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
 
   @override
   Future<NotificationPermissionStatus> requestPermission() async =>

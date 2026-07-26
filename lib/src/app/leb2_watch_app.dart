@@ -98,6 +98,10 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
   ) async {
     try {
       await notifications.initialize();
+      final drain = await ref.read(
+        newAssignmentNotificationDrainProvider.future,
+      );
+      await drain.drainActiveCached();
     } on Object {
       // Startup remains local-first when the OS notification bridge is absent.
     }

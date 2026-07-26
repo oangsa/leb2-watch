@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
+import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_drain.dart';
 import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_preferences.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
@@ -24,6 +25,7 @@ void main() {
       _Deadlines(),
       autostart,
       _Notifications(),
+      _Drain(),
       NotificationSettingsPlatform.linux,
       BackgroundScheduleStatusRefreshSignal(),
     );
@@ -60,6 +62,7 @@ void main() {
         deadlines,
         autostart,
         _Notifications(),
+        _Drain(),
         NotificationSettingsPlatform.macOS,
         BackgroundScheduleStatusRefreshSignal(),
       );
@@ -90,6 +93,7 @@ void main() {
       _Deadlines(),
       _Autostart(),
       _Notifications(),
+      _Drain(),
       NotificationSettingsPlatform.android,
       BackgroundScheduleStatusRefreshSignal(),
     );
@@ -132,6 +136,7 @@ void main() {
         _Deadlines(),
         _Autostart(),
         _Notifications(),
+        _Drain(),
         NotificationSettingsPlatform.android,
         refreshes,
       );
@@ -163,6 +168,7 @@ void main() {
     'notification actions initialize before permission and test submission',
     () async {
       final notifications = _Notifications();
+      final drain = _Drain();
       final service = LocalNotificationSettingsService(
         _BackgroundSettings(),
         _Scheduler(),
@@ -170,6 +176,7 @@ void main() {
         _Deadlines(),
         _Autostart(),
         notifications,
+        drain,
         NotificationSettingsPlatform.android,
         BackgroundScheduleStatusRefreshSignal(),
       );
@@ -192,8 +199,91 @@ void main() {
         'initialize',
         'test',
       ]);
+      expect(drain.calls, 1);
     },
   );
+
+  test('permission drain follows denied and not-required results', () async {
+    for (final (status, expectedDrainCalls) in [
+      (NotificationPermissionStatus.denied, 0),
+      (NotificationPermissionStatus.notRequired, 1),
+    ]) {
+      final notifications = _Notifications(permissionStatus: status);
+      final drain = _Drain();
+      final refreshes = BackgroundScheduleStatusRefreshSignal();
+      final service = LocalNotificationSettingsService(
+        _BackgroundSettings(),
+        _Scheduler(),
+        _NewAssignments(),
+        _Deadlines(),
+        _Autostart(),
+        notifications,
+        drain,
+        NotificationSettingsPlatform.android,
+        refreshes,
+      );
+      addTearDown(service.dispose);
+      addTearDown(refreshes.dispose);
+
+      final result = await service.requestNotificationPermission();
+
+      expect(
+        result,
+        isA<NotificationPermissionActionCompleted>().having(
+          (completed) => completed.status,
+          'status',
+          status,
+        ),
+      );
+      expect(drain.calls, expectedDrainCalls);
+    }
+  });
+
+  test('drain failure preserves successful permission result', () async {
+    final notifications = _Notifications();
+    final drain = _Drain()..error = StateError('PRIVATE_DRAIN_FAILURE');
+    final refreshes = BackgroundScheduleStatusRefreshSignal();
+    final service = LocalNotificationSettingsService(
+      _BackgroundSettings(),
+      _Scheduler(),
+      _NewAssignments(),
+      _Deadlines(),
+      _Autostart(),
+      notifications,
+      drain,
+      NotificationSettingsPlatform.android,
+      refreshes,
+    );
+    addTearDown(service.dispose);
+    addTearDown(refreshes.dispose);
+
+    final result = await service.requestNotificationPermission();
+
+    expect(
+      result,
+      isA<NotificationPermissionActionCompleted>().having(
+        (completed) => completed.status,
+        'status',
+        NotificationPermissionStatus.granted,
+      ),
+    );
+    expect(drain.calls, 1);
+    expect(result.toString(), isNot(contains('PRIVATE_DRAIN_FAILURE')));
+  });
+}
+
+final class _Drain implements NewAssignmentNotificationDrain {
+  int calls = 0;
+  Object? error;
+
+  @override
+  Future<void> drainActiveCached() async {
+    calls += 1;
+    final currentError = error;
+    if (currentError != null) {
+      throw currentError;
+    }
+  }
 }
 
 final class _BackgroundSettings implements BackgroundMonitoringSettingsService {
@@ -330,7 +420,12 @@ final class _Autostart implements DesktopAutostartService {
 }
 
 final class _Notifications implements LocalNotificationService {
+  _Notifications({
+    this.permissionStatus = NotificationPermissionStatus.granted,
+  });
+
   final List<String> calls = [];
+  final NotificationPermissionStatus permissionStatus;
 
   @override
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
@@ -341,9 +436,13 @@ final class _Notifications implements LocalNotificationService {
   }
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async {
     calls.add('permission');
-    return NotificationPermissionStatus.granted;
+    return permissionStatus;
   }
 
   @override

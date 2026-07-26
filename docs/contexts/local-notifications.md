@@ -2,8 +2,8 @@
 
 ## Status
 
-Completed for Feature 12.1, with Feature 12.2 supplying durable
-new-assignment claims and Feature 12.3 supplying durable deadline-reminder
+Completed for Feature 12.1, with Feature 12.2 supplying a durable retryable
+new-assignment outbox and Feature 12.3 supplying durable deadline-reminder
 ownership and reconciliation. The application-owned service, platform
 adapter, validated assignment targets, navigation coordinator, Android native
 setup, iOS delegate setup, tests, and Linux release build are implemented.
@@ -21,6 +21,7 @@ exposing plugin types to application callers.
 
 - Idempotent and concurrent-safe local-notification initialization.
 - Deferred Android, iOS, and macOS permission requests.
+- Passive delivery-permission reads that never display a prompt.
 - Fixed test-notification copy.
 - Bounded new-assignment and deadline-reminder requests.
 - Immediate notification display on supported platforms.
@@ -77,7 +78,8 @@ unpackaged Windows notification can be cancelled.
 `LocalNotificationService` is the plugin-free application boundary.
 `LocalNotificationServiceImpl` validates requests, composes fixed copy,
 encodes targets, maps permission and platform failures, joins concurrent
-initialization, exposes attempt-scoped abandonment to bounded application
+initialization, exposes passive delivery-permission state and attempt-scoped
+abandonment to bounded application
 orchestrators, and publishes a broadcast response stream.
 
 `LocalNotificationsPlatform` is an injected application-owned adapter seam.
@@ -131,6 +133,7 @@ the notification service.
 abstract interface class LocalNotificationService {
   Stream<LocalNotificationTarget> get responses;
   Future<void> initialize();
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission();
   Future<NotificationPermissionStatus> requestPermission();
   Future<void> showTestNotification();
   Future<void> showNewAssignment(NewAssignmentNotification request);
@@ -179,10 +182,11 @@ and exactly its declared positive offset before the deadline.
 
 ## Data model
 
-The service itself owns no database table. Feature 12.3 raises the application
-schema to version 8 for deadline-reminder preferences and durable
-reconciliation. No notification is presented as delivered merely because a
-plugin call completed.
+The service itself owns no database table. Feature 12.3 adds
+deadline-reminder preferences and durable reconciliation. New-assignment
+delivery hardening adds the schema-v11 retryable outbox. A successful plugin
+future is treated as accepted platform submission, never proof of OS display
+or user delivery.
 
 The canonical candidate owner keys are:
 
@@ -199,11 +203,15 @@ including `2147483647`. The factory returns a candidate sequence rather than
 claiming the truncated mapping is collision-free.
 
 Feature 12.2 resolves the new-assignment sequence against
-`notification_history` and `scheduled_reminders` inside its persistence
-transaction and uses the canonical owner key as its dedupe key. Feature 12.3
-applies the same collision rule for deadline reminders and persists ownership
-before platform I/O. The platform service itself neither reads nor writes
-those rows.
+`notification_history`, `new_assignment_notification_outbox`, and
+`scheduled_reminders` inside its persistence transaction and uses the
+canonical owner key as its dedupe key. Retries reuse the outbox ID. Feature
+12.3 applies the same collision rule for deadline reminders and persists
+ownership before platform I/O. The platform service itself neither reads nor
+writes those rows.
+
+`DriftLocalNotificationIdAllocator` owns this shared three-table collision
+probe for both new-assignment delivery and global-disable suppression.
 
 ## State and control flow
 

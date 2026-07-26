@@ -4,6 +4,13 @@ const int localNotificationTestId = 2147483646;
 
 enum NotificationPermissionStatus { granted, denied, notRequired, unavailable }
 
+enum NotificationDeliveryPermissionStatus {
+  allowed,
+  blocked,
+  notRequired,
+  unavailable,
+}
+
 enum LocalNotificationFailureKind {
   notInitialized,
   invalidRequest,

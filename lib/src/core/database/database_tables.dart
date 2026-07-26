@@ -228,6 +228,59 @@ class NotificationHistory extends Table {
 }
 
 @TableIndex.sql(
+  'CREATE UNIQUE INDEX new_assignment_outbox_notification_id '
+  'ON new_assignment_notification_outbox (notification_id)',
+)
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX new_assignment_outbox_one_in_flight '
+  'ON new_assignment_notification_outbox (state) '
+  "WHERE state = 'inFlight'",
+)
+@TableIndex.sql(
+  'CREATE INDEX new_assignment_outbox_queue '
+  'ON new_assignment_notification_outbox '
+  '(state, created_at_utc, semester_id, identity_key)',
+)
+class NewAssignmentNotificationOutbox extends Table {
+  TextColumn get dedupeKey => text()();
+  IntColumn get semesterId => integer()();
+  TextColumn get identityKey => text()();
+  IntColumn get notificationId => integer()();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  TextColumn get ownerToken => text().nullable()();
+  IntColumn get leaseExpiresAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  IntColumn get createdAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get lastAttemptAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  TextColumn get lastFailureKind => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {dedupeKey};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (length(trim(dedupe_key)) > 0)',
+    'CHECK (length(trim(identity_key)) > 0)',
+    'CHECK (notification_id > 0 AND notification_id <= 2147483647 '
+        'AND notification_id != 2147483646)',
+    "CHECK (state IN ('pending', 'inFlight'))",
+    "CHECK ((state = 'pending' AND owner_token IS NULL "
+        'AND lease_expires_at_utc IS NULL) OR '
+        "(state = 'inFlight' AND owner_token IS NOT NULL "
+        'AND length(trim(owner_token)) > 0 '
+        'AND lease_expires_at_utc IS NOT NULL '
+        'AND last_attempt_at_utc IS NOT NULL))',
+    "CHECK (last_failure_kind IS NULL OR last_failure_kind IN "
+        "('permissionBlocked', 'initializationFailed', 'platformFailed', "
+        "'unknown'))",
+    'FOREIGN KEY (semester_id, identity_key) '
+        'REFERENCES seen_activities (semester_id, identity_key) '
+        'ON DELETE CASCADE',
+  ];
+}
+
+@TableIndex.sql(
   'CREATE INDEX sync_runs_by_started_time '
   'ON sync_runs (started_at_utc DESC, sync_run_id DESC)',
 )

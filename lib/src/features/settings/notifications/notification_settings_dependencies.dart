@@ -42,6 +42,7 @@ final notificationSettingsServiceProvider =
         deadlinePreferences,
         ref.watch(desktopAutostartServiceProvider),
         ref.watch(localNotificationServiceProvider),
+        await ref.watch(newAssignmentNotificationDrainProvider.future),
         _settingsPlatform(
           ref.watch(localNotificationsPlatformProvider).capabilities,
         ),

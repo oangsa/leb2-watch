@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
+import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/application/local_data_deletion_ports.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/domain/local_data_deletion.dart';
@@ -320,6 +321,10 @@ final class _UnsupportedNotificationsPlatform
   Future<bool?> initialize({
     required void Function(String? payload) onResponse,
   }) async => false;
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.blocked;
 
   @override
   Future<bool?> requestPermission() async => false;

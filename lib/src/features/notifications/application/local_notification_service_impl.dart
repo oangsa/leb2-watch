@@ -141,6 +141,18 @@ final class LocalNotificationServiceImpl
   }
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    _requireInitialized();
+    try {
+      return await _platform.readDeliveryPermission();
+    } on Object {
+      throw const LocalNotificationFailure(
+        LocalNotificationFailureKind.platformFailure,
+      );
+    }
+  }
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async {
     _requireInitialized();
     final capabilities = _platform.capabilities;

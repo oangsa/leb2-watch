@@ -4525,6 +4525,693 @@ class NotificationHistoryCompanion
   }
 }
 
+class $NewAssignmentNotificationOutboxTable
+    extends NewAssignmentNotificationOutbox
+    with
+        TableInfo<
+          $NewAssignmentNotificationOutboxTable,
+          NewAssignmentNotificationOutboxData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NewAssignmentNotificationOutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dedupeKeyMeta = const VerificationMeta(
+    'dedupeKey',
+  );
+  @override
+  late final GeneratedColumn<String> dedupeKey = GeneratedColumn<String>(
+    'dedupe_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
+    'semester_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _identityKeyMeta = const VerificationMeta(
+    'identityKey',
+  );
+  @override
+  late final GeneratedColumn<String> identityKey = GeneratedColumn<String>(
+    'identity_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<int> notificationId = GeneratedColumn<int>(
+    'notification_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _ownerTokenMeta = const VerificationMeta(
+    'ownerToken',
+  );
+  @override
+  late final GeneratedColumn<String> ownerToken = GeneratedColumn<String>(
+    'owner_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int>
+  leaseExpiresAtUtc =
+      GeneratedColumn<int>(
+        'lease_expires_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $NewAssignmentNotificationOutboxTable.$converterleaseExpiresAtUtcn,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAtUtc =
+      GeneratedColumn<int>(
+        'created_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $NewAssignmentNotificationOutboxTable.$convertercreatedAtUtc,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int> lastAttemptAtUtc =
+      GeneratedColumn<int>(
+        'last_attempt_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $NewAssignmentNotificationOutboxTable.$converterlastAttemptAtUtcn,
+      );
+  static const VerificationMeta _lastFailureKindMeta = const VerificationMeta(
+    'lastFailureKind',
+  );
+  @override
+  late final GeneratedColumn<String> lastFailureKind = GeneratedColumn<String>(
+    'last_failure_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    dedupeKey,
+    semesterId,
+    identityKey,
+    notificationId,
+    state,
+    ownerToken,
+    leaseExpiresAtUtc,
+    createdAtUtc,
+    lastAttemptAtUtc,
+    lastFailureKind,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'new_assignment_notification_outbox';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NewAssignmentNotificationOutboxData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('dedupe_key')) {
+      context.handle(
+        _dedupeKeyMeta,
+        dedupeKey.isAcceptableOrUnknown(data['dedupe_key']!, _dedupeKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dedupeKeyMeta);
+    }
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_semesterIdMeta);
+    }
+    if (data.containsKey('identity_key')) {
+      context.handle(
+        _identityKeyMeta,
+        identityKey.isAcceptableOrUnknown(
+          data['identity_key']!,
+          _identityKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_identityKeyMeta);
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_notificationIdMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('owner_token')) {
+      context.handle(
+        _ownerTokenMeta,
+        ownerToken.isAcceptableOrUnknown(data['owner_token']!, _ownerTokenMeta),
+      );
+    }
+    if (data.containsKey('last_failure_kind')) {
+      context.handle(
+        _lastFailureKindMeta,
+        lastFailureKind.isAcceptableOrUnknown(
+          data['last_failure_kind']!,
+          _lastFailureKindMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dedupeKey};
+  @override
+  NewAssignmentNotificationOutboxData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NewAssignmentNotificationOutboxData(
+      dedupeKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dedupe_key'],
+      )!,
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}semester_id'],
+      )!,
+      identityKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}identity_key'],
+      )!,
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notification_id'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      ownerToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_token'],
+      ),
+      leaseExpiresAtUtc: $NewAssignmentNotificationOutboxTable
+          .$converterleaseExpiresAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}lease_expires_at_utc'],
+            ),
+          ),
+      createdAtUtc: $NewAssignmentNotificationOutboxTable.$convertercreatedAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}created_at_utc'],
+            )!,
+          ),
+      lastAttemptAtUtc: $NewAssignmentNotificationOutboxTable
+          .$converterlastAttemptAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}last_attempt_at_utc'],
+            ),
+          ),
+      lastFailureKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_failure_kind'],
+      ),
+    );
+  }
+
+  @override
+  $NewAssignmentNotificationOutboxTable createAlias(String alias) {
+    return $NewAssignmentNotificationOutboxTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterleaseExpiresAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterleaseExpiresAtUtcn =
+      NullAwareTypeConverter.wrap($converterleaseExpiresAtUtc);
+  static TypeConverter<DateTime, int> $convertercreatedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterlastAttemptAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterlastAttemptAtUtcn =
+      NullAwareTypeConverter.wrap($converterlastAttemptAtUtc);
+}
+
+class NewAssignmentNotificationOutboxData extends DataClass
+    implements Insertable<NewAssignmentNotificationOutboxData> {
+  final String dedupeKey;
+  final int semesterId;
+  final String identityKey;
+  final int notificationId;
+  final String state;
+  final String? ownerToken;
+  final DateTime? leaseExpiresAtUtc;
+  final DateTime createdAtUtc;
+  final DateTime? lastAttemptAtUtc;
+  final String? lastFailureKind;
+  const NewAssignmentNotificationOutboxData({
+    required this.dedupeKey,
+    required this.semesterId,
+    required this.identityKey,
+    required this.notificationId,
+    required this.state,
+    this.ownerToken,
+    this.leaseExpiresAtUtc,
+    required this.createdAtUtc,
+    this.lastAttemptAtUtc,
+    this.lastFailureKind,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['dedupe_key'] = Variable<String>(dedupeKey);
+    map['semester_id'] = Variable<int>(semesterId);
+    map['identity_key'] = Variable<String>(identityKey);
+    map['notification_id'] = Variable<int>(notificationId);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || ownerToken != null) {
+      map['owner_token'] = Variable<String>(ownerToken);
+    }
+    if (!nullToAbsent || leaseExpiresAtUtc != null) {
+      map['lease_expires_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$converterleaseExpiresAtUtcn
+            .toSql(leaseExpiresAtUtc),
+      );
+    }
+    {
+      map['created_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$convertercreatedAtUtc.toSql(
+          createdAtUtc,
+        ),
+      );
+    }
+    if (!nullToAbsent || lastAttemptAtUtc != null) {
+      map['last_attempt_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$converterlastAttemptAtUtcn.toSql(
+          lastAttemptAtUtc,
+        ),
+      );
+    }
+    if (!nullToAbsent || lastFailureKind != null) {
+      map['last_failure_kind'] = Variable<String>(lastFailureKind);
+    }
+    return map;
+  }
+
+  NewAssignmentNotificationOutboxCompanion toCompanion(bool nullToAbsent) {
+    return NewAssignmentNotificationOutboxCompanion(
+      dedupeKey: Value(dedupeKey),
+      semesterId: Value(semesterId),
+      identityKey: Value(identityKey),
+      notificationId: Value(notificationId),
+      state: Value(state),
+      ownerToken: ownerToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerToken),
+      leaseExpiresAtUtc: leaseExpiresAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leaseExpiresAtUtc),
+      createdAtUtc: Value(createdAtUtc),
+      lastAttemptAtUtc: lastAttemptAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAttemptAtUtc),
+      lastFailureKind: lastFailureKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastFailureKind),
+    );
+  }
+
+  factory NewAssignmentNotificationOutboxData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NewAssignmentNotificationOutboxData(
+      dedupeKey: serializer.fromJson<String>(json['dedupeKey']),
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      identityKey: serializer.fromJson<String>(json['identityKey']),
+      notificationId: serializer.fromJson<int>(json['notificationId']),
+      state: serializer.fromJson<String>(json['state']),
+      ownerToken: serializer.fromJson<String?>(json['ownerToken']),
+      leaseExpiresAtUtc: serializer.fromJson<DateTime?>(
+        json['leaseExpiresAtUtc'],
+      ),
+      createdAtUtc: serializer.fromJson<DateTime>(json['createdAtUtc']),
+      lastAttemptAtUtc: serializer.fromJson<DateTime?>(
+        json['lastAttemptAtUtc'],
+      ),
+      lastFailureKind: serializer.fromJson<String?>(json['lastFailureKind']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dedupeKey': serializer.toJson<String>(dedupeKey),
+      'semesterId': serializer.toJson<int>(semesterId),
+      'identityKey': serializer.toJson<String>(identityKey),
+      'notificationId': serializer.toJson<int>(notificationId),
+      'state': serializer.toJson<String>(state),
+      'ownerToken': serializer.toJson<String?>(ownerToken),
+      'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
+      'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
+      'lastAttemptAtUtc': serializer.toJson<DateTime?>(lastAttemptAtUtc),
+      'lastFailureKind': serializer.toJson<String?>(lastFailureKind),
+    };
+  }
+
+  NewAssignmentNotificationOutboxData copyWith({
+    String? dedupeKey,
+    int? semesterId,
+    String? identityKey,
+    int? notificationId,
+    String? state,
+    Value<String?> ownerToken = const Value.absent(),
+    Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+    DateTime? createdAtUtc,
+    Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+    Value<String?> lastFailureKind = const Value.absent(),
+  }) => NewAssignmentNotificationOutboxData(
+    dedupeKey: dedupeKey ?? this.dedupeKey,
+    semesterId: semesterId ?? this.semesterId,
+    identityKey: identityKey ?? this.identityKey,
+    notificationId: notificationId ?? this.notificationId,
+    state: state ?? this.state,
+    ownerToken: ownerToken.present ? ownerToken.value : this.ownerToken,
+    leaseExpiresAtUtc: leaseExpiresAtUtc.present
+        ? leaseExpiresAtUtc.value
+        : this.leaseExpiresAtUtc,
+    createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+    lastAttemptAtUtc: lastAttemptAtUtc.present
+        ? lastAttemptAtUtc.value
+        : this.lastAttemptAtUtc,
+    lastFailureKind: lastFailureKind.present
+        ? lastFailureKind.value
+        : this.lastFailureKind,
+  );
+  NewAssignmentNotificationOutboxData copyWithCompanion(
+    NewAssignmentNotificationOutboxCompanion data,
+  ) {
+    return NewAssignmentNotificationOutboxData(
+      dedupeKey: data.dedupeKey.present ? data.dedupeKey.value : this.dedupeKey,
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
+      identityKey: data.identityKey.present
+          ? data.identityKey.value
+          : this.identityKey,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
+      state: data.state.present ? data.state.value : this.state,
+      ownerToken: data.ownerToken.present
+          ? data.ownerToken.value
+          : this.ownerToken,
+      leaseExpiresAtUtc: data.leaseExpiresAtUtc.present
+          ? data.leaseExpiresAtUtc.value
+          : this.leaseExpiresAtUtc,
+      createdAtUtc: data.createdAtUtc.present
+          ? data.createdAtUtc.value
+          : this.createdAtUtc,
+      lastAttemptAtUtc: data.lastAttemptAtUtc.present
+          ? data.lastAttemptAtUtc.value
+          : this.lastAttemptAtUtc,
+      lastFailureKind: data.lastFailureKind.present
+          ? data.lastFailureKind.value
+          : this.lastFailureKind,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NewAssignmentNotificationOutboxData(')
+          ..write('dedupeKey: $dedupeKey, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('identityKey: $identityKey, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('state: $state, ')
+          ..write('ownerToken: $ownerToken, ')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('createdAtUtc: $createdAtUtc, ')
+          ..write('lastAttemptAtUtc: $lastAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    dedupeKey,
+    semesterId,
+    identityKey,
+    notificationId,
+    state,
+    ownerToken,
+    leaseExpiresAtUtc,
+    createdAtUtc,
+    lastAttemptAtUtc,
+    lastFailureKind,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NewAssignmentNotificationOutboxData &&
+          other.dedupeKey == this.dedupeKey &&
+          other.semesterId == this.semesterId &&
+          other.identityKey == this.identityKey &&
+          other.notificationId == this.notificationId &&
+          other.state == this.state &&
+          other.ownerToken == this.ownerToken &&
+          other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
+          other.createdAtUtc == this.createdAtUtc &&
+          other.lastAttemptAtUtc == this.lastAttemptAtUtc &&
+          other.lastFailureKind == this.lastFailureKind);
+}
+
+class NewAssignmentNotificationOutboxCompanion
+    extends UpdateCompanion<NewAssignmentNotificationOutboxData> {
+  final Value<String> dedupeKey;
+  final Value<int> semesterId;
+  final Value<String> identityKey;
+  final Value<int> notificationId;
+  final Value<String> state;
+  final Value<String?> ownerToken;
+  final Value<DateTime?> leaseExpiresAtUtc;
+  final Value<DateTime> createdAtUtc;
+  final Value<DateTime?> lastAttemptAtUtc;
+  final Value<String?> lastFailureKind;
+  final Value<int> rowid;
+  const NewAssignmentNotificationOutboxCompanion({
+    this.dedupeKey = const Value.absent(),
+    this.semesterId = const Value.absent(),
+    this.identityKey = const Value.absent(),
+    this.notificationId = const Value.absent(),
+    this.state = const Value.absent(),
+    this.ownerToken = const Value.absent(),
+    this.leaseExpiresAtUtc = const Value.absent(),
+    this.createdAtUtc = const Value.absent(),
+    this.lastAttemptAtUtc = const Value.absent(),
+    this.lastFailureKind = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NewAssignmentNotificationOutboxCompanion.insert({
+    required String dedupeKey,
+    required int semesterId,
+    required String identityKey,
+    required int notificationId,
+    this.state = const Value.absent(),
+    this.ownerToken = const Value.absent(),
+    this.leaseExpiresAtUtc = const Value.absent(),
+    required DateTime createdAtUtc,
+    this.lastAttemptAtUtc = const Value.absent(),
+    this.lastFailureKind = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : dedupeKey = Value(dedupeKey),
+       semesterId = Value(semesterId),
+       identityKey = Value(identityKey),
+       notificationId = Value(notificationId),
+       createdAtUtc = Value(createdAtUtc);
+  static Insertable<NewAssignmentNotificationOutboxData> custom({
+    Expression<String>? dedupeKey,
+    Expression<int>? semesterId,
+    Expression<String>? identityKey,
+    Expression<int>? notificationId,
+    Expression<String>? state,
+    Expression<String>? ownerToken,
+    Expression<int>? leaseExpiresAtUtc,
+    Expression<int>? createdAtUtc,
+    Expression<int>? lastAttemptAtUtc,
+    Expression<String>? lastFailureKind,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dedupeKey != null) 'dedupe_key': dedupeKey,
+      if (semesterId != null) 'semester_id': semesterId,
+      if (identityKey != null) 'identity_key': identityKey,
+      if (notificationId != null) 'notification_id': notificationId,
+      if (state != null) 'state': state,
+      if (ownerToken != null) 'owner_token': ownerToken,
+      if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
+      if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
+      if (lastAttemptAtUtc != null) 'last_attempt_at_utc': lastAttemptAtUtc,
+      if (lastFailureKind != null) 'last_failure_kind': lastFailureKind,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NewAssignmentNotificationOutboxCompanion copyWith({
+    Value<String>? dedupeKey,
+    Value<int>? semesterId,
+    Value<String>? identityKey,
+    Value<int>? notificationId,
+    Value<String>? state,
+    Value<String?>? ownerToken,
+    Value<DateTime?>? leaseExpiresAtUtc,
+    Value<DateTime>? createdAtUtc,
+    Value<DateTime?>? lastAttemptAtUtc,
+    Value<String?>? lastFailureKind,
+    Value<int>? rowid,
+  }) {
+    return NewAssignmentNotificationOutboxCompanion(
+      dedupeKey: dedupeKey ?? this.dedupeKey,
+      semesterId: semesterId ?? this.semesterId,
+      identityKey: identityKey ?? this.identityKey,
+      notificationId: notificationId ?? this.notificationId,
+      state: state ?? this.state,
+      ownerToken: ownerToken ?? this.ownerToken,
+      leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
+      createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+      lastAttemptAtUtc: lastAttemptAtUtc ?? this.lastAttemptAtUtc,
+      lastFailureKind: lastFailureKind ?? this.lastFailureKind,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dedupeKey.present) {
+      map['dedupe_key'] = Variable<String>(dedupeKey.value);
+    }
+    if (semesterId.present) {
+      map['semester_id'] = Variable<int>(semesterId.value);
+    }
+    if (identityKey.present) {
+      map['identity_key'] = Variable<String>(identityKey.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<int>(notificationId.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (ownerToken.present) {
+      map['owner_token'] = Variable<String>(ownerToken.value);
+    }
+    if (leaseExpiresAtUtc.present) {
+      map['lease_expires_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$converterleaseExpiresAtUtcn
+            .toSql(leaseExpiresAtUtc.value),
+      );
+    }
+    if (createdAtUtc.present) {
+      map['created_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$convertercreatedAtUtc.toSql(
+          createdAtUtc.value,
+        ),
+      );
+    }
+    if (lastAttemptAtUtc.present) {
+      map['last_attempt_at_utc'] = Variable<int>(
+        $NewAssignmentNotificationOutboxTable.$converterlastAttemptAtUtcn.toSql(
+          lastAttemptAtUtc.value,
+        ),
+      );
+    }
+    if (lastFailureKind.present) {
+      map['last_failure_kind'] = Variable<String>(lastFailureKind.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NewAssignmentNotificationOutboxCompanion(')
+          ..write('dedupeKey: $dedupeKey, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('identityKey: $identityKey, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('state: $state, ')
+          ..write('ownerToken: $ownerToken, ')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('createdAtUtc: $createdAtUtc, ')
+          ..write('lastAttemptAtUtc: $lastAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -8990,6 +9677,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $ScheduledRemindersTable(this);
   late final $NotificationHistoryTable notificationHistory =
       $NotificationHistoryTable(this);
+  late final $NewAssignmentNotificationOutboxTable
+  newAssignmentNotificationOutbox = $NewAssignmentNotificationOutboxTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $AssignmentBaselinesTable assignmentBaselines =
@@ -9040,6 +9729,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'notification_history_by_assignment_kind',
     'CREATE INDEX notification_history_by_assignment_kind ON notification_history (semester_id, identity_key, kind)',
   );
+  late final Index newAssignmentOutboxNotificationId = Index(
+    'new_assignment_outbox_notification_id',
+    'CREATE UNIQUE INDEX new_assignment_outbox_notification_id ON new_assignment_notification_outbox (notification_id)',
+  );
+  late final Index newAssignmentOutboxOneInFlight = Index(
+    'new_assignment_outbox_one_in_flight',
+    'CREATE UNIQUE INDEX new_assignment_outbox_one_in_flight ON new_assignment_notification_outbox (state) WHERE state = \'inFlight\'',
+  );
+  late final Index newAssignmentOutboxQueue = Index(
+    'new_assignment_outbox_queue',
+    'CREATE INDEX new_assignment_outbox_queue ON new_assignment_notification_outbox (state, created_at_utc, semester_id, identity_key)',
+  );
   late final Index syncRunsByStartedTime = Index(
     'sync_runs_by_started_time',
     'CREATE INDEX sync_runs_by_started_time ON sync_runs (started_at_utc DESC, sync_run_id DESC)',
@@ -9081,6 +9782,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     activityFingerprints,
     scheduledReminders,
     notificationHistory,
+    newAssignmentNotificationOutbox,
     syncRuns,
     syncOperations,
     assignmentBaselines,
@@ -9099,6 +9801,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     scheduledRemindersByScheduledTime,
     scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
+    newAssignmentOutboxNotificationId,
+    newAssignmentOutboxOneInFlight,
+    newAssignmentOutboxQueue,
     syncRunsByStartedTime,
     syncOperationsOneRunning,
     syncOperationsOneActiveKey,
@@ -11343,6 +12048,342 @@ typedef $$NotificationHistoryTableProcessedTableManager =
         >,
       ),
       NotificationHistoryData,
+      PrefetchHooks Function()
+    >;
+typedef $$NewAssignmentNotificationOutboxTableCreateCompanionBuilder =
+    NewAssignmentNotificationOutboxCompanion Function({
+      required String dedupeKey,
+      required int semesterId,
+      required String identityKey,
+      required int notificationId,
+      Value<String> state,
+      Value<String?> ownerToken,
+      Value<DateTime?> leaseExpiresAtUtc,
+      required DateTime createdAtUtc,
+      Value<DateTime?> lastAttemptAtUtc,
+      Value<String?> lastFailureKind,
+      Value<int> rowid,
+    });
+typedef $$NewAssignmentNotificationOutboxTableUpdateCompanionBuilder =
+    NewAssignmentNotificationOutboxCompanion Function({
+      Value<String> dedupeKey,
+      Value<int> semesterId,
+      Value<String> identityKey,
+      Value<int> notificationId,
+      Value<String> state,
+      Value<String?> ownerToken,
+      Value<DateTime?> leaseExpiresAtUtc,
+      Value<DateTime> createdAtUtc,
+      Value<DateTime?> lastAttemptAtUtc,
+      Value<String?> lastFailureKind,
+      Value<int> rowid,
+    });
+
+class $$NewAssignmentNotificationOutboxTableFilterComposer
+    extends Composer<_$AppDatabase, $NewAssignmentNotificationOutboxTable> {
+  $$NewAssignmentNotificationOutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dedupeKey => $composableBuilder(
+    column: $table.dedupeKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get leaseExpiresAtUtc => $composableBuilder(
+    column: $table.leaseExpiresAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAtUtc =>
+      $composableBuilder(
+        column: $table.createdAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get lastAttemptAtUtc => $composableBuilder(
+    column: $table.lastAttemptAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NewAssignmentNotificationOutboxTableOrderingComposer
+    extends Composer<_$AppDatabase, $NewAssignmentNotificationOutboxTable> {
+  $$NewAssignmentNotificationOutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dedupeKey => $composableBuilder(
+    column: $table.dedupeKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get leaseExpiresAtUtc => $composableBuilder(
+    column: $table.leaseExpiresAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtUtc => $composableBuilder(
+    column: $table.createdAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastAttemptAtUtc => $composableBuilder(
+    column: $table.lastAttemptAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NewAssignmentNotificationOutboxTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NewAssignmentNotificationOutboxTable> {
+  $$NewAssignmentNotificationOutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dedupeKey =>
+      $composableBuilder(column: $table.dedupeKey, builder: (column) => column);
+
+  GeneratedColumn<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get leaseExpiresAtUtc =>
+      $composableBuilder(
+        column: $table.leaseExpiresAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAtUtc =>
+      $composableBuilder(
+        column: $table.createdAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get lastAttemptAtUtc =>
+      $composableBuilder(
+        column: $table.lastAttemptAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => column,
+  );
+}
+
+class $$NewAssignmentNotificationOutboxTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NewAssignmentNotificationOutboxTable,
+          NewAssignmentNotificationOutboxData,
+          $$NewAssignmentNotificationOutboxTableFilterComposer,
+          $$NewAssignmentNotificationOutboxTableOrderingComposer,
+          $$NewAssignmentNotificationOutboxTableAnnotationComposer,
+          $$NewAssignmentNotificationOutboxTableCreateCompanionBuilder,
+          $$NewAssignmentNotificationOutboxTableUpdateCompanionBuilder,
+          (
+            NewAssignmentNotificationOutboxData,
+            BaseReferences<
+              _$AppDatabase,
+              $NewAssignmentNotificationOutboxTable,
+              NewAssignmentNotificationOutboxData
+            >,
+          ),
+          NewAssignmentNotificationOutboxData,
+          PrefetchHooks Function()
+        > {
+  $$NewAssignmentNotificationOutboxTableTableManager(
+    _$AppDatabase db,
+    $NewAssignmentNotificationOutboxTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NewAssignmentNotificationOutboxTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$NewAssignmentNotificationOutboxTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$NewAssignmentNotificationOutboxTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> dedupeKey = const Value.absent(),
+                Value<int> semesterId = const Value.absent(),
+                Value<String> identityKey = const Value.absent(),
+                Value<int> notificationId = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> ownerToken = const Value.absent(),
+                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                Value<DateTime> createdAtUtc = const Value.absent(),
+                Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+                Value<String?> lastFailureKind = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NewAssignmentNotificationOutboxCompanion(
+                dedupeKey: dedupeKey,
+                semesterId: semesterId,
+                identityKey: identityKey,
+                notificationId: notificationId,
+                state: state,
+                ownerToken: ownerToken,
+                leaseExpiresAtUtc: leaseExpiresAtUtc,
+                createdAtUtc: createdAtUtc,
+                lastAttemptAtUtc: lastAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dedupeKey,
+                required int semesterId,
+                required String identityKey,
+                required int notificationId,
+                Value<String> state = const Value.absent(),
+                Value<String?> ownerToken = const Value.absent(),
+                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                required DateTime createdAtUtc,
+                Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+                Value<String?> lastFailureKind = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NewAssignmentNotificationOutboxCompanion.insert(
+                dedupeKey: dedupeKey,
+                semesterId: semesterId,
+                identityKey: identityKey,
+                notificationId: notificationId,
+                state: state,
+                ownerToken: ownerToken,
+                leaseExpiresAtUtc: leaseExpiresAtUtc,
+                createdAtUtc: createdAtUtc,
+                lastAttemptAtUtc: lastAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NewAssignmentNotificationOutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NewAssignmentNotificationOutboxTable,
+      NewAssignmentNotificationOutboxData,
+      $$NewAssignmentNotificationOutboxTableFilterComposer,
+      $$NewAssignmentNotificationOutboxTableOrderingComposer,
+      $$NewAssignmentNotificationOutboxTableAnnotationComposer,
+      $$NewAssignmentNotificationOutboxTableCreateCompanionBuilder,
+      $$NewAssignmentNotificationOutboxTableUpdateCompanionBuilder,
+      (
+        NewAssignmentNotificationOutboxData,
+        BaseReferences<
+          _$AppDatabase,
+          $NewAssignmentNotificationOutboxTable,
+          NewAssignmentNotificationOutboxData
+        >,
+      ),
+      NewAssignmentNotificationOutboxData,
       PrefetchHooks Function()
     >;
 typedef $$SyncRunsTableCreateCompanionBuilder =
@@ -13726,6 +14767,12 @@ class $AppDatabaseManager {
       $$ScheduledRemindersTableTableManager(_db, _db.scheduledReminders);
   $$NotificationHistoryTableTableManager get notificationHistory =>
       $$NotificationHistoryTableTableManager(_db, _db.notificationHistory);
+  $$NewAssignmentNotificationOutboxTableTableManager
+  get newAssignmentNotificationOutbox =>
+      $$NewAssignmentNotificationOutboxTableTableManager(
+        _db,
+        _db.newAssignmentNotificationOutbox,
+      );
   $$SyncRunsTableTableManager get syncRuns =>
       $$SyncRunsTableTableManager(_db, _db.syncRuns);
   $$SyncOperationsTableTableManager get syncOperations =>

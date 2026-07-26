@@ -1,4 +1,5 @@
 import '../domain/deadline_reminder_policy.dart';
+import '../domain/local_notification_models.dart';
 
 enum NotificationRuntimePlatform {
   android,
@@ -140,6 +141,8 @@ abstract interface class LocalNotificationsPlatform {
   });
 
   Future<String?> getLaunchPayload();
+
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission();
 
   Future<bool?> requestPermission();
 

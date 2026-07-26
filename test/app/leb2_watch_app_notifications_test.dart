@@ -19,6 +19,7 @@ import 'package:leb2_watch/src/features/background_sync/data/background_sync_tar
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
+import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_drain.dart';
 
 void main() {
   testWidgets(
@@ -26,6 +27,7 @@ void main() {
     (tester) async {
       final flow = AppFlowController(initialStage: AppFlowStage.ready);
       final notifications = _AppNotificationService();
+      final drain = _AppNotificationDrain();
       final details = _AppAssignmentDetailService();
       addTearDown(flow.dispose);
       addTearDown(notifications.dispose);
@@ -35,6 +37,9 @@ void main() {
           overrides: [
             appFlowControllerProvider.overrideWithValue(flow),
             localNotificationServiceProvider.overrideWithValue(notifications),
+            newAssignmentNotificationDrainProvider.overrideWith(
+              (_) async => drain,
+            ),
             assignmentDashboardServiceProvider.overrideWith(
               (_) => _AppAssignmentDashboardService(),
             ),
@@ -54,6 +59,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(notifications.initializeCalls, 1);
+      expect(drain.calls, 1);
       final target = AssignmentDetailKey(
         semesterId: 999,
         identityKey: 'backend:777',
@@ -101,6 +107,9 @@ void main() {
         overrides: [
           appFlowControllerProvider.overrideWithValue(flow),
           localNotificationServiceProvider.overrideWithValue(notifications),
+          newAssignmentNotificationDrainProvider.overrideWith(
+            (_) async => _AppNotificationDrain(),
+          ),
           assignmentDashboardServiceProvider.overrideWith(
             (_) => _AppAssignmentDashboardService(),
           ),
@@ -160,6 +169,9 @@ void main() {
         overrides: [
           appFlowControllerProvider.overrideWithValue(flow),
           localNotificationServiceProvider.overrideWithValue(notifications),
+          newAssignmentNotificationDrainProvider.overrideWith(
+            (_) async => _AppNotificationDrain(),
+          ),
           sessionLifecycleProvider.overrideWith((_) => sessions.stream),
           backgroundMonitoringLifecycleProvider.overrideWith(
             (_) async => lifecycle,
@@ -190,6 +202,15 @@ void main() {
     expect(sync.reasons, [SyncReason.appResume]);
     expect(statusRefreshRequests, 2);
   });
+}
+
+final class _AppNotificationDrain implements NewAssignmentNotificationDrain {
+  int calls = 0;
+
+  @override
+  Future<void> drainActiveCached() async {
+    calls += 1;
+  }
 }
 
 final class _AppNotificationService implements LocalNotificationService {
@@ -233,6 +254,10 @@ final class _AppNotificationService implements LocalNotificationService {
       emit(target);
     }
   }
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
 
   @override
   Future<NotificationPermissionStatus> requestPermission() async =>

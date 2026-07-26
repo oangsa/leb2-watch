@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/app_dependencies.dart';
 import 'package:leb2_watch/src/features/notifications/application/local_notification_service_impl.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
+import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 
 void main() {
   test(
@@ -61,6 +62,10 @@ final class _TrackingNotificationsPlatform
     initializeCalls += 1;
     return true;
   }
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.unavailable;
 
   @override
   Future<bool?> requestPermission() async => null;

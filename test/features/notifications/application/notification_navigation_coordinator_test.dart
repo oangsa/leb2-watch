@@ -127,6 +127,10 @@ final class _ResponseService implements LocalNotificationService {
   Future<void> initialize() async {}
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async =>
       NotificationPermissionStatus.notRequired;
 

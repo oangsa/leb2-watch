@@ -598,6 +598,10 @@ final class _RecordingNotifications implements LocalNotificationService {
   }
 
   @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
+
+  @override
   Future<NotificationPermissionStatus> requestPermission() async {
     permissionCalls += 1;
     return NotificationPermissionStatus.denied;

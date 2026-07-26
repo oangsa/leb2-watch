@@ -5,6 +5,8 @@ abstract interface class LocalNotificationService {
 
   Future<void> initialize();
 
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission();
+
   Future<NotificationPermissionStatus> requestPermission();
 
   Future<void> showTestNotification();

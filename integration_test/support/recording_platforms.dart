@@ -4,6 +4,7 @@ import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
+import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/application/local_data_deletion_ports.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/domain/local_data_deletion.dart';
 import 'package:leb2_watch/src/platform/background/background_scheduler_platform.dart';
@@ -89,6 +90,10 @@ final class RecordingLocalNotificationsPlatform
 
   @override
   Future<String?> getLaunchPayload() async => null;
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
 
   @override
   Future<bool?> requestPermission() async {

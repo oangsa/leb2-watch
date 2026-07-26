@@ -43,6 +43,33 @@ void main() {
     expect(candidates.toSet(), hasLength(2));
   });
 
+  test('raw owner-key candidates preserve invalid-discovery identity', () {
+    final ownerKey = factory.newAssignmentOwnerKey(
+      semesterId: 123,
+      identityKey: 'legacy-invalid',
+    );
+    final firstCandidate = factory.candidateValuesForOwnerKey(ownerKey).first;
+    final repeatedCandidate = factory
+        .candidateValuesForOwnerKey(ownerKey)
+        .first;
+
+    expect(ownerKey, 'leb2-notification:v1:new:123:legacy-invalid');
+    expect(firstCandidate, repeatedCandidate);
+    expect(firstCandidate, greaterThan(0));
+    expect(
+      firstCandidate,
+      isNot(LocalNotificationIdFactory.testNotificationId),
+    );
+    expect(
+      factory
+          .candidateValuesForOwnerKey(
+            'leb2-notification:v1:new:123:backend:456',
+          )
+          .first,
+      127904385,
+    );
+  });
+
   test('candidate depends on kind, assignment, offset, and semester', () {
     final variants = <NotificationOwner>[
       NotificationOwner.newAssignment(backendAssignment),

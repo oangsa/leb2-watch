@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/notifications/data/flutter_local_notifications_adapter.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
+import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 
 void main() {
   test('initialization settings never request Darwin permission', () {
@@ -61,6 +62,88 @@ void main() {
 
     expect(teardownCalls, 0);
   });
+
+  test('Android passive notification toggle maps without prompting', () {
+    expect(
+      mapNotificationTogglePermission(true),
+      NotificationDeliveryPermissionStatus.allowed,
+    );
+    expect(
+      mapNotificationTogglePermission(false),
+      NotificationDeliveryPermissionStatus.blocked,
+    );
+    expect(
+      mapNotificationTogglePermission(null),
+      NotificationDeliveryPermissionStatus.unavailable,
+    );
+  });
+
+  test('Darwin provisional permission permits passive delivery', () {
+    const provisional = NotificationsEnabledOptions(
+      isEnabled: false,
+      isAlertEnabled: false,
+      isBadgeEnabled: false,
+      isSoundEnabled: false,
+      isProvisionalEnabled: true,
+      isCriticalEnabled: false,
+      isProvidesAppNotificationSettingsEnabled: false,
+      isCarPlayEnabled: false,
+    );
+    const blocked = NotificationsEnabledOptions(
+      isEnabled: false,
+      isAlertEnabled: false,
+      isBadgeEnabled: false,
+      isSoundEnabled: false,
+      isProvisionalEnabled: false,
+      isCriticalEnabled: false,
+      isProvidesAppNotificationSettingsEnabled: false,
+      isCarPlayEnabled: false,
+    );
+
+    expect(
+      mapDarwinDeliveryPermission(provisional),
+      NotificationDeliveryPermissionStatus.allowed,
+    );
+    expect(
+      mapDarwinDeliveryPermission(blocked),
+      NotificationDeliveryPermissionStatus.blocked,
+    );
+    expect(
+      mapDarwinDeliveryPermission(null),
+      NotificationDeliveryPermissionStatus.unavailable,
+    );
+  });
+
+  test(
+    'desktop passive delivery status requires no permission request',
+    () async {
+      for (final platform in [
+        NotificationRuntimePlatform.linux,
+        NotificationRuntimePlatform.windows,
+      ]) {
+        final adapter = FlutterLocalNotificationsAdapter(
+          runtimePlatform: platform,
+          windowsPackaged: false,
+          windowsTeardown: () {},
+        );
+        addTearDown(adapter.dispose);
+
+        expect(
+          await adapter.readDeliveryPermission(),
+          NotificationDeliveryPermissionStatus.notRequired,
+        );
+      }
+      final unsupported = FlutterLocalNotificationsAdapter(
+        runtimePlatform: NotificationRuntimePlatform.unsupported,
+        windowsTeardown: () {},
+      );
+      addTearDown(unsupported.dispose);
+      expect(
+        await unsupported.readDeliveryPermission(),
+        NotificationDeliveryPermissionStatus.unavailable,
+      );
+    },
+  );
 
   for (final testCase
       in <(NotificationRuntimePlatform, bool, bool, bool, bool)>[

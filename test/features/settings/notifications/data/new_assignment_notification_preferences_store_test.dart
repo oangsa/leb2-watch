@@ -47,7 +47,7 @@ void main() {
     expect(history.map((row) => row.kind).toSet(), {
       disabledNewAssignmentNotificationKind,
     });
-    expect(await notifications.claimNext(semesterId: 101), isNull);
+    expect(await _claim(notifications), isNull);
   });
 
   test('re-enable consumes work discovered while disabled', () async {
@@ -60,7 +60,7 @@ void main() {
       (await database.select(database.notificationHistory).getSingle()).kind,
       disabledNewAssignmentNotificationKind,
     );
-    expect(await notifications.claimNext(semesterId: 101), isNull);
+    expect(await _claim(notifications), isNull);
     expect((await preferences.watch().first).enabled, isTrue);
   });
 
@@ -68,20 +68,18 @@ void main() {
     await _seedCurrent(database, id: 1001);
 
     await Future.wait<Object?>([
-      notifications.claimNext(semesterId: 101),
+      _claim(notifications),
       preferences.setEnabled(false),
     ]);
 
     final history = await database.select(database.notificationHistory).get();
     expect(history, hasLength(1));
+    expect(history.single.kind, disabledNewAssignmentNotificationKind);
     expect(
-      history.single.kind,
-      isIn({
-        newAssignmentNotificationKind,
-        disabledNewAssignmentNotificationKind,
-      }),
+      await database.select(database.newAssignmentNotificationOutbox).get(),
+      isEmpty,
     );
-    expect(await notifications.claimNext(semesterId: 101), isNull);
+    expect(await _claim(notifications, ownerToken: 'owner-b'), isNull);
   });
 
   test(
@@ -113,7 +111,7 @@ void main() {
 
       await database.into(database.activities).insert(retainedActivity);
 
-      expect(await notifications.claimNext(semesterId: 101), isNull);
+      expect(await _claim(notifications), isNull);
       final finalHistory = await database
           .select(database.notificationHistory)
           .get();
@@ -121,6 +119,18 @@ void main() {
       expect(finalHistory.single.dedupeKey, suppressedHistory.single.dedupeKey);
       expect(finalHistory.single.identityKey, 'backend:1001');
     },
+  );
+}
+
+Future<NewAssignmentNotificationClaim?> _claim(
+  NewAssignmentNotificationStore store, {
+  String ownerToken = 'owner-a',
+}) {
+  return store.claimNext(
+    semesterId: 101,
+    ownerToken: ownerToken,
+    nowUtc: DateTime.utc(2026, 7, 26, 2),
+    leaseDuration: const Duration(seconds: 30),
   );
 }
 

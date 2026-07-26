@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../../background_sync/domain/background_scheduler.dart';
 import '../../../background_sync/domain/desktop_autostart_service.dart';
 import '../../../notifications/application/deadline_reminder_preferences_service.dart';
+import '../../../notifications/application/new_assignment_notification_drain.dart';
 import '../../../notifications/domain/deadline_reminder_preferences.dart';
 import '../../../notifications/domain/local_notification_models.dart';
 import '../../../notifications/domain/local_notification_service.dart';
@@ -84,6 +85,7 @@ final class LocalNotificationSettingsService
     this._deadlinePreferences,
     this._desktopAutostart,
     this._notifications,
+    this._newAssignmentDrain,
     this._platform,
     this._scheduleStatusRefreshes,
   );
@@ -94,6 +96,7 @@ final class LocalNotificationSettingsService
   final DeadlineReminderPreferencesService _deadlinePreferences;
   final DesktopAutostartService _desktopAutostart;
   final LocalNotificationService _notifications;
+  final NewAssignmentNotificationDrain _newAssignmentDrain;
   final NotificationSettingsPlatform _platform;
   final BackgroundScheduleStatusRefreshSignal _scheduleStatusRefreshes;
   final StreamController<BackgroundScheduleStatus> _scheduleStatusUpdates =
@@ -265,9 +268,16 @@ final class LocalNotificationSettingsService
   requestNotificationPermission() async {
     try {
       await _notifications.initialize();
-      return NotificationPermissionActionCompleted(
-        await _notifications.requestPermission(),
-      );
+      final status = await _notifications.requestPermission();
+      if (status == NotificationPermissionStatus.granted ||
+          status == NotificationPermissionStatus.notRequired) {
+        try {
+          await _newAssignmentDrain.drainActiveCached();
+        } on Object {
+          // Permission success remains authoritative; cached retry is best effort.
+        }
+      }
+      return NotificationPermissionActionCompleted(status);
     } on LocalNotificationFailure catch (failure) {
       return NotificationPermissionActionFailed(failure.message);
     } on Object {
