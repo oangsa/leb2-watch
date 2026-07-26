@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -69,17 +68,40 @@ final class BackendSessionCookie {
 }
 
 final class BackendRequestCancellation {
-  final Completer<void> _cancelled = Completer<void>();
+  final Set<void Function()> _listeners = <void Function()>{};
+  bool _isCancelled = false;
 
-  bool get isCancelled => _cancelled.isCompleted;
+  bool get isCancelled => _isCancelled;
 
   void cancel() {
-    if (!isCancelled) {
-      _cancelled.complete();
+    if (_isCancelled) {
+      return;
+    }
+
+    _isCancelled = true;
+    final listeners = List<void Function()>.of(_listeners);
+    _listeners.clear();
+    for (final listener in listeners) {
+      listener();
     }
   }
 
-  Future<void> get _whenCancelled => _cancelled.future;
+  void Function() _registerListener(void Function() listener) {
+    if (_isCancelled) {
+      listener();
+      return () {};
+    }
+
+    _listeners.add(listener);
+    var isDisposed = false;
+    return () {
+      if (isDisposed) {
+        return;
+      }
+      isDisposed = true;
+      _listeners.remove(listener);
+    };
+  }
 
   @override
   String toString() => 'BackendRequestCancellation(redacted: true)';

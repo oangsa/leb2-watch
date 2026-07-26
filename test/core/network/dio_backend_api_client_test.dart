@@ -570,7 +570,9 @@ void main() {
 
   group('cancellation and transport failures', () {
     test('cancellation before dispatch never invokes the adapter', () async {
-      final cancellation = BackendRequestCancellation()..cancel();
+      final cancellation = BackendRequestCancellation()
+        ..cancel()
+        ..cancel();
       final adapter = CallbackHttpClientAdapter(
         (_, _, _) => throw StateError('Adapter must not run.'),
       );
@@ -615,6 +617,168 @@ void main() {
         ),
       );
       expect(adapter.requests, hasLength(1));
+    });
+
+    test(
+      'terminal requests detach from a reusable cancellation handle',
+      () async {
+        final didCancel = <bool>[];
+        var requestIndex = 0;
+        final adapter = CallbackHttpClientAdapter((options, _, cancelFuture) {
+          final index = requestIndex++;
+          didCancel.add(false);
+          unawaited(
+            cancelFuture!.then((_) {
+              didCancel[index] = true;
+            }),
+          );
+
+          return switch (index) {
+            0 => jsonResponse(const <int>[101]),
+            1 => throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+            ),
+            2 => throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.cancel,
+            ),
+            _ => throw StateError('Unexpected request.'),
+          };
+        });
+        final client = _client(adapter);
+        final cancellation = BackendRequestCancellation();
+
+        expect(
+          (await client.getSemesters(cancellation: cancellation)).single.id,
+          101,
+        );
+        await expectLater(
+          client.getSemesters(cancellation: cancellation),
+          throwsA(
+            _transportFailure(BackendTransportFailureKind.connectionError),
+          ),
+        );
+        await expectLater(
+          client.getSemesters(cancellation: cancellation),
+          throwsA(_transportFailure(BackendTransportFailureKind.cancelled)),
+        );
+
+        cancellation.cancel();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(didCancel, [false, false, false]);
+      },
+    );
+
+    test(
+      'late cancellation reaches only the request that remains active',
+      () async {
+        final secondStarted = Completer<void>();
+        final didCancel = <bool>[false, false];
+        var requestIndex = 0;
+        final adapter = CallbackHttpClientAdapter((
+          options,
+          _,
+          cancelFuture,
+        ) async {
+          final index = requestIndex++;
+          unawaited(
+            cancelFuture!.then((_) {
+              didCancel[index] = true;
+            }),
+          );
+          if (index == 0) {
+            return jsonResponse(const <int>[101]);
+          }
+          secondStarted.complete();
+          await cancelFuture;
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+          );
+        });
+        final client = _client(adapter);
+        final cancellation = BackendRequestCancellation();
+
+        await client.getSemesters(cancellation: cancellation);
+        final activeRequest = client.getSemesters(cancellation: cancellation);
+        final activeExpectation = expectLater(
+          activeRequest,
+          throwsA(_transportFailure(BackendTransportFailureKind.cancelled)),
+        );
+        await secondStarted.future;
+
+        cancellation
+          ..cancel()
+          ..cancel();
+        await activeExpectation;
+
+        expect(didCancel, [false, true]);
+      },
+    );
+
+    test('one handle cancels every concurrently active request once', () async {
+      final bothStarted = Completer<void>();
+      final cancellationCount = <int>[0, 0];
+      var requestIndex = 0;
+      final adapter = CallbackHttpClientAdapter((
+        options,
+        _,
+        cancelFuture,
+      ) async {
+        final index = requestIndex++;
+        unawaited(
+          cancelFuture!.then((_) {
+            cancellationCount[index] += 1;
+          }),
+        );
+        if (requestIndex == 2) {
+          bothStarted.complete();
+        }
+        await cancelFuture;
+        throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+        );
+      });
+      final client = _client(adapter);
+      final cancellation = BackendRequestCancellation();
+      final firstExpectation = expectLater(
+        client.getSemesters(cancellation: cancellation),
+        throwsA(_transportFailure(BackendTransportFailureKind.cancelled)),
+      );
+      final secondExpectation = expectLater(
+        client.getSemesters(cancellation: cancellation),
+        throwsA(_transportFailure(BackendTransportFailureKind.cancelled)),
+      );
+      await bothStarted.future;
+
+      cancellation
+        ..cancel()
+        ..cancel();
+      await Future.wait([firstExpectation, secondExpectation]);
+
+      expect(cancellationCount, [1, 1]);
+    });
+
+    test('terminal event observes a detached request listener', () async {
+      var requestCancelled = false;
+      final cancellation = BackendRequestCancellation();
+      final adapter = CallbackHttpClientAdapter((_, _, cancelFuture) {
+        unawaited(
+          cancelFuture!.then((_) {
+            requestCancelled = true;
+          }),
+        );
+        return jsonResponse(const <int>[101]);
+      });
+      final client = _client(adapter, eventSink: (_) => cancellation.cancel());
+
+      await client.getSemesters(cancellation: cancellation);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(requestCancelled, isFalse);
     });
 
     test('maps every Dio timeout and transport category distinctly', () async {

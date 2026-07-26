@@ -162,6 +162,7 @@ final class DioBackendApiClient
     final stopwatch = Stopwatch()..start();
     int? statusCode;
     var outcome = BackendTransportOutcome.unknownFailure;
+    void Function()? disposeCancellationListener;
 
     try {
       if (cancellation?.isCancelled ?? false) {
@@ -172,13 +173,11 @@ final class DioBackendApiClient
 
       final cancelToken = CancelToken();
       if (cancellation != null) {
-        unawaited(
-          cancellation._whenCancelled.then((_) {
-            if (!cancelToken.isCancelled) {
-              cancelToken.cancel();
-            }
-          }),
-        );
+        disposeCancellationListener = cancellation._registerListener(() {
+          if (!cancelToken.isCancelled) {
+            cancelToken.cancel();
+          }
+        });
       }
 
       final client = dio ?? _dio;
@@ -243,6 +242,7 @@ final class DioBackendApiClient
         kind: BackendTransportFailureKind.unknownFailure,
       );
     } finally {
+      disposeCancellationListener?.call();
       stopwatch.stop();
       _emitEvent(
         BackendTransportEvent(

@@ -4,10 +4,10 @@
 
 Completed for the three verified authenticated read routes, candidate-session
 verification, credential login/cookie acquisition, generated transport and
-domain models, strict response validation, cancellation, safe transport
-evidence, focused tests, repository-wide analysis and tests, and the Linux
-release build. Android, iOS, macOS, and Windows builds remain unverified on
-this Linux host.
+domain models, strict response validation, detachable per-request
+cancellation, safe transport evidence, focused tests, repository-wide
+analysis and tests, and the Linux release build. Android, iOS, macOS, and
+Windows builds remain unverified on this Linux host.
 
 ## Purpose
 
@@ -28,8 +28,9 @@ unvalidated backend data.
   the required explicit numeric user-ID header on snapshot requests.
 - Strict environment-provided base-URL validation and production HTTPS
   enforcement.
-- Dio timeouts, redirect prevention, bytes responses, cancellation, and
-  module-owned status inspection.
+- Dio timeouts, redirect prevention, bytes responses, operation-wide
+  cancellation with per-request listener cleanup, and module-owned status
+  inspection.
 - Checked JSON DTOs and separate redacted Freezed domain models.
 - Strict content-type, UTF-8, JSON shape, identifier, containment, label, and
   date-syntax validation.
@@ -60,8 +61,11 @@ malformed responses are never interpreted as empty success.
 
 `BackendApiClient` is the external seam and has exactly three read methods.
 `DioBackendApiClient` is the adapter at that seam. It is a library part of the
-interface source so the cancellation completion signal stays private while the
-public cancellation value exposes only `cancel()` and `isCancelled`.
+interface source so the cancellation listener registry stays private while the
+public cancellation value exposes only `cancel()` and `isCancelled`. Each Dio
+request owns one private cancellation registration and disposes it on every
+terminal path before emitting its transport event. A reusable operation handle
+therefore retains only currently active request tokens.
 
 Construction validates `AppConfiguration` and creates two Dio pipelines with
 the same strict options. The authenticated pipeline installs one private
@@ -163,6 +167,13 @@ application/json`. Every request reads the exact secure-storage cookie and
 sends `Authorization: Bearer <opaque-cookie>`. Only snapshots send
 `X-LEB2-USER-ID`.
 
+`BackendRequestCancellation` is one-shot and operation-wide. Cancelling it
+marks the operation cancelled before synchronously notifying a snapshot of all
+active request listeners. Registration after cancellation notifies
+immediately. Each registration returns an idempotent private disposer, and
+completed requests detach before a development event sink can run. One shared
+handle can still cancel multiple concurrently active requests.
+
 Only HTTP 200 can be a success. Other statuses must contain one verified
 standard or validation error envelope. HTTP evidence preserves the status,
 open response code, envelope kind, parsed retry duration, and a safe
@@ -194,7 +205,8 @@ For each request:
 
 1. Validate caller-supplied identifiers before dispatch.
 2. Reject an already-cancelled operation.
-3. Bridge the private cancellation completion to a per-request Dio token.
+3. Register one detachable private listener that bridges operation
+   cancellation to a per-request Dio token.
 4. Read the session cookie and inject the Bearer header, or reject safely
    before the adapter.
 5. Execute one GET with redirects disabled and no retry.
@@ -204,9 +216,11 @@ For each request:
    domain values.
 8. For another status, require a verified error envelope and return safe HTTP
    transport evidence.
-9. Discard Dio, parser, adapter, credential-store, response, body, and stack
-   objects while mapping any failure.
-10. Emit one bounded development event; production emits no event.
+9. Detach the request's cancellation listener on every terminal path, before
+   observable terminal-event delivery.
+10. Discard Dio, parser, adapter, credential-store, response, body, and stack
+    objects while mapping any failure.
+11. Emit one bounded development event; production emits no event.
 
 Candidate verification follows the same response-validation path but injects
 the explicit candidate Bearer header on the interceptor-free session client.
@@ -235,6 +249,12 @@ interceptor-free session pipeline cannot attach a saved authorization header
 to login/cookie requests. The returned profile is reduced to its numeric ID;
 the institutional ID must be nonblank, while all four localized-name keys must
 be strings but may be empty. None is returned.
+
+Completed requests detach from a reusable cancellation handle. This prevents
+that handle from unnecessarily retaining Dio tokens and their request options,
+including candidate or saved Bearer headers and credential request bodies,
+after the request terminates. Active requests remain cancellable, including
+multiple requests sharing the same operation handle.
 
 There is no Dio logging interceptor. Development events contain only a fixed
 GET-or-POST method enum, normalized route enum, optional status, elapsed
@@ -271,6 +291,11 @@ URL, or response bytes.
   while reusing the module's strict decoder and failure boundary.
 - Reduce the verified login profile to the only value the frontend owns: the
   positive numeric backend user ID.
+- Keep cancellation registration synchronous and private: Dart's same-isolate
+  check/register boundary needs no stream, lock, or new public API.
+- Dispose each request registration in `_execute`'s `finally` before terminal
+  event emission so completed request state cannot remain attached to a
+  route- or operation-lifetime cancellation handle.
 
 ## Alternatives rejected
 
@@ -288,6 +313,12 @@ URL, or response bytes.
   timezone is verified.
 - Retaining mutable decoded object maps was rejected in favor of canonical
   scoped JSON strings.
+- Retaining listeners on a never-completed cancellation future was rejected
+  because completed requests remained reachable until the outer handle was
+  cancelled or released.
+- Creating a fresh semester cancellation handle per refresh was rejected as an
+  owner-specific workaround that would leave the transport lifecycle defect in
+  authentication and future reusable callers.
 
 ## Failure behavior
 
@@ -309,7 +340,7 @@ retry. No valid local data is touched.
 
 ## Tests
 
-The 40 focused tests cover:
+The API-client transport file currently contains 36 focused tests covering:
 
 - Base-URL normalization, fixed failures, and production HTTPS.
 - Exact routes, headers, 10/10/30 timeouts, bytes mode, status ownership,
@@ -325,6 +356,11 @@ The 40 focused tests cover:
   and unsupported content types.
 - Malformed UTF-8/JSON, empty bodies, JSON null, and wrong shapes.
 - Before-dispatch and in-flight cancellation.
+- Terminal detachment after success, mapped connection failure, and an
+  independently reported Dio cancellation.
+- A completed request sharing a handle with an active request, concurrent
+  active-request cancellation, idempotent outer cancellation, and listener
+  cleanup before terminal event delivery.
 - Every Dio timeout, connection, certificate, and unknown category.
 - Standard and validation error envelopes, session/authentication distinction,
   bearer challenges, and retry evidence.
@@ -343,6 +379,33 @@ redacted public values/events.
 
 Flutter and Dart commands used a shell where `~/.zshrc` was sourced once
 before the first invocation. The final validation passed:
+
+Request-cancellation lifecycle hardening on 2026-07-27:
+
+```text
+flutter test test/core/network/dio_backend_api_client_test.dart
+  --concurrency=1 --reporter=expanded
+Red: 3 new terminal-detachment assertions failed against the prior
+future-only bridge because late cancellation still reached completed tokens.
+Green: 36/36 passed after detachable registration cleanup.
+
+flutter test test/core/network/dio_backend_api_client_test.dart
+  test/core/network/backend_session_client_test.dart
+  --concurrency=1 --reporter=compact
+48/48 passed.
+
+dart analyze --fatal-infos --fatal-warnings
+  lib/src/core/network test/core/network
+No issues found.
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues found.
+
+flutter test --concurrency=1 --reporter=compact
+1001/1001 passed.
+```
+
+Earlier feature validation:
 
 ```text
 dart run build_runner build --delete-conflicting-outputs
