@@ -21,7 +21,7 @@ reminder timing.
 - Explicit notification permission and test-notification actions.
 - Platform-specific best-effort and capability explanations.
 - Real `/settings` routing with adaptive and accessible presentation.
-- The feature's schema-v10 preference migration plus current schema-v12
+- The feature's schema-v10 preference migration plus current schema-v13
   migration fixtures, enforcement, application, widget, router, and regression
   tests.
 
@@ -56,13 +56,14 @@ Notification permission is never requested merely by opening Settings. The
 explicit action first initializes notifications, then requests permission.
 After a granted or not-required result, it best-effort drains pending
 new-assignment work for the active semester without another backend request.
+The same explicit action wakes any permission-blocked desktop deadline event.
 The test action reports that a request was submitted to the operating system,
 not that delivery occurred.
 
 Start at login appears only on Linux, macOS, and Windows. Platform reliability
 copy explains mobile best-effort background scheduling, process-lifetime
-desktop monitoring, Linux scheduling limits, and packaged/unpackaged Windows
-differences.
+desktop deadline delivery, Linux OS-scheduling limits, and
+packaged/unpackaged Windows differences.
 
 ## Architecture
 
@@ -77,6 +78,8 @@ modules:
 - `LocalNotificationService` owns permission and test actions.
 - `NewAssignmentNotificationDrain` retries active-semester cached work after
   an explicit successful permission action.
+- `DesktopDeadlineReminderDeliveryCoordinator` refreshes due-event work after
+  an explicit permission action on process-delivery targets.
 
 `LocalNotificationSettingsService.watch()` combines those local streams
 without adding a stream-combination dependency. Scheduler status read failure
@@ -87,8 +90,8 @@ Errors from a durable settings stream become a redacted
 Actual scheduler status has its own event-driven update path. A successful
 monitoring write publishes the authoritative
 `BackgroundMonitoringUpdateApplied.status`. The root application requests one
-status refresh after session reconciliation completes and after app-resume
-work completes; the settings service then reuses
+status refresh after session reconciliation completes and another after
+app-resume work completes; the settings service then reuses
 `BackgroundScheduler.getStatus()`. This does not poll and does not depend on
 the desired-preference stream emitting.
 
@@ -127,9 +130,10 @@ session-local permission/action feedback in widget state.
   — claim-time global policy enforcement.
 - `lib/src/core/database/database_tables.dart` — preference table introduced
   in schema v10, retryable outbox introduced in schema v11, and current
-  automatic-reauthentication attempt state introduced in schema v12.
+  automatic-reauthentication attempt state introduced in schema v12; the
+  process deadline-delivery outbox is schema v13.
 - `lib/src/core/database/app_database.dart` — ordered migration through current
-  schema v12.
+  schema v13.
 - `test/core/database/v9_app_database.dart` — frozen previous-schema fixture.
 
 ## Contracts and interfaces
@@ -172,7 +176,8 @@ new_assignment_notification_preferences
 ```
 
 The durable notification outbox raised the schema to v11, and automatic
-session reauthentication raised it to current schema v12. Creation and every
+session reauthentication raised it to schema v12. Desktop deadline delivery
+raises the current schema to v13. Creation and every
 supported migration seed singleton ID 1. No credentials, authorization data,
 user content, or platform error detail are stored.
 
@@ -236,12 +241,13 @@ content when the current activity row is absent.
   fallback copy.
 - macOS: permission and OS-backed start-at-login controls; process-lifetime
   monitoring explanation.
-- Linux: start-at-login is available; immediate notifications are supported;
-  scheduled deadline notifications are described as unavailable.
+- Linux: start-at-login and process-lifetime deadline delivery are available;
+  OS-retained schedules and cold notification activation remain unavailable.
 - Packaged Windows: start-at-login and scheduled notifications are represented
   as available capabilities.
-- Unpackaged Windows: immediate notification remains available while scheduled
-  deadline notification limitations are explicit.
+- Unpackaged Windows: immediate and process-lifetime deadline notification are
+  available while OS-retained scheduling/cancellation limitations remain
+  explicit.
 - Unsupported targets: notification actions are disabled and no desktop
   autostart row is rendered.
 
@@ -302,14 +308,15 @@ Cached assignments and other routes remain unaffected.
 
 ## Tests
 
-- Fresh schema v12 default, singleton, outbox, and
+- Fresh schema v13 default, singleton, outbox, and
   automatic-reauthentication-attempt constraints, plus the
   credential-column scan.
 - Frozen v9 to v10 migration with prior data preserved.
 - Frozen v10 to v11 outbox migration with prior data preserved.
 - Frozen v11 to v12 automatic-reauthentication migration with prior data
   preserved.
-- Existing supported migrations updated through v12.
+- Frozen v12 to v13 deadline-delivery migration with prior data preserved.
+- Existing supported migrations updated through v13.
 - Preference watch/write, disable suppression, disabled-period re-enable, and
   claim/disable race convergence.
 - Removed-discovery suppression across disable, re-enable, and stable-identity
@@ -367,6 +374,8 @@ Cached assignments and other routes remain unaffected.
   checked in the current session.
 - Background work, reminders, autostart, and desktop process lifetime remain
   subject to the platform limitations documented on the page.
+- A permission refresh is best effort; operating-system display still is not a
+  delivery receipt.
 
 ## Future considerations
 
@@ -379,6 +388,7 @@ Cached assignments and other routes remain unaffected.
 - [Local Notifications](local-notifications.md)
 - [New Assignment Notifications](new-assignment-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)
 - [Course Preferences](course-preferences.md)
 - [Local Database](local-database.md)
 - [Synchronization Diagnostics](synchronization-diagnostics.md)

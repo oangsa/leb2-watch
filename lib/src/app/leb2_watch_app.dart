@@ -154,6 +154,14 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     if (mounted) {
       ref.read(backgroundScheduleStatusRefreshSignalProvider).requestRefresh();
     }
+    try {
+      final deadlineDelivery = await ref.read(
+        desktopDeadlineReminderDeliveryCoordinatorProvider.future,
+      );
+      await deadlineDelivery?.refresh(permissionMayHaveChanged: true);
+    } on Object {
+      // A later wall-clock checkpoint retries durable local reminder work.
+    }
   }
 
   Future<void> _initializeNotifications(

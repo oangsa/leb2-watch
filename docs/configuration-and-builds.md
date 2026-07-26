@@ -198,8 +198,9 @@ build/windows/x64/runner/Release
 Do not copy only `leb2-watch.exe`; its sibling libraries and data are required.
 No MSIX, installer, signing, update, or store pipeline is configured.
 Unpackaged Windows supports immediate notifications and taps while the app
-process remains alive. It does not support cold/terminated notification
-activation, scheduled deadline reminders, or reliable reminder cancellation.
+process remains alive. Future deadline events can also use process-lifetime
+immediate delivery. It does not support cold/terminated notification
+activation, OS-retained deadline schedules, or reliable reminder cancellation.
 
 CI builds this Release directory with the sanitized placeholder origin
 `https://api.example.org`. That compile gate does not sign, package, install,

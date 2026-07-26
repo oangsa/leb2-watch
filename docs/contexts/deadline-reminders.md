@@ -6,9 +6,10 @@ Completed for plugin-free persisted preferences, global cache planning,
 durable generation/lease reconciliation, local app-level scheduling requests,
 retained cancellation tombstones, periodic platform-effect heartbeats,
 bounded platform-effect waits, late-effect recovery, course-mute effects, and
-post-sync composition. Background-triggered reconciliation now preserves every
-owner belonging to a course with background monitoring disabled. Linux is
-build-verified on this host; Android, iOS,
+post-sync composition. Schema v13 also supplies durable process-lifetime
+deadline delivery on Linux and unpackaged Windows. Background-triggered
+reconciliation now preserves every owner belonging to a course with
+background monitoring disabled. Linux is build-verified on this host; Android, iOS,
 macOS, and Windows runtime behavior remains unverified.
 
 ## Purpose
@@ -37,17 +38,18 @@ an owner, or presenting an operating-system request as delivery evidence.
 - Apply the iOS nearest-64 limit globally and deterministically.
 - Persist whether a pending generation is restricted to background-eligible
   courses, with foreground requests taking precedence when work coalesces.
+- Persist versioned future-threshold events and submit them immediately while
+  the Linux or unpackaged-Windows process remains alive.
 
 ## Non-scope
 
 - Notification settings UI, permission explanation, or permission requests.
-- Background workers, BGTaskScheduler, desktop timers, tray actions, or
-  autostart.
+- Background workers, BGTaskScheduler, tray actions, or autostart.
 - Exact alarms, exact-time claims, delivery receipts, completion inference,
   push notification, analytics, or backend changes.
 - Guessing UTC, Asia/Bangkok, or device-local meaning for unzoned source
   timestamps.
-- Writing deadline-reminder events to `notification_history`.
+- Treating platform submission as an exact delivery receipt.
 
 ## User-visible behavior
 
@@ -61,6 +63,12 @@ platform work fails.
 
 Only explicitly zoned deadlines can produce reminders. App-level request
 success does not promise exact display time or delivery.
+
+Linux and unpackaged Windows retain future reminder events in SQLite and
+submit immediate notifications while the desktop process remains alive. A
+threshold first discovered after it passed is not replayed. If both saved
+offsets become overdue before the next process checkpoint, only the closest
+still-useful offset is submitted.
 
 ## Architecture
 
@@ -93,6 +101,15 @@ platform background, resume, timer, and tray triggers reuse this decorator and
 reconciler. Notification Settings exposes the preference service and owns the
 explained user-initiated permission flow.
 
+`DesktopDeadlineReminderDeliveryCoordinator` and
+`DriftDesktopDeadlineReminderDeliveryStore` own the separate process-lifetime
+queue, timer, current-policy claim, lease heartbeat, and terminal history.
+This driver is composed only for Linux and unpackaged Windows and is refreshed
+after sync, preference, permission, and app-resume changes. Its wake query
+requires the exact reconciled `cancelled` owner version and observes parent
+state changes. Unresolved parents therefore use a bounded checkpoint instead
+of causing zero-delay work.
+
 ## Important files
 
 - `lib/src/core/database/database_tables.dart` — reminder singleton
@@ -115,6 +132,10 @@ explained user-initiated permission flow.
   — redacted preference results and best-effort effect trigger.
 - `lib/src/features/notifications/application/notification_aware_assignment_sync_service.dart`
   — fixed post-commit effect order.
+- `lib/src/features/notifications/data/desktop_deadline_reminder_delivery_store.dart`
+  — durable current-policy process-delivery claims.
+- `lib/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart`
+  — process timer, retry, heartbeat, and immediate submission state machine.
 - `lib/src/features/courses/application/course_preferences_service.dart` —
   narrow committed mute trigger.
 - `lib/src/app/app_dependencies.dart` — one shared provider graph.
@@ -189,8 +210,9 @@ cancelled <=> needs_reconciliation = false
 `scheduled` means only that the latest guarded app-level scheduling Future
 returned. `cancelled` is a retained tombstone that reserves the stable owner
 and ID. `unknown` requires reconciliation. Every v1-v7 legacy row migrates
-conservatively to `unknown`. Deadline reminders never write
-`notification_history`.
+conservatively to `unknown`. OS-scheduled reminder ownership does not use
+history as delivery evidence. Process-delivery events use bounded terminal
+history to prevent replay after submission or intentional suppression.
 
 ## State and control flow
 
@@ -245,11 +267,13 @@ preserved owners and current deadlines.
   deadline reminders; failed capacity cancellation blocks additions in that
   pass.
 - macOS: schedule and cancellation without an application-imposed 64 cap.
-- Linux: never create a schedule claim; supported cancellation moves retained
-  owners to cancelled tombstones.
+- Linux: no OS schedule claim is created. Supported cancellation moves
+  retained owners to cancelled tombstones; fresh future events use the
+  process-lifetime immediate-delivery queue.
 - Packaged Windows: schedule/cancel policy is supported without a 64 cap.
-- Current unpackaged Windows: neither schedule nor false cancellation;
-  retained owners stay pending.
+- Current unpackaged Windows: no OS schedule/cancellation claim. Fresh future
+  owners use process-lifetime immediate delivery; retained owners that may
+  represent a packaged schedule are not adopted without proven cancellation.
 
 ## Security and privacy
 
@@ -332,6 +356,12 @@ timer at return or timeout; it does not await a timed-out Future and exposes no
 unhandled timer or async error.
 Poison legacy rows that cannot form a safe local ID remain pending without
 blocking valid owners.
+
+For process-lifetime delivery, an unresolved parent is excluded from next-wake
+selection until reconciliation repairs it. Parent repair invalidates the queue
+watch. When a newer overdue offset becomes the selected event, older due child
+events for the same assignment/deadline become `deadline-missed` even if their
+parent is unresolved; parent ownership itself is not changed by suppression.
 
 ## Tests
 
@@ -427,6 +457,10 @@ configuration scans are recorded in the worker handoff.
   coordinator can self-await. No traced production adapter/service path makes
   that callback.
 - A mute/disable write and its best-effort OS reconciliation are not atomic.
+- Linux and unpackaged-Windows immediate deadline delivery stops on explicit
+  Quit and is subject to process suspension and wall-clock checkpoint delay.
+- Stable-ID retries provide at-least-once submission attempts, not
+  exactly-once operating-system display.
 - Android, iOS, macOS, and Windows native runtime behavior is not verified on
   this Linux host.
 
@@ -443,4 +477,5 @@ configuration scans are recorded in the worker handoff.
 - [Course Preferences](course-preferences.md)
 - [Assignment Baseline and Change Detection](assignment-diffing.md)
 - [Notification Settings](notification-settings.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)
 - [Background Scheduler](background-scheduler.md)

@@ -166,6 +166,12 @@ class ActivityFingerprints extends Table {
   columns: {#scheduledForUtc},
 )
 @TableIndex.sql(
+  'CREATE UNIQUE INDEX scheduled_reminders_event_version '
+  'ON scheduled_reminders '
+  '(notification_id, semester_id, identity_key, offset_minutes, '
+  'deadline_at_utc, scheduled_for_utc)',
+)
+@TableIndex.sql(
   'CREATE INDEX scheduled_reminders_pending_reconciliation '
   'ON scheduled_reminders (semester_id, identity_key) '
   'WHERE needs_reconciliation = 1',
@@ -277,6 +283,62 @@ class NewAssignmentNotificationOutbox extends Table {
     'FOREIGN KEY (semester_id, identity_key) '
         'REFERENCES seen_activities (semester_id, identity_key) '
         'ON DELETE CASCADE',
+  ];
+}
+
+@TableIndex.sql(
+  'CREATE UNIQUE INDEX deadline_reminder_delivery_one_in_flight '
+  'ON deadline_reminder_delivery_outbox (state) '
+  "WHERE state = 'inFlight'",
+)
+@TableIndex.sql(
+  'CREATE INDEX deadline_reminder_delivery_queue '
+  'ON deadline_reminder_delivery_outbox '
+  '(state, scheduled_for_utc, deadline_at_utc, dedupe_key)',
+)
+class DeadlineReminderDeliveryOutbox extends Table {
+  TextColumn get dedupeKey => text()();
+  IntColumn get notificationId => integer()();
+  IntColumn get semesterId => integer()();
+  TextColumn get identityKey => text()();
+  IntColumn get offsetMinutes => integer()();
+  IntColumn get deadlineAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get scheduledForUtc =>
+      integer().map(const UtcDateTimeConverter())();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  TextColumn get ownerToken => text().nullable()();
+  IntColumn get leaseExpiresAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  IntColumn get createdAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get lastAttemptAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  TextColumn get lastFailureKind => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {dedupeKey};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (length(trim(dedupe_key)) > 0)',
+    'CHECK (notification_id > 0 AND notification_id <= 2147483647 '
+        'AND notification_id != 2147483646)',
+    'CHECK (length(trim(identity_key)) > 0)',
+    'CHECK (offset_minutes > 0)',
+    'CHECK (deadline_at_utc > scheduled_for_utc)',
+    "CHECK (state IN ('pending', 'inFlight'))",
+    "CHECK ((state = 'pending' AND owner_token IS NULL "
+        'AND lease_expires_at_utc IS NULL) OR '
+        "(state = 'inFlight' AND owner_token IS NOT NULL "
+        'AND length(trim(owner_token)) > 0 '
+        'AND lease_expires_at_utc IS NOT NULL '
+        'AND last_attempt_at_utc IS NOT NULL))',
+    "CHECK (last_failure_kind IS NULL OR last_failure_kind IN "
+        "('permissionBlocked', 'initializationFailed', 'platformFailed', "
+        "'unknown'))",
+    'FOREIGN KEY (notification_id, semester_id, identity_key, offset_minutes, '
+        'deadline_at_utc, scheduled_for_utc) REFERENCES scheduled_reminders '
+        '(notification_id, semester_id, identity_key, offset_minutes, '
+        'deadline_at_utc, scheduled_for_utc) ON DELETE CASCADE',
   ];
 }
 

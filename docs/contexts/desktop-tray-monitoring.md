@@ -18,6 +18,8 @@ installing a service or persisting secrets.
 - Windows, macOS, and Linux tray menus.
 - Open, synchronize now, pause monitoring, resume monitoring, and quit actions.
 - A process-local, non-overlapping 15-minute desktop synchronization timer.
+- A separate process-lifetime deadline-reminder timer on Linux and unpackaged
+  Windows.
 - A first-close explanation before the window is hidden.
 - Opt-in, OS-backed start-at-login state.
 - Native single-instance behavior and best-effort window restoration.
@@ -45,7 +47,7 @@ actions:
 - **Pause monitoring** and **Resume monitoring** update the persisted
   background-monitoring preference.
 - **Quit** removes native listeners, destroys the tray, permits window close,
-  and destroys the window last.
+  stops both process timers, and destroys the window last.
 
 The first normal window close displays:
 
@@ -76,10 +78,17 @@ desktop scheduler to the shared runner and composes:
 - `WindowManagerDesktopWindowPlatform` for close interception, show, focus,
   hide, and destroy.
 - `LocalDesktopAutostartService` for reactive OS-backed start-at-login state.
+- `DesktopDeadlineReminderDeliveryCoordinator` for durable due-event
+  checkpoints on Linux and unpackaged Windows.
 
 Plugin types remain behind application-owned interfaces so scheduling,
 coordinator, autostart, and menu behavior can be tested without native method
 channels.
+
+The deadline driver is bound reactively to its Riverpod provider. Database
+invalidation disposes the current instance before the replacement starts.
+Explicit Quit closes that binding before window destruction, and subsequent
+provider values are disposed without starting.
 
 ## Important files
 
@@ -90,8 +99,10 @@ channels.
 - `lib/src/platform/desktop/runtime/desktop_runtime_coordinator.dart` — tray,
   close, synchronization, and guarded cleanup state machine.
 - `lib/src/platform/desktop/runtime/desktop_runtime_host.dart` — Riverpod and
-  widget composition, window-reveal subscription, and close explanation
-  overlay.
+  widget composition, deadline-driver ownership, window-reveal subscription,
+  and close explanation overlay.
+- `lib/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart`
+  — process-lifetime reminder timer and durable delivery drain.
 - `lib/src/platform/desktop/runtime/desktop_window_reveal_signal.dart` —
   process-local, payload-free request signal shared by app navigation and the
   desktop host.
@@ -138,7 +149,9 @@ and `setEnabled`. `LocalDesktopAutostartService` configures the fixed
 
 ## Data model
 
-This feature adds no database tables or credential storage. Monitoring
+The original tray feature adds no credential storage. Schema v13 adds the
+deadline-reminder delivery outbox owned by the notification feature.
+Monitoring
 preference, install jitter, target selection, and scheduler state remain owned
 by the Phase 13 background scheduler and Drift stores. Start-at-login state is
 read from and written to the operating system through `launch_at_startup`; it
@@ -150,8 +163,10 @@ is not mirrored as an application source of truth.
    close before `runApp`.
 2. `DesktopRuntimeHost` reads the shared runner, monitoring settings service,
    scheduler platform, and autostart service.
-3. The host binds timer invocations to the shared runner and initializes the
-   coordinator.
+3. The host binds synchronization-timer invocations to the shared runner,
+   observes the platform-gated deadline-driver provider, and initializes the
+   runtime coordinator. Every non-null driver replacement starts once; the
+   previous driver is disposed first.
 4. The window adapter attaches its close listener before enabling close
    prevention. The coordinator then initializes the tray, reads start-at-login
    state, and watches the monitoring preference.
@@ -161,15 +176,19 @@ is not mirrored as an application source of truth.
 6. A notification response requests the process-local reveal signal before
    route navigation. The host calls the coordinator's show-then-focus
    operation; an early request waits until coordinator initialization.
-7. Explicit quit disposes the process timer, cancels subscriptions, removes
-   listeners, destroys the tray, permits close, and destroys the window last.
+7. Explicit quit closes the reactive deadline binding and disposes the
+   synchronization timer through one idempotent closure, cancels subscriptions,
+   removes listeners, destroys the tray, permits close, and destroys the
+   window last. Closing the binding prevents a later database-provider value
+   from restarting delivery.
 
 ## Platform behavior
 
 - **Linux:** a unique `GApplication` ID forwards later launches to the primary
   process, which presents its existing `GtkWindow`. The release bundle was
   built on Linux and links to AppIndicator 3. Linux tray tooltips are not
-  requested because the plugin does not support them.
+  requested because the plugin does not support them. Future saved deadline
+  events may be submitted while that process remains alive.
 - **macOS:** closing the last window does not terminate the process, reopen
   presents the window, and `LSMultipleInstancesProhibited` prevents concurrent
   application instances. Start at login uses `LaunchAtLogin-Legacy` exactly
@@ -186,6 +205,8 @@ is not mirrored as an application source of truth.
   Native quit-on-destroy is enabled so an unavailable interception/composition
   path exits on close rather than leaving an invisible process. A live
   notification tap uses the same show/focus operation before local navigation.
+  The unpackaged preview uses process-lifetime immediate deadline delivery
+  instead of claiming unsupported OS-retained schedules.
 
 ## Security and privacy
 
@@ -208,6 +229,9 @@ is not mirrored as an application source of truth.
   synchronization cannot overlap the next tick.
 - Reuse the shared synchronization runner for timer and tray actions so target,
   pause, session, backoff, and notification rules remain centralized.
+- Keep deadline timing in a dedicated one-shot driver because it has a
+  persisted due-event queue and a shorter wall-clock requirement than backend
+  synchronization.
 - Treat the operating system as the source of truth for start-at-login and keep
   it disabled unless the user explicitly enables it.
 - Use listener keys as the only tray action path to prevent duplicate callbacks
@@ -242,11 +266,18 @@ is not mirrored as an application source of truth.
 
 ## Failure behavior
 
-Timer callbacks catch runner failures and rearm only the normal cadence timer.
-Pause and dispose cancel the pending timer. Tray synchronization reports only
+Synchronization timer callbacks catch runner failures and rearm only the
+normal cadence timer. Pause and dispose cancel that pending timer. The
+deadline driver uses its own bounded retry/checkpoint policy and dispose
+cancels its timer and queue subscription. Tray synchronization reports only
 fixed, non-sensitive status labels. A focus denial still leaves the window
 visible. Tray menu replacement failure marks the tray unhealthy so the window
 will not later be hidden.
+
+Database-provider loading or failure disposes the current deadline driver.
+When the database reopens, the host starts its replacement without restarting
+the process. Startup failure disposes that replacement. Quit permanently
+closes the binding before native window destruction.
 
 Plugin failures make start-at-login unavailable without changing OS state.
 Pre-run initialization never enables close prevention. Runtime initialization
@@ -274,6 +305,9 @@ request does not fail reveal after the window has been shown.
   failure.
 - Widget tests cover the close explanation and both explicit actions at 200%
   text scaling, plus reveal forwarding and subscription disposal.
+- Provider/runtime tests cover database invalidation and reopen, old-before-new
+  driver disposal/start/drain ordering, Quit-before-window-destroy ordering,
+  and post-Quit replacement fencing.
 - Native static tests cover Linux uniqueness, the Windows pre-engine mutex and
   per-session restoration path, Windows quit-on-destroy fallback and Release
   CI gate, macOS lifecycle/package/channel configuration, sandbox preservation,
@@ -335,11 +369,17 @@ request does not fail reveal after the window has been shown.
   failures.
 - Final correction serialized desktop/app-notification batch — 33 tests
   passed; strict Dart and Flutter analysis passed with no issues.
+- Deadline-driver provider replacement correction — 92 focused
+  runtime/composition/deletion tests passed serially; the complete serial suite
+  passed 1,058/1,058; strict Dart and Flutter analysis passed with no issues;
+  and the sanitized Linux Release build succeeded.
 
 ## Known limitations
 
 - The desktop timer runs only while the application process is alive; start at
   login is opt-in and defaults off.
+- Process-lifetime deadline reminders also stop on explicit Quit and may be
+  delayed by suspension or operating-system timer throttling.
 - Desktop OS scheduling and window foreground focus remain best effort.
 - The current Linux host is headless, so the release artifact was not exercised
   through a live system tray or second-launch GUI interaction.
@@ -381,3 +421,4 @@ request does not fail reveal after the window has been shown.
 - [Synchronization Backoff](synchronization-backoff.md)
 - [Synchronization Diagnostics](synchronization-diagnostics.md)
 - [Windows Preview Hardening](windows-preview-hardening.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)

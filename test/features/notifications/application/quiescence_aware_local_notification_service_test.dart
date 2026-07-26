@@ -81,6 +81,31 @@ void main() {
     expect(delegate.events, ['schedule:start', 'schedule:end', 'cancelAll']);
     await gate.release();
   });
+
+  test('deletion waits for the actual due reminder show future', () async {
+    final delegate = _BlockingNotificationService();
+    final service = QuiescenceAwareLocalNotificationService(delegate, storage);
+
+    final show = service.showDueDeadlineReminder(_reminder());
+    await delegate.showStarted.future;
+    final gate = await storage.beginDeletion();
+
+    await expectLater(
+      gate.waitForActivityQuiescence(
+        timeout: const Duration(milliseconds: 20),
+        pollInterval: const Duration(milliseconds: 2),
+      ),
+      throwsA(isA<LocalDatabaseAccessException>()),
+    );
+    expect(delegate.events, ['due:start']);
+
+    delegate.showGate.complete();
+    await show;
+    await gate.waitForActivityQuiescence();
+    await service.cancelAllAfterQuiescence();
+    expect(delegate.events, ['due:start', 'due:end', 'cancelAll']);
+    await gate.release();
+  });
 }
 
 final _assignment = AssignmentDetailKey(
@@ -166,6 +191,16 @@ final class _BlockingNotificationService implements LocalNotificationService {
     showStarted.complete();
     await showGate.future;
     events.add('show:end');
+  }
+
+  @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {
+    events.add('due:start');
+    showStarted.complete();
+    await showGate.future;
+    events.add('due:end');
   }
 
   @override

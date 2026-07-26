@@ -97,19 +97,24 @@ void main() {
     () async {
       final store = _FakeCoursePreferencesStore();
       final requester = _RecordingReminderRequester();
-      final service = LocalCoursePreferencesService(store, requester);
+      var processRefreshes = 0;
+      final service = LocalCoursePreferencesService(store, requester, () async {
+        processRefreshes += 1;
+      });
 
       expect(
         await service.setNotificationsMuted(key, muted: true),
         isA<CoursePreferenceUpdateSuccess>(),
       );
       expect(requester.calls, 1);
+      expect(processRefreshes, 1);
 
       expect(
         await service.setBackgroundMonitoringEnabled(key, enabled: false),
         isA<CoursePreferenceUpdateSuccess>(),
       );
       expect(requester.calls, 1);
+      expect(processRefreshes, 1);
     },
   );
 

@@ -169,6 +169,7 @@ void main() {
     () async {
       final notifications = _Notifications();
       final drain = _Drain();
+      final permissionRefreshes = <bool>[];
       final service = LocalNotificationSettingsService(
         _BackgroundSettings(),
         _Scheduler(),
@@ -179,6 +180,9 @@ void main() {
         drain,
         NotificationSettingsPlatform.android,
         BackgroundScheduleStatusRefreshSignal(),
+        ({bool permissionMayHaveChanged = false}) async {
+          permissionRefreshes.add(permissionMayHaveChanged);
+        },
       );
 
       final permission = await service.requestNotificationPermission();
@@ -200,6 +204,7 @@ void main() {
         'test',
       ]);
       expect(drain.calls, 1);
+      expect(permissionRefreshes, [isTrue]);
     },
   );
 
@@ -461,6 +466,11 @@ final class _Notifications implements LocalNotificationService {
 
   @override
   Future<void> scheduleDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
+  Future<void> showDueDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {}
 

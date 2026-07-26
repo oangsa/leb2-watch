@@ -7,6 +7,7 @@ import '../domain/deadline_reminder_policy.dart';
 import '../domain/deadline_reminder_preferences.dart' as domain;
 import '../domain/local_notification_id_factory.dart';
 import '../domain/local_notification_models.dart';
+import 'desktop_deadline_reminder_delivery_store.dart';
 import 'local_notification_id_allocator.dart';
 
 const _reminderStateUnknown = 'unknown';
@@ -122,11 +123,15 @@ final class DeadlineReminderCancellationWork {
     required this.id,
     required this.deadlineAtUtc,
     required this.scheduledForUtc,
+    this.processDeliveryRequest,
+    this.processDeliveryCreatedAtUtc,
   });
 
   final LocalNotificationId id;
   final DateTime deadlineAtUtc;
   final DateTime scheduledForUtc;
+  final DeadlineReminderNotification? processDeliveryRequest;
+  final DateTime? processDeliveryCreatedAtUtc;
 
   @override
   String toString() => 'DeadlineReminderCancellationWork(redacted: true)';
@@ -332,6 +337,13 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
         final preference = await _database
             .select(_database.deadlineReminderPreferences)
             .getSingle();
+        await _suppressIneligibleProcessEvents(
+          preference: preference,
+          recordedAtUtc: nowUtc,
+        );
+        final supportsOsScheduling =
+            policy.supportsScheduling && policy.supportsCancellation;
+        final supportsProcessDelivery = policy.supportsProcessLifetimeDelivery;
         final backgroundAllowedByAssignment = <(int, String), bool>{};
         if (backgroundTriggered) {
           final policyRows = await _database
@@ -363,8 +375,7 @@ LEFT JOIN course_preferences
           }
         }
         final candidates = <_DesiredReminder>[];
-        if (policy.supportsScheduling &&
-            policy.supportsCancellation &&
+        if ((supportsOsScheduling || supportsProcessDelivery) &&
             preference.enabled) {
           final rows = await _database
               .customSelect(
@@ -462,6 +473,7 @@ ORDER BY activities.semester_id, activities.identity_key
         };
         final desiredKeys = <String>{};
         final schedules = <DeadlineReminderScheduleWork>[];
+        final cancellations = <DeadlineReminderCancellationWork>[];
         for (final candidate in desired) {
           final owner = NotificationOwner.deadlineReminder(
             candidate.assignment,
@@ -471,9 +483,10 @@ ORDER BY activities.semester_id, activities.identity_key
           desiredKeys.add(ownerKey);
           final existing = existingByOwner[ownerKey];
           late final LocalNotificationId id;
-          var needsWork = true;
+          late final DeadlineReminderNotification request;
           if (existing == null) {
             id = await _allocateId(owner);
+            request = _notificationRequest(candidate, id);
             await _database
                 .into(_database.scheduledReminders)
                 .insert(
@@ -485,10 +498,18 @@ ORDER BY activities.semester_id, activities.identity_key
                     deadlineAtUtc: candidate.deadlineAtUtc,
                     scheduledForUtc: candidate.scheduledForUtc,
                     createdAtUtc: nowUtc,
-                    needsReconciliation: const Value(true),
-                    scheduleState: const Value(_reminderStateUnknown),
+                    needsReconciliation: Value(!supportsProcessDelivery),
+                    scheduleState: Value(
+                      supportsProcessDelivery
+                          ? _reminderStateCancelled
+                          : _reminderStateUnknown,
+                    ),
                   ),
                 );
+            if (supportsProcessDelivery) {
+              await _insertProcessDeliveryEvent(request, nowUtc);
+              continue;
+            }
           } else {
             try {
               id = LocalNotificationId(
@@ -498,10 +519,70 @@ ORDER BY activities.semester_id, activities.identity_key
             } on Object {
               continue;
             }
+            request = _notificationRequest(candidate, id);
             final changed =
                 existing.deadlineAtUtc != candidate.deadlineAtUtc ||
                 existing.scheduledForUtc != candidate.scheduledForUtc;
-            needsWork =
+
+            if (supportsProcessDelivery) {
+              if (existing.scheduleState == _reminderStateCancelled) {
+                if (changed) {
+                  await _terminalizeProcessEvent(
+                    existing,
+                    deadlineReminderSupersededKind,
+                    nowUtc,
+                  );
+                  await (_database.update(_database.scheduledReminders)..where(
+                        (row) =>
+                            row.notificationId.equals(existing.notificationId),
+                      ))
+                      .write(
+                        ScheduledRemindersCompanion(
+                          deadlineAtUtc: Value(candidate.deadlineAtUtc),
+                          scheduledForUtc: Value(candidate.scheduledForUtc),
+                        ),
+                      );
+                }
+                await _insertProcessDeliveryEvent(request, nowUtc);
+                continue;
+              }
+              if (policy.supportsCancellation) {
+                if (changed) {
+                  await _terminalizeProcessEvent(
+                    existing,
+                    deadlineReminderSupersededKind,
+                    nowUtc,
+                  );
+                }
+                if (existing.scheduleState != _reminderStateUnknown) {
+                  await (_database.update(_database.scheduledReminders)..where(
+                        (row) =>
+                            row.notificationId.equals(existing.notificationId),
+                      ))
+                      .write(
+                        const ScheduledRemindersCompanion(
+                          needsReconciliation: Value(true),
+                          scheduleState: Value(_reminderStateUnknown),
+                        ),
+                      );
+                }
+                cancellations.add(
+                  DeadlineReminderCancellationWork(
+                    id: id,
+                    deadlineAtUtc: existing.deadlineAtUtc,
+                    scheduledForUtc: existing.scheduledForUtc,
+                    processDeliveryRequest: request,
+                    processDeliveryCreatedAtUtc: nowUtc,
+                  ),
+                );
+              }
+              // An unpackaged Windows owner that may still represent a
+              // packaged OS schedule remains excluded until cancellation can
+              // be proven.
+              continue;
+            }
+
+            final needsWork =
                 changed || existing.scheduleState != _reminderStateScheduled;
             if (needsWork &&
                 (changed || existing.scheduleState != _reminderStateUnknown)) {
@@ -521,26 +602,13 @@ ORDER BY activities.semester_id, activities.identity_key
                     ),
                   );
             }
+            if (!needsWork) {
+              continue;
+            }
           }
-          if (needsWork) {
-            schedules.add(
-              DeadlineReminderScheduleWork(
-                DeadlineReminderNotification(
-                  id: id,
-                  assignment: candidate.assignment,
-                  courseId: candidate.courseId,
-                  courseName: candidate.courseName,
-                  assignmentTitle: candidate.assignmentTitle,
-                  deadlineAtUtc: candidate.deadlineAtUtc,
-                  scheduledForUtc: candidate.scheduledForUtc,
-                  offsetMinutes: candidate.offsetMinutes,
-                ),
-              ),
-            );
-          }
+          schedules.add(DeadlineReminderScheduleWork(request));
         }
 
-        final cancellations = <DeadlineReminderCancellationWork>[];
         for (final existing in existingRows) {
           if (backgroundTriggered &&
               backgroundAllowedByAssignment[(
@@ -653,29 +721,52 @@ ORDER BY activities.semester_id, activities.identity_key
     required DeadlineReminderCancellationWork item,
   }) async {
     try {
-      final updated = await _database.customUpdate(
-        "UPDATE scheduled_reminders SET needs_reconciliation = 0, "
-        "schedule_state = 'cancelled' "
-        'WHERE notification_id = ? AND semester_id = ? '
-        'AND identity_key = ? AND offset_minutes = ? '
-        'AND deadline_at_utc = ? AND scheduled_for_utc = ? '
-        'AND EXISTS ('
-        'SELECT 1 FROM deadline_reminder_reconciliations '
-        'WHERE singleton_id = 1 AND owner_token = ? '
-        'AND requested_generation = ?)',
-        variables: [
-          Variable.withInt(item.id.value),
-          Variable.withInt(item.id.owner.assignment.semesterId),
-          Variable.withString(item.id.owner.assignment.identityKey),
-          Variable.withInt(item.id.owner.offsetMinutes!),
-          Variable.withInt(item.deadlineAtUtc.millisecondsSinceEpoch),
-          Variable.withInt(item.scheduledForUtc.millisecondsSinceEpoch),
-          Variable.withString(ownerToken),
-          Variable.withInt(generation),
-        ],
-        updates: {_database.scheduledReminders},
-      );
-      return updated == 1;
+      return await _database.transaction(() async {
+        final replacement = item.processDeliveryRequest;
+        final deliveryCreatedAtUtc = item.processDeliveryCreatedAtUtc;
+        if (replacement != null &&
+            (deliveryCreatedAtUtc == null || !deliveryCreatedAtUtc.isUtc)) {
+          throw StateError('Process reminder event time is unavailable.');
+        }
+        final updated = await _database.customUpdate(
+          "UPDATE scheduled_reminders SET needs_reconciliation = 0, "
+          "schedule_state = 'cancelled'"
+          '${replacement == null ? '' : ', deadline_at_utc = ?, scheduled_for_utc = ?'} '
+          'WHERE notification_id = ? AND semester_id = ? '
+          'AND identity_key = ? AND offset_minutes = ? '
+          'AND deadline_at_utc = ? AND scheduled_for_utc = ? '
+          'AND EXISTS ('
+          'SELECT 1 FROM deadline_reminder_reconciliations '
+          'WHERE singleton_id = 1 AND owner_token = ? '
+          'AND requested_generation = ?)',
+          variables: [
+            if (replacement != null) ...[
+              Variable.withInt(
+                replacement.deadlineAtUtc.millisecondsSinceEpoch,
+              ),
+              Variable.withInt(
+                replacement.scheduledForUtc.millisecondsSinceEpoch,
+              ),
+            ],
+            Variable.withInt(item.id.value),
+            Variable.withInt(item.id.owner.assignment.semesterId),
+            Variable.withString(item.id.owner.assignment.identityKey),
+            Variable.withInt(item.id.owner.offsetMinutes!),
+            Variable.withInt(item.deadlineAtUtc.millisecondsSinceEpoch),
+            Variable.withInt(item.scheduledForUtc.millisecondsSinceEpoch),
+            Variable.withString(ownerToken),
+            Variable.withInt(generation),
+          ],
+          updates: {_database.scheduledReminders},
+        );
+        if (updated != 1) {
+          return false;
+        }
+        if (replacement != null) {
+          await _insertProcessDeliveryEvent(replacement, deliveryCreatedAtUtc!);
+        }
+        return true;
+      });
     } on Object {
       throw const DeadlineReminderStoreException();
     }
@@ -767,6 +858,189 @@ ORDER BY activities.semester_id, activities.identity_key
     ).allocate(owner);
   }
 
+  Future<void> _insertProcessDeliveryEvent(
+    DeadlineReminderNotification request,
+    DateTime createdAtUtc,
+  ) async {
+    final dedupeKey = deadlineReminderEventDedupeKey(
+      semesterId: request.assignment.semesterId,
+      identityKey: request.assignment.identityKey,
+      offsetMinutes: request.offsetMinutes,
+      scheduledForUtc: request.scheduledForUtc,
+    );
+    final terminal = await (_database.select(
+      _database.notificationHistory,
+    )..where((row) => row.dedupeKey.equals(dedupeKey))).getSingleOrNull();
+    if (terminal != null) {
+      return;
+    }
+    await _database
+        .into(_database.deadlineReminderDeliveryOutbox)
+        .insert(
+          DeadlineReminderDeliveryOutboxCompanion.insert(
+            dedupeKey: dedupeKey,
+            notificationId: request.id.value,
+            semesterId: request.assignment.semesterId,
+            identityKey: request.assignment.identityKey,
+            offsetMinutes: request.offsetMinutes,
+            deadlineAtUtc: request.deadlineAtUtc,
+            scheduledForUtc: request.scheduledForUtc,
+            createdAtUtc: createdAtUtc.toUtc(),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+  }
+
+  Future<void> _terminalizeProcessEvent(
+    ScheduledReminder reminder,
+    String kind,
+    DateTime recordedAtUtc,
+  ) async {
+    final dedupeKey = deadlineReminderEventDedupeKey(
+      semesterId: reminder.semesterId,
+      identityKey: reminder.identityKey,
+      offsetMinutes: reminder.offsetMinutes,
+      scheduledForUtc: reminder.scheduledForUtc,
+    );
+    final row =
+        await (_database.select(_database.deadlineReminderDeliveryOutbox)
+              ..where((candidate) => candidate.dedupeKey.equals(dedupeKey)))
+            .getSingleOrNull();
+    if (row == null) {
+      return;
+    }
+    await _insertProcessTerminal(
+      dedupeKey: row.dedupeKey,
+      semesterId: row.semesterId,
+      identityKey: row.identityKey,
+      notificationId: row.notificationId,
+      kind: kind,
+      recordedAtUtc: recordedAtUtc,
+    );
+    await (_database.delete(
+      _database.deadlineReminderDeliveryOutbox,
+    )..where((candidate) => candidate.dedupeKey.equals(dedupeKey))).go();
+  }
+
+  Future<void> _suppressIneligibleProcessEvents({
+    required DeadlineReminderPreference preference,
+    required DateTime recordedAtUtc,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          '''
+SELECT
+  outbox.dedupe_key,
+  outbox.notification_id,
+  outbox.semester_id,
+  outbox.identity_key,
+  outbox.offset_minutes,
+  outbox.deadline_at_utc,
+  outbox.scheduled_for_utc,
+  activities.identity_key AS activity_identity_key,
+  activities.due_date_source,
+  activities.due_date_exceed,
+  COALESCE(course_preferences.notifications_muted, 0) AS notifications_muted
+FROM deadline_reminder_delivery_outbox AS outbox
+LEFT JOIN activities
+  ON activities.semester_id = outbox.semester_id
+ AND activities.identity_key = outbox.identity_key
+LEFT JOIN course_preferences
+  ON course_preferences.semester_id = activities.semester_id
+ AND course_preferences.course_id = activities.course_id
+''',
+          readsFrom: {
+            _database.deadlineReminderDeliveryOutbox,
+            _database.activities,
+            _database.coursePreferences,
+          },
+        )
+        .get();
+    for (final row in rows) {
+      final offset = row.read<int>('offset_minutes');
+      final disabled =
+          !preference.enabled ||
+          (offset == domain.DeadlineReminderOffset.oneHour.minutes &&
+              !preference.oneHourEnabled) ||
+          (offset == domain.DeadlineReminderOffset.twentyFourHours.minutes &&
+              !preference.twentyFourHoursEnabled);
+      late final String? kind;
+      if (disabled) {
+        kind = deadlineReminderDisabledKind;
+      } else if (row.readNullable<String>('activity_identity_key') == null) {
+        kind = deadlineReminderRemovedKind;
+      } else if (row.read<int>('notifications_muted') != 0) {
+        kind = deadlineReminderMutedKind;
+      } else {
+        final timestamp = AssignmentDetailTimestamp.fromSource(
+          row.readNullable<String>('due_date_source'),
+        );
+        final deadlineAtUtc = DateTime.fromMillisecondsSinceEpoch(
+          row.read<int>('deadline_at_utc'),
+          isUtc: true,
+        );
+        final scheduledForUtc = DateTime.fromMillisecondsSinceEpoch(
+          row.read<int>('scheduled_for_utc'),
+          isUtc: true,
+        );
+        if (timestamp is! ZonedAssignmentDetailTimestamp) {
+          kind = deadlineReminderInvalidKind;
+        } else if (timestamp.instantUtc != deadlineAtUtc ||
+            deadlineAtUtc.difference(scheduledForUtc) !=
+                Duration(minutes: offset)) {
+          kind = deadlineReminderSupersededKind;
+        } else if (row.read<int>('due_date_exceed') != 0 ||
+            !recordedAtUtc.isBefore(deadlineAtUtc)) {
+          kind = deadlineReminderMissedKind;
+        } else if (offset != domain.DeadlineReminderOffset.oneHour.minutes &&
+            offset != domain.DeadlineReminderOffset.twentyFourHours.minutes) {
+          kind = deadlineReminderInvalidKind;
+        } else {
+          kind = null;
+        }
+      }
+      if (kind == null) {
+        continue;
+      }
+      await _insertProcessTerminal(
+        dedupeKey: row.read<String>('dedupe_key'),
+        semesterId: row.read<int>('semester_id'),
+        identityKey: row.read<String>('identity_key'),
+        notificationId: row.read<int>('notification_id'),
+        kind: kind,
+        recordedAtUtc: recordedAtUtc,
+      );
+      await (_database.delete(_database.deadlineReminderDeliveryOutbox)..where(
+            (candidate) =>
+                candidate.dedupeKey.equals(row.read<String>('dedupe_key')),
+          ))
+          .go();
+    }
+  }
+
+  Future<void> _insertProcessTerminal({
+    required String dedupeKey,
+    required int semesterId,
+    required String identityKey,
+    required int notificationId,
+    required String kind,
+    required DateTime recordedAtUtc,
+  }) {
+    return _database
+        .into(_database.notificationHistory)
+        .insert(
+          NotificationHistoryCompanion.insert(
+            dedupeKey: dedupeKey,
+            semesterId: semesterId,
+            identityKey: identityKey,
+            kind: kind,
+            notificationId: notificationId,
+            recordedAtUtc: recordedAtUtc.toUtc(),
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+  }
+
   Future<int> _advanceRequestedGeneration({bool? backgroundTriggered}) async {
     final variables = <Variable<Object>>[];
     final scopeUpdate = backgroundTriggered == null
@@ -843,6 +1117,22 @@ final class _DesiredReminder {
   final DateTime deadlineAtUtc;
   final DateTime scheduledForUtc;
   final int offsetMinutes;
+}
+
+DeadlineReminderNotification _notificationRequest(
+  _DesiredReminder candidate,
+  LocalNotificationId id,
+) {
+  return DeadlineReminderNotification(
+    id: id,
+    assignment: candidate.assignment,
+    courseId: candidate.courseId,
+    courseName: candidate.courseName,
+    assignmentTitle: candidate.assignmentTitle,
+    deadlineAtUtc: candidate.deadlineAtUtc,
+    scheduledForUtc: candidate.scheduledForUtc,
+    offsetMinutes: candidate.offsetMinutes,
+  );
 }
 
 int _compareDesired(_DesiredReminder left, _DesiredReminder right) {

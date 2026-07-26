@@ -2,8 +2,8 @@
 
 ## Status
 
-Completed through schema version 12, including ordered upgrades from every
-supported version, a frozen physical v11 fixture, generated Drift source,
+Completed through schema version 13, including ordered upgrades from every
+supported version, a frozen physical v12 fixture, generated Drift source,
 in-memory relational tests, and real file-backed migration, simultaneous
 multi-isolate startup, and independent-connection tests. Linux remains the
 only build-verified native target on this host.
@@ -17,9 +17,9 @@ synchronization.
 
 ## Scope
 
-- Twenty Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
-  notification/change and sync history, settings, and synchronization
-  operations.
+- Twenty-one Drift tables covering snapshots, preferences, baselines, seen
+  identity, reminders, notification/change and sync history, settings, and
+  synchronization operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
 - Foreign keys, state checks, partial unique indices, query indices, and
   bounded history/operation retention.
@@ -58,10 +58,10 @@ when necessary. BUSY/LOCKED WAL transition races receive a short bounded retry.
 
 For a zero-version database only, setup creates a connection-local temporary
 marker and acquires `BEGIN IMMEDIATE` before Drift reads the version. The first
-connection creates schema v12 while later connections wait in SQLite. The
+connection creates schema v13 while later connections wait in SQLite. The
 marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`,
 drops the temporary marker, and only then enables foreign keys. A waiter
-therefore re-reads v12 and does not run a duplicate `createAll`. Existing and
+therefore re-reads v13 and does not run a duplicate `createAll`. Existing and
 legacy-version databases do not gain an outer transaction, so ordered
 migrations that use Drift table-rebuild transactions remain valid.
 `UtcDateTimeConverter` owns UTC epoch-millisecond conversion. Generated table
@@ -95,9 +95,9 @@ around the shared synchronization service.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — twenty table definitions,
+- `lib/src/core/database/database_tables.dart` — twenty-one table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 12, migration,
+- `lib/src/core/database/app_database.dart` — schema version 13, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -121,6 +121,8 @@ around the shared synchronization service.
 - `test/core/database/v7_app_database.g.dart` — generated v7 fixture support.
 - `test/core/database/v10_app_database.dart` — frozen physical v10 schema.
 - `test/core/database/v11_app_database.dart` — frozen physical v11 schema.
+- `test/core/database/v12_app_database.dart` — independent frozen physical v12
+  fixture for the v13 deadline-delivery migration.
 - `test/core/database/automatic_session_reauthentication_migration_test.dart`
   — additive v11-to-v12 preservation and fixture-independence tests.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
@@ -142,9 +144,9 @@ around the shared synchronization service.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `12`. Fresh databases call `createAll` and seed
+`AppDatabase.schemaVersion` is `13`. Fresh databases call `createAll` and seed
 the deadline-reminder, background-scheduling, and new-assignment-notification
-singleton rows. Supported upgrades are exactly `1 -> 12` through `11 -> 12`,
+singleton rows. Supported upgrades are exactly `1 -> 13` through `12 -> 13`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -248,6 +250,15 @@ the primary idempotency key. Checked running/succeeded/failed/cancelled state,
 UTC start/deadline/completion times, and a fixed failure vocabulary contain no
 credential material. Claims retain only the newest 16 terminal attempts.
 
+Desktop process-lifetime deadline delivery raises the schema to v13 with
+`deadline_reminder_delivery_outbox`. Its dedupe key versions the assignment,
+offset, and scheduled instant. Checked pending/in-flight state owns an opaque
+lease nonce, timestamps, and bounded retry category. A partial unique index
+permits one global in-flight event. Its composite foreign key references the
+exact `scheduled_reminders` event version and cascades when ownership is
+deleted or replaced. The additive frozen v12-to-v13 migration preserves every
+existing reminder and begins with an empty delivery outbox.
+
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
 backend contract does not define authoritative removal and the semester
@@ -326,6 +337,9 @@ The v8-to-v9 step adds the background-only reconciliation scope, creates the
 background scheduling singleton, and seeds monitoring off. Earlier versions
 create the current reconciliation shape directly after their ordered legacy
 steps.
+The v12-to-v13 step creates the exact reminder-event parent index and the
+process deadline-delivery outbox. Earlier versions apply their existing
+ordered migrations first.
 
 ## Platform behavior
 
@@ -341,7 +355,9 @@ Credentials remain in secure storage. The database has no username, password,
 session-cookie, authorization-header, API-key, or credential-token column.
 The positive `leb2_user_id` is explicitly non-secret request identity.
 `sync_operations.owner_token` is a random, short-lived coordination nonce, not
-an authentication token. It is cleared on terminal completion.
+an authentication token. Deadline reconciliation and delivery owner tokens
+are the same kind of short-lived local coordination nonce. They are cleared on
+terminal completion or lease release.
 
 Statement logging is disabled. Safe failures contain only fixed enums and
 nullable retry duration. File deletion remains limited to
@@ -399,7 +415,7 @@ rolled back by connection close if schema creation fails.
 
 Database tests cover:
 
-- fresh twenty-table v12 creation, all named indices, foreign keys, and busy
+- fresh twenty-one-table v13 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -407,8 +423,8 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen physical v3/v4/v5/v6/v7/v8/v9/v10/v11 databases
-  upgraded in place to v12 with assignment, seen, fingerprint, reminder,
+- real v1, v2, and frozen physical v3/v4/v5/v6/v7/v8/v9/v10/v11/v12
+  databases upgraded in place to v13 with assignment, seen, fingerprint, reminder,
   notification, sync-run,
   operation, baseline, operation-change, and backoff rows preserved,
   every legacy reminder mapped to checked unknown/pending state,
@@ -425,7 +441,7 @@ Database tests cover:
   real four-isolate start barrier, repeated internally with concurrent
   generation writes;
 - file-backed independent-connection coordination through the synchronization
-  tests.
+  and deadline-delivery race tests.
 
 No production database, backend, or credential is used.
 
@@ -531,4 +547,5 @@ focused database suite passed 44/44 and the complete Flutter suite passed
 - [Course Preferences](course-preferences.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)
 - [Automatic Session Reauthentication](automatic-session-reauthentication.md)

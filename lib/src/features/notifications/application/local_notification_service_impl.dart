@@ -237,47 +237,24 @@ final class LocalNotificationServiceImpl
   ) async {
     _requireInitialized();
     _requireCapability(_platform.capabilities.supportsScheduling);
-    _validateReminderOwner(request);
-    final courseName = _boundedSingleLine(
-      request.courseName,
-      maximumLength: _maximumCourseNameLength,
-    );
-    final assignmentTitle = _boundedSingleLine(
-      request.assignmentTitle,
-      maximumLength: _maximumAssignmentTitleLength,
-    );
-    if (request.courseId <= 0 ||
-        request.courseId > 2147483647 ||
-        request.offsetMinutes <= 0 ||
-        !request.deadlineAtUtc.isUtc ||
-        !request.scheduledForUtc.isUtc ||
-        !request.scheduledForUtc.isAfter(_nowUtc()) ||
-        request.deadlineAtUtc.difference(request.scheduledForUtc) !=
-            Duration(minutes: request.offsetMinutes)) {
-      _invalidRequest();
-    }
-
-    final payload = _payloadCodec.encode(
-      LocalNotificationTarget.assignment(request.assignment),
-    );
+    _validateReminderRequest(request, dueNow: false);
     await _schedule(
       PlatformScheduledNotification(
-        notification: PlatformNotification(
-          id: request.id.value,
-          kind: PlatformNotificationKind.deadlineReminder,
-          title: courseName,
-          body:
-              'Due soon: $assignmentTitle\n'
-              'Due: ${_deadlineFormatter.format(request.deadlineAtUtc)}',
-          payload: payload,
-          groupKey:
-              'leb2.course.${request.assignment.semesterId}.'
-              '${request.courseId}',
-        ),
+        notification: _deadlineNotification(request),
         scheduledForUtc: request.scheduledForUtc,
         precision: PlatformSchedulePrecision.inexact,
       ),
     );
+  }
+
+  @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {
+    _requireInitialized();
+    _requireCapability(_platform.capabilities.supportsImmediate);
+    _validateReminderRequest(request, dueNow: true);
+    await _show(_deadlineNotification(request));
   }
 
   @override
@@ -345,6 +322,56 @@ final class LocalNotificationServiceImpl
         owner.offsetMinutes != request.offsetMinutes) {
       _invalidRequest();
     }
+  }
+
+  void _validateReminderRequest(
+    DeadlineReminderNotification request, {
+    required bool dueNow,
+  }) {
+    _validateReminderOwner(request);
+    final nowUtc = _nowUtc();
+    final coherent =
+        request.courseId > 0 &&
+        request.courseId <= 2147483647 &&
+        request.offsetMinutes > 0 &&
+        request.deadlineAtUtc.isUtc &&
+        request.scheduledForUtc.isUtc &&
+        request.deadlineAtUtc.isAfter(nowUtc) &&
+        request.deadlineAtUtc.difference(request.scheduledForUtc) ==
+            Duration(minutes: request.offsetMinutes);
+    final correctlyTimed = dueNow
+        ? !request.scheduledForUtc.isAfter(nowUtc)
+        : request.scheduledForUtc.isAfter(nowUtc);
+    if (!coherent || !correctlyTimed) {
+      _invalidRequest();
+    }
+  }
+
+  PlatformNotification _deadlineNotification(
+    DeadlineReminderNotification request,
+  ) {
+    final courseName = _boundedSingleLine(
+      request.courseName,
+      maximumLength: _maximumCourseNameLength,
+    );
+    final assignmentTitle = _boundedSingleLine(
+      request.assignmentTitle,
+      maximumLength: _maximumAssignmentTitleLength,
+    );
+    final payload = _payloadCodec.encode(
+      LocalNotificationTarget.assignment(request.assignment),
+    );
+    return PlatformNotification(
+      id: request.id.value,
+      kind: PlatformNotificationKind.deadlineReminder,
+      title: courseName,
+      body:
+          'Due soon: $assignmentTitle\n'
+          'Due: ${_deadlineFormatter.format(request.deadlineAtUtc)}',
+      payload: payload,
+      groupKey:
+          'leb2.course.${request.assignment.semesterId}.${request.courseId}',
+    );
   }
 
   String _boundedSingleLine(String value, {required int maximumLength}) {

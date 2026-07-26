@@ -87,8 +87,9 @@ final class LocalNotificationSettingsService
     this._notifications,
     this._newAssignmentDrain,
     this._platform,
-    this._scheduleStatusRefreshes,
-  );
+    this._scheduleStatusRefreshes, [
+    this._desktopDeadlineDeliveryRefresh,
+  ]);
 
   final BackgroundMonitoringSettingsService _backgroundSettings;
   final BackgroundScheduler _backgroundScheduler;
@@ -99,6 +100,8 @@ final class LocalNotificationSettingsService
   final NewAssignmentNotificationDrain _newAssignmentDrain;
   final NotificationSettingsPlatform _platform;
   final BackgroundScheduleStatusRefreshSignal _scheduleStatusRefreshes;
+  final Future<void> Function({bool permissionMayHaveChanged})?
+  _desktopDeadlineDeliveryRefresh;
   final StreamController<BackgroundScheduleStatus> _scheduleStatusUpdates =
       StreamController<BackgroundScheduleStatus>.broadcast(sync: true);
 
@@ -269,6 +272,13 @@ final class LocalNotificationSettingsService
     try {
       await _notifications.initialize();
       final status = await _notifications.requestPermission();
+      try {
+        await _desktopDeadlineDeliveryRefresh?.call(
+          permissionMayHaveChanged: true,
+        );
+      } on Object {
+        // Durable reminder work is also recovered by app resume/checkpoints.
+      }
       if (status == NotificationPermissionStatus.granted ||
           status == NotificationPermissionStatus.notRequired) {
         try {

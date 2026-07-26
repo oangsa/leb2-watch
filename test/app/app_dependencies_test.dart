@@ -26,13 +26,18 @@ import 'package:leb2_watch/src/features/background_sync/data/background_schedule
 import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
 import 'package:leb2_watch/src/features/notifications/data/deadline_reminder_store.dart';
+import 'package:leb2_watch/src/features/notifications/data/desktop_deadline_reminder_delivery_store.dart';
+import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
+import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
+import 'package:leb2_watch/src/platform/desktop/runtime/desktop_runtime_host.dart';
 
 void main() {
   test('shares the exact configuration and Dio transport instance', () {
@@ -281,6 +286,147 @@ void main() {
       expect(database.closeCalls, 1);
     },
   );
+
+  test(
+    'composes process deadline delivery only for live-process targets',
+    () async {
+      final cases =
+          <
+            ({
+              NotificationRuntimePlatform platform,
+              bool windowsPackaged,
+              bool expected,
+            })
+          >[
+            (
+              platform: NotificationRuntimePlatform.linux,
+              windowsPackaged: false,
+              expected: true,
+            ),
+            (
+              platform: NotificationRuntimePlatform.windows,
+              windowsPackaged: false,
+              expected: true,
+            ),
+            (
+              platform: NotificationRuntimePlatform.windows,
+              windowsPackaged: true,
+              expected: false,
+            ),
+            (
+              platform: NotificationRuntimePlatform.android,
+              windowsPackaged: false,
+              expected: false,
+            ),
+          ];
+
+      for (final testCase in cases) {
+        final database = AppDatabase.forTesting(NativeDatabase.memory());
+        final platform = _CapabilitiesNotificationsPlatform(
+          testCase.platform,
+          windowsPackaged: testCase.windowsPackaged,
+        );
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWith((_) async => database),
+            localNotificationsPlatformProvider.overrideWithValue(platform),
+          ],
+        );
+
+        final coordinator = await container.read(
+          desktopDeadlineReminderDeliveryCoordinatorProvider.future,
+        );
+
+        expect(
+          coordinator,
+          testCase.expected
+              ? isA<DesktopDeadlineReminderDeliveryCoordinator>()
+              : isNull,
+          reason: '${testCase.platform}, packaged=${testCase.windowsPackaged}',
+        );
+        if (testCase.expected) {
+          expect(
+            await container.read(
+              desktopDeadlineReminderDeliveryStoreProvider.future,
+            ),
+            isA<DriftDesktopDeadlineReminderDeliveryStore>(),
+          );
+        }
+
+        container.dispose();
+        await Future<void>.delayed(Duration.zero);
+        await database.close();
+      }
+    },
+  );
+
+  test(
+    'desktop runtime replaces database-backed delivery and fences quit',
+    () async {
+      final storage = _SequentialTrackingDatabaseStorage([
+        _TrackingDatabase.new,
+        _TrackingDatabase.new,
+        _TrackingDatabase.new,
+      ]);
+      final events = <String>[];
+      var driverGeneration = 0;
+      final driverProvider = FutureProvider<_RuntimeDeliveryDriver>((
+        ref,
+      ) async {
+        await ref.watch(appDatabaseProvider.future);
+        driverGeneration += 1;
+        return _RuntimeDeliveryDriver('$driverGeneration', events);
+      });
+      final binding =
+          DesktopDeadlineReminderRuntimeBinding<_RuntimeDeliveryDriver>(
+            start: (driver) => driver.startAndDrain(),
+            dispose: (driver) => driver.dispose(),
+          );
+      final container = ProviderContainer(
+        overrides: [localDatabaseStorageProvider.overrideWithValue(storage)],
+      );
+      final subscription = container.listen(driverProvider, (_, next) {
+        next.when(
+          data: (driver) {
+            unawaited(binding.replace(driver));
+          },
+          error: (_, _) {
+            unawaited(binding.replace(null));
+          },
+          loading: () {
+            unawaited(binding.replace(null));
+          },
+        );
+      }, fireImmediately: true);
+
+      await _waitFor(() => events.contains('drain:1'));
+      expect(events, ['start:1', 'drain:1']);
+
+      container.invalidate(appDatabaseProvider);
+      await _waitFor(() => events.contains('drain:2'));
+
+      expect(events, ['start:1', 'drain:1', 'dispose:1', 'start:2', 'drain:2']);
+      expect(storage.openCalls, 2);
+
+      binding.close();
+      events.add('window:destroy');
+      expect(
+        events.indexOf('dispose:2'),
+        lessThan(events.indexOf('window:destroy')),
+      );
+
+      container.invalidate(appDatabaseProvider);
+      await _waitFor(() => events.contains('dispose:3'));
+
+      expect(events.where((event) => event == 'start:3'), isEmpty);
+      expect(events.where((event) => event == 'dispose:3'), hasLength(1));
+      expect(storage.openCalls, 3);
+
+      subscription.close();
+      container.dispose();
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
 }
 
 final class _TrackingDatabase extends AppDatabase {
@@ -308,6 +454,20 @@ final class _TrackingDatabaseStorage extends LocalDatabaseStorage {
   }
 }
 
+final class _SequentialTrackingDatabaseStorage extends LocalDatabaseStorage {
+  _SequentialTrackingDatabaseStorage(this.databaseFactories);
+
+  final List<AppDatabase Function()> databaseFactories;
+  int openCalls = 0;
+
+  @override
+  Future<AppDatabase> openDatabase() async {
+    final database = databaseFactories[openCalls]();
+    openCalls += 1;
+    return database;
+  }
+}
+
 final class _DelayedTrackingDatabaseStorage extends LocalDatabaseStorage {
   final opened = Completer<AppDatabase>();
   final started = Completer<void>();
@@ -319,6 +479,37 @@ final class _DelayedTrackingDatabaseStorage extends LocalDatabaseStorage {
     started.complete();
     return opened.future;
   }
+}
+
+final class _RuntimeDeliveryDriver {
+  _RuntimeDeliveryDriver(this.id, this.events);
+
+  final String id;
+  final List<String> events;
+  bool _disposed = false;
+
+  Future<void> startAndDrain() async {
+    events.add('start:$id');
+    events.add('drain:$id');
+  }
+
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    events.add('dispose:$id');
+  }
+}
+
+Future<void> _waitFor(bool Function() predicate) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) {
+      return;
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Timed out waiting for asynchronous provider state.');
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
@@ -356,6 +547,50 @@ final class _MemoryCredentialStore implements CredentialStore {
   Future<void> saveSessionCookie(String value) async {
     sessionCookie = value;
   }
+}
+
+final class _CapabilitiesNotificationsPlatform
+    implements LocalNotificationsPlatform {
+  _CapabilitiesNotificationsPlatform(
+    NotificationRuntimePlatform platform, {
+    required bool windowsPackaged,
+  }) : capabilities = LocalNotificationPlatformCapabilities.forPlatform(
+         platform,
+         windowsPackaged: windowsPackaged,
+       );
+
+  @override
+  final LocalNotificationPlatformCapabilities capabilities;
+
+  @override
+  Future<void> cancel(int id) async {}
+
+  @override
+  Future<void> cancelAll() async {}
+
+  @override
+  void dispose() {}
+
+  @override
+  Future<String?> getLaunchPayload() async => null;
+
+  @override
+  Future<bool?> initialize({
+    required void Function(String? payload) onResponse,
+  }) async => true;
+
+  @override
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
+      NotificationDeliveryPermissionStatus.allowed;
+
+  @override
+  Future<bool?> requestPermission() async => null;
+
+  @override
+  Future<void> schedule(PlatformScheduledNotification notification) async {}
+
+  @override
+  Future<void> show(PlatformNotification notification) async {}
 }
 
 final class _NoRequestBackendClient

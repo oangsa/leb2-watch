@@ -51,6 +51,11 @@ final class QuiescenceAwareLocalNotificationService
   }
 
   @override
+  Future<void> showDueDeadlineReminder(DeadlineReminderNotification request) {
+    return _withActivityLease(() => _delegate.showDueDeadlineReminder(request));
+  }
+
+  @override
   Future<void> scheduleDeadlineReminder(DeadlineReminderNotification request) {
     return _withActivityLease(
       () => _delegate.scheduleDeadlineReminder(request),

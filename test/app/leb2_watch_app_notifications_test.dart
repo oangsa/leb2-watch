@@ -19,6 +19,8 @@ import 'package:leb2_watch/src/features/background_sync/data/background_sync_tar
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
 import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
+import 'package:leb2_watch/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/data/desktop_deadline_reminder_delivery_store.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_drain.dart';
@@ -163,6 +165,12 @@ void main() {
     final sync = _AppSyncService();
     final statusRefreshes = BackgroundScheduleStatusRefreshSignal();
     final automatic = _AppAutomaticReauthenticationService();
+    final deadlineStore = _AppDeadlineDeliveryStore();
+    final deadlineDelivery = DesktopDeadlineReminderDeliveryCoordinator(
+      deadlineStore,
+      notifications,
+      runWithActivityLease: <T>(action) => action(),
+    );
     var statusRefreshRequests = 0;
     final statusRefreshSubscription = statusRefreshes.requests.listen((_) {
       statusRefreshRequests += 1;
@@ -176,6 +184,7 @@ void main() {
     addTearDown(sessions.close);
     addTearDown(statusRefreshSubscription.cancel);
     addTearDown(statusRefreshes.dispose);
+    addTearDown(deadlineDelivery.dispose);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -194,6 +203,9 @@ void main() {
           ),
           automaticSessionReauthenticationServiceProvider.overrideWith(
             (_) async => automatic,
+          ),
+          desktopDeadlineReminderDeliveryCoordinatorProvider.overrideWith(
+            (_) async => deadlineDelivery,
           ),
         ],
         child: Leb2WatchApp(configuration: AppConfiguration.parse()),
@@ -228,6 +240,7 @@ void main() {
 
     expect(sync.reasons, [SyncReason.appResume]);
     expect(statusRefreshRequests, 3);
+    expect(deadlineStore.clearPermissionBlockedCalls, 1);
   });
 
   testWidgets('a newer active revision supersedes delayed expired work', (
@@ -366,6 +379,9 @@ Future<_LifecycleAppSetup> _pumpLifecycleApp(
         automaticSessionReauthenticationServiceProvider.overrideWith(
           (_) async => automatic,
         ),
+        desktopDeadlineReminderDeliveryCoordinatorProvider.overrideWith(
+          (_) async => null,
+        ),
       ],
       child: Leb2WatchApp(configuration: AppConfiguration.parse()),
     ),
@@ -423,6 +439,55 @@ final class _AppNotificationDrain implements NewAssignmentNotificationDrain {
   }
 }
 
+final class _AppDeadlineDeliveryStore
+    implements DesktopDeadlineReminderDeliveryStore {
+  int clearPermissionBlockedCalls = 0;
+
+  @override
+  Future<void> clearPermissionBlocked() async {
+    clearPermissionBlockedCalls += 1;
+  }
+
+  @override
+  Future<DeadlineReminderDeliveryClaim?> claimNext({
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  }) async => null;
+
+  @override
+  Future<bool> heartbeat({
+    required DeadlineReminderDeliveryClaim claim,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  }) async => false;
+
+  @override
+  Future<bool> markSubmitted({
+    required DeadlineReminderDeliveryClaim claim,
+    required DateTime recordedAtUtc,
+  }) async => false;
+
+  @override
+  Future<bool> markSuppressed({
+    required DeadlineReminderDeliveryClaim claim,
+    required DeadlineReminderDeliverySuppression suppression,
+    required DateTime recordedAtUtc,
+  }) async => false;
+
+  @override
+  Future<DateTime?> readNextWakeAtUtc() async => null;
+
+  @override
+  Future<bool> releasePending({
+    required DeadlineReminderDeliveryClaim claim,
+    required DeadlineReminderDeliveryRetryFailure failure,
+  }) async => false;
+
+  @override
+  Stream<void> watchQueueChanges() => const Stream.empty();
+}
+
 final class _AppNotificationService implements LocalNotificationService {
   _AppNotificationService({this.launchTarget});
 
@@ -475,6 +540,11 @@ final class _AppNotificationService implements LocalNotificationService {
 
   @override
   Future<void> scheduleDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
+  Future<void> showDueDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {}
 

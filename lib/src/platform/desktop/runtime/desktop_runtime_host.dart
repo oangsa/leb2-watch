@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app_dependencies.dart';
+import '../../../features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
 import '../../background/desktop/desktop_background_scheduler_platform.dart';
 import '../autostart/desktop_autostart_factory.dart';
 import '../tray/tray_manager_desktop_tray_platform.dart';
@@ -24,6 +25,75 @@ bool get isDesktopRuntimeTarget {
   };
 }
 
+/// Owns the process-lifetime desktop driver while its database-backed provider
+/// is replaced. Replacement is ordered so the old driver is disposed before
+/// the new driver starts.
+final class DesktopDeadlineReminderRuntimeBinding<T extends Object> {
+  factory DesktopDeadlineReminderRuntimeBinding({
+    required Future<void> Function(T driver) start,
+    required void Function(T driver) dispose,
+  }) => DesktopDeadlineReminderRuntimeBinding._(start, dispose);
+
+  DesktopDeadlineReminderRuntimeBinding._(this._start, this._dispose);
+
+  final Future<void> Function(T driver) _start;
+  final void Function(T driver) _dispose;
+
+  T? _current;
+  bool _closed = false;
+
+  Future<void> replace(T? next) async {
+    if (_closed) {
+      if (next != null) {
+        _safeDispose(next);
+      }
+      return;
+    }
+    if (identical(_current, next)) {
+      return;
+    }
+
+    final previous = _current;
+    _current = null;
+    if (previous != null) {
+      _safeDispose(previous);
+    }
+    if (next == null) {
+      return;
+    }
+
+    _current = next;
+    try {
+      await _start(next);
+    } on Object {
+      if (identical(_current, next)) {
+        _current = null;
+        _safeDispose(next);
+      }
+    }
+  }
+
+  void close() {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    final current = _current;
+    _current = null;
+    if (current != null) {
+      _safeDispose(current);
+    }
+  }
+
+  void _safeDispose(T driver) {
+    try {
+      _dispose(driver);
+    } on Object {
+      // Process teardown and provider replacement must remain recoverable.
+    }
+  }
+}
+
 final class DesktopRuntimeHost extends ConsumerStatefulWidget {
   const DesktopRuntimeHost({required this.child, super.key});
 
@@ -36,6 +106,12 @@ final class DesktopRuntimeHost extends ConsumerStatefulWidget {
 final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
   DesktopRuntimeCoordinator? _coordinator;
   DesktopWindowRevealSubscription? _windowRevealSubscription;
+  ProviderSubscription<AsyncValue<DesktopDeadlineReminderDeliveryCoordinator?>>?
+  _deadlineDeliverySubscription;
+  DesktopDeadlineReminderRuntimeBinding<
+    DesktopDeadlineReminderDeliveryCoordinator
+  >?
+  _deadlineDeliveryBinding;
   Completer<DesktopCloseDecision>? _closeDecision;
   bool _windowRevealPending = false;
 
@@ -46,6 +122,31 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
       _windowRevealSubscription = DesktopWindowRevealSubscription(
         signal: ref.read(desktopWindowRevealSignalProvider),
         onReveal: _revealWindow,
+      );
+      final deadlineDeliveryBinding =
+          DesktopDeadlineReminderRuntimeBinding<
+            DesktopDeadlineReminderDeliveryCoordinator
+          >(
+            start: (coordinator) => coordinator.start(),
+            dispose: (coordinator) => coordinator.dispose(),
+          );
+      _deadlineDeliveryBinding = deadlineDeliveryBinding;
+      _deadlineDeliverySubscription = ref.listenManual(
+        desktopDeadlineReminderDeliveryCoordinatorProvider,
+        (_, next) {
+          next.when(
+            data: (coordinator) {
+              unawaited(deadlineDeliveryBinding.replace(coordinator));
+            },
+            error: (_, _) {
+              unawaited(deadlineDeliveryBinding.replace(null));
+            },
+            loading: () {
+              unawaited(deadlineDeliveryBinding.replace(null));
+            },
+          );
+        },
+        fireImmediately: true,
       );
       unawaited(_initialize());
     }
@@ -81,7 +182,10 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
         monitoringSettings: settings,
         autostart: ref.read(desktopAutostartServiceProvider),
         syncInvoker: runner.run,
-        disposeProcessScheduler: scheduler.dispose,
+        disposeProcessScheduler: () {
+          _deadlineDeliveryBinding?.close();
+          scheduler.dispose();
+        },
       );
       await coordinator.initialize();
       if (!mounted) {
@@ -169,6 +273,8 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
   @override
   void dispose() {
     _windowRevealSubscription?.dispose();
+    _deadlineDeliverySubscription?.close();
+    _deadlineDeliveryBinding?.close();
     _windowRevealPending = false;
     final pending = _closeDecision;
     if (pending != null && !pending.isCompleted) {

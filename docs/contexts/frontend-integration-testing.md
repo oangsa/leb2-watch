@@ -176,7 +176,7 @@ authorization, wrong user ID, or non-test base URL fails the test.
 
 ## Data model
 
-The workflows use current production schema version 12 and its migrations,
+The workflows use current production schema version 13 and its migrations,
 including durable `automatic_session_reauthentication_attempts` state. They
 assert:
 

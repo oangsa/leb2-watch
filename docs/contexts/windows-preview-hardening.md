@@ -21,6 +21,7 @@ before local navigation.
 - A payload-free, process-local desktop-window reveal signal.
 - Show-then-focus handling for live notification responses.
 - Unpackaged Windows launch-payload capability correction.
+- Process-lifetime immediate deadline-reminder delivery for fresh local events.
 - One-instance-per-interactive-session documentation.
 - A sanitized Windows Release CI build gate.
 - Public build, platform, and troubleshooting documentation for the preview.
@@ -31,7 +32,7 @@ before local navigation.
   publication.
 - Cross-session per-user uniqueness, a `Global\` mutex, SID-derived naming, or
   security-descriptor work.
-- Scheduled Windows deadline reminders or reliable cancellation.
+- OS-retained Windows deadline schedules or reliable cancellation.
 - A notification API migration or persistent terminated-process activator.
 - Database, authentication, Android, Apple, or Linux behavior changes.
 
@@ -39,7 +40,7 @@ before local navigation.
 
 When tray and window integration initialize normally, closing the window still
 offers **Keep running** and **Quit**. Keep running hides the window in the tray;
-Quit stops the timer and destroys the window.
+Quit stops both process timers and destroys the window.
 
 If desktop integration is unavailable, Windows uses normal destroy-and-exit
 behavior. Closing the remaining window cannot intentionally leave a headless
@@ -62,6 +63,12 @@ the host retains one pending reveal until initialization completes.
 `DesktopRuntimeCoordinator.openWindow()` owns the shared show-then-focus
 operation used by both the tray Open action and notification reveal. Show
 failure ends the attempt; focus failure is bounded and non-fatal.
+
+The unpackaged preview composes
+`DesktopDeadlineReminderDeliveryCoordinator`. It consumes versioned future
+events from local SQLite and uses the supported immediate-notification path
+when a threshold becomes due. It does not report Windows OS scheduling or
+cancellation as supported.
 
 The native runner sets `SetQuitOnClose(true)`. The pre-run hook initializes
 `window_manager` without enabling close prevention. Runtime composition
@@ -87,6 +94,8 @@ the native quit message.
 - `lib/src/app/leb2_watch_app.dart` — reveal-before-route ordering.
 - `lib/src/features/notifications/data/local_notifications_platform.dart` —
   packaged/unpackaged capability matrix.
+- `lib/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart`
+  — process-lifetime due-event timer and delivery.
 - `.github/workflows/ci.yml` — Windows Release build job with sanitized
   compile-time definitions.
 - `test/platform/desktop/` — native, coordinator, reveal-subscription, and
@@ -118,11 +127,17 @@ Windows capabilities are:
 The second row is a capability representation only. This repository does not
 implement or claim a packaged Windows artifact.
 
+The current artifact's **Scheduling** value remains `no`: process-lifetime
+delivery is an application timer followed by immediate show, not an
+OS-retained future schedule.
+
 ## Data model
 
-This feature adds no table, migration, file format, credential, payload, or
-durable state. A pending reveal is process memory only and contains no
-assignment identity.
+The original preview hardening added no durable reveal state. Schema v13 now
+adds the notification feature's `deadline_reminder_delivery_outbox`; it
+contains local event identity, deadline/threshold instants, lease state, and
+bounded retry metadata, never credentials. A pending reveal remains process
+memory only and contains no assignment identity.
 
 ## State and control flow
 
@@ -140,13 +155,16 @@ assignment identity.
 8. The app requests the assignment-detail named route after the reveal request.
 9. Host disposal detaches the reveal subscription and clears any pending
    request.
+10. Fresh unpackaged-Windows deadline events use the separate process driver.
+    Explicit Quit disposes that driver before native window destruction.
 
 ## Platform behavior
 
 - **Windows 10/11 x64:** current target. The artifact is an unsigned,
   unpackaged Release directory. The `Local\` mutex allows one instance per
   interactive session. Immediate notification and same-process tap behavior
-  are the preview target.
+  are the preview target. Fresh future deadline events can be submitted while
+  the process remains alive; no claim is made for delivery after Quit.
 - **Linux and macOS:** the process-local reveal path reuses the existing
   desktop coordinator. No native runner or capability claim was changed for
   these platforms.
@@ -206,8 +224,10 @@ assignment identity.
   The coordinator retries that rollback; if rollback remains unavailable after
   a partially applied enable, the attached listener remains a guarded quit
   path.
-- Unpackaged launch-payload lookup, scheduling, and cancellation remain
-  unsupported rather than returning false success.
+- Unpackaged launch-payload lookup, OS-retained scheduling, and reliable
+  cancellation remain unsupported rather than returning false success.
+- Deadline-driver failures remain in a bounded local retry queue. Permission
+  denial parks the event until an explicit permission/app-resume refresh.
 
 ## Tests
 
@@ -225,6 +245,8 @@ assignment identity.
 - App coverage verifies reveal is requested before assignment-detail routing.
 - Capability coverage verifies unpackaged launch-payload support is false and
   future packaged capability remains true.
+- Process-delivery coverage verifies unpackaged-Windows composition, durable
+  event planning, current-policy claims, retry fencing, and explicit disposal.
 - Workflow static coverage verifies the pinned Flutter version, Windows host,
   desktop setup, sanitized definitions, Release build, complete-directory
   check, and absence of GitHub secret interpolation.
@@ -283,7 +305,9 @@ attached if a partially applied native interception cannot be rolled back.
   autostart, tray behavior, and notifications still need live Windows 10 and
   Windows 11 tests.
 - Cold/terminated notification activation is unsupported.
-- Scheduled deadline reminders and reliable cancellation are unsupported.
+- OS-retained scheduled deadline reminders and reliable cancellation are
+  unsupported. Process-lifetime immediate delivery is best effort and requires
+  the application to remain alive.
 - One instance is enforced only within one interactive session. Multiple
   sessions sharing one user's roaming application data are unsupported.
 - No MSIX, installer, signing, update, store, or Visual C++ redistribution
@@ -304,4 +328,5 @@ attached if a partially applied native interception cannot be rolled back.
 - [Desktop Tray Monitoring](desktop-tray-monitoring.md)
 - [Local Notification Service](local-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)
 - [Platform Build Validation](platform-build-validation.md)

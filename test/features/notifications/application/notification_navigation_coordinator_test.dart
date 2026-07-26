@@ -140,6 +140,11 @@ final class _ResponseService implements LocalNotificationService {
   ) async {}
 
   @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {}
 
   @override

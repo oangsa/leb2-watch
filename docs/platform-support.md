@@ -10,8 +10,8 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | Android | Flutter app, secure storage policy, local notifications, unique WorkManager task | Dart tests and static native configuration | Android SDK build, release signing, emulator/device background and notification tests |
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/expiration and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
-| Windows | Unsigned/unpackaged preview, tray, timer, autostart, one instance per interactive session, immediate notifications and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
-| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications | Linux release build passed | Live X11/Wayland tray, keyring, autostart, and notification smoke tests; distribution packaging |
+| Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
+| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build passed | Live X11/Wayland tray, keyring, autostart, and notification smoke tests; distribution packaging |
 
 Only Linux is native-build verified on the current host. Do not represent
 static tests as successful Android, Apple, or Windows builds.
@@ -124,6 +124,8 @@ For this preview:
 - cold or terminated-process notification activation is unsupported;
 - scheduled notifications and cancellation require package identity and are
   reported unsupported without MSIX;
+- future deadline events use a local process timer and immediate show while the
+  app remains alive; this is not an OS-retained schedule;
 - no MSIX, installer, update, signing, or store pipeline is configured; and
 - the complete `build/windows/x64/runner/Release` directory is the preview
   artifact, not `leb2-watch.exe` by itself.
@@ -150,8 +152,10 @@ Runtime dependencies and limitations:
 - X11/Wayland tray behavior still needs live environment testing;
 - the desktop timer works only while the process remains alive;
 - start at login is opt-in;
-- immediate notifications work through the Linux adapter; and
-- scheduled reminders and cold-launch notification payload recovery are
+- immediate notifications work through the Linux adapter;
+- future deadline events use a local process timer while the app remains
+  alive; and
+- OS-retained schedules and cold-launch notification payload recovery are
   unsupported because the app is not DBus-activatable.
 
 No distro package, installer, AppImage, Flatpak, or Snap is configured.
@@ -177,4 +181,5 @@ More exact implementation-level checks live in:
 - [iOS background refresh](contexts/ios-background-refresh.md)
 - [Desktop tray monitoring](contexts/desktop-tray-monitoring.md)
 - [Local notifications](contexts/local-notifications.md)
+- [Desktop deadline reminder delivery](contexts/desktop-deadline-reminder-delivery.md)
 - [Platform build validation](contexts/platform-build-validation.md)

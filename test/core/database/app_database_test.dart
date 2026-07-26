@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 12', () {
+  group('schema version 13', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 12);
+        expect(database.schemaVersion, 13);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -39,6 +39,7 @@ void main() {
           'background_schedule_settings',
           'course_preferences',
           'courses',
+          'deadline_reminder_delivery_outbox',
           'deadline_reminder_preferences',
           'deadline_reminder_reconciliations',
           'new_assignment_notification_outbox',
@@ -52,7 +53,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 12);
+        expect(await _pragmaInt(database, 'user_version'), 13);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -75,7 +76,10 @@ void main() {
           'activity_fingerprints_by_value',
           'scheduled_reminders_by_assignment_offset',
           'scheduled_reminders_by_scheduled_time',
+          'scheduled_reminders_event_version',
           'scheduled_reminders_pending_reconciliation',
+          'deadline_reminder_delivery_one_in_flight',
+          'deadline_reminder_delivery_queue',
           'notification_history_by_assignment_kind',
           'new_assignment_outbox_notification_id',
           'new_assignment_outbox_one_in_flight',
@@ -137,6 +141,11 @@ void main() {
               entry ==
                   (
                     table: 'new_assignment_notification_outbox',
+                    column: 'ownertoken',
+                  ) ||
+              entry ==
+                  (
+                    table: 'deadline_reminder_delivery_outbox',
                     column: 'ownertoken',
                   )) {
             continue;

@@ -10,13 +10,18 @@ void main() {
   late AppDatabase database;
   late _RecordingRequester requester;
   late LocalDeadlineReminderPreferencesService service;
+  late int processRefreshes;
 
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     requester = _RecordingRequester();
+    processRefreshes = 0;
     service = LocalDeadlineReminderPreferencesService(
       DriftDeadlineReminderPreferencesStore(database),
       requester,
+      () async {
+        processRefreshes += 1;
+      },
     );
   });
 
@@ -50,6 +55,7 @@ void main() {
     expect(value.enabled, isTrue);
     expect(value.offsets, {DeadlineReminderOffset.oneHour});
     expect(requester.calls, 3);
+    expect(processRefreshes, 3);
   });
 
   test('either, both, and neither offset can be persisted', () async {
@@ -107,6 +113,7 @@ void main() {
       expect(result, isA<DeadlineReminderPreferenceUpdateFailure>());
       expect(result.toString(), contains('redacted: true'));
       expect(requester.calls, 0);
+      expect(processRefreshes, 0);
     },
   );
 

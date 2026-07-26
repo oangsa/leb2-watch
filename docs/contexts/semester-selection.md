@@ -182,7 +182,7 @@ empty catalog.
 ## Data model
 
 This feature originally used schema version 6 unchanged. Later features raised
-the live database to schema version 12 without changing the semester-selection
+the live database to schema version 13 without changing the semester-selection
 contracts. The configuration-resilience change also makes no schema,
 migration, or generated-code change:
 

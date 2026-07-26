@@ -5212,6 +5212,864 @@ class NewAssignmentNotificationOutboxCompanion
   }
 }
 
+class $DeadlineReminderDeliveryOutboxTable
+    extends DeadlineReminderDeliveryOutbox
+    with
+        TableInfo<
+          $DeadlineReminderDeliveryOutboxTable,
+          DeadlineReminderDeliveryOutboxData
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeadlineReminderDeliveryOutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dedupeKeyMeta = const VerificationMeta(
+    'dedupeKey',
+  );
+  @override
+  late final GeneratedColumn<String> dedupeKey = GeneratedColumn<String>(
+    'dedupe_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<int> notificationId = GeneratedColumn<int>(
+    'notification_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
+    'semester_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _identityKeyMeta = const VerificationMeta(
+    'identityKey',
+  );
+  @override
+  late final GeneratedColumn<String> identityKey = GeneratedColumn<String>(
+    'identity_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _offsetMinutesMeta = const VerificationMeta(
+    'offsetMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> offsetMinutes = GeneratedColumn<int>(
+    'offset_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> deadlineAtUtc =
+      GeneratedColumn<int>(
+        'deadline_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $DeadlineReminderDeliveryOutboxTable.$converterdeadlineAtUtc,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> scheduledForUtc =
+      GeneratedColumn<int>(
+        'scheduled_for_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $DeadlineReminderDeliveryOutboxTable.$converterscheduledForUtc,
+      );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _ownerTokenMeta = const VerificationMeta(
+    'ownerToken',
+  );
+  @override
+  late final GeneratedColumn<String> ownerToken = GeneratedColumn<String>(
+    'owner_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int>
+  leaseExpiresAtUtc =
+      GeneratedColumn<int>(
+        'lease_expires_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $DeadlineReminderDeliveryOutboxTable.$converterleaseExpiresAtUtcn,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> createdAtUtc =
+      GeneratedColumn<int>(
+        'created_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $DeadlineReminderDeliveryOutboxTable.$convertercreatedAtUtc,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int> lastAttemptAtUtc =
+      GeneratedColumn<int>(
+        'last_attempt_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $DeadlineReminderDeliveryOutboxTable.$converterlastAttemptAtUtcn,
+      );
+  static const VerificationMeta _lastFailureKindMeta = const VerificationMeta(
+    'lastFailureKind',
+  );
+  @override
+  late final GeneratedColumn<String> lastFailureKind = GeneratedColumn<String>(
+    'last_failure_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    dedupeKey,
+    notificationId,
+    semesterId,
+    identityKey,
+    offsetMinutes,
+    deadlineAtUtc,
+    scheduledForUtc,
+    state,
+    ownerToken,
+    leaseExpiresAtUtc,
+    createdAtUtc,
+    lastAttemptAtUtc,
+    lastFailureKind,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deadline_reminder_delivery_outbox';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeadlineReminderDeliveryOutboxData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('dedupe_key')) {
+      context.handle(
+        _dedupeKeyMeta,
+        dedupeKey.isAcceptableOrUnknown(data['dedupe_key']!, _dedupeKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dedupeKeyMeta);
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_notificationIdMeta);
+    }
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_semesterIdMeta);
+    }
+    if (data.containsKey('identity_key')) {
+      context.handle(
+        _identityKeyMeta,
+        identityKey.isAcceptableOrUnknown(
+          data['identity_key']!,
+          _identityKeyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_identityKeyMeta);
+    }
+    if (data.containsKey('offset_minutes')) {
+      context.handle(
+        _offsetMinutesMeta,
+        offsetMinutes.isAcceptableOrUnknown(
+          data['offset_minutes']!,
+          _offsetMinutesMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_offsetMinutesMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('owner_token')) {
+      context.handle(
+        _ownerTokenMeta,
+        ownerToken.isAcceptableOrUnknown(data['owner_token']!, _ownerTokenMeta),
+      );
+    }
+    if (data.containsKey('last_failure_kind')) {
+      context.handle(
+        _lastFailureKindMeta,
+        lastFailureKind.isAcceptableOrUnknown(
+          data['last_failure_kind']!,
+          _lastFailureKindMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {dedupeKey};
+  @override
+  DeadlineReminderDeliveryOutboxData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeadlineReminderDeliveryOutboxData(
+      dedupeKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dedupe_key'],
+      )!,
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notification_id'],
+      )!,
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}semester_id'],
+      )!,
+      identityKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}identity_key'],
+      )!,
+      offsetMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}offset_minutes'],
+      )!,
+      deadlineAtUtc: $DeadlineReminderDeliveryOutboxTable
+          .$converterdeadlineAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}deadline_at_utc'],
+            )!,
+          ),
+      scheduledForUtc: $DeadlineReminderDeliveryOutboxTable
+          .$converterscheduledForUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}scheduled_for_utc'],
+            )!,
+          ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      ownerToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_token'],
+      ),
+      leaseExpiresAtUtc: $DeadlineReminderDeliveryOutboxTable
+          .$converterleaseExpiresAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}lease_expires_at_utc'],
+            ),
+          ),
+      createdAtUtc: $DeadlineReminderDeliveryOutboxTable.$convertercreatedAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}created_at_utc'],
+            )!,
+          ),
+      lastAttemptAtUtc: $DeadlineReminderDeliveryOutboxTable
+          .$converterlastAttemptAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}last_attempt_at_utc'],
+            ),
+          ),
+      lastFailureKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_failure_kind'],
+      ),
+    );
+  }
+
+  @override
+  $DeadlineReminderDeliveryOutboxTable createAlias(String alias) {
+    return $DeadlineReminderDeliveryOutboxTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $converterdeadlineAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterscheduledForUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterleaseExpiresAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterleaseExpiresAtUtcn =
+      NullAwareTypeConverter.wrap($converterleaseExpiresAtUtc);
+  static TypeConverter<DateTime, int> $convertercreatedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterlastAttemptAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterlastAttemptAtUtcn =
+      NullAwareTypeConverter.wrap($converterlastAttemptAtUtc);
+}
+
+class DeadlineReminderDeliveryOutboxData extends DataClass
+    implements Insertable<DeadlineReminderDeliveryOutboxData> {
+  final String dedupeKey;
+  final int notificationId;
+  final int semesterId;
+  final String identityKey;
+  final int offsetMinutes;
+  final DateTime deadlineAtUtc;
+  final DateTime scheduledForUtc;
+  final String state;
+  final String? ownerToken;
+  final DateTime? leaseExpiresAtUtc;
+  final DateTime createdAtUtc;
+  final DateTime? lastAttemptAtUtc;
+  final String? lastFailureKind;
+  const DeadlineReminderDeliveryOutboxData({
+    required this.dedupeKey,
+    required this.notificationId,
+    required this.semesterId,
+    required this.identityKey,
+    required this.offsetMinutes,
+    required this.deadlineAtUtc,
+    required this.scheduledForUtc,
+    required this.state,
+    this.ownerToken,
+    this.leaseExpiresAtUtc,
+    required this.createdAtUtc,
+    this.lastAttemptAtUtc,
+    this.lastFailureKind,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['dedupe_key'] = Variable<String>(dedupeKey);
+    map['notification_id'] = Variable<int>(notificationId);
+    map['semester_id'] = Variable<int>(semesterId);
+    map['identity_key'] = Variable<String>(identityKey);
+    map['offset_minutes'] = Variable<int>(offsetMinutes);
+    {
+      map['deadline_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterdeadlineAtUtc.toSql(
+          deadlineAtUtc,
+        ),
+      );
+    }
+    {
+      map['scheduled_for_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterscheduledForUtc.toSql(
+          scheduledForUtc,
+        ),
+      );
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || ownerToken != null) {
+      map['owner_token'] = Variable<String>(ownerToken);
+    }
+    if (!nullToAbsent || leaseExpiresAtUtc != null) {
+      map['lease_expires_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterleaseExpiresAtUtcn.toSql(
+          leaseExpiresAtUtc,
+        ),
+      );
+    }
+    {
+      map['created_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$convertercreatedAtUtc.toSql(
+          createdAtUtc,
+        ),
+      );
+    }
+    if (!nullToAbsent || lastAttemptAtUtc != null) {
+      map['last_attempt_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterlastAttemptAtUtcn.toSql(
+          lastAttemptAtUtc,
+        ),
+      );
+    }
+    if (!nullToAbsent || lastFailureKind != null) {
+      map['last_failure_kind'] = Variable<String>(lastFailureKind);
+    }
+    return map;
+  }
+
+  DeadlineReminderDeliveryOutboxCompanion toCompanion(bool nullToAbsent) {
+    return DeadlineReminderDeliveryOutboxCompanion(
+      dedupeKey: Value(dedupeKey),
+      notificationId: Value(notificationId),
+      semesterId: Value(semesterId),
+      identityKey: Value(identityKey),
+      offsetMinutes: Value(offsetMinutes),
+      deadlineAtUtc: Value(deadlineAtUtc),
+      scheduledForUtc: Value(scheduledForUtc),
+      state: Value(state),
+      ownerToken: ownerToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerToken),
+      leaseExpiresAtUtc: leaseExpiresAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leaseExpiresAtUtc),
+      createdAtUtc: Value(createdAtUtc),
+      lastAttemptAtUtc: lastAttemptAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAttemptAtUtc),
+      lastFailureKind: lastFailureKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastFailureKind),
+    );
+  }
+
+  factory DeadlineReminderDeliveryOutboxData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeadlineReminderDeliveryOutboxData(
+      dedupeKey: serializer.fromJson<String>(json['dedupeKey']),
+      notificationId: serializer.fromJson<int>(json['notificationId']),
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      identityKey: serializer.fromJson<String>(json['identityKey']),
+      offsetMinutes: serializer.fromJson<int>(json['offsetMinutes']),
+      deadlineAtUtc: serializer.fromJson<DateTime>(json['deadlineAtUtc']),
+      scheduledForUtc: serializer.fromJson<DateTime>(json['scheduledForUtc']),
+      state: serializer.fromJson<String>(json['state']),
+      ownerToken: serializer.fromJson<String?>(json['ownerToken']),
+      leaseExpiresAtUtc: serializer.fromJson<DateTime?>(
+        json['leaseExpiresAtUtc'],
+      ),
+      createdAtUtc: serializer.fromJson<DateTime>(json['createdAtUtc']),
+      lastAttemptAtUtc: serializer.fromJson<DateTime?>(
+        json['lastAttemptAtUtc'],
+      ),
+      lastFailureKind: serializer.fromJson<String?>(json['lastFailureKind']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'dedupeKey': serializer.toJson<String>(dedupeKey),
+      'notificationId': serializer.toJson<int>(notificationId),
+      'semesterId': serializer.toJson<int>(semesterId),
+      'identityKey': serializer.toJson<String>(identityKey),
+      'offsetMinutes': serializer.toJson<int>(offsetMinutes),
+      'deadlineAtUtc': serializer.toJson<DateTime>(deadlineAtUtc),
+      'scheduledForUtc': serializer.toJson<DateTime>(scheduledForUtc),
+      'state': serializer.toJson<String>(state),
+      'ownerToken': serializer.toJson<String?>(ownerToken),
+      'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
+      'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
+      'lastAttemptAtUtc': serializer.toJson<DateTime?>(lastAttemptAtUtc),
+      'lastFailureKind': serializer.toJson<String?>(lastFailureKind),
+    };
+  }
+
+  DeadlineReminderDeliveryOutboxData copyWith({
+    String? dedupeKey,
+    int? notificationId,
+    int? semesterId,
+    String? identityKey,
+    int? offsetMinutes,
+    DateTime? deadlineAtUtc,
+    DateTime? scheduledForUtc,
+    String? state,
+    Value<String?> ownerToken = const Value.absent(),
+    Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+    DateTime? createdAtUtc,
+    Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+    Value<String?> lastFailureKind = const Value.absent(),
+  }) => DeadlineReminderDeliveryOutboxData(
+    dedupeKey: dedupeKey ?? this.dedupeKey,
+    notificationId: notificationId ?? this.notificationId,
+    semesterId: semesterId ?? this.semesterId,
+    identityKey: identityKey ?? this.identityKey,
+    offsetMinutes: offsetMinutes ?? this.offsetMinutes,
+    deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
+    scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
+    state: state ?? this.state,
+    ownerToken: ownerToken.present ? ownerToken.value : this.ownerToken,
+    leaseExpiresAtUtc: leaseExpiresAtUtc.present
+        ? leaseExpiresAtUtc.value
+        : this.leaseExpiresAtUtc,
+    createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+    lastAttemptAtUtc: lastAttemptAtUtc.present
+        ? lastAttemptAtUtc.value
+        : this.lastAttemptAtUtc,
+    lastFailureKind: lastFailureKind.present
+        ? lastFailureKind.value
+        : this.lastFailureKind,
+  );
+  DeadlineReminderDeliveryOutboxData copyWithCompanion(
+    DeadlineReminderDeliveryOutboxCompanion data,
+  ) {
+    return DeadlineReminderDeliveryOutboxData(
+      dedupeKey: data.dedupeKey.present ? data.dedupeKey.value : this.dedupeKey,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
+      identityKey: data.identityKey.present
+          ? data.identityKey.value
+          : this.identityKey,
+      offsetMinutes: data.offsetMinutes.present
+          ? data.offsetMinutes.value
+          : this.offsetMinutes,
+      deadlineAtUtc: data.deadlineAtUtc.present
+          ? data.deadlineAtUtc.value
+          : this.deadlineAtUtc,
+      scheduledForUtc: data.scheduledForUtc.present
+          ? data.scheduledForUtc.value
+          : this.scheduledForUtc,
+      state: data.state.present ? data.state.value : this.state,
+      ownerToken: data.ownerToken.present
+          ? data.ownerToken.value
+          : this.ownerToken,
+      leaseExpiresAtUtc: data.leaseExpiresAtUtc.present
+          ? data.leaseExpiresAtUtc.value
+          : this.leaseExpiresAtUtc,
+      createdAtUtc: data.createdAtUtc.present
+          ? data.createdAtUtc.value
+          : this.createdAtUtc,
+      lastAttemptAtUtc: data.lastAttemptAtUtc.present
+          ? data.lastAttemptAtUtc.value
+          : this.lastAttemptAtUtc,
+      lastFailureKind: data.lastFailureKind.present
+          ? data.lastFailureKind.value
+          : this.lastFailureKind,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeadlineReminderDeliveryOutboxData(')
+          ..write('dedupeKey: $dedupeKey, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('identityKey: $identityKey, ')
+          ..write('offsetMinutes: $offsetMinutes, ')
+          ..write('deadlineAtUtc: $deadlineAtUtc, ')
+          ..write('scheduledForUtc: $scheduledForUtc, ')
+          ..write('state: $state, ')
+          ..write('ownerToken: $ownerToken, ')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('createdAtUtc: $createdAtUtc, ')
+          ..write('lastAttemptAtUtc: $lastAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    dedupeKey,
+    notificationId,
+    semesterId,
+    identityKey,
+    offsetMinutes,
+    deadlineAtUtc,
+    scheduledForUtc,
+    state,
+    ownerToken,
+    leaseExpiresAtUtc,
+    createdAtUtc,
+    lastAttemptAtUtc,
+    lastFailureKind,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeadlineReminderDeliveryOutboxData &&
+          other.dedupeKey == this.dedupeKey &&
+          other.notificationId == this.notificationId &&
+          other.semesterId == this.semesterId &&
+          other.identityKey == this.identityKey &&
+          other.offsetMinutes == this.offsetMinutes &&
+          other.deadlineAtUtc == this.deadlineAtUtc &&
+          other.scheduledForUtc == this.scheduledForUtc &&
+          other.state == this.state &&
+          other.ownerToken == this.ownerToken &&
+          other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
+          other.createdAtUtc == this.createdAtUtc &&
+          other.lastAttemptAtUtc == this.lastAttemptAtUtc &&
+          other.lastFailureKind == this.lastFailureKind);
+}
+
+class DeadlineReminderDeliveryOutboxCompanion
+    extends UpdateCompanion<DeadlineReminderDeliveryOutboxData> {
+  final Value<String> dedupeKey;
+  final Value<int> notificationId;
+  final Value<int> semesterId;
+  final Value<String> identityKey;
+  final Value<int> offsetMinutes;
+  final Value<DateTime> deadlineAtUtc;
+  final Value<DateTime> scheduledForUtc;
+  final Value<String> state;
+  final Value<String?> ownerToken;
+  final Value<DateTime?> leaseExpiresAtUtc;
+  final Value<DateTime> createdAtUtc;
+  final Value<DateTime?> lastAttemptAtUtc;
+  final Value<String?> lastFailureKind;
+  final Value<int> rowid;
+  const DeadlineReminderDeliveryOutboxCompanion({
+    this.dedupeKey = const Value.absent(),
+    this.notificationId = const Value.absent(),
+    this.semesterId = const Value.absent(),
+    this.identityKey = const Value.absent(),
+    this.offsetMinutes = const Value.absent(),
+    this.deadlineAtUtc = const Value.absent(),
+    this.scheduledForUtc = const Value.absent(),
+    this.state = const Value.absent(),
+    this.ownerToken = const Value.absent(),
+    this.leaseExpiresAtUtc = const Value.absent(),
+    this.createdAtUtc = const Value.absent(),
+    this.lastAttemptAtUtc = const Value.absent(),
+    this.lastFailureKind = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DeadlineReminderDeliveryOutboxCompanion.insert({
+    required String dedupeKey,
+    required int notificationId,
+    required int semesterId,
+    required String identityKey,
+    required int offsetMinutes,
+    required DateTime deadlineAtUtc,
+    required DateTime scheduledForUtc,
+    this.state = const Value.absent(),
+    this.ownerToken = const Value.absent(),
+    this.leaseExpiresAtUtc = const Value.absent(),
+    required DateTime createdAtUtc,
+    this.lastAttemptAtUtc = const Value.absent(),
+    this.lastFailureKind = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : dedupeKey = Value(dedupeKey),
+       notificationId = Value(notificationId),
+       semesterId = Value(semesterId),
+       identityKey = Value(identityKey),
+       offsetMinutes = Value(offsetMinutes),
+       deadlineAtUtc = Value(deadlineAtUtc),
+       scheduledForUtc = Value(scheduledForUtc),
+       createdAtUtc = Value(createdAtUtc);
+  static Insertable<DeadlineReminderDeliveryOutboxData> custom({
+    Expression<String>? dedupeKey,
+    Expression<int>? notificationId,
+    Expression<int>? semesterId,
+    Expression<String>? identityKey,
+    Expression<int>? offsetMinutes,
+    Expression<int>? deadlineAtUtc,
+    Expression<int>? scheduledForUtc,
+    Expression<String>? state,
+    Expression<String>? ownerToken,
+    Expression<int>? leaseExpiresAtUtc,
+    Expression<int>? createdAtUtc,
+    Expression<int>? lastAttemptAtUtc,
+    Expression<String>? lastFailureKind,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (dedupeKey != null) 'dedupe_key': dedupeKey,
+      if (notificationId != null) 'notification_id': notificationId,
+      if (semesterId != null) 'semester_id': semesterId,
+      if (identityKey != null) 'identity_key': identityKey,
+      if (offsetMinutes != null) 'offset_minutes': offsetMinutes,
+      if (deadlineAtUtc != null) 'deadline_at_utc': deadlineAtUtc,
+      if (scheduledForUtc != null) 'scheduled_for_utc': scheduledForUtc,
+      if (state != null) 'state': state,
+      if (ownerToken != null) 'owner_token': ownerToken,
+      if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
+      if (createdAtUtc != null) 'created_at_utc': createdAtUtc,
+      if (lastAttemptAtUtc != null) 'last_attempt_at_utc': lastAttemptAtUtc,
+      if (lastFailureKind != null) 'last_failure_kind': lastFailureKind,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DeadlineReminderDeliveryOutboxCompanion copyWith({
+    Value<String>? dedupeKey,
+    Value<int>? notificationId,
+    Value<int>? semesterId,
+    Value<String>? identityKey,
+    Value<int>? offsetMinutes,
+    Value<DateTime>? deadlineAtUtc,
+    Value<DateTime>? scheduledForUtc,
+    Value<String>? state,
+    Value<String?>? ownerToken,
+    Value<DateTime?>? leaseExpiresAtUtc,
+    Value<DateTime>? createdAtUtc,
+    Value<DateTime?>? lastAttemptAtUtc,
+    Value<String?>? lastFailureKind,
+    Value<int>? rowid,
+  }) {
+    return DeadlineReminderDeliveryOutboxCompanion(
+      dedupeKey: dedupeKey ?? this.dedupeKey,
+      notificationId: notificationId ?? this.notificationId,
+      semesterId: semesterId ?? this.semesterId,
+      identityKey: identityKey ?? this.identityKey,
+      offsetMinutes: offsetMinutes ?? this.offsetMinutes,
+      deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
+      scheduledForUtc: scheduledForUtc ?? this.scheduledForUtc,
+      state: state ?? this.state,
+      ownerToken: ownerToken ?? this.ownerToken,
+      leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
+      createdAtUtc: createdAtUtc ?? this.createdAtUtc,
+      lastAttemptAtUtc: lastAttemptAtUtc ?? this.lastAttemptAtUtc,
+      lastFailureKind: lastFailureKind ?? this.lastFailureKind,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (dedupeKey.present) {
+      map['dedupe_key'] = Variable<String>(dedupeKey.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<int>(notificationId.value);
+    }
+    if (semesterId.present) {
+      map['semester_id'] = Variable<int>(semesterId.value);
+    }
+    if (identityKey.present) {
+      map['identity_key'] = Variable<String>(identityKey.value);
+    }
+    if (offsetMinutes.present) {
+      map['offset_minutes'] = Variable<int>(offsetMinutes.value);
+    }
+    if (deadlineAtUtc.present) {
+      map['deadline_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterdeadlineAtUtc.toSql(
+          deadlineAtUtc.value,
+        ),
+      );
+    }
+    if (scheduledForUtc.present) {
+      map['scheduled_for_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterscheduledForUtc.toSql(
+          scheduledForUtc.value,
+        ),
+      );
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (ownerToken.present) {
+      map['owner_token'] = Variable<String>(ownerToken.value);
+    }
+    if (leaseExpiresAtUtc.present) {
+      map['lease_expires_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterleaseExpiresAtUtcn.toSql(
+          leaseExpiresAtUtc.value,
+        ),
+      );
+    }
+    if (createdAtUtc.present) {
+      map['created_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$convertercreatedAtUtc.toSql(
+          createdAtUtc.value,
+        ),
+      );
+    }
+    if (lastAttemptAtUtc.present) {
+      map['last_attempt_at_utc'] = Variable<int>(
+        $DeadlineReminderDeliveryOutboxTable.$converterlastAttemptAtUtcn.toSql(
+          lastAttemptAtUtc.value,
+        ),
+      );
+    }
+    if (lastFailureKind.present) {
+      map['last_failure_kind'] = Variable<String>(lastFailureKind.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeadlineReminderDeliveryOutboxCompanion(')
+          ..write('dedupeKey: $dedupeKey, ')
+          ..write('notificationId: $notificationId, ')
+          ..write('semesterId: $semesterId, ')
+          ..write('identityKey: $identityKey, ')
+          ..write('offsetMinutes: $offsetMinutes, ')
+          ..write('deadlineAtUtc: $deadlineAtUtc, ')
+          ..write('scheduledForUtc: $scheduledForUtc, ')
+          ..write('state: $state, ')
+          ..write('ownerToken: $ownerToken, ')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('createdAtUtc: $createdAtUtc, ')
+          ..write('lastAttemptAtUtc: $lastAttemptAtUtc, ')
+          ..write('lastFailureKind: $lastFailureKind, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncRunsTable extends SyncRuns with TableInfo<$SyncRunsTable, SyncRun> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -10146,6 +11004,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $NotificationHistoryTable(this);
   late final $NewAssignmentNotificationOutboxTable
   newAssignmentNotificationOutbox = $NewAssignmentNotificationOutboxTable(this);
+  late final $DeadlineReminderDeliveryOutboxTable
+  deadlineReminderDeliveryOutbox = $DeadlineReminderDeliveryOutboxTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
   late final $SyncOperationsTable syncOperations = $SyncOperationsTable(this);
   late final $AssignmentBaselinesTable assignmentBaselines =
@@ -10191,6 +11051,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'scheduled_reminders_by_scheduled_time',
     'CREATE INDEX scheduled_reminders_by_scheduled_time ON scheduled_reminders (scheduled_for_utc)',
   );
+  late final Index scheduledRemindersEventVersion = Index(
+    'scheduled_reminders_event_version',
+    'CREATE UNIQUE INDEX scheduled_reminders_event_version ON scheduled_reminders (notification_id, semester_id, identity_key, offset_minutes, deadline_at_utc, scheduled_for_utc)',
+  );
   late final Index scheduledRemindersPendingReconciliation = Index(
     'scheduled_reminders_pending_reconciliation',
     'CREATE INDEX scheduled_reminders_pending_reconciliation ON scheduled_reminders (semester_id, identity_key) WHERE needs_reconciliation = 1',
@@ -10210,6 +11074,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index newAssignmentOutboxQueue = Index(
     'new_assignment_outbox_queue',
     'CREATE INDEX new_assignment_outbox_queue ON new_assignment_notification_outbox (state, created_at_utc, semester_id, identity_key)',
+  );
+  late final Index deadlineReminderDeliveryOneInFlight = Index(
+    'deadline_reminder_delivery_one_in_flight',
+    'CREATE UNIQUE INDEX deadline_reminder_delivery_one_in_flight ON deadline_reminder_delivery_outbox (state) WHERE state = \'inFlight\'',
+  );
+  late final Index deadlineReminderDeliveryQueue = Index(
+    'deadline_reminder_delivery_queue',
+    'CREATE INDEX deadline_reminder_delivery_queue ON deadline_reminder_delivery_outbox (state, scheduled_for_utc, deadline_at_utc, dedupe_key)',
   );
   late final Index syncRunsByStartedTime = Index(
     'sync_runs_by_started_time',
@@ -10253,6 +11125,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     scheduledReminders,
     notificationHistory,
     newAssignmentNotificationOutbox,
+    deadlineReminderDeliveryOutbox,
     syncRuns,
     syncOperations,
     assignmentBaselines,
@@ -10270,11 +11143,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     activityFingerprintsByValue,
     scheduledRemindersByAssignmentOffset,
     scheduledRemindersByScheduledTime,
+    scheduledRemindersEventVersion,
     scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
     newAssignmentOutboxNotificationId,
     newAssignmentOutboxOneInFlight,
     newAssignmentOutboxQueue,
+    deadlineReminderDeliveryOneInFlight,
+    deadlineReminderDeliveryQueue,
     syncRunsByStartedTime,
     syncOperationsOneRunning,
     syncOperationsOneActiveKey,
@@ -12855,6 +13731,409 @@ typedef $$NewAssignmentNotificationOutboxTableProcessedTableManager =
         >,
       ),
       NewAssignmentNotificationOutboxData,
+      PrefetchHooks Function()
+    >;
+typedef $$DeadlineReminderDeliveryOutboxTableCreateCompanionBuilder =
+    DeadlineReminderDeliveryOutboxCompanion Function({
+      required String dedupeKey,
+      required int notificationId,
+      required int semesterId,
+      required String identityKey,
+      required int offsetMinutes,
+      required DateTime deadlineAtUtc,
+      required DateTime scheduledForUtc,
+      Value<String> state,
+      Value<String?> ownerToken,
+      Value<DateTime?> leaseExpiresAtUtc,
+      required DateTime createdAtUtc,
+      Value<DateTime?> lastAttemptAtUtc,
+      Value<String?> lastFailureKind,
+      Value<int> rowid,
+    });
+typedef $$DeadlineReminderDeliveryOutboxTableUpdateCompanionBuilder =
+    DeadlineReminderDeliveryOutboxCompanion Function({
+      Value<String> dedupeKey,
+      Value<int> notificationId,
+      Value<int> semesterId,
+      Value<String> identityKey,
+      Value<int> offsetMinutes,
+      Value<DateTime> deadlineAtUtc,
+      Value<DateTime> scheduledForUtc,
+      Value<String> state,
+      Value<String?> ownerToken,
+      Value<DateTime?> leaseExpiresAtUtc,
+      Value<DateTime> createdAtUtc,
+      Value<DateTime?> lastAttemptAtUtc,
+      Value<String?> lastFailureKind,
+      Value<int> rowid,
+    });
+
+class $$DeadlineReminderDeliveryOutboxTableFilterComposer
+    extends Composer<_$AppDatabase, $DeadlineReminderDeliveryOutboxTable> {
+  $$DeadlineReminderDeliveryOutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get dedupeKey => $composableBuilder(
+    column: $table.dedupeKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get offsetMinutes => $composableBuilder(
+    column: $table.offsetMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get deadlineAtUtc =>
+      $composableBuilder(
+        column: $table.deadlineAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get scheduledForUtc =>
+      $composableBuilder(
+        column: $table.scheduledForUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get leaseExpiresAtUtc => $composableBuilder(
+    column: $table.leaseExpiresAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get createdAtUtc =>
+      $composableBuilder(
+        column: $table.createdAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get lastAttemptAtUtc => $composableBuilder(
+    column: $table.lastAttemptAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeadlineReminderDeliveryOutboxTableOrderingComposer
+    extends Composer<_$AppDatabase, $DeadlineReminderDeliveryOutboxTable> {
+  $$DeadlineReminderDeliveryOutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get dedupeKey => $composableBuilder(
+    column: $table.dedupeKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get offsetMinutes => $composableBuilder(
+    column: $table.offsetMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deadlineAtUtc => $composableBuilder(
+    column: $table.deadlineAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get scheduledForUtc => $composableBuilder(
+    column: $table.scheduledForUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get leaseExpiresAtUtc => $composableBuilder(
+    column: $table.leaseExpiresAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtUtc => $composableBuilder(
+    column: $table.createdAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastAttemptAtUtc => $composableBuilder(
+    column: $table.lastAttemptAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeadlineReminderDeliveryOutboxTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DeadlineReminderDeliveryOutboxTable> {
+  $$DeadlineReminderDeliveryOutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get dedupeKey =>
+      $composableBuilder(column: $table.dedupeKey, builder: (column) => column);
+
+  GeneratedColumn<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get offsetMinutes => $composableBuilder(
+    column: $table.offsetMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get deadlineAtUtc =>
+      $composableBuilder(
+        column: $table.deadlineAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get scheduledForUtc =>
+      $composableBuilder(
+        column: $table.scheduledForUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerToken => $composableBuilder(
+    column: $table.ownerToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get leaseExpiresAtUtc =>
+      $composableBuilder(
+        column: $table.leaseExpiresAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get createdAtUtc =>
+      $composableBuilder(
+        column: $table.createdAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get lastAttemptAtUtc =>
+      $composableBuilder(
+        column: $table.lastAttemptAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get lastFailureKind => $composableBuilder(
+    column: $table.lastFailureKind,
+    builder: (column) => column,
+  );
+}
+
+class $$DeadlineReminderDeliveryOutboxTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DeadlineReminderDeliveryOutboxTable,
+          DeadlineReminderDeliveryOutboxData,
+          $$DeadlineReminderDeliveryOutboxTableFilterComposer,
+          $$DeadlineReminderDeliveryOutboxTableOrderingComposer,
+          $$DeadlineReminderDeliveryOutboxTableAnnotationComposer,
+          $$DeadlineReminderDeliveryOutboxTableCreateCompanionBuilder,
+          $$DeadlineReminderDeliveryOutboxTableUpdateCompanionBuilder,
+          (
+            DeadlineReminderDeliveryOutboxData,
+            BaseReferences<
+              _$AppDatabase,
+              $DeadlineReminderDeliveryOutboxTable,
+              DeadlineReminderDeliveryOutboxData
+            >,
+          ),
+          DeadlineReminderDeliveryOutboxData,
+          PrefetchHooks Function()
+        > {
+  $$DeadlineReminderDeliveryOutboxTableTableManager(
+    _$AppDatabase db,
+    $DeadlineReminderDeliveryOutboxTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeadlineReminderDeliveryOutboxTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DeadlineReminderDeliveryOutboxTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DeadlineReminderDeliveryOutboxTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> dedupeKey = const Value.absent(),
+                Value<int> notificationId = const Value.absent(),
+                Value<int> semesterId = const Value.absent(),
+                Value<String> identityKey = const Value.absent(),
+                Value<int> offsetMinutes = const Value.absent(),
+                Value<DateTime> deadlineAtUtc = const Value.absent(),
+                Value<DateTime> scheduledForUtc = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> ownerToken = const Value.absent(),
+                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                Value<DateTime> createdAtUtc = const Value.absent(),
+                Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+                Value<String?> lastFailureKind = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeadlineReminderDeliveryOutboxCompanion(
+                dedupeKey: dedupeKey,
+                notificationId: notificationId,
+                semesterId: semesterId,
+                identityKey: identityKey,
+                offsetMinutes: offsetMinutes,
+                deadlineAtUtc: deadlineAtUtc,
+                scheduledForUtc: scheduledForUtc,
+                state: state,
+                ownerToken: ownerToken,
+                leaseExpiresAtUtc: leaseExpiresAtUtc,
+                createdAtUtc: createdAtUtc,
+                lastAttemptAtUtc: lastAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String dedupeKey,
+                required int notificationId,
+                required int semesterId,
+                required String identityKey,
+                required int offsetMinutes,
+                required DateTime deadlineAtUtc,
+                required DateTime scheduledForUtc,
+                Value<String> state = const Value.absent(),
+                Value<String?> ownerToken = const Value.absent(),
+                Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                required DateTime createdAtUtc,
+                Value<DateTime?> lastAttemptAtUtc = const Value.absent(),
+                Value<String?> lastFailureKind = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DeadlineReminderDeliveryOutboxCompanion.insert(
+                dedupeKey: dedupeKey,
+                notificationId: notificationId,
+                semesterId: semesterId,
+                identityKey: identityKey,
+                offsetMinutes: offsetMinutes,
+                deadlineAtUtc: deadlineAtUtc,
+                scheduledForUtc: scheduledForUtc,
+                state: state,
+                ownerToken: ownerToken,
+                leaseExpiresAtUtc: leaseExpiresAtUtc,
+                createdAtUtc: createdAtUtc,
+                lastAttemptAtUtc: lastAttemptAtUtc,
+                lastFailureKind: lastFailureKind,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeadlineReminderDeliveryOutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DeadlineReminderDeliveryOutboxTable,
+      DeadlineReminderDeliveryOutboxData,
+      $$DeadlineReminderDeliveryOutboxTableFilterComposer,
+      $$DeadlineReminderDeliveryOutboxTableOrderingComposer,
+      $$DeadlineReminderDeliveryOutboxTableAnnotationComposer,
+      $$DeadlineReminderDeliveryOutboxTableCreateCompanionBuilder,
+      $$DeadlineReminderDeliveryOutboxTableUpdateCompanionBuilder,
+      (
+        DeadlineReminderDeliveryOutboxData,
+        BaseReferences<
+          _$AppDatabase,
+          $DeadlineReminderDeliveryOutboxTable,
+          DeadlineReminderDeliveryOutboxData
+        >,
+      ),
+      DeadlineReminderDeliveryOutboxData,
       PrefetchHooks Function()
     >;
 typedef $$SyncRunsTableCreateCompanionBuilder =
@@ -15503,6 +16782,12 @@ class $AppDatabaseManager {
       $$NewAssignmentNotificationOutboxTableTableManager(
         _db,
         _db.newAssignmentNotificationOutbox,
+      );
+  $$DeadlineReminderDeliveryOutboxTableTableManager
+  get deadlineReminderDeliveryOutbox =>
+      $$DeadlineReminderDeliveryOutboxTableTableManager(
+        _db,
+        _db.deadlineReminderDeliveryOutbox,
       );
   $$SyncRunsTableTableManager get syncRuns =>
       $$SyncRunsTableTableManager(_db, _db.syncRuns);

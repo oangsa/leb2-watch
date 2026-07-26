@@ -49,6 +49,8 @@ server.
   backoff.
 - Durable new-assignment deduplication/outbox submission and reconciled
   deadline reminders, without claiming exact operating-system delivery.
+- Process-lifetime deadline reminder delivery on Linux and the unpackaged
+  Windows preview.
 - Local notification, course, monitoring, and reminder preferences.
 - Session-expiration recovery that retains cached assignments, with optional
   opt-in automatic reauthentication and safe manual fallback.
@@ -63,11 +65,11 @@ process exits.
 
 | Platform | Implementation | Validation on the current Linux host |
 | --- | --- | --- |
-| Linux | Application, tray, timer, autostart adapter, secure storage, immediate notifications | Release build passed; live desktop integrations still need environment-specific smoke tests |
+| Linux | Application, tray, timers, autostart adapter, secure storage, immediate notifications, process-lifetime deadline reminders | Release build passed; live desktop integrations still need environment-specific smoke tests |
 | Android | Application and WorkManager integration | Dart/static tests only; Android SDK and device validation unavailable |
 | iOS | Application and BGAppRefresh integration | Dart/static tests only; macOS, Xcode, signing, and device validation required |
 | macOS | Application, tray, timer, and autostart | Dart/static tests only; macOS build, signing, and runtime validation required |
-| Windows | Unpackaged preview with tray, timer, autostart, immediate notifications, and same-process tap reveal | Dart/static tests pass and a Windows Release CI gate is configured; native runtime validation is still required |
+| Windows | Unpackaged preview with tray, timers, autostart, immediate and process-lifetime deadline notifications, and same-process tap reveal | Dart/static tests pass and a Windows Release CI gate is configured; native runtime validation is still required |
 
 This is not a store-readiness statement. Signing and packaging remain the
 operator's responsibility. See [Platform support](docs/platform-support.md).

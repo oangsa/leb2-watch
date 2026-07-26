@@ -135,12 +135,13 @@ requires rebuilding.
 ## Data model
 
 Documentation adds no runtime data or schema. It describes current Drift
-schema version 12 with 20 tables, including:
+schema version 13 with 21 tables, including:
 
 - secrets in OS secure storage;
 - cached assignment and coordination state in Drift/SQLite;
-- notification and reminder ownership, the retryable new-assignment outbox,
-  and revision-scoped automatic-reauthentication attempt state in SQLite; and
+- notification and reminder ownership, the retryable new-assignment and
+  process deadline-delivery outboxes, and revision-scoped
+  automatic-reauthentication attempt state in SQLite; and
 - request-scoped plus short-lived process-memory data on the backend.
 
 It deliberately avoids the inaccurate claim that the backend never holds user
@@ -189,7 +190,8 @@ The guides document:
 - iOS 14+, best-effort BGAppRefresh, and required macOS/device validation;
 - macOS 10.15+, tray/autostart behavior, and signing/notarization gaps;
 - unpackaged Windows notification and packaging limits; and
-- Linux keyring, tray, scheduled-notification, and packaging limits.
+- Linux keyring, tray, OS-retained scheduling, process-lifetime delivery, and
+  packaging limits.
 
 The startup description records the production local-only stage resolver and
 cache-first dashboard behavior. The integration workflow removes and rebuilds

@@ -8,11 +8,13 @@ final class NotificationAwareAssignmentSyncService
     this._delegate,
     this._coordinator, [
     this._deadlineReminderReconciler,
+    this._desktopDeadlineDeliveryRefresh,
   ]);
 
   final AssignmentSyncService _delegate;
   final NewAssignmentNotificationCoordinator _coordinator;
   final DeadlineReminderReconciler? _deadlineReminderReconciler;
+  final Future<void> Function()? _desktopDeadlineDeliveryRefresh;
 
   @override
   Future<SyncOutcome> synchronize({
@@ -47,6 +49,11 @@ final class NotificationAwareAssignmentSyncService
         } on Object {
           // A local reminder side effect cannot replace a committed sync.
         }
+      }
+      try {
+        await _desktopDeadlineDeliveryRefresh?.call();
+      } on Object {
+        // Durable reminder work is also recovered by its safety checkpoint.
       }
     }
     return outcome;

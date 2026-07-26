@@ -7,6 +7,8 @@ new-assignment outbox and Feature 12.3 supplying durable deadline-reminder
 ownership and reconciliation. The application-owned service, platform
 adapter, validated assignment targets, navigation coordinator, Android native
 setup, iOS delegate setup, tests, and Linux release build are implemented.
+The same service now supports validated immediate due-reminder submission for
+Linux and unpackaged-Windows process-lifetime delivery.
 Android, iOS, macOS, and Windows native builds remain unverified on this Linux
 host.
 
@@ -25,6 +27,7 @@ exposing plugin types to application callers.
 - Fixed test-notification copy.
 - Bounded new-assignment and deadline-reminder requests.
 - Immediate notification display on supported platforms.
+- Immediate due-deadline display for process-lifetime desktop delivery.
 - UTC one-shot reminder scheduling where cancellation is supportable, with
   device-local deadline copy and an explicit UTC offset.
 - App-owned permission, failure, request, target, owner, and ID types.
@@ -102,6 +105,11 @@ Deadline reminders, Android background execution, and desktop monitoring
 consume the service through their application-owned synchronization and
 platform boundaries.
 
+The desktop deadline driver uses `showDueDeadlineReminder` only after its
+durable current-policy claim. `QuiescenceAwareLocalNotificationService` holds
+the actual platform Future under a database activity lease so delete-all
+cannot remove state during an in-progress submission.
+
 ## Important files
 
 - `lib/src/features/notifications/domain/local_notification_models.dart` —
@@ -118,6 +126,8 @@ platform boundaries.
   — concrete Flutter plugin translation.
 - `lib/src/features/notifications/application/local_notification_service_impl.dart`
   — validation, copy composition, response handling, and failures.
+- `lib/src/features/notifications/application/quiescence_aware_local_notification_service.dart`
+  — database-deletion quiescence for immediate and scheduled platform effects.
 - `lib/src/features/notifications/application/local_notification_deadline_formatter.dart`
   — deterministic device-local deadline rendering with an explicit UTC offset.
 - `lib/src/features/notifications/application/notification_navigation_coordinator.dart`
@@ -147,6 +157,9 @@ abstract interface class LocalNotificationService {
   Future<NotificationPermissionStatus> requestPermission();
   Future<void> showTestNotification();
   Future<void> showNewAssignment(NewAssignmentNotification request);
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  );
   Future<void> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   );
@@ -269,17 +282,20 @@ initialization. A failed initialization may be retried.
 - **macOS:** the same immediate, deferred alert/sound permission, launch,
   one-shot UTC scheduling, and cancellation contract is translated by the
   shared adapter. Its plugin owns delegate registration.
-- **Linux:** immediate show and same-process cancellation/response handling.
-  Scheduling and cold-launch payload recovery are unsupported because the
-  current runner is not DBus-activatable. The federated Linux plugin exposes
-  no public teardown; the process-lifetime adapter instead guards callbacks
-  after disposal.
+- **Linux:** immediate show, including due reminders claimed by the
+  process-lifetime driver, and same-process cancellation/response handling.
+  OS-retained scheduling and cold-launch payload recovery are unsupported
+  because the current runner is not DBus-activatable. The federated Linux
+  plugin exposes no public teardown; the process-lifetime adapter instead
+  guards callbacks after disposal.
 - **Windows:** immediate show and same-process response handling. A live
   response requests window show/focus before local navigation. The current
-  unpackaged executable reports launch-payload recovery, scheduling, and
-  cancellation unsupported. Package-identity capability remains represented
-  for a future packaged artifact, but no packaged artifact is implemented or
-  claimed. Dart initialization uses app name `LEB2 Watch`, AppUserModelID
+  unpackaged executable reports launch-payload recovery, OS scheduling, and
+  reliable cancellation unsupported. While the process is alive, the desktop
+  driver may submit a due reminder through the supported immediate-show path.
+  Package-identity capability remains represented for a future packaged
+  artifact, but no packaged artifact is implemented or claimed. Dart
+  initialization uses app name `LEB2 Watch`, AppUserModelID
   `dev.oangsa.leb2watch.app`, and committed GUID
   `9be8a9ac-9c1d-45c5-a3c0-a8189e5d0d55`; no MSIX was added. Adapter disposal
   invokes the Windows federated plugin's public `dispose()` exactly once.
@@ -450,9 +466,12 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - Android/OEM and Apple policies may delay or suppress a scheduled reminder.
 - Plugin success does not prove that the OS displayed or delivered a
   notification.
-- Linux scheduling and cold-launch notification recovery remain unsupported.
-- Current unpackaged Windows builds cannot reliably schedule-and-cancel
-  reminders; MSIX runtime identity is required.
+- Linux OS-retained scheduling and cold-launch notification recovery remain
+  unsupported. Due-reminder submission requires the process to remain alive.
+- Current unpackaged Windows builds cannot reliably ask the OS to retain and
+  cancel future schedules; process-lifetime immediate delivery is best effort.
+- Stable-ID retries cannot prove exactly-once display after an ambiguous
+  platform failure.
 - Cold or terminated-process notification activation is unsupported for the
   unpackaged Windows preview. Same-process taps still require native Windows
   smoke testing.
@@ -477,4 +496,5 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Desktop Deadline Reminder Delivery](desktop-deadline-reminder-delivery.md)
 - [Windows Preview Hardening](windows-preview-hardening.md)

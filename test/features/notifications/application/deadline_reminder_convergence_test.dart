@@ -927,6 +927,11 @@ final class _OsNotifications implements LocalNotificationService {
   }
 
   @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
   Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
       NotificationDeliveryPermissionStatus.allowed;
 

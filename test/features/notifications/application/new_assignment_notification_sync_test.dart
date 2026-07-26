@@ -24,11 +24,13 @@ void main() {
   late _SnapshotClient client;
   late _RecordingNotificationService notifications;
   late NotificationAwareAssignmentSyncService service;
+  late int deadlineDeliveryRefreshes;
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     client = _SnapshotClient();
     notifications = _RecordingNotificationService();
+    deadlineDeliveryRefreshes = 0;
     service = NotificationAwareAssignmentSyncService(
       LocalAssignmentSyncService(
         apiClient: client,
@@ -52,6 +54,9 @@ void main() {
         wait: (_) async {},
         platformEffectTimeout: const Duration(milliseconds: 40),
       ),
+      () async {
+        deadlineDeliveryRefreshes += 1;
+      },
     );
     await database
         .into(database.semesters)
@@ -98,6 +103,7 @@ void main() {
         await database.select(database.notificationHistory).get(),
         hasLength(1),
       );
+      expect(deadlineDeliveryRefreshes, 3);
     },
   );
 
@@ -584,6 +590,11 @@ final class _RecordingNotificationService implements LocalNotificationService {
     await onSchedule?.call(request);
     scheduled.add(request);
   }
+
+  @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
 
   @override
   Future<void> showTestNotification() async {}

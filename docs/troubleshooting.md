@@ -164,12 +164,17 @@ window should still become visible. Tapping after **Quit** is not a supported
 cold-launch path; no MSIX activator or persistent unpackaged activation
 registration is configured.
 
-## Deadline reminders are unsupported
+## A deadline reminder did not appear
 
-- Linux supports immediate notifications but not scheduled reminders because
-  the app is not DBus-activatable.
-- Unpackaged Windows supports immediate notifications, but scheduling and
-  cancellation require package identity.
+- Linux and unpackaged Windows can submit a saved deadline reminder only while
+  the application process remains alive. Closing to the tray keeps the driver
+  active; **Quit** stops it.
+- A threshold first discovered after it passed is not replayed. Catch-up for a
+  previously saved threshold stops at the assignment deadline.
+- Linux does not support OS-retained scheduling because the app is not
+  DBus-activatable.
+- Unpackaged Windows does not support OS-retained scheduling or reliable
+  cancellation because those operations require package identity.
 - Android, iOS, and macOS remain subject to OS scheduling limits.
 
 Changing a deadline reconciles owned reminders; removed assignments cancel

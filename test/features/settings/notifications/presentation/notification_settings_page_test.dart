@@ -148,17 +148,14 @@ void main() {
     );
     expect(find.byKey(const Key('desktop-autostart-switch')), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.textContaining('scheduled deadline notifications require'),
+      find.textContaining('best-effort process timers'),
       300,
       scrollable: find.descendant(
         of: find.byKey(const Key('notification-settings-list')),
         matching: find.byType(Scrollable),
       ),
     );
-    expect(
-      find.textContaining('scheduled deadline notifications require'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('best-effort process timers'), findsOneWidget);
     expect(find.textContaining('exact schedule guarantee'), findsNothing);
   });
 

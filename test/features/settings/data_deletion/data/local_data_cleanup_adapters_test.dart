@@ -869,6 +869,11 @@ final class _Notifications
   ) async {}
 
   @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {}
 
   @override

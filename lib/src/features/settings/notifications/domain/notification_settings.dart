@@ -36,17 +36,17 @@ enum NotificationSettingsPlatform {
           'LEB2 Watch to remain running; start at login improves availability '
           'but is not an exact schedule guarantee.',
     linux =>
-      'Linux supports immediate notifications, but scheduled deadline '
-          'notifications are unavailable. Monitoring requires LEB2 Watch to '
-          'remain running.',
+      'Linux deadline reminders use best-effort process timers and require '
+          'LEB2 Watch to remain running. Exact timing, OS-retained schedules, '
+          'and notification activation after Quit are unavailable.',
     windowsPackaged =>
       'Packaged Windows supports immediate and scheduled notifications. '
           'Monitoring still requires LEB2 Watch to remain running, and timing '
           'is best effort.',
     windowsUnpackaged =>
-      'Windows supports immediate notifications here, but scheduled deadline '
-          'notifications require a packaged build. Monitoring requires LEB2 '
-          'Watch to remain running.',
+      'This unpackaged Windows build uses best-effort process timers for '
+          'deadline reminders and must remain running. OS-retained schedules '
+          'and notification activation after Quit require a packaged build.',
     unsupported =>
       'Notifications and background monitoring are unavailable on this '
           'platform. Saved preferences remain local to this device.',

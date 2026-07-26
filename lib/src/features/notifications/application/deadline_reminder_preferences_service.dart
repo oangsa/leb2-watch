@@ -41,11 +41,13 @@ final class LocalDeadlineReminderPreferencesService
     implements DeadlineReminderPreferencesService {
   const LocalDeadlineReminderPreferencesService(
     this._store,
-    this._reconciliationRequester,
-  );
+    this._reconciliationRequester, [
+    this._processDeliveryRefresh,
+  ]);
 
   final DeadlineReminderPreferencesStore _store;
   final DeadlineReminderReconciliationRequester _reconciliationRequester;
+  final Future<void> Function()? _processDeliveryRefresh;
 
   @override
   Stream<DeadlineReminderPreferences> watch() {
@@ -79,6 +81,11 @@ final class LocalDeadlineReminderPreferencesService
       await _reconciliationRequester.reconcileAfterPreferenceChange();
     } on Object {
       // A committed local preference remains successful when OS work fails.
+    }
+    try {
+      await _processDeliveryRefresh?.call();
+    } on Object {
+      // Durable process work is also recovered by its safety checkpoint.
     }
     return const DeadlineReminderPreferenceUpdateSuccess();
   }

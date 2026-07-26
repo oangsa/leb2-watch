@@ -434,6 +434,11 @@ final class _BlockingNotificationService implements LocalNotificationService {
   }
 
   @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {
     events.add('show:start');
     showStarted.complete();

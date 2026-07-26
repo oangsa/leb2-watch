@@ -85,11 +85,13 @@ final class LocalCoursePreferencesService
   LocalCoursePreferencesService(
     this._store, [
     this._deadlineReminderReconciliationRequester,
+    this._processDeliveryRefresh,
   ]);
 
   final CoursePreferencesStore _store;
   final DeadlineReminderReconciliationRequester?
   _deadlineReminderReconciliationRequester;
+  final Future<void> Function()? _processDeliveryRefresh;
 
   @override
   Stream<ActiveCourseCatalog> watchCatalog() => _store.watchActiveCatalog();
@@ -108,6 +110,11 @@ final class LocalCoursePreferencesService
         await requester.reconcileAfterPreferenceChange();
       } on Object {
         // The committed course preference remains the authoritative result.
+      }
+      try {
+        await _processDeliveryRefresh?.call();
+      } on Object {
+        // Durable process work is also recovered by its safety checkpoint.
       }
     }
     return result;

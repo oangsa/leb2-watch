@@ -173,6 +173,11 @@ final class _Notifications implements LocalNotificationService {
   ) async {}
 
   @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
+
+  @override
   Future<void> cancelReminder(LocalNotificationId id) async {}
 
   @override

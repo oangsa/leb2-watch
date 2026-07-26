@@ -11,8 +11,8 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('fresh v12 schema seeds checked reminder singletons', () async {
-    expect(database.schemaVersion, 12);
+  test('fresh v13 schema seeds checked reminder singletons', () async {
+    expect(database.schemaVersion, 13);
 
     final preferences = await database
         .select(database.deadlineReminderPreferences)

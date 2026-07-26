@@ -35,6 +35,9 @@ final notificationSettingsServiceProvider =
       final deadlinePreferences = await ref.watch(
         deadlineReminderPreferencesServiceProvider.future,
       );
+      final deadlineDelivery = await ref.watch(
+        desktopDeadlineReminderDeliveryCoordinatorProvider.future,
+      );
       final service = LocalNotificationSettingsService(
         backgroundSettings,
         backgroundScheduler,
@@ -47,6 +50,7 @@ final notificationSettingsServiceProvider =
           ref.watch(localNotificationsPlatformProvider).capabilities,
         ),
         ref.watch(backgroundScheduleStatusRefreshSignalProvider),
+        deadlineDelivery?.refresh,
       );
       ref.onDispose(service.dispose);
       return service;

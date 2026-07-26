@@ -352,7 +352,7 @@ void main() {
     },
   );
 
-  test('unpackaged Windows neither schedules nor falsely deletes', () async {
+  test('unpackaged Windows preserves retained OS owners', () async {
     final supported = coordinator();
     await supported.reconcileAfterPreferenceChange();
     notifications.clear();
@@ -364,7 +364,12 @@ void main() {
     expect(notifications.events, isEmpty);
     final rows = await database.select(database.scheduledReminders).get();
     expect(rows, hasLength(2));
-    expect(rows.every((row) => row.needsReconciliation), isTrue);
+    expect(
+      rows.every(
+        (row) => row.scheduleState == 'scheduled' && !row.needsReconciliation,
+      ),
+      isTrue,
+    );
   });
 
   test('iOS failed capacity cancellation prevents unsafe additions', () async {
@@ -596,6 +601,11 @@ final class _RecordingNotifications implements LocalNotificationService {
     scheduled.add(request);
     await onSchedule?.call(request);
   }
+
+  @override
+  Future<void> showDueDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) async {}
 
   @override
   Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>

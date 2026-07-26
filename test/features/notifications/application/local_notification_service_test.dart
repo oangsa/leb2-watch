@@ -500,6 +500,44 @@ void main() {
     },
   );
 
+  for (final type in <NotificationRuntimePlatform>[
+    NotificationRuntimePlatform.linux,
+    NotificationRuntimePlatform.windows,
+  ]) {
+    test(
+      '${type.name} due reminder reuses reminder copy, ID, group, and payload',
+      () async {
+        final platform = _FakeNotificationsPlatform(type);
+        final service = serviceFor(platform);
+        await service.initialize();
+        final request = reminderRequest(
+          deadlineAtUtc: DateTime.utc(2026, 8, 2, 8),
+          scheduledForUtc: DateTime.utc(2026, 8, 1, 8),
+          offsetMinutes: 1440,
+        );
+
+        await service.showDueDeadlineReminder(request);
+
+        expect(platform.scheduled, isEmpty);
+        expect(platform.shown, hasLength(1));
+        final shown = platform.shown.single;
+        expect(shown.id, request.id.value);
+        expect(shown.kind, PlatformNotificationKind.deadlineReminder);
+        expect(shown.title, 'CPE 101');
+        expect(
+          shown.body,
+          'Due soon: Finite state machines\n'
+          'Due: 2026-08-02 15:00 (UTC+07:00)',
+        );
+        expect(shown.groupKey, 'leb2.course.123.9');
+        expect(
+          codec.decode(shown.payload),
+          LocalNotificationTarget.assignment(assignment),
+        );
+      },
+    );
+  }
+
   test(
     'display controls and bidi marks are rejected in both fields before IO',
     () async {
@@ -615,6 +653,16 @@ void main() {
         reminderRequest(
           scheduledForUtc: DateTime.utc(2026, 8, 2, 10, 30),
           offsetMinutes: 60,
+        ),
+      ),
+      () => service.showDueDeadlineReminder(
+        reminderRequest(scheduledForUtc: DateTime(2026, 8, 1, 8)),
+      ),
+      () => service.showDueDeadlineReminder(
+        reminderRequest(
+          scheduledForUtc: DateTime.utc(2026, 8, 1, 8),
+          offsetMinutes: 60,
+          id: reminderId(offsetMinutes: 1440),
         ),
       ),
     ];

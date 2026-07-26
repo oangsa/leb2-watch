@@ -33,6 +33,28 @@ void main() {
     );
   });
 
+  test('only process-only desktop targets opt into live-process delivery', () {
+    expect(
+      DeadlineReminderSchedulingPolicy.linux.supportsProcessLifetimeDelivery,
+      isTrue,
+    );
+    expect(
+      DeadlineReminderSchedulingPolicy
+          .windowsUnpackaged
+          .supportsProcessLifetimeDelivery,
+      isTrue,
+    );
+    for (final policy in <DeadlineReminderSchedulingPolicy>[
+      DeadlineReminderSchedulingPolicy.android,
+      DeadlineReminderSchedulingPolicy.iOS,
+      DeadlineReminderSchedulingPolicy.macOS,
+      DeadlineReminderSchedulingPolicy.windowsPackaged,
+      DeadlineReminderSchedulingPolicy.unsupported,
+    ]) {
+      expect(policy.supportsProcessLifetimeDelivery, isFalse);
+    }
+  });
+
   test('invalid caps are rejected and debug output is redacted', () {
     expect(
       () => DeadlineReminderSchedulingPolicy(

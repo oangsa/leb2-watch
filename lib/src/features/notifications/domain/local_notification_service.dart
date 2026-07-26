@@ -13,6 +13,8 @@ abstract interface class LocalNotificationService {
 
   Future<void> showNewAssignment(NewAssignmentNotification request);
 
+  Future<void> showDueDeadlineReminder(DeadlineReminderNotification request);
+
   Future<void> scheduleDeadlineReminder(DeadlineReminderNotification request);
 
   Future<void> cancelReminder(LocalNotificationId id);
