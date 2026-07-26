@@ -64,6 +64,12 @@ layer's current-state value.
 `AssignmentDetailKey.tryParse`. `NotificationNavigationCoordinator` holds the
 newest validated target outside `GoRouter` until the app flow is ready.
 
+New-assignment delivery uses that validated key as the exact notification
+target. Its durable outbox and shared stable-ID allocator provide app-level
+deduplication and retryable submission without claiming exact
+operating-system delivery. Deadline reminders use the same route identity and
+stable-ID namespace.
+
 `LocalAssignmentDetailService` is the security seam: it sanitizes the
 description, classifies timestamps without assigning a timezone, rejects
 date, time, and numeric-offset components that Dart would otherwise normalize,
@@ -323,12 +329,8 @@ is `00..59`; out-of-range components are invalid instead of being normalized.
 
 ## Future considerations
 
-Feature 12.2 uses the established validated key as the exact notification
-target and records an app-level show-request claim or muted decision before
-any show call. Feature 12.3 can use the same route identity for reminders. A
-later verified backend contract may add typed attachments or external links.
-Future notification features may enrich local evidence without changing the
-current sanitization boundary.
+A later verified backend contract may add typed attachments or external links
+without changing the current sanitization boundary.
 
 ## Related contexts
 
@@ -338,6 +340,7 @@ current sanitization boundary.
 - [Assignment Synchronization](assignment-synchronization.md)
 - [Local-First Assignment Dashboard](assignment-dashboard.md)
 - [Adaptive Application Shell](adaptive-app-shell.md)
+- [Deadline Reminders](deadline-reminders.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
 - [Local Notification Service](local-notifications.md)

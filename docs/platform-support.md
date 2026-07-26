@@ -22,6 +22,9 @@ static tests as successful Android, Apple, or Windows builds.
 - Checks, reminders, and notification delivery are best effort, never exact.
 - Cached data renders before synchronization.
 - Session expiration pauses automatic work but retains cached assignments.
+- Users who explicitly opt in may receive one automatic reauthentication
+  attempt for the exact expired-session revision; failure falls back to manual
+  authentication without deleting cache.
 - Muted or background-disabled courses suppress the corresponding local
   effects.
 - No platform uses push notifications, a privileged daemon, or an always-on

@@ -21,8 +21,9 @@ reminder timing.
 - Explicit notification permission and test-notification actions.
 - Platform-specific best-effort and capability explanations.
 - Real `/settings` routing with adaptive and accessible presentation.
-- Schema v10, migration fixtures, enforcement, application, widget, router,
-  and regression tests.
+- The feature's schema-v10 preference migration plus current schema-v12
+  migration fixtures, enforcement, application, widget, router, and regression
+  tests.
 
 ## Non-scope
 
@@ -125,8 +126,10 @@ session-local permission/action feedback in widget state.
 - `lib/src/features/notifications/data/new_assignment_notification_store.dart`
   — claim-time global policy enforcement.
 - `lib/src/core/database/database_tables.dart` — preference table introduced
-  in schema v10 and retryable outbox introduced in schema v11.
-- `lib/src/core/database/app_database.dart` — ordered v1–v10 to v11 migration.
+  in schema v10, retryable outbox introduced in schema v11, and current
+  automatic-reauthentication attempt state introduced in schema v12.
+- `lib/src/core/database/app_database.dart` — ordered migration through current
+  schema v12.
 - `test/core/database/v9_app_database.dart` — frozen previous-schema fixture.
 
 ## Contracts and interfaces
@@ -160,7 +163,7 @@ retaining raw storage errors.
 
 ## Data model
 
-Schema v10 adds:
+The Notification Settings feature introduced schema v10:
 
 ```text
 new_assignment_notification_preferences
@@ -168,8 +171,10 @@ new_assignment_notification_preferences
 └── enabled BOOLEAN NOT NULL DEFAULT true
 ```
 
-Creation and every supported migration seed singleton ID 1. No credentials,
-authorization data, user content, or platform error detail are stored.
+The durable notification outbox raised the schema to v11, and automatic
+session reauthentication raised it to current schema v12. Creation and every
+supported migration seed singleton ID 1. No credentials, authorization data,
+user content, or platform error detail are stored.
 
 Existing tables remain authoritative for:
 
@@ -297,11 +302,14 @@ Cached assignments and other routes remain unaffected.
 
 ## Tests
 
-- Fresh schema v11 default, singleton and outbox constraints, and
+- Fresh schema v12 default, singleton, outbox, and
+  automatic-reauthentication-attempt constraints, plus the
   credential-column scan.
 - Frozen v9 to v10 migration with prior data preserved.
 - Frozen v10 to v11 outbox migration with prior data preserved.
-- Existing v1–v8 migrations updated through v11.
+- Frozen v11 to v12 automatic-reauthentication migration with prior data
+  preserved.
+- Existing supported migrations updated through v12.
 - Preference watch/write, disable suppression, disabled-period re-enable, and
   claim/disable race convergence.
 - Removed-discovery suppression across disable, re-enable, and stable-identity
@@ -362,9 +370,6 @@ Cached assignments and other routes remain unaffected.
 
 ## Future considerations
 
-- Consolidate the three local-notification ID allocator implementations behind
-  one tested owner-aware allocator. The standards review accepted this as
-  nonblocking debt; it is intentionally outside the two correctness fixes.
 - Re-run native settings smoke tests on supported mobile and desktop hosts.
 
 ## Related contexts

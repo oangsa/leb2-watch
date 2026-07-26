@@ -101,11 +101,15 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart \
   -d linux --reporter expanded
 ```
 
-The committed Phase 16 run built the Linux debug application and passed 1/1.
-It uses sanitized in-process transport responses and never contacts LEB2 or a
-production backend. The restart portion removes and rebuilds the
-widget/provider graph and closes/reopens the same SQLite file within one test
-executable; it is not an operating-system process-relaunch test.
+The current recorded run built the Linux debug application and passed 2/2.
+The first workflow covers opt-in automatic reauthentication after exact
+expiration and one non-recursive continuation; the second gates a candidate
+while credential deletion proves that no late cookie or credential commit can
+restore deleted secrets. Both use sanitized in-process transport responses and
+never contact LEB2 or a production backend. The restart portion removes and
+rebuilds the widget/provider graph and closes/reopens the same SQLite file
+within one test executable; it is not an operating-system process-relaunch
+test.
 
 Choose tests by behavior:
 
@@ -149,7 +153,7 @@ links for implementation details.
 
 ## CI
 
-The Ubuntu workflow:
+CI configures three jobs. The Ubuntu validation job:
 
 1. resolves dependencies;
 2. runs code generation;
@@ -166,14 +170,20 @@ xvfb-run -a flutter test \
   -d linux
 ```
 
-The same workflow passed locally in a graphical Linux session. Execution of
-the Xvfb job on GitHub Actions has not yet been observed.
+The same integration command passed locally in a graphical Linux session.
+Execution of the Xvfb job on GitHub Actions has not yet been observed.
+
+The Windows job checks Visual Studio C++/ATL prerequisites and builds the
+complete unsigned, unpackaged Windows release directory with sanitized
+compile-time definitions. It does not sign, package, publish, install, or
+runtime-test the preview, and its remote result was not observed in this Linux
+environment.
 
 It grants `contents: read` and pins its top-level actions to immutable commits.
 The Flutter setup action's internal cache action remains a transitive mutable
-major tag when caching is enabled. CI does not publish artifacts and, unless
-the workflow explicitly changes, is not evidence for non-Linux platform
-builds.
+major tag when caching is enabled. CI does not publish artifacts. The
+configured Windows compile gate becomes build evidence only after a successful
+observed run and is never runtime evidence by itself.
 
 ## Before a pull request
 

@@ -72,6 +72,8 @@ payload only after it wins the durable expired-revision claim. It verifies a
 candidate cookie before saving it, deletes credentials only for the exact
 verified login invalid-credential response, and revalidates their equality
 under the session mutation gate before any deletion or replacement.
+Delete-all uses the same mutation fence, so an automatic candidate cannot
+restore secrets after credential deletion completes.
 
 ## Important files
 
@@ -324,8 +326,6 @@ reviewed and contains no generated secret-bearing `toString`.
 
 ## Future considerations
 
-- Keep automatic recovery behind this interface and preserve its
-  candidate-before-save and exact-invalid-evidence rules.
 - Add schema migrations only when a real new credential shape is required.
 - Revalidate Android SharedPreferences exclusion paths whenever
   `flutter_secure_storage` is upgraded.
@@ -338,3 +338,5 @@ reviewed and contains no generated secret-bearing `toString`.
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
 - [Automatic Session Reauthentication](automatic-session-reauthentication.md)
+- [Local Data Deletion](local-data-deletion.md)
+- [Session Expiration Recovery](session-expiration.md)

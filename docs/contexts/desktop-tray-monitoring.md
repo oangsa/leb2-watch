@@ -373,8 +373,6 @@ request does not fail reveal after the window has been shown.
   sandbox `Operation not permitted` failure, and do not log the session.
 - Inspect the configured Windows Release workflow result after commit/push,
   then run the native Windows smoke checklist separately.
-- Consider surfacing start-at-login controls in settings if they are not already
-  exposed by a later settings feature.
 
 ## Related contexts
 

@@ -88,7 +88,10 @@ remains identity-fenced.
 
 `NotificationAwareAssignmentSyncService` runs the existing new-assignment
 sweep first and deadline reconciliation second after `SyncSuccess`, catching
-the two effects independently and returning the original outcome.
+the two effects independently and returning the original outcome. Current
+platform background, resume, timer, and tray triggers reuse this decorator and
+reconciler. Notification Settings exposes the preference service and owns the
+explained user-initiated permission flow.
 
 ## Important files
 
@@ -429,10 +432,6 @@ configuration scans are recorded in the worker handoff.
 
 ## Future considerations
 
-- Feature 14.1 can expose the existing preference service and own the explained
-  user-initiated permission flow.
-- Feature 13 platform triggers can reuse the same synchronization decorator
-  and reconciler.
 - A backend contract that supplies explicit zones for all deadlines would
   expand eligible coverage without changing the planner.
 
@@ -443,3 +442,5 @@ configuration scans are recorded in the worker handoff.
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [Course Preferences](course-preferences.md)
 - [Assignment Baseline and Change Detection](assignment-diffing.md)
+- [Notification Settings](notification-settings.md)
+- [Background Scheduler](background-scheduler.md)

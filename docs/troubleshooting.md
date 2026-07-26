@@ -4,7 +4,18 @@ Start with the specific message or platform state. Do not paste a session
 cookie, password, Authorization header, assignment data, personal identifier,
 or raw sensitive response into an issue.
 
-## Backend client fails during startup or first use
+## The app shows a configuration recovery screen
+
+An unsupported nonempty `APP_ENV` fails during bootstrap. Rebuild with
+`development` or `production`; empty defaults to development. The recovery
+surface is fixed and redacted and has no same-process retry.
+
+A local-data initialization failure uses a different fixed recovery message.
+It does not delete or repair local data. Restart only after addressing the
+underlying storage/environment problem; do not remove the database merely to
+silence the message.
+
+## Backend actions fail while cached views still work
 
 Check both compile-time definitions:
 
@@ -19,6 +30,11 @@ rejects HTTP.
 
 Pass the value with `--dart-define`; exporting `BACKEND_BASE_URL` in the shell
 alone has no effect. Rebuild after changing it.
+
+`BACKEND_BASE_URL` is validated lazily when a network capability is needed.
+Readable cached semester and assignment views may remain usable while sign-in,
+refresh, and synchronization fail safely. A URL correction requires rebuilding
+the app; it is not a runtime setting.
 
 ## Snapshot returns 404 or the response shape is wrong
 
@@ -86,8 +102,10 @@ Only exact HTTP 401 plus `SESSION_EXPIRED` enters the recovery flow.
 
 - Cached assignments remain available.
 - Automatic synchronization pauses.
-- Open the authentication route through the reconnect action.
-- Verify and save a replacement session.
+- If automatic reauthentication was explicitly enabled, the app permits one
+  candidate-before-save attempt for that exact expired revision.
+- If that attempt is unavailable or fails, open the authentication route
+  through the reconnect action and verify a replacement session manually.
 
 A failed replacement does not intentionally overwrite a valid saved session.
 Timeouts, malformed JSON, HTML, and unrelated 401 responses are not treated as
@@ -202,3 +220,7 @@ Physical SQLite deletion is intentionally skipped if logical scrub, foreground
 close, or background database quiescence cannot be proved. This fail-closed
 behavior avoids claiming deletion beside a live database handle. A partial
 result does not navigate away as though cleanup completed.
+
+Credential deletion and delete-all share the session-mutation fence with
+automatic reauthentication. A candidate already in flight cannot restore the
+cookie or saved username/password after deletion completes.

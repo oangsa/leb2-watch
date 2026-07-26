@@ -34,7 +34,9 @@ completed.
 - Pointer selection and platform-appropriate expanded-layout keyboard
   shortcuts.
 - Safe route-error, session-setup, semester-selection, assignment-dashboard,
-  course-preferences, and remaining label-only placeholder surfaces.
+  course-preferences, settings, diagnostics, and privacy surfaces. The
+  original shell feature used label-only placeholders until those owning
+  features replaced them.
 - A global status slot that preserves route content in all three layouts.
 - Ready-stage reauthentication access and return-to-assignments recovery.
 - One restrained `Change semester` action in shared ready-shell content.
@@ -43,7 +45,8 @@ completed.
 
 ## Non-scope
 
-- Real settings, diagnostics, or privacy behavior.
+- Real settings, diagnostics, or privacy behavior in the original shell
+  feature; later owning features supplied those pages.
 - Persisting the temporary application-flow stage.
 - Preserving arbitrary web or raw-route deep links through the incomplete
   flow.
@@ -81,8 +84,9 @@ semantics and tooltips.
 The current branch survives window resizing. Expanded layouts accept
 Command+1 through Command+4 on Apple platforms and Control+1 through
 Control+4 on Windows and Linux. The authentication route presents the real
-session-setup workflow. Remaining product routes show only truthful route
-labels; no unfinished workflow is presented as usable.
+session-setup workflow. Settings, diagnostics, privacy, semester selection,
+courses, assignments, and assignment details now render their real feature
+pages; no unfinished workflow is presented as usable.
 
 When the durable session lifecycle is expired, the shell keeps the current
 ready route mounted and shows one warning that saved data remains available.
@@ -159,8 +163,8 @@ route child rather than replacing it.
   destinations.
 - `lib/src/app/routing/app_router.dart` — router factory, redirects, branches,
   and safe error surface.
-- `lib/src/app/routing/app_placeholder_page.dart` — accessible label-only
-  route surfaces.
+- `lib/src/app/startup/app_startup_flow.dart` — derives the initial guarded
+  stage from durable verified-session and active-semester evidence.
 - `lib/src/features/authentication/presentation/session_setup_route.dart` —
   authentication provider loading/error adapter and successful flow
   transition.
@@ -290,7 +294,7 @@ reporting, or persistence.
 Privacy remains reachable from every flow stage. Blocked route targets and
 query parameters are not retained. The fixed unknown-route surface does not
 render the requested URI, router exception, stack trace, backend detail, or
-diagnostic payload. Placeholder pages contain only product and route labels.
+diagnostic payload.
 
 ## Decisions
 
@@ -353,7 +357,7 @@ and session recovery.
 Unknown ready paths show `Page unavailable` with fixed explanatory copy and a
 safe `Open assignments` action. No raw route detail is exposed.
 
-Router disposal detaches the flow-controller listener. Placeholder surfaces
+Router disposal detaches the flow-controller listener. Routed feature surfaces
 scroll and wrap naturally for large text and short viewports. Scrollable rails
 avoid vertical destination overflow. Compact navigation removes visual labels
 before they wrap while retaining full Material semantics and tooltips.
@@ -400,7 +404,8 @@ interaction; it does not expose transport evidence.
 - Native destination labels, button roles, and selected semantics.
 - Every full destination label and selected state remain exposed through
   Material semantics while visual labels are hidden.
-- Label-only placeholder content without sample records.
+- Real routed feature content without production records or invented sample
+  data.
 - Expired banner plus cached route visibility in compact and expanded layouts
   at 200-percent text.
 
@@ -476,26 +481,25 @@ passed 96/96 after adding compact and expanded ready-user reachability.
 - Android, iOS, macOS, and Windows are not build-verified on this Linux host.
 - Native keyboard layouts and screen-reader output require device-level
   validation even though Flutter semantics and key dispatch tests pass.
-- The application-flow stage is temporary in-memory state. Later restoration
-  must derive the initial flow stage. Session expiration and the active
-  semester itself are independently durable.
+- The application-flow controller remains process-local. At startup,
+  `app_startup_flow.dart` derives its initial stage from durable verified
+  session and active-semester evidence; there is still no standalone durable
+  onboarding-completion flag.
 - Arbitrary blocked deep links do not resume after flow completion. Validated
   local-notification assignment targets use their own bounded coordinator.
 - The `Change semester` action uses location replacement rather than a pushed
   overlay because the current stateful-branch context cannot push that
   top-level sibling. The selection route has no separate cancel action.
-- Settings and diagnostics remain honest labels only; their real workflows
-  belong to later features.
+- Settings and diagnostics are real feature-owned workflows reached through
+  the stable shell routes.
 - The assignments branch now has one nested detail route. Push/back, shell
   retention, and local-notification target restoration are directly covered;
   arbitrary intended-route restoration remains outside the contract.
 
 ## Future considerations
 
-- Replace each remaining settings/diagnostics placeholder in its owning feature
-  without changing route names or shell destination order.
-- Derive the flow stage from completed onboarding, verified session, and active
-  semester state.
+- Add a standalone onboarding-completion flag only if future product
+  requirements need it independently of verified session and semester state.
 - Decide whether safe non-notification intended-destination restoration is
   required after the gated flow.
 - Perform Android, iOS, macOS, and Windows builds and real-device accessibility
@@ -509,5 +513,6 @@ passed 96/96 after adding compact and expanded ready-user reachability.
 - [Backend API Contract](backend-api-contract.md)
 - [Session Setup and Verification](session-setup.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Bootstrap Recovery Shell](bootstrap-recovery-shell.md)
 - [Semester Selection](semester-selection.md)
 - [Local Notification Service](local-notifications.md)

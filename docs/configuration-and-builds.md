@@ -34,6 +34,16 @@ The app reads exactly:
 The client normalizes the origin to a trailing slash. Production additionally
 requires HTTPS.
 
+An unsupported nonempty `APP_ENV` is detected during bootstrap and shows a
+fixed recovery surface. There is no same-process retry; rebuild with a
+supported value.
+
+`BACKEND_BASE_URL` is validated lazily when authentication or synchronization
+resolves the network client. A missing or malformed value does not inherently
+hide readable cached semesters or assignments, but remote sign-in, refresh,
+and synchronization fail safely until the application is rebuilt with a valid
+origin.
+
 Valid examples:
 
 ```text
@@ -207,6 +217,10 @@ flutter analyze --fatal-infos --fatal-warnings
 flutter test
 flutter build linux --release
 ```
+
+The final command without production definitions is a source/build smoke
+check, not a runnable production configuration. Use the production command
+above with both definitions for a distributable operator build.
 
 Only run a platform build on a supported host. A static configuration test is
 not equivalent to a native build or device smoke test.

@@ -15,8 +15,8 @@ are not part of this feature.
 
 ## Purpose
 
-Provide one application-owned synchronization service for every future
-trigger. Concurrent callers share work, expensive Selenium-backed snapshot
+Provide one application-owned synchronization service for every trigger.
+Concurrent callers share work, expensive Selenium-backed snapshot
 requests run one at a time, failed responses preserve valid cached data, and a
 success is visible only after its snapshot transaction commits.
 
@@ -41,8 +41,11 @@ success is visible only after its snapshot transaction commits.
 ## Non-scope
 
 - User-ID or credential acquisition.
-- Notification/reminder callbacks or effects.
-- Background scheduling or platform entry points.
+- Notification/reminder callbacks or effects in the core synchronization
+  transaction; a later decorator consumes committed results.
+- Background scheduling or platform entry points in the original core feature;
+  current platform features reuse this service through independent
+  compositions.
 - Absolute duplicate-dispatch prevention after arbitrary lease expiry.
 
 ## User-visible behavior
@@ -75,6 +78,18 @@ policy. `AppDatabase` owns the generated schema.
 `ReauthenticatingAssignmentSyncService` wraps the notification-aware service,
 while `QuiescenceAwareAssignmentSyncService` stays outermost for deletion
 cancellation and join semantics.
+
+`NotificationAwareAssignmentSyncService` consumes only committed
+`SyncSuccess` results and sweeps durable notification/reminder work after
+persistence. Android/iOS background callbacks and desktop timer/tray triggers
+open or reuse the appropriate local composition and call the same decorated
+service. Headless paths own independent database/provider lifetimes.
+
+For an exact expired-session revision, the optional reauthentication decorator
+performs at most one candidate-verification attempt, saves only a verified
+candidate under lifecycle/mutation fencing, and makes at most one
+non-recursive direct synchronization continuation. Exhaustion safely falls
+back to manual authentication.
 
 The public layer imports no Dio or Drift type. The concrete service consumes
 `BackendApiClient`, whose implementation reads the current secure credential
@@ -211,13 +226,14 @@ global FIFO order without storing credentials.
 ## Platform behavior
 
 The coordinator targets independent connections to one local application
-database, which is the common boundary for future isolates and processes.
+database, which is the common boundary for UI and current headless
+isolates/processes.
 It does not rely on Drift watch notifications across instances. Production
 SQLite uses a background executor, WAL, and a 5-second busy timeout.
 
 Android, iOS, Windows, macOS, and Linux use the same Dart state machine.
-Native background registration and runtime validation belong to their later
-platform features.
+Current platform adapters own native background registration; runtime
+validation remains bounded by the available host toolchains.
 
 ## Security and privacy
 
@@ -257,8 +273,9 @@ is cleared on terminal completion.
 - A non-expiring lease deadlocks permanently after a crash.
 - A separate gate table duplicates the invariant already enforced by one
   partial unique running-state index.
-- Callback effects were rejected because notification ordering belongs to a
-  later feature and Future completion already provides a post-commit seam.
+- Callback effects were rejected in the core feature because notification
+  ordering belongs to its owning decorator and Future completion already
+  provides a post-commit seam.
 
 ## Failure behavior
 
@@ -373,12 +390,6 @@ final broad evidence is recorded in
 
 ## Future considerations
 
-- Feature 12.2 now decorates the provider-level service and consumes only
-  post-commit `SyncSuccess`; the core transaction has no notification
-  callback. The decorator passes the terminal operation ID so joined callers
-  share one in-process sweep while distinct later operations serialize.
-- Platform schedulers should open the same local database and reuse this
-  service.
 - A backend idempotency key would be required for stronger duplicate-dispatch
   guarantees during lease recovery.
 

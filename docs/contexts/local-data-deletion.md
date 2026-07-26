@@ -469,7 +469,8 @@ removing cached assignments.
 
 ## Future considerations
 
-- Phase 16 should cover delete-all in the complete mocked application workflow.
+- The complete mocked application workflow covers user-visible delete-all,
+  fresh database defaults, and return to onboarding.
 - Native device/runtime validation should exercise Android background work,
   Apple background tasks, packaged Windows notifications, and desktop
   autostart.

@@ -42,11 +42,11 @@ screens from inventing colors, spacing, typography, or breakpoints ad hoc.
 
 ## User-visible behavior
 
-The existing centered `LEB2 Watch` scaffold remains the only application
-screen. It now follows the operating-system light or dark preference without
-an animated theme transition.
+The design-system feature originally themed the centered `LEB2 Watch`
+scaffold. The current adaptive shell and feature screens consume the same
+system light/dark preference and tokens without an animated theme transition.
 
-Later screens can render shared feedback:
+Current feature screens render shared feedback:
 
 - Loading displays an indeterminate progress indicator and visible label.
 - Reduced-motion loading replaces the animated indicator with a static icon.
@@ -358,10 +358,8 @@ was added or changed.
 
 ## Future considerations
 
-- Map the width classes to bottom navigation, navigation rail, and desktop
-  sidebar in the adaptive application shell.
-- Use these status components for local-first, offline, stale, session-expired,
-  and synchronization states.
+- Continue using the established width classes and status components for new
+  feature-owned screens rather than introducing parallel tokens.
 - Extend the dashboard golden convention to later primary screens only when
   their real information architecture exists.
 - Review typography and control geometry on Android, iOS, Windows, macOS, and

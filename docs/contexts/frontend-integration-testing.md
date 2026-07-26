@@ -2,7 +2,7 @@
 
 ## Status
 
-Completed.
+Completed for two device-based workflows.
 
 ## Purpose
 
@@ -11,15 +11,16 @@ transport, local storage, synchronization, notification, session, and
 deletion boundaries without contacting a production backend or using native
 credential and notification plugins.
 
-The workflow protects the local-first contract: the first snapshot is a silent
+The workflows protect the local-first contract: the first snapshot is a silent
 baseline, a reopened database displays cached assignments while the next
 backend response is blocked, one new assignment creates exactly one local
-notification, session expiration preserves cached data, and delete-all removes
-the app-owned local state.
+notification, session expiration preserves cached data, optional automatic
+reauthentication verifies a candidate before saving it, delete-all removes
+app-owned local state, and a deletion race cannot restore late credentials.
 
 ## Scope
 
-- One device-based Flutter integration test.
+- Two device-based Flutter integration tests in one Linux test application.
 - The real `DioBackendApiClient` with a strict FIFO in-process
   `HttpClientAdapter`.
 - The real session setup, semester selection, dashboard, synchronization,
@@ -52,20 +53,28 @@ the app-owned local state.
 The automated workflow performs the same visible actions as a user:
 
 1. Reads the third-party disclaimer and completes all five onboarding pages.
-2. Enters a placeholder session cookie and numeric user ID.
+2. Enters placeholder username/password credentials, explicitly enables
+   automatic reauthentication, and verifies cookie A.
 3. Selects semester 101 from a sanitized backend response.
 4. Opens assignments and waits for a silent baseline snapshot.
 5. Restarts the app and lets production startup resolution inspect the same
    SQLite file and secure credential boundary.
 6. Sees the cached baseline assignment and inline refresh progress before the
-   gated backend response is released.
+   gated new-assignment response is released.
 7. Receives exactly one recorded new-assignment notification for activity
    1002.
 8. Manually refreshes into exact `SESSION_EXPIRED`, while cached data remains.
-9. Enters a replacement placeholder session, resumes synchronization, and
-   receives no duplicate notification.
-10. Opens Settings, confirms **Delete all local data**, returns to onboarding,
+9. Automatically signs in, verifies candidate cookie B before saving it, and
+   runs one direct continuation synchronization.
+10. Confirms the unchanged continuation creates no duplicate notification.
+11. Opens Settings, confirms **Delete all local data**, returns to onboarding,
     and verifies a fresh database contains no user data.
+
+The second workflow blocks an automatic-reauthentication candidate at its
+verification boundary, deletes credentials while that candidate is in flight,
+then releases it. It verifies that lifecycle/mutation fencing prevents any
+late cookie, stored-credential, or durable attempt-state commit from restoring
+deleted secrets.
 
 ## Architecture
 
@@ -104,10 +113,12 @@ It does not override:
 
 The first app lifetime closes its real `AppDatabaseManager` before the second
 lifetime opens the same `leb2_watch.sqlite` file. The second lifetime blocks
-the fourth scripted HTTP exchange after request validation, so widget
+the sixth scripted HTTP exchange after request validation, so widget
 assertions prove the cache is visible while network work remains unresolved.
 The startup resolver uses its own temporary manager and awaits its close before
-the lifetime's provider-owned manager can open.
+the lifetime's provider-owned manager can open. A separate harness lifetime
+owns the gated candidate/deletion race and uses the same real secure-store,
+session-lifecycle, automatic-reauthentication, and delete-all services.
 
 ## Important files
 
@@ -144,24 +155,30 @@ Every backend exchange verifies:
 - the `X-LEB2-USER-ID` header on snapshot requests; and
 - absence of an unexpected request body stream.
 
-The script is:
+The first workflow's script is:
 
 | Exchange | Trigger | Response |
 | --- | --- | --- |
-| 1 | Candidate session verification | `GET /Semester`, cookie A |
-| 2 | Semester refresh | `GET /Semester`, saved cookie A |
-| 3 | Initial dashboard sync | baseline `GET /Activity/101/snapshot` |
-| 4 | Reopened dashboard sync | gated baseline + activity 1002 |
-| 5 | Manual refresh | exact HTTP 401 `SESSION_EXPIRED` with bearer challenge |
-| 6 | Replacement verification | `GET /Semester`, cookie B |
-| 7 | Recovered dashboard sync | unchanged two-activity snapshot |
+| 1 | Initial credential sign-in | `POST /User/login` |
+| 2 | Initial cookie acquisition | `POST /User/cookie`, cookie A |
+| 3 | Candidate A verification | `GET /Semester`, cookie A |
+| 4 | Semester refresh | `GET /Semester`, saved cookie A |
+| 5 | Initial dashboard sync | baseline `GET /Activity/101/snapshot`, cookie A |
+| 6 | Reopened dashboard sync | gated baseline + activity 1002, cookie A |
+| 7 | Manual refresh | exact HTTP 401 `SESSION_EXPIRED` with bearer challenge |
+| 8 | Automatic credential sign-in | `POST /User/login` |
+| 9 | Automatic cookie acquisition | `POST /User/cookie`, cookie B |
+| 10 | Candidate B verification | `GET /Semester`, cookie B |
+| 11 | Direct continuation sync | unchanged two-activity snapshot, cookie B |
 
 Any extra request, missing request, wrong route, wrong placeholder
 authorization, wrong user ID, or non-test base URL fails the test.
 
 ## Data model
 
-The workflow uses the production schema and migrations. It asserts:
+The workflows use current production schema version 12 and its migrations,
+including durable `automatic_session_reauthentication_attempts` state. They
+assert:
 
 - baseline activity 1001 exists in `activities`;
 - its `seen_activities.is_baseline` value is true;
@@ -171,11 +188,14 @@ The workflow uses the production schema and migrations. It asserts:
 - exactly one `new-assignment` notification-history row exists;
 - exact session expiration updates the durable lifecycle without deleting the
   two activities;
-- successful replacement advances the session revision;
-- the repeated recovered snapshot does not add notification history; and
+- successful automatic recovery advances the session revision and consumes at
+  most one attempt for the exact expired revision;
+- the repeated recovered snapshot does not add notification history;
 - after real delete-all, a newly opened database has no semester, activity,
   notification-history, or app-settings rows and has disabled default
-  background monitoring.
+  background monitoring; and
+- deleting credentials during a gated candidate prevents late cookie,
+  credential, or reauthentication-attempt state from being committed.
 
 ## State and control flow
 
@@ -195,9 +215,14 @@ the cached ready graph and performs no network request.
 
 The exact expiration response flows through the real Dio error evidence,
 domain error mapper, synchronization service, Drift lifecycle store, dashboard
-cache stream, and reconnect banner. Replacement session verification marks the
-lifecycle active at a newer revision, which triggers synchronization for the
-new target revision.
+cache stream, and reconnect banner. The opt-in recovery service consumes one
+attempt for that exact expired revision, obtains candidate B, verifies it
+before secure save, advances the lifecycle under the shared mutation fence,
+and invokes one non-recursive direct continuation for the new revision.
+
+In the second workflow, credential deletion acquires the same mutation
+boundary while candidate verification is gated. Releasing the stale candidate
+after deletion cannot restore secure values or durable recovery state.
 
 The final Settings action calls the real
 `FlowNavigatingLocalDataDeletionService`. The real coordinator cancels
@@ -248,9 +273,9 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 
 ## Decisions
 
-- Use one broad but deterministic workflow instead of many integration tests;
-  focused unit/widget tests already cover failure combinations and this keeps
-  device build cost bounded.
+- Use two broad but deterministic workflows rather than duplicating focused
+  unit/widget failure combinations; one owns the primary user journey and one
+  owns the security-critical deletion race.
 - Inject the real Dio adapter rather than run a local server, avoiding sockets
   while retaining transport parsing/header/error behavior.
 - Compile sanitized fixture values into test code because repository-relative
@@ -260,9 +285,8 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
   in an ordinary host-side test.
 - Use a real file-backed close/reopen instead of retaining one in-memory
   database connection.
-- Derive the initial route from existing schema-v10 evidence and redacted
-  cookie presence rather than persist the process-local flow enum or add a
-  migration.
+- Derive the initial route from current schema-v12 evidence and redacted cookie
+  presence rather than persist the process-local flow enum.
 - Wait for each synchronization's inline progress to finish before closing or
   starting a new manual refresh. This avoids manufacturing an abandoned
   reminder lease in the test harness.
@@ -304,7 +328,8 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 `integration_test/end_to_end_mocked_workflow_test.dart` covers:
 
 - third-party disclaimer and no early HTTP/credential/permission mutation;
-- candidate session verification and secure save;
+- username/password sign-in, explicit automatic-reauthentication opt-in,
+  candidate verification, and secure save;
 - semester caching and active selection;
 - silent baseline persistence;
 - file-backed provider/database restart;
@@ -312,20 +337,25 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 - cache render before a gated response;
 - one new assignment, one durable claim, and one platform notification;
 - exact session expiration with cache retention;
-- replacement session recovery and duplicate prevention; and
-- real user-visible delete-all with fresh database defaults.
+- automatic session recovery, verified-before-save candidate B, one direct
+  continuation, and duplicate prevention;
+- real user-visible delete-all with fresh database defaults; and
+- credential deletion racing a gated automatic candidate, with no late cookie,
+  credential, or durable attempt-state commit.
 
 ## Validation evidence
 
-- `flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
-  --reporter expanded` — Linux debug application built and the final formatted
-  workflow passed 1/1.
-- Focused bootstrap, startup resolver, and fixture-equality run — 14/14 passed.
-- `flutter test --reporter compact` — 859/859
-  unit/widget/database/golden/static-platform tests passed in a clean copy
-  containing committed Phase 15 plus only the Phase 16 paths.
-  `integration_test/` is intentionally executed by its separate device
-  command.
+- Current recorded validation at the audited HEAD:
+  `flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux`
+  built the Linux debug application and passed 2/2 device workflows.
+- Current serialized full-suite evidence is 1001/1001
+  unit/widget/database/golden/static-platform tests. `integration_test/` is
+  intentionally executed by its separate device command.
+- Historical Phase-16 evidence before automatic reauthentication and its race
+  workflow landed was 1/1 integration and 859/859 host-side tests.
+
+The following command records are also historical Phase-16 evidence:
+
 - `dart format --output=none --set-exit-if-changed .` — 285 isolated files
   checked, 0 changed.
 - `dart analyze --fatal-infos --fatal-warnings` — no issues.
@@ -378,5 +408,6 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 - [Assignment diffing](assignment-diffing.md)
 - [Assignment dashboard](assignment-dashboard.md)
 - [New-assignment notifications](new-assignment-notifications.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)
 - [Session expiration](session-expiration.md)
 - [Local data deletion](local-data-deletion.md)

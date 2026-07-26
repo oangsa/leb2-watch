@@ -43,7 +43,8 @@ offline, stale, backend-error, and expired-session states.
 - Course and assignment retrieval or presentation.
 - Synchronization scheduling, notifications, or automatic
   reauthentication.
-- Deriving the startup flow stage from persisted onboarding and session state.
+- Deriving the startup flow stage in the original semester-selection feature;
+  current startup composition owns that behavior.
 
 ## User-visible behavior
 
@@ -500,7 +501,8 @@ changed.
   semester names, academic years, or terms.
 - Descending numeric order is an index policy, not a claim about chronology.
 - The response contract does not define authoritative removals; cached
-  semesters intentionally remain until the later delete-local-data workflow.
+  semesters intentionally remain until the user invokes the implemented
+  delete-local-data workflow.
 - Single flight is scoped to one composed service instance. Riverpod shares
   that instance in the application scope.
 - The first caller supplies the cancellation token for a joined refresh, so
@@ -510,20 +512,14 @@ changed.
   top-level sibling is unsupported by the current stateful-branch topology.
   The page has no separate cancel action; selecting a cached semester returns
   to assignments.
-- Automatic startup-flow restoration remains outside this feature.
-- Failures before `runApp` and the global configuration/bootstrap recovery
-  surface remain outside this feature; this guarantee begins once the
-  production semester route is mounted.
+- Startup-flow restoration and the fixed bootstrap recovery shell are
+  implemented by current application-composition features outside this
+  semester module's ownership.
 - Android, iOS, macOS, and Windows native builds are not verified on this
   Linux host.
 
 ## Future considerations
 
-- Course preferences are layered beneath the selected semester; see the
-  completed Feature 10.2 context.
-- Assignment synchronization should read the active semester through its own
-  local application boundary.
-- Feature 15.1 should own intentional removal of cached semester-related data.
 - A future verified backend contract may justify descriptive labels or
   authoritative catalog removal, but neither should be inferred.
 
@@ -537,3 +533,6 @@ changed.
 - [Session Setup and Verification](session-setup.md)
 - [Session Expiration Recovery](session-expiration.md)
 - [Course Preferences](course-preferences.md)
+- [Assignment Synchronization](assignment-synchronization.md)
+- [Local Data Deletion](local-data-deletion.md)
+- [Bootstrap Recovery Shell](bootstrap-recovery-shell.md)

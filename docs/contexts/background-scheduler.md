@@ -39,7 +39,8 @@ service for every trigger.
 
 ## Non-scope
 
-- Notification/background settings UI or diagnostics presentation.
+- Notification/background settings UI or diagnostics presentation in this
+  scheduler feature; current feature-owned screens consume its providers.
 - A global new-assignment notification preference.
 - Exact-time execution or an exact mobile next-run estimate.
 - Privileged services, daemons, push synchronization, or credential-bearing
@@ -108,7 +109,11 @@ database and `ProviderContainer`; it never borrows UI-isolate resources.
 `BackgroundMonitoringLifecycle` serializes session reconciliations and maps
 resume events to the runner. `Leb2WatchApp` observes root Flutter lifecycle
 state, watches the durable session lifecycle, and dispatches both operations
-without blocking rendering. `bootstrap` awaits a replaceable
+without blocking rendering.
+
+Notification settings consumes the scheduler settings service, and
+synchronization diagnostics consumes its bounded status provider.
+`bootstrap` awaits a replaceable
 `DesktopPreRunAppHook` before `runApp`.
 
 ## Important files
@@ -382,7 +387,6 @@ iOS/macOS/Windows native-host builds were unavailable.
   validation.
 - Adopt a proven platform cancellation signal if Workmanager later exposes
   native expiration to Dart.
-- Features 14.1 and 14.2 consume the public settings and status providers.
 
 ## Related contexts
 

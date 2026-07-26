@@ -47,9 +47,11 @@ server.
 - Cached semester, course, assignment dashboard, and assignment detail views.
 - Single-flight synchronization with baseline/diff detection and retry
   backoff.
-- Exactly-once new-assignment claims and reconciled deadline reminders.
+- Durable new-assignment deduplication/outbox submission and reconciled
+  deadline reminders, without claiming exact operating-system delivery.
 - Local notification, course, monitoring, and reminder preferences.
-- Session-expiration recovery that retains cached assignments.
+- Session-expiration recovery that retains cached assignments, with optional
+  opt-in automatic reauthentication and safe manual fallback.
 - Android/iOS best-effort background refresh and desktop tray monitoring.
 - Local synchronization diagnostics and complete on-device data deletion.
 

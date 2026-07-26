@@ -48,11 +48,19 @@ conservatively to onboarding, authentication, or semester selection. Exact
 session expiration can still resolve to the dashboard so cached assignments
 remain visible.
 
-The Phase 16 integration test verifies close/reopen persistence by removing one
+The integration suite verifies close/reopen persistence by removing one
 widget/provider graph, closing its database manager, reopening the same SQLite
 file, and constructing a new graph while a backend response is gated. This is
 an application-lifetime restart inside one Linux test executable, not a
 separate operating-system process relaunch.
+
+Bootstrap maps three startup failure categories to fixed, redacted recovery
+surfaces: invalid `APP_ENV`, local-data initialization failure, and application
+integration failure. It performs no same-process retry and does not delete
+saved data. `BACKEND_BASE_URL` is different: validation is lazy when a network
+capability is resolved. Cached semester and assignment views can be
+constructed without Dio, while authentication and synchronization require a
+valid configured URL.
 
 ## Main layers
 
@@ -113,10 +121,13 @@ therefore share one local source of truth.
 Local notification requests contain bounded display copy and versioned local
 assignment targets. They contain no credentials or raw backend response.
 
-New-assignment and deadline-reminder ownership is persisted before platform
-I/O. A plugin result does not claim that the operating system delivered or
-displayed the notification. Unsupported scheduling/cancellation is represented
-explicitly, especially on Linux and unpackaged Windows.
+New-assignment delivery uses a durable retryable outbox and a shared
+collision-aware stable-ID allocator also used by deadline reminders and
+settings suppression. Ownership is persisted before platform I/O. A plugin
+result records app-level submission, not proof that the operating system
+delivered or displayed the notification. Unsupported
+scheduling/cancellation is represented explicitly, especially on Linux and
+unpackaged Windows.
 
 ## Background families
 
@@ -149,6 +160,14 @@ Expiration:
 - shows reauthentication guidance; and
 - resumes normal monitoring only after a replacement session verifies and
   persists.
+
+If the user explicitly opted in to saving username/password, automatic
+reauthentication permits one attempt for the exact expired-session revision.
+It obtains and verifies a candidate cookie before secure save, uses shared
+lifecycle/mutation fencing so manual replacement or deletion wins safely, and
+runs at most one non-recursive direct synchronization continuation. Failure or
+attempt exhaustion leaves cached data visible and falls back to manual
+authentication.
 
 Retry policy distinguishes temporary network/backend failures from
 non-retryable authentication and response failures. `Retry-After` is retained

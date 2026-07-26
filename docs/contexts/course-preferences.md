@@ -10,8 +10,8 @@ available for build verification on this host.
 
 ## Purpose
 
-Give users local, per-course control over future notification and background
-effects while keeping the course list and saved counts available without a
+Give users local, per-course control over notification and background effects
+while keeping the course list and saved counts available without a
 network request.
 
 ## Scope
@@ -22,8 +22,8 @@ network request.
   `(semester_id, course_id)`.
 - Preserve preferences if a course disappears from a later snapshot and then
   reappears.
-- Expose application-owned policy reads for later notification and background
-  consumers.
+- Expose application-owned policy reads consumed by background target gating,
+  new-assignment notification delivery, and deadline-reminder planning.
 - Render no-active-semester, no-saved-courses, loading, storage-error,
   write-pending, stale-write, and write-failure states.
 - Replace the `/courses` placeholder with a responsive, virtualized local
@@ -51,8 +51,8 @@ list ordered by course name and then course ID. Each row shows:
   count.
 - `Upcoming deadlines`: current activities with a saved deadline source that
   the backend snapshot did not report as exceeded.
-- `Mute notifications`: suppresses later local notifications for that course.
-- `Background monitoring`: controls later background effects after the shared
+- `Mute notifications`: suppresses local notifications for that course.
+- `Background monitoring`: controls background effects after the shared
   semester snapshot has downloaded; it does not skip that download.
 
 Writes are pessimistic. Both controls for a row are disabled until Drift emits
@@ -68,8 +68,8 @@ exposes the catalog as a Drift watch stream.
 
 `LocalCoursePreferencesService` maps storage results to presentation-safe
 updates and implements `CourseEffectPolicyReader`. The policy seam is separate
-from the widget service so future effect producers do not depend on UI state.
-Storage exceptions are converted to safe failures.
+from the widget service so background and notification effect producers do
+not depend on UI state. Storage exceptions are converted to safe failures.
 
 Feature 13.1 now enforces the same saved background setting in the shared
 runner and post-commit effect stores. Automatic synchronization stops before
@@ -193,7 +193,7 @@ no backend request. Public error and debug representations exclude exception
 messages, course labels, IDs, and assignment content.
 
 Unknown courses and local-storage failures suppress effect policy. This
-fail-closed boundary prevents a future notification or background worker from
+fail-closed boundary prevents a notification or background worker from
 assuming permission when local policy cannot be verified.
 
 ## Decisions
@@ -290,22 +290,15 @@ hashes remained unchanged.
   existing cache; they are not partitioned by LEB2 user ID.
 - Disabling background monitoring does not avoid the semester-wide snapshot
   request.
-- Feature 12.2 consumes notification mute in the same transaction as its
-  durable new-assignment decision. Feature 12.3 consumes the same value in its
-  global deadline-reminder plan. Background consumers remain unimplemented.
+- New-assignment notification delivery consumes notification mute in the same
+  transaction as its durable decision. Deadline-reminder planning consumes the
+  same value, and the background target gate enforces saved monitoring
+  preferences before automatic HTTP work.
 - Android, iOS, macOS, and Windows native builds are not verified on this
   Linux host.
 
 ## Future considerations
 
-- Feature 12.2 transactionally re-reads the course and
-  `notifications_muted`; muted discoveries are consumed without a platform
-  call and do not surface after unmuting.
-- Feature 12.3 transactionally reads `notifications_muted`; successful mute
-  changes request prompt best-effort cancellation while preserving the saved
-  preference if platform reconciliation fails.
-- Feature 13 background scheduling should use
-  `readBackgroundMonitoredCourses` for post-download effects.
 - A separately designed read-state feature could add a true unread count.
 - Account partitioning requires a deliberate cache-wide migration rather than
   a course-only change.
@@ -318,3 +311,5 @@ hashes remained unchanged.
 - [Semester Selection](semester-selection.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Background Scheduler](background-scheduler.md)
+- [Local Notifications](local-notifications.md)

@@ -2,10 +2,12 @@
 
 ## Status
 
-Completed for the five-step privacy disclosure, current-process flow
-progression, responsive Flutter layouts, accessibility behavior, automated
-tests, and the Linux release build. Durable onboarding completion and native
-runtime review outside Linux remain unimplemented.
+Completed for the five-step privacy disclosure, responsive Flutter layouts,
+accessibility behavior, automated tests, and the Linux release build. There is
+no standalone onboarding-completion flag, but current startup composition
+restores the appropriate stage from durable verified-session and
+active-semester evidence. Native runtime review outside Linux remains
+unverified.
 
 ## Purpose
 
@@ -44,7 +46,7 @@ starting with unexplained credential or operating-system prompts.
 The application opens on the first disclosure:
 `Assignments, ready when you are`. Users move through five required steps in
 order. Back is available after the first step; there is no Skip action. The
-final action advances to the existing Authentication placeholder.
+final action advances to the real `SessionSetupRoute`.
 
 Compact windows use one vertically scrollable document. At normal text scale,
 windows at least 600 logical pixels wide add a left product/progress/step rail
@@ -133,8 +135,10 @@ or transport model is added or persisted.
 8. `GoRouter` re-evaluates its existing guard and displays `/authentication`
    without reconstructing the router.
 
-The flow stage remains process-local. A new application process starts at
-onboarding again.
+The flow controller remains process-local. At process start,
+`app_startup_flow.dart` derives its initial stage from durable
+verified-session and active-semester evidence, so a returning ready user does
+not restart at onboarding.
 
 ## Platform behavior
 
@@ -158,8 +162,8 @@ The disclosure states:
 
 - assignment snapshots, settings, and notification state stay in local SQLite;
 - the session cookie stays in operating-system protected storage;
-- username and password are stored there only when automatic
-  reauthentication is later enabled;
+- username and password are stored there only when the user explicitly enables
+  automatic reauthentication;
 - credentials do not enter SQLite, plaintext files, logs, or notifications;
 - protected backend checks temporarily receive the session cookie and numeric
   LEB2 user ID;
@@ -202,8 +206,9 @@ adds no permission, plugin, analytics, tracking, or crash-reporting call.
   would never read it and would still start on onboarding.
 - Calling `context.go` from the page was rejected because the existing flow
   guard, not the presentation module, owns route progression.
-- A notification-permission request was rejected because no notification
-  module is installed and permission must be requested later in context.
+- A notification-permission request was rejected because the notification
+  module was not yet installed and permission needed an explained owning
+  workflow.
 - Swipe navigation was rejected because it allows disclosures to be skipped
   and complicates semantics and reduced motion.
 - Images, remote fonts, custom gesture surfaces, and ornamental animation were
@@ -216,9 +221,9 @@ is unavailable. Content and actions remain in one scrollable document under
 short viewports and 200-percent text, avoiding a fixed bottom bar that could
 hide actions.
 
-No plugin or backend failure can occur in this feature because it performs no
+No plugin or backend failure can occur in this page because it performs no
 I/O. Authentication, permission denial, network errors, session expiration,
-and durable startup failures belong to later feature modules.
+and durable startup failures are handled by their owning feature modules.
 
 ## Tests
 
@@ -277,11 +282,13 @@ and full suites pass.
 
 ## Known limitations
 
-- Completion advances only the current application process. Restarting returns
-  to onboarding.
-- The existing Authentication and Privacy routes remain placeholders.
-- Notification permission, background scheduling, and secure session setup are
-  not implemented by this feature.
+- This feature itself persists no standalone completion flag. Current startup
+  composition restores the appropriate stage from durable verified-session and
+  active-semester evidence.
+- Authentication and Privacy now render their real feature-owned pages.
+- Notification permission, background scheduling, secure session setup, and
+  optional automatic reauthentication are implemented by their owning
+  features, not by this onboarding module.
 - Android, iOS, Windows, and macOS builds were not run on this Linux host.
 - Native screen-reader wording, focus visuals, and font metrics require
   device-level review.
@@ -291,13 +298,8 @@ and full suites pass.
 
 ## Future considerations
 
-- Derive the startup stage from durable onboarding state, verified secure
-  session state, and active-semester settings in an explicit composition
-  feature.
-- Implement session setup and verification without changing the onboarding
-  page interface.
-- Request notification permission only after its later feature can respond to
-  the user's choice.
+- Add a standalone onboarding-completion flag only if future product
+  requirements need it independently of verified session and semester state.
 - Validate native builds and assistive technology on each release platform.
 
 ## Related contexts
@@ -307,3 +309,7 @@ and full suites pass.
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Backend API Contract](backend-api-contract.md)
 - [Assignment Synchronization](assignment-synchronization.md)
+- [Session Setup and Verification](session-setup.md)
+- [Bootstrap Recovery Shell](bootstrap-recovery-shell.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)
+- [End-to-End Frontend Testing](frontend-integration-testing.md)

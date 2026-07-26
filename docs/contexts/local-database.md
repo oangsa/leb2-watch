@@ -11,8 +11,9 @@ only build-verified native target on this host.
 ## Purpose
 
 Keep validated assignment snapshots and application-owned monitoring state on
-the device. The `sync_operations` table gives foreground and future background
-connections one durable coordination record for single-flight synchronization.
+the device. The `sync_operations` table gives foreground and current headless
+background connections one durable coordination record for single-flight
+synchronization.
 
 ## Scope
 
@@ -87,6 +88,11 @@ current schema. It watches current/seen assignment state, course name/preference
 reminder/history aggregates, and retained sync evidence, then resolves each
 invalidation inside one explicit-semester/identity read transaction.
 
+Deadline reminders consume durable reconciliation state through guarded
+generation/lease finalization and retain bounded cancelled owner tombstones.
+Background entry points open and close independent database/provider ownership
+around the shared synchronization service.
+
 ## Important files
 
 - `lib/src/core/database/database_tables.dart` — twenty table definitions,
@@ -160,7 +166,7 @@ rows by start time and run ID.
 The original nine v1 tables remain:
 
 - `semesters`, `courses`, and `activities` own current validated snapshots.
-- `seen_activities` and `activity_fingerprints` own later diff identity.
+- `seen_activities` and `activity_fingerprints` own current diff identity.
 - `scheduled_reminders` and `notification_history` own local notification
   state.
 - `sync_runs` owns bounded safe diagnostic categories.
@@ -195,7 +201,8 @@ notification-unmuted and background-monitoring-enabled defaults. The semester
 foreign key cascades intentional semester deletion. There is no current-course
 foreign key, so preferences survive course removal and reappearance.
 
-Feature 12.2 now uses schema v11. A canonical dedupe key owns either one
+Schema v11 added the durable new-assignment delivery state. A canonical
+dedupe key owns either one
 retryable `new_assignment_notification_outbox` row or one terminal
 `notification_history` row. Terminal history is written only after successful
 platform submission or an intentional muted, disabled, invalid, unsupported,
@@ -284,7 +291,7 @@ bootstrap creation transaction.
 A semester deletion cascades its snapshot, baselines, ledgers, operation
 changes, history, reminders, and operation rows while clearing the active
 setting. Current activity removal leaves the seen ledger, notification
-history, and reminder row intact so later platform code can cancel by stable
+history, and reminder row intact so platform code can cancel by stable
 notification ID.
 
 After committed synchronization, the new-assignment store re-reads one current
@@ -506,9 +513,6 @@ focused database suite passed 44/44 and the complete Flutter suite passed
 
 ## Future considerations
 
-- Deadline reminders consume durable reconciliation state through guarded
-  generation/lease finalization and retain bounded cancelled owner tombstones.
-- Compose database lifetime into future background entry points.
 - Align Drift package versions in a dependency-specific feature.
 - Add later additive migrations only when a persistence owner defines their
   fields and defaults.

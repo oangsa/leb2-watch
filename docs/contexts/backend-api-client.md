@@ -11,8 +11,8 @@ Windows builds remain unverified on this Linux host.
 
 ## Purpose
 
-Give later synchronization and session features one application-owned
-interface for authenticated LEB2 backend reads. The module hides Dio,
+Give synchronization and session features one application-owned interface for
+authenticated LEB2 backend reads. The module hides Dio,
 credential access, wire DTOs, response bytes, JSON parsing, invariant checks,
 and transport failures so callers cannot accidentally log or persist
 unvalidated backend data.
@@ -49,9 +49,11 @@ unvalidated backend data.
 ## User-visible behavior
 
 This feature adds no screen and does not make a request during application
-startup. Once a later feature composes the client, valid cached data can remain
-independent from network failures because this module returns validated domain
-values or fixed transport failures and performs no database writes.
+startup. Current feature flows compose the client lazily, so cached semester
+and assignment views can be constructed without resolving Dio. Authentication
+and refresh operations require a valid backend URL and receive validated
+domain values or fixed transport failures; this module performs no database
+writes.
 
 Missing credentials fail before an adapter or network call. Cancellation is
 available without exposing Dio. Unexpected redirects are not followed, and
@@ -177,8 +179,8 @@ handle can still cancel multiple concurrently active requests.
 Only HTTP 200 can be a success. Other statuses must contain one verified
 standard or validation error envelope. HTTP evidence preserves the status,
 open response code, envelope kind, parsed retry duration, and a safe
-Bearer-challenge boolean. Feature 7.2 will map that evidence into domain
-failures.
+Bearer-challenge boolean. The current API error mapper maps that evidence into
+domain failures.
 
 ## Data model
 
@@ -450,8 +452,10 @@ transport/setup-service group passed 39/39.
   the backend exposes no current-user or identity-from-cookie endpoint.
   Session setup therefore asks the user for the ID explicitly and persists it
   outside this client.
-- Assignment timestamp timezone and deadline-inclusivity semantics remain
-  unresolved; source strings cannot yet drive UTC reminders.
+- Unzoned assignment timestamp timezone and deadline-inclusivity semantics
+  remain unresolved; explicitly zoned values can be normalized and drive
+  reminders, while unzoned source values cannot safely drive absolute
+  scheduling.
 - The client is composed at the root but remains lazy and makes no request until
   a session or synchronization operation explicitly calls it.
 - The deployed production URL and revision remain unverified.
@@ -463,11 +467,8 @@ transport/setup-service group passed 39/39.
 
 ## Future considerations
 
-- Map transport evidence into the exact Feature 7.2 domain failures.
-- Map validated snapshot values transactionally into Drift in the
-  synchronization feature.
-- Add retry/backoff only in its dedicated feature; keep this client
-  single-attempt.
+- Keep this transport client single-attempt; synchronization backoff owns
+  later admission rather than immediate request retry.
 - Revisit transport models only when a versioned backend contract adds fields.
 
 ## Related contexts
@@ -476,3 +477,6 @@ transport/setup-service group passed 39/39.
 - [Secure Credential Storage](secure-credential-storage.md)
 - [Local Database](local-database.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
+- [API Error Mapping](api-error-mapping.md)
+- [Assignment Synchronization](assignment-synchronization.md)
+- [Synchronization Backoff](synchronization-backoff.md)

@@ -2,9 +2,10 @@
 
 ## Status
 
-Completed for the Flutter scaffold. Linux is build-verified on the current
-host. Android, iOS, macOS, and Windows are generated and statically configured
-but are not build-verified because their native toolchains are unavailable.
+Completed for the Flutter scaffold and fixed bootstrap recovery boundary.
+Linux is build-verified on the current host. Android, iOS, macOS, and Windows
+are generated and statically configured but are not build-verified because
+their native toolchains are unavailable.
 
 ## Purpose
 
@@ -13,6 +14,8 @@ Watch features can be built without carrying the generated counter sample,
 guessing a backend URL, or mixing later architecture into the scaffold.
 
 ## Scope
+
+This section records the original scaffold feature boundary:
 
 - Flutter application package `leb2_watch`.
 - Generated Android, iOS, Windows, macOS, and Linux platform projects.
@@ -31,6 +34,9 @@ guessing a backend URL, or mixing later architecture into the scaffold.
 
 ## Non-scope
 
+The following were intentionally excluded from the original scaffold and were
+implemented by later owning features where noted elsewhere:
+
 - Riverpod, go_router, Dio, Freezed, json_serializable, Drift, secure storage,
   code generation, or any other Phase 3 dependency.
 - Design-system tokens, adaptive navigation, feature screens, API models,
@@ -41,10 +47,10 @@ guessing a backend URL, or mixing later architecture into the scaffold.
 
 ## User-visible behavior
 
-Launching the application displays a single centered `LEB2 Watch` label. The
-generated counter and `Hello World!` samples are absent. This is intentionally
-only a scaffold; application navigation and visual design belong to later
-features.
+The original scaffold launched a single centered `LEB2 Watch` label with no
+generated counter or `Hello World!` sample. The current application replaces
+that surface with the adaptive, feature-owned flow while preserving the
+scaffold's product identity and bootstrap boundary.
 
 ## Architecture
 
@@ -60,13 +66,13 @@ bootstrap creates `AppConfiguration` exactly once, overrides
 under the root `ProviderScope`. Lazy providers do not make a backend request at
 startup.
 
-The minimal root widget lives under `lib/src/app/`. Compile-time configuration
-lives under `lib/src/core/config/`. Empty, tracked `lib/src/features/` and
-`lib/src/platform/` directories record the intended boundaries without adding
-speculative interfaces.
+The original minimal root widget lived under `lib/src/app/`, with compile-time
+configuration under `lib/src/core/config/` and empty feature/platform seams.
+Current feature and platform implementations retain those top-level
+boundaries.
 
-The scaffold depends only on the Flutter SDK. `flutter_lints` and
-`flutter_test` are the generated development dependencies.
+The scaffold feature depended only on the Flutter SDK; later dependency
+features own the current package graph.
 
 ## Important files
 
@@ -82,8 +88,8 @@ The scaffold depends only on the Flutter SDK. `flutter_lints` and
 - `test/leb2_watch_app_test.dart` — minimal root-widget behavior.
 - `pubspec.yaml` — package identity and Flutter SDK dependencies.
 - `.metadata` — generated Flutter version and exact platform inventory.
-- `.github/workflows/ci.yml` — bounded Linux formatting, analysis, and test
-  validation.
+- `.github/workflows/ci.yml` — configured Ubuntu validation, Ubuntu/Xvfb Linux
+  integration, and Windows release-directory build jobs.
 - `android/app/build.gradle.kts` — Android namespace and application ID.
 - `ios/Flutter/Debug.xcconfig` and `ios/Flutter/Release.xcconfig` — explicit
   iOS executable-name overrides shared by Debug, Release, and Profile.
@@ -198,8 +204,9 @@ treated as a fully immutable action graph.
   Dart APIs.
 - Set the iOS executable filename explicitly while preserving the generated
   Runner target, Swift module, application wrapper, and scheme.
-- Keep the CI workflow to dependency resolution, formatting, analysis, and
-  tests; Linux build dependencies are not speculatively installed in CI.
+- The original scaffold kept CI to dependency resolution, formatting,
+  analysis, and tests. Later features added the Linux/Xvfb integration and
+  Windows release-directory build jobs.
 
 ## Alternatives rejected
 
@@ -323,20 +330,16 @@ No iOS build was run or claimed because this host does not provide Xcode.
 - Apple native metadata changes are statically checked but require the native
   builds above, including verification of the iOS and macOS
   executable/test-host relationships.
-- The CI workflow has not run, and its composite Flutter action contains the
-  transitive mutable-cache reference described under Security and privacy.
+- Three CI jobs are configured: Ubuntu validation, Ubuntu/Xvfb Linux
+  integration, and a Windows release-directory build. Their remote runs were
+  not observed in this Linux environment; Windows native success is not
+  claimed here.
 - No production backend URL is selected or verified.
 
 ## Future considerations
 
-- Configure required Phase 3 dependencies and code generation as the next
-  feature.
-- Add the Material 3 design system and adaptive application shell only in their
-  dedicated features.
 - Perform Android, Apple, and Windows native builds on appropriately configured
   hosts.
-- Revisit CI platform builds only after their native dependencies and runtime
-  cost are explicitly established.
 
 ## Related contexts
 

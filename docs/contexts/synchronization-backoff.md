@@ -36,8 +36,9 @@ explicit user path to retry immediately.
 
 An automatic launch, resume, background, or desktop-timer request is deferred
 while a transient wait remains or a deterministic failure is blocked. Initial
-setup, manual refresh, and the future “Synchronize now” tray action can still
-try immediately. A successful user-driven recovery clears policy state.
+setup, manual refresh, and the implemented “Synchronize now” tray action can
+still try immediately through the user-driven lane. A successful user-driven
+recovery clears policy state.
 Global session expiration takes priority over these lanes and pauses every
 reason. Verified session recovery clears exact expiration gates for the
 current user without clearing unrelated policy.
@@ -105,7 +106,7 @@ Schema v4 adds `sync_backoff_states`, keyed by
 
 Checks reject cancellation, negative retry duration, codec mismatch, and
 retry-eligibility/state mismatch. Semester deletion cascades the row. The
-`sync_backoff_states_by_next_attempt` index supports later diagnostics and
+`sync_backoff_states_by_next_attempt` index supports current diagnostics and
 scheduler queries. Migration deliberately seeds no historical state.
 Verified activation deletes only rows for the current user whose fixed failure
 kind is exactly `sessionExpired`.
@@ -134,9 +135,11 @@ streak; a manual success resets it.
 ## Platform behavior
 
 The policy is Dart plus local SQLite and is shared by Android, iOS, Windows,
-macOS, and Linux. It creates no native background job. Future platform
-schedulers decide when to invoke synchronization again and can inspect the
-status without changing it.
+macOS, and Linux. It creates no native background job; current platform
+schedulers and desktop tray/timer triggers decide when to invoke
+synchronization and inspect the status without changing it. Diagnostics
+displays the same safe status fields without exposing raw failure evidence.
+The backoff policy itself creates no timer or trigger.
 
 ## Security and privacy
 
@@ -258,10 +261,8 @@ in `session-expiration.md`.
 
 ## Future considerations
 
-- Platform schedulers should use the status to communicate approximate
-  eligibility without promising exact execution.
-- Diagnostics may display the safe status fields without exposing raw failure
-  evidence.
+- Revisit delay steps only if a verified backend contract or measured
+  self-hosting load justifies a policy change.
 
 ## Related contexts
 
@@ -270,3 +271,6 @@ in `session-expiration.md`.
 - [Local Database](local-database.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Background Scheduler](background-scheduler.md)
+- [Desktop Tray Monitoring](desktop-tray-monitoring.md)
+- [Synchronization Diagnostics](synchronization-diagnostics.md)

@@ -3,7 +3,9 @@
 ## Status
 
 Completed. The public bring-your-own-backend documentation is reconciled with
-the committed Phase 16 integration and Phase 17.1 validation evidence and is
+post-Phase-17 hardening: bootstrap recovery, lazy backend configuration,
+automatic session reauthentication, durable notification delivery, current
+schema and integration evidence, and the configured Windows CI gate. It is
 cross-linked for users, operators, and contributors.
 
 This documentation feature is complete; it does not resolve the separate
@@ -26,6 +28,8 @@ hosted service or that unverified platforms are release-ready.
 - Device/backend privacy boundaries and deletion behavior.
 - Honest platform implementation/build status.
 - Contributor and troubleshooting guides.
+- Current bootstrap, automatic-reauthentication, notification-outbox, schema,
+  integration-test, and CI behavior.
 - Explicit license, backend-release, frontend-publication, and
   security-reporting blockers.
 
@@ -79,6 +83,19 @@ Public documentation is split by reader intent:
 Canonical facts live in the most specific guide and are linked from the
 README. Detailed implementation history remains in `docs/contexts/`.
 
+This consistency pass updates exactly these public documents:
+
+- `README.md`
+- `docs/architecture.md`
+- `docs/configuration-and-builds.md`
+- `docs/development.md`
+- `docs/platform-support.md`
+- `docs/privacy-and-security.md`
+- `docs/troubleshooting.md`
+
+`docs/self-hosting-backend.md` remains unchanged because its compatible
+backend pin and operator guidance already match the verified backend revision.
+
 ## Important files
 
 - `README.md` — public landing page.
@@ -117,11 +134,13 @@ requires rebuilding.
 
 ## Data model
 
-Documentation adds no runtime data or schema. It describes:
+Documentation adds no runtime data or schema. It describes current Drift
+schema version 12 with 20 tables, including:
 
 - secrets in OS secure storage;
 - cached assignment and coordination state in Drift/SQLite;
-- notification and reminder ownership in SQLite; and
+- notification and reminder ownership, the retryable new-assignment outbox,
+  and revision-scoped automatic-reauthentication attempt state in SQLite; and
 - request-scoped plus short-lived process-memory data on the backend.
 
 It deliberately avoids the inaccurate claim that the backend never holds user
@@ -141,11 +160,27 @@ Reader flow:
    credential entry.
 6. Troubleshooting maps known conditions to safe, non-secret checks.
 
+At application startup, invalid `APP_ENV`, local-data initialization failure,
+and startup-integration failure map to fixed recovery surfaces without
+deleting local data or exposing raw errors. `BACKEND_BASE_URL` remains lazy:
+cached semester and assignment views can be constructed without Dio, while
+authentication and synchronization require a valid configured root origin.
+
+When explicitly enabled, automatic reauthentication permits one attempt for
+the exact expired-session revision, verifies a candidate cookie before secure
+save, uses lifecycle/mutation fencing, and falls back to manual authentication
+on failure. New-assignment submission is persisted in a durable outbox with
+shared stable notification-ID allocation; this proves app-level
+deduplication/submission state, not exact operating-system delivery.
+
 ## Platform behavior
 
 The public matrix reports Linux as release-build verified. Android, iOS,
 macOS, and Windows are described as implemented and statically/focused-test
-validated but not native-build verified on the Linux host.
+validated but not native-build verified on the Linux host. CI currently
+configures Ubuntu validation, Ubuntu/Xvfb Linux integration, and an unsigned,
+unpackaged Windows release-directory build; the Windows job was not observed
+executing in this environment.
 
 The guides document:
 
@@ -225,20 +260,22 @@ Documentation validation covers:
 
 ## Validation evidence
 
-Phase 16 integration evidence:
+Current recorded integration evidence at audited frontend commit
+`aef5915ce77c8e7e9894041a7a4d35e9584ba68a`:
 
 ```text
 flutter test integration_test/end_to_end_mocked_workflow_test.dart \
   -d linux --reporter expanded
 ```
 
-The Linux debug application built and the workflow passed 1/1. Its isolated
-Phase 16 source copy also passed 859/859 ordinary tests, both strict analyzers,
-formatting across 285 files with 0 changes, two code-generation passes with
-the second writing 0 outputs, and a Linux release build. See
-[Frontend integration testing](frontend-integration-testing.md).
+The Linux debug application built and both workflows passed 2/2. The current
+serialized full Flutter suite passed 1001/1001. These are recorded repository
+results; this documentation-only consistency pass did not rerun Flutter.
+Historical Phase-16 evidence, before the automatic-reauthentication and
+deletion-race workflow landed, was 1/1 integration and 859/859 ordinary tests.
+See [Frontend integration testing](frontend-integration-testing.md).
 
-The committed Phase 17.1 hardening evidence is:
+Historical Phase-17.1 hardening evidence was:
 
 ```text
 Focused router/privacy/Settings/signing suites: 53 passed
@@ -258,10 +295,22 @@ template signing marker, or generic privacy placeholder. Android native build
 and certificate validation remain unavailable. See
 [Platform build validation](platform-build-validation.md).
 
-The Markdown-only closeout then rechecked all ten documentation files for
-relative links, whitespace/final newlines, the exact disclaimer, public work
-markers, common secret-value patterns, unsupported success claims, backend
-revision consistency, and Android release-signing consistency.
+The documentation-only consistency pass rechecks all 36 context templates,
+local Markdown links, tracked and intentional path references, stale
+schema/workflow claims, diff secrets, and whitespace without modifying product
+code or claiming a fresh native build.
+
+Final documentation-only checks on this diff recorded:
+
+- 36/36 context documents retained every required template section.
+- 288/288 local Markdown links resolved.
+- 577 backtick path occurrences across 338 unique path-like references
+  resolved as 563 existing repository paths and 14 intentional patterns or
+  explicitly absent/operator-owned paths, with no unexpected missing path.
+- The targeted stale-claim scan and added-line secret scan returned no match.
+- `git diff --check` passed.
+- Exactly 33 documentation files changed; no product, native, CI, or backend
+  source file changed.
 
 A fresh standards review and spec/security review found two documentation
 issues, both closed in scope: the architecture now distinguishes the backend's
@@ -284,7 +333,8 @@ deployment command.
 - No fresh backend build, Docker build, server run, or Cloud Run deployment was
   performed by this frontend documentation feature.
 - Android, Apple, and Windows native builds were not available on this Linux
-  host.
+  host. Android APK validation is blocked by the missing Android SDK; Windows
+  CI is configured but was not observed; Apple validation remains static.
 - Signing and distribution packaging remain operator-owned and unverified.
 
 ## Future considerations

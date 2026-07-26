@@ -86,6 +86,12 @@ subscribes before launching refresh, fences late results by semester/session
 revision, preserves a prior cache on stream error, and never cancels the shared
 sync service on disposal.
 
+Notification targets reuse the assignment-detail key without changing
+dashboard projection semantics. Platform launch/resume, background, desktop
+timer, and tray triggers call the same synchronization service; cached data
+remains first while visible foreground views perform their explicit
+reread/refresh paths.
+
 ## Important files
 
 - `lib/src/features/assignments/dashboard/data/assignment_dashboard_store.dart`
@@ -363,25 +369,20 @@ the Linux release build succeeded.
   show that last-success time is unavailable.
 - No globally meaningful chronological order exists between zoned and unzoned
   deadlines.
-- Drift watches are coherent for this foreground shared database instance;
-  future independent background connections require explicit foreground
-  rereads.
+- Drift watches are coherent for this foreground shared database instance.
+  Independent headless/background connections now exist; visible foreground
+  views reread after app-launch, app-resume, or manual refresh to observe their
+  commits.
 - Recently added is durable post-baseline discovery, not a time-windowed or
   unread list.
 - Invalid legacy identity rows remain inert instead of constructing a route.
-- Failures before `runApp`, including an unsupported `APP_ENV`, require a
-  separate startup-recovery shell and are not handled by this route-level fix.
+- Failures before `runApp`, including an unsupported `APP_ENV`, are handled by
+  the fixed bootstrap recovery shell rather than this route.
 
 ## Future considerations
 
-- Later notification deep links can reuse the Feature 11.2 detail key without
-  changing dashboard projection semantics.
-- Background/platform features can trigger the same synchronization service and
-  explicitly refresh foreground reads after independent-connection work.
 - A future explicit product decision could introduce time-windowed discovery or
   age-based staleness with an injected clock.
-- The cache-first semester-selection provider has a separate remote
-  construction dependency and should be hardened as its own feature.
 
 ## Related contexts
 
@@ -392,3 +393,7 @@ the Linux release build succeeded.
 - [Assignment Diffing](assignment-diffing.md)
 - [Session Expiration](session-expiration.md)
 - [Course Preferences](course-preferences.md)
+- [Bootstrap Recovery Shell](bootstrap-recovery-shell.md)
+- [Local Notifications](local-notifications.md)
+- [Background Scheduler](background-scheduler.md)
+- [Semester Selection](semester-selection.md)

@@ -31,9 +31,12 @@ without prematurely defining an application domain or database schema.
   dependencies used behind Feature 12.1's application-owned adapter.
 - Exact `workmanager 0.9.0+3`, `tray_manager 0.5.3`,
   `launch_at_startup 0.5.1`, and `window_manager 0.5.2` dependencies resolved
-  for the later platform adapters behind Feature 13.1's plugin-free ports.
+  for the platform adapters behind Feature 13.1's plugin-free ports.
 
 ## Non-scope
+
+The following were outside the original dependency/codegen feature boundary;
+later owning features now implement several of them:
 
 - Production domain or transport models.
 - A Drift schema, database, migration, or persistence behavior.
@@ -47,15 +50,15 @@ without prematurely defining an application domain or database schema.
 
 ## User-visible behavior
 
-The existing minimal `LEB2 Watch` screen is unchanged. Application bootstrap
-now places the root widget under a Riverpod `ProviderScope`; no feature
-provider, persisted state, or user-facing flow is introduced.
+The dependency/codegen feature left the original minimal `LEB2 Watch` screen
+unchanged and placed the root widget under a Riverpod `ProviderScope`. Current
+feature providers, persistence, and user-facing flows build on that foundation
+without changing the process entry point.
 
 ## Architecture
 
 `bootstrap()` remains the process composition point and owns the root
-`ProviderScope`. Later features can add providers without changing the process
-entry point.
+`ProviderScope`. Current feature providers compose beneath it.
 
 Generation smoke coverage is isolated under `test/codegen/`:
 
@@ -63,10 +66,10 @@ Generation smoke coverage is isolated under `test/codegen/`:
 - `TransportValue` is JSON-only and proves serialization round trips.
 - `smokeValueProvider` is Riverpod-only and proves provider generation.
 
-The separation avoids coupling Freezed domain objects to transport
-serialization and avoids inventing a Drift schema. `build_runner` loads all
-configured builders; Drift emits only ignored internal build metadata until
-the database feature supplies a real schema.
+The original smoke separation avoided coupling Freezed domain objects to
+transport serialization or inventing a Drift schema before its owning feature.
+`build_runner` now loads those smoke builders plus current production model,
+provider, and Drift definitions.
 
 ## Important files
 
@@ -77,7 +80,7 @@ the database feature supplies a real schema.
 - `lib/src/features/notifications/data/flutter_local_notifications_adapter.dart`
   — the only production consumer of notification/timezone plugin types.
 - `lib/src/platform/background/` and `lib/src/platform/desktop/` — shared
-  plugin-free ports; later platform features own direct plugin calls.
+  plugin-free ports; platform-owned adapters contain direct plugin calls.
 - `analysis_options.yaml` — Flutter lints plus Riverpod lint plugin.
 - `lib/bootstrap.dart` — root `ProviderScope`.
 - `test/codegen/domain_value.dart` — Freezed smoke source.
@@ -120,16 +123,17 @@ untracked output.
 
 ## Data model
 
-There is no production data model. `DomainValue` and `TransportValue` are
-test-only one-field values used solely to prove generator behavior. No table,
-column, migration, credential, assignment, course, or user record exists in
-this feature.
+This dependency feature itself introduced no production data model.
+`DomainValue` and `TransportValue` remain test-only one-field values used
+solely to prove generator behavior. Current production domain/transport
+models and the Drift schema are owned and documented by their later features.
 
 ## State and control flow
 
-At runtime, bootstrap initializes Flutter, creates the compile-time
-configuration as before, and installs `Leb2WatchApp` beneath `ProviderScope`.
-No provider is read and no state is persisted.
+At runtime, bootstrap initializes Flutter, creates compile-time configuration,
+and installs `Leb2WatchApp` beneath `ProviderScope`. Later composition reads
+feature providers and persists only through their application-owned
+boundaries.
 
 During development or CI:
 
@@ -168,10 +172,12 @@ belong to the features that first use those capabilities.
 
 ## Security and privacy
 
-The secure-storage package is resolved but no credential is created, read,
-stored, logged, or modeled. No SQLite schema exists, so no credential column
-can be introduced by this feature. No production backend URL, authorization
-header, token, password, session cookie, certificate, or user data was added.
+The dependency feature itself created, read, stored, logged, and modeled no
+credential. Current credential storage uses the package only behind the
+application-owned secure-store interface, while the current Drift schema
+contains no credential column. No production backend URL, authorization
+header, token, password, session cookie, certificate, or user data was added
+by this feature.
 
 The direct dependency exception is `freezed 3.2.6-dev.1`; resolution also
 contains transitive prerelease `riverpod_analyzer_utils 1.0.0-dev.10`. All
@@ -307,23 +313,21 @@ hand-edited; an ordinary staged `git diff --check` will report that line.
 - Android, iOS, macOS, and Windows builds are unverified on this host.
 - The Android release build was attempted for Feature 12.1 but the host has no
   Android SDK or `ANDROID_HOME`; native Android success is not claimed.
-- Platform-specific secure-storage setup and minimum deployment-target changes
-  are deferred because secure storage is not used yet.
+- Platform-specific secure-storage behavior still requires validation on each
+  native release target.
 - GitHub Actions was configured but not executed locally.
 
 ## Future considerations
 
 - Replace the prerelease packages after a fully stable, generator-compatible
   graph is published and revalidated.
-- Define actual domain and API transport models only from verified contracts.
-- Add the real Drift schema and database generation in the local-database
-  feature.
-- Complete secure-storage native setup with the credential-store feature.
 - Run Android, iOS, macOS, and Windows builds on supported toolchains.
 
 ## Related contexts
 
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
+- [Secure Credential Storage](secure-credential-storage.md)
+- [Local Database](local-database.md)
 - [Repository Frontend Preflight](repository-preflight.md)
 - [Local Notification Service](local-notifications.md)

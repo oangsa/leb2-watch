@@ -12,7 +12,7 @@ Other native platforms are not build-verified on this Linux host.
 ## Purpose
 
 Convert bounded transport evidence into stable synchronization failures without
-exposing Dio, raw responses, credentials, or backend diagnostics to later
+exposing Dio, raw responses, credentials, or backend diagnostics to consuming
 application layers. The mapping keeps session expiry precise so cached data is
 not invalidated by an unrelated timeout or authentication error.
 
@@ -40,8 +40,9 @@ not invalidated by an unrelated timeout or authentication error.
 
 ## User-visible behavior
 
-This feature adds no screen by itself. Later synchronization flows can
-distinguish an expired session from connectivity, timeout, backend
+This feature adds no screen by itself. Synchronization, backoff,
+session-expiration handling, diagnostics, and UI state consume the mapped
+failures to distinguish an expired session from connectivity, timeout, backend
 availability, rate limiting, malformed data, and fixed non-retryable errors.
 Only an exact HTTP 401 with response code `SESSION_EXPIRED` represents expiry.
 
@@ -305,12 +306,9 @@ sync/database/network run and the 197-test full suite; both passed.
 
 ## Future considerations
 
-- Synchronization uses mapped transport failures, retains cached data on failed
-  requests, and constructs only the documented local persistence reason.
-- Synchronization backoff honors `retryAfter` as an exact sequence replacement
-  and blocks non-eligible failures from automatic admission.
-- Diagnostics may later expose a bounded category, but must not recover or
-  retain discarded raw transport evidence.
+- Keep scheduling and timer creation outside this mapper; synchronization
+  backoff consumes `retryAfter`, while diagnostics exposes only bounded
+  categories and never recovers discarded raw transport evidence.
 - A changed versioned backend contract should update exact pair tests before
   deployment.
 

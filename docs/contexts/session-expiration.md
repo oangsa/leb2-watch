@@ -104,6 +104,9 @@ state; watching does not invoke the backend. The route layer keeps
 state, then invokes `AutomaticSessionReauthenticationService` for that exact
 revision. `ReauthenticatingAssignmentSyncService` supplies the equivalent
 headless path when synchronization itself observes `SESSION_EXPIRED`.
+Assignment-detail routes retain the same global banner and cached-data
+visibility. Synchronization diagnostics reports only bounded expired/paused
+state, never sensitive transport evidence.
 
 ## Important files
 
@@ -245,10 +248,11 @@ The lifecycle, database, synchronization, provider, and Flutter shell behavior
 is shared across Android, iOS, Windows, macOS, and Linux. Linux is the only
 native build supported for validation on this host.
 
-No native background scheduler is present yet. Future Android, iOS, and
-desktop implementations must call the same `AssignmentSyncService`; its
-`backgroundTask`, `desktopTimer`, and other reasons already share the durable
-expiration gate.
+Android, iOS, and desktop scheduler implementations call the same
+`AssignmentSyncService`; `backgroundTask`, `desktopTimer`, and every other
+reason share the durable expiration gate. Scheduler reconciliation cancels
+effective work while expired and restores saved intent only after verified
+activation.
 
 ## Security and privacy
 
@@ -404,22 +408,18 @@ removed and is ignored.
 
 - The local-first dashboard now renders populated saved assignments underneath
   the global expired-session banner and disables its refresh action.
-- The app-flow stage remains in memory. Lifecycle state itself is durable and
-  independently gates synchronization.
+- The app-flow controller remains in memory, while startup derives its initial
+  stage from durable verified-session and active-semester evidence. Lifecycle
+  state itself is durable and independently gates synchronization.
 - Revision exhaustion at int32 maximum fails closed and requires future
   maintenance; it cannot occur during practical use.
 - Android, iOS, macOS, and Windows builds are not verified on this Linux host.
 
 ## Future considerations
 
-- Native scheduler features must stop rescheduling after
-  `SyncPausedForSession` and resume only after verified activation.
-- Future assignment-detail routes must preserve the same global banner and
-  cached-data visibility.
-- Diagnostics should report expired/paused state without sensitive transport
-  evidence.
-- Automatic reauthentication reuses the candidate-verification and
-  revision-activation path; future changes must preserve the same fences.
+- Validate scheduler pause/resume behavior on native supported hosts.
+- Preserve the automatic-recovery lifecycle and mutation fences in future
+  session-flow changes.
 
 ## Related contexts
 

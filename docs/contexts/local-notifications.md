@@ -56,9 +56,10 @@ exposing plugin types to application callers.
 
 ## User-visible behavior
 
-Initialization occurs during app startup but never prompts for permission. A
-future explained, user-initiated workflow can request permission through the
-service. A test notification says that local notifications are working.
+Initialization occurs during app startup but never prompts for permission.
+Notification Settings explains the purpose before its explicit,
+user-initiated permission request. A test notification says that a request was
+submitted to the operating system, not that delivery is proven.
 
 New-assignment copy contains the bounded course name, assignment title, and a
 verified deadline when present. Reminder copy contains the course, assignment,
@@ -95,6 +96,11 @@ the named assignment-detail route only when the flow is ready. Before routing,
 target, `DesktopRuntimeHost` shows and then requests focus for the live window.
 `Leb2WatchApp` owns and disposes this coordinator. Riverpod owns and disposes
 the notification service.
+
+Notification Settings owns the explained permission and test actions.
+Deadline reminders, Android background execution, and desktop monitoring
+consume the service through their application-owned synchronization and
+platform boundaries.
 
 ## Important files
 
@@ -215,7 +221,8 @@ ownership before platform I/O. The platform service itself neither reads nor
 writes those rows.
 
 `DriftLocalNotificationIdAllocator` owns this shared three-table collision
-probe for both new-assignment delivery and global-disable suppression.
+probe for new-assignment delivery, deadline reminders, and settings
+suppression.
 
 ## State and control flow
 
@@ -319,7 +326,7 @@ and continues to show local cached data.
 - Disable unsupported unpackaged-Windows scheduling rather than create a
   reminder that the app cannot reliably cancel.
 - Keep collision allocation and notification history persistence in their
-  later owning features.
+  owning notification-delivery and reminder features.
 
 ## Alternatives rejected
 
@@ -332,7 +339,7 @@ and continues to show local cached data.
   an explicit UTC offset renders honest local copy without another plugin.
 - Treating a 31-bit hash as unique: the assignment/offset domain is larger
   than the ID range.
-- A new allocation table: existing later-feature history/reminder ownership
+- A new allocation table: existing owning history/reminder persistence
   can resolve collisions transactionally.
 - Linux runner DBus changes or Windows MSIX packaging: both belong to desktop
   monitoring/packaging work.
@@ -390,7 +397,7 @@ and continues to show local cached data.
   capability matrices, idempotent Windows teardown, and Linux's lack of
   teardown.
 - Coordinator tests cover ready navigation, all flow gates, newest-target
-  replacement, explicit semester identity, exactly-once delivery, and
+  replacement, explicit semester identity, exactly-once route consumption, and
   disposal.
 - Root/provider tests cover service composition, lifecycle ownership, startup
   initialization, reveal-before-route ordering, real named-route integration,
@@ -455,13 +462,7 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 
 ## Future considerations
 
-- Feature 12.3 owns reminder offset selection, iOS pending limits,
-  persistence, reconciliation, rescheduling, and removal.
-- Feature 14.1 should explain permission purpose and platform reliability
-  before calling `requestPermission`.
-- Feature 13.2 can reuse this service from Android background work after
-  initializing Flutter, secure storage, and Drift correctly.
-- Feature 13.4 may add Linux DBus activation and Windows packaging as explicit
+- Linux DBus cold activation and Windows packaging remain explicit future
   desktop work.
 - Run `flutter build apk --release`, `flutter build ios --no-codesign`,
   `flutter build macos`, and `flutter build windows` on supported hosts.

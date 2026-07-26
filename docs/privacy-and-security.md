@@ -14,7 +14,7 @@ and server boundaries before deploying or distributing the app.
 | Assignment snapshots and course data | Local SQLite | Cached for immediate/offline display |
 | Settings and session lifecycle | Local SQLite | Non-secret app coordination state |
 | Seen identities, fingerprints, sync history/backoff | Local SQLite | Bounded local synchronization state |
-| Notification history and reminder ownership | Local SQLite | Prevents duplicate local effects |
+| Notification history, retryable outbox, and reminder ownership | Local SQLite | Provides app-level deduplication and submission state, not proof of OS delivery |
 
 Credentials do not belong in SQLite, `SharedPreferences`, plaintext files,
 logs, notification payloads, diagnostics, or crash reports.
@@ -37,6 +37,19 @@ push-token registration, or remote crash-reporting dependency.
 
 Application clearing deletes only LEB2 Watch's two secure entries; it does not
 call a keyring-wide `deleteAll`.
+
+## Automatic reauthentication
+
+Username/password persistence is optional and off by default. When enabled,
+the application permits one automatic attempt for the exact expired-session
+revision. It obtains and verifies a candidate cookie before replacing the
+saved cookie; a failed candidate is not persisted.
+
+Foreground session replacement, automatic recovery, credential deletion, and
+delete-all share lifecycle and mutation fencing. If credentials are deleted
+while a candidate is in flight, that late candidate cannot restore the cookie,
+username/password, or durable reauthentication state. Failure safely leaves
+cached assignments available and falls back to the manual reconnect flow.
 
 ## What is sent to the backend
 

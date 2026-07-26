@@ -392,8 +392,9 @@ tests, migration fixture, and context updates.
   uncertain.
 - A different account requires the dedicated delete-local-data workflow before
   setup can proceed.
-- Native background schedulers are not implemented; the shared synchronization
-  service is already gated by durable lifecycle state.
+- Native scheduler adapters exist behind the shared synchronization service
+  and remain gated by durable lifecycle state; native runtime validation is
+  still platform-dependent.
 - Backend login and cookie acquisition remain expensive upstream operations.
   Automatic recovery consumes one attempt per expired revision and never
   retries that revision.
@@ -401,11 +402,8 @@ tests, migration fixture, and context updates.
 
 ## Future considerations
 
-- Semester selection now owns the post-verification flow; see
-  [Semester Selection](semester-selection.md).
-- Feature 15.1 should use the account guard's prescribed delete-all workflow.
-- Automatic reauthentication reuses this service boundary without exposing
-  stored username/password to widgets.
+- A verified backend identity-from-cookie endpoint could remove the
+  user-entered numeric ID from the cookie-first path.
 
 ## Related contexts
 
@@ -419,3 +417,5 @@ tests, migration fixture, and context updates.
 - [Session Expiration Recovery](session-expiration.md)
 - [Automatic Session Reauthentication](automatic-session-reauthentication.md)
 - [Semester Selection](semester-selection.md)
+- [Local Data Deletion](local-data-deletion.md)
+- [Background Scheduler](background-scheduler.md)

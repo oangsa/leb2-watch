@@ -11,8 +11,8 @@ and compatibility with the deployed backend remains unverified.
 
 Give the Flutter application an evidence-backed HTTP boundary without inventing
 fields or silently interpreting ambiguous backend data. This context defines
-the routes, authentication, response shapes, error envelopes, and fixtures that
-later transport and synchronization features may rely on.
+the routes, authentication, response shapes, error envelopes, and fixtures
+that current transport and synchronization features rely on.
 
 ## Scope
 
@@ -49,7 +49,7 @@ opaque upstream objects as typed attachments.
 
 ## Architecture
 
-The future transport boundary should use an environment-supplied absolute base
+The implemented transport boundary uses an environment-supplied absolute base
 URL and the root-relative paths below. The local development endpoints are
 `http://localhost:5015` and `https://localhost:7104`; no production URL is
 committed.
@@ -69,10 +69,10 @@ There is no `/api` prefix. Swagger is generated at runtime only in the
 Development environment; a committed Swagger/OpenAPI JSON or YAML source does
 not exist.
 
-Later frontend code should define application-owned JSON transport DTOs for only
-the verified camelCase fields, then map them to separate Freezed domain models.
-Error envelopes, credential responses, and snapshot DTOs should remain
-separate. Dio types must stop at the transport boundary.
+The frontend defines application-owned JSON transport DTOs for only the
+verified camelCase fields, then maps them to separate Freezed domain models.
+Error envelopes, credential responses, and snapshot DTOs remain separate. Dio
+types stop at the transport boundary.
 
 ## Important files
 
@@ -81,7 +81,7 @@ separate. Dio types must stop at the transport boundary.
 - `test/fixtures/backend_api/README.md` — fixture inventory and HTTP metadata
   that deliberately remains outside JSON payloads.
 - `test/fixtures/backend_api/*.json` — sanitized successful and error response
-  bodies for future transport tests.
+  bodies used by transport and integration tests.
 - `../LEB2SCRAPPER-API/docs/api-reference.md` — committed backend API reference
   and sanitized examples.
 - `../LEB2SCRAPPER-API/docs/auth-and-resilience.md` — authentication,
@@ -229,7 +229,7 @@ traceId: string?
 validationErrors: Map<string, string[]>?
 ```
 
-The future API layer should use this mapping:
+The API failure mapper implements this mapping:
 
 | Transport evidence | Domain failure | Retry |
 | --- | --- | --- |
@@ -328,19 +328,18 @@ The verified credential flow is:
 The two calls are independently fallible and no atomic backend endpoint returns
 both values.
 
-For a snapshot response, the later client must validate content type, JSON,
-top-level and nested shapes, and critical invariants before transactionally
-replacing local data. An empty body, JSON `null`, HTML, malformed JSON, a wrong
-top-level type, or an invariant violation is an invalid response, not empty
-success. Valid cached data must remain unchanged.
+For a snapshot response, the current client validates content type, JSON,
+top-level and nested shapes, and critical invariants before synchronization
+transactionally replaces local data. An empty body, JSON `null`, HTML,
+malformed JSON, a wrong top-level type, or an invariant violation is an invalid
+response, not empty success. Valid cached data remains unchanged.
 
 ## Platform behavior
 
 The HTTP wire contract is shared by Android, iOS, Windows, macOS, and Linux.
-This feature introduces no platform code. Secure-storage capabilities,
-background execution, notifications, and device-timezone rendering belong to
-later platform-specific features, but none may reinterpret the unresolved
-timestamp contract.
+The original contract feature introduced no platform code. Current
+secure-storage, background, notification, and device-timezone features consume
+the contract without reinterpreting unresolved timestamps.
 
 ## Security and privacy
 
@@ -349,8 +348,8 @@ timestamp contract.
 - A session cookie and optional reauthentication credentials must remain in
   operating-system secure storage. They must never enter SQLite, logs,
   diagnostics, notification payloads, or crash reports.
-- The `Authorization` header and sensitive bodies must be redacted in future
-  transport logging.
+- The `Authorization` header and sensitive bodies are redacted in transport
+  logging.
 - The backend has no database and does not durably persist credentials,
   cookies, or assignment data.
 - The backend does temporarily retain HMAC session/username fingerprints for
@@ -364,8 +363,8 @@ timestamp contract.
 
 - Verify and require `GET /Activity/{semesterId}/snapshot`; do not silently
   substitute the flat semester activity route.
-- Use application-owned JSON DTOs later because no committed OpenAPI source
-  exists.
+- Use application-owned JSON DTOs because no committed OpenAPI source exists;
+  the current transport adapter implements this boundary.
 - Keep unknown activity types and opaque upstream objects lossless at the
   transport boundary.
 - Preserve activity date wire semantics until the backend supplies a timezone
@@ -483,17 +482,18 @@ and the combined session transport/setup-service group passed 39/39.
   routes. The implemented product flow requires explicit entry, states that
   limitation, and prevents replacement when a different known local identity
   exists.
-- **Blocks UTC persistence, exact deadline diffing, and deadline reminders:**
-  activity timestamp timezone, daylight-saving, and deadline-inclusivity
-  semantics are undefined.
+- **Blocks absolute scheduling only for unzoned values:** explicitly zoned
+  timestamps can be normalized and drive deadline scheduling. Unzoned
+  timestamps remain ineligible because timezone and daylight-saving semantics
+  are undefined; deadline-inclusivity semantics also remain unresolved.
 - **Blocks assignment publication display:** `createdAt` is not verified as
   publication time.
 - **Blocks typed attachments and external links:** opaque upstream objects have
   no stable schema, and no external-link field exists.
-- **Requires an API-error model decision:** the planned domain-failure list has
-  no named failures for `AUTHENTICATION_REQUIRED`, `INVALID_REQUEST`, or
-  `RESOURCE_NOT_FOUND`. They must remain distinct and non-retryable rather than
-  being collapsed into session expiration or an unknown transient failure.
+- `AUTHENTICATION_REQUIRED`, `INVALID_REQUEST`, and `RESOURCE_NOT_FOUND` remain
+  distinct from session expiration and map deterministically to fixed,
+  nonretryable `UnknownSyncFailureReason` values rather than an unknown
+  transient failure.
 - **Blocks a guaranteed empty-semester success path:** the API reference says an
   empty semester yields `[]`, while the executable parser treats missing
   semester links/IDs as structural failure.
@@ -521,3 +521,4 @@ and the combined session transport/setup-service group passed 39/39.
 - [Repository Frontend Preflight](repository-preflight.md)
 - [Session Setup and Verification](session-setup.md)
 - [Authenticated Backend API Client](backend-api-client.md)
+- [API Error Mapping](api-error-mapping.md)
