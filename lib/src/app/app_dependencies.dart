@@ -25,7 +25,12 @@ import '../features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import '../features/assignments/detail/application/assignment_detail_service.dart';
 import '../features/assignments/detail/data/assignment_detail_store.dart';
 import '../features/authentication/application/session_setup_service.dart';
+import '../features/authentication/application/automatic_session_reauthentication_service.dart';
+import '../features/authentication/application/reauthenticating_assignment_sync_service.dart';
+import '../features/authentication/application/session_mutation_gate.dart';
+import '../features/authentication/data/automatic_session_reauthentication_store.dart';
 import '../features/authentication/data/session_identity_store.dart';
+import '../features/authentication/domain/automatic_session_reauthentication.dart';
 import '../features/courses/application/course_preferences_service.dart';
 import '../features/courses/data/course_preferences_store.dart';
 import '../features/notifications/application/deadline_reminder_coordinator.dart';
@@ -204,6 +209,46 @@ final sessionLifecycleProvider = StreamProvider<SessionLifecycleSnapshot>((
   yield* store.watch();
 });
 
+final sessionMutationGateProvider = Provider<SessionMutationGate>((ref) {
+  final storage = ref.watch(localDatabaseStorageProvider);
+  return FileSessionMutationGate(
+    lockFileProvider: storage.resolveSessionMutationLockFile,
+  );
+});
+
+final automaticSessionReauthenticationStoreProvider =
+    FutureProvider<AutomaticSessionReauthenticationStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftAutomaticSessionReauthenticationStore(database);
+    });
+
+final automaticSessionReauthenticationServiceProvider =
+    FutureProvider<AutomaticSessionReauthenticationService>((ref) async {
+      return LocalAutomaticSessionReauthenticationService(
+        backendSessionClient: ref.watch(backendSessionClientProvider),
+        credentialStore: ref.watch(credentialStoreProvider),
+        identityStore: await ref.watch(sessionIdentityStoreProvider.future),
+        lifecycleStore: await ref.watch(sessionLifecycleStoreProvider.future),
+        attemptStore: await ref.watch(
+          automaticSessionReauthenticationStoreProvider.future,
+        ),
+        mutationGate: ref.watch(sessionMutationGateProvider),
+      );
+    });
+
+final currentAutomaticSessionReauthenticationAttemptProvider =
+    StreamProvider<AutomaticReauthenticationAttempt?>((ref) async* {
+      final lifecycle = await ref.watch(sessionLifecycleProvider.future);
+      if (lifecycle.state != SessionLifecycleState.expired) {
+        yield null;
+        return;
+      }
+      final store = await ref.watch(
+        automaticSessionReauthenticationStoreProvider.future,
+      );
+      yield* store.watch(lifecycle.revision);
+    });
+
 final coreAssignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>(
   (ref) async {
     final database = await ref.watch(appDatabaseProvider.future);
@@ -279,11 +324,16 @@ final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
   final deadlineReminderCoordinator = await ref.watch(
     deadlineReminderCoordinatorProvider.future,
   );
+  final notificationAware = NotificationAwareAssignmentSyncService(
+    delegate,
+    coordinator,
+    deadlineReminderCoordinator,
+  );
   return QuiescenceAwareAssignmentSyncService(
-    NotificationAwareAssignmentSyncService(
-      delegate,
-      coordinator,
-      deadlineReminderCoordinator,
+    ReauthenticatingAssignmentSyncService(
+      notificationAware,
+      await ref.watch(automaticSessionReauthenticationServiceProvider.future),
+      await ref.watch(sessionLifecycleStoreProvider.future),
     ),
     ref.watch(localDatabaseStorageProvider),
   );
@@ -349,6 +399,10 @@ final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
     ref.watch(credentialStoreProvider),
     identityStore,
     lifecycleStore,
+    mutationGate: ref.watch(sessionMutationGateProvider),
+    automaticReauthenticationStore: await ref.watch(
+      automaticSessionReauthenticationStoreProvider.future,
+    ),
   );
 });
 

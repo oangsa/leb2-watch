@@ -5,8 +5,9 @@
 Completed for manual session-cookie setup, verified username/password setup,
 saved-session verification, local identity persistence, responsive UI, and
 application composition. Feature 9.3 adds durable expiration and recovery
-activation to this boundary. Linux is the only build-verified native target
-on this host.
+activation to this boundary. Automatic session reauthentication now reuses
+this verified candidate/commit boundary and coordinates with manual
+replacement. Linux is the only build-verified native target on this host.
 
 ## Purpose
 
@@ -33,13 +34,14 @@ ready user replacing an expired session returns to assignments.
   progression to `/semesters` for initial setup or `/assignments` for recovery.
 - Exact saved-session expiration persistence, candidate isolation, and verified
   lifecycle activation.
+- Manual replacement cancellation of an in-flight automatic attempt and
+  commit-time revalidation under the shared session mutation gate.
 
 ## Non-scope
 
 - Native background-scheduler registration or cancellation.
 - Semester fetching or selection.
 - Assignment synchronization and snapshot persistence.
-- Automatic reauthentication execution.
 - Switching between accounts while another account's local data remains.
 - Deriving or verifying a user ID from an opaque session cookie; the backend
   exposes no such contract.
@@ -83,6 +85,13 @@ root provider scope is disposed. The transport adapter is shared through its
 read and session interfaces. `SessionSetupRoute` adapts asynchronous provider
 loading and initialization failure into safe route states.
 
+Before manual saved-session verification or replacement starts,
+`LocalSessionSetupService` consumes the exact expired revision in
+`AutomaticSessionReauthenticationStore`. Its final multi-store commit runs
+under `SessionMutationGate` and re-reads the cookie, optional credentials,
+identity, and lifecycle. A delayed automatic owner therefore cannot overwrite
+a manual session.
+
 ## Important files
 
 - `lib/src/core/network/backend_api_client.dart` — session transport interface
@@ -97,6 +106,10 @@ loading and initialization failure into safe route states.
   revision interface and Drift adapter.
 - `lib/src/features/authentication/application/session_setup_service.dart` —
   verification, failure mapping, identity guard, commit, and compensation.
+- `lib/src/features/authentication/application/session_mutation_gate.dart` —
+  shared foreground/headless session-mutation fence.
+- `lib/src/features/authentication/data/automatic_session_reauthentication_store.dart`
+  — durable manual-replacement cancellation.
 - `lib/src/features/authentication/presentation/session_setup_page.dart` —
   responsive secret-entry and saved-session UI.
 - `lib/src/features/authentication/presentation/session_setup_route.dart` —
@@ -373,8 +386,6 @@ tests, migration fixture, and context updates.
 
 - Manual cookie verification proves the cookie but cannot prove the user-entered
   numeric ID; the UI states this backend limitation directly.
-- Automatic reauthentication execution belongs to a later feature; this
-  feature only records the explicit opt-in credentials securely.
 - Secure storage and SQLite cannot commit atomically. Best-effort compensation
   reduces ordinary write failures, but process termination and
   write-committed-then-reported-failure behavior can leave persistence
@@ -383,8 +394,9 @@ tests, migration fixture, and context updates.
   setup can proceed.
 - Native background schedulers are not implemented; the shared synchronization
   service is already gated by durable lifecycle state.
-- Backend login and cookie acquisition remain expensive upstream operations and
-  are never retried automatically here.
+- Backend login and cookie acquisition remain expensive upstream operations.
+  Automatic recovery consumes one attempt per expired revision and never
+  retries that revision.
 - Android, iOS, macOS, and Windows builds are not verified on this Linux host.
 
 ## Future considerations
@@ -392,8 +404,8 @@ tests, migration fixture, and context updates.
 - Semester selection now owns the post-verification flow; see
   [Semester Selection](semester-selection.md).
 - Feature 15.1 should use the account guard's prescribed delete-all workflow.
-- Future automatic reauthentication must reuse this service boundary without
-  exposing stored username/password to widgets.
+- Automatic reauthentication reuses this service boundary without exposing
+  stored username/password to widgets.
 
 ## Related contexts
 
@@ -405,4 +417,5 @@ tests, migration fixture, and context updates.
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Privacy-First Onboarding](privacy-onboarding.md)
 - [Session Expiration Recovery](session-expiration.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)
 - [Semester Selection](semester-selection.md)

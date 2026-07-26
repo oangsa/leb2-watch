@@ -596,6 +596,38 @@ class NewAssignmentNotificationPreferences extends Table {
   List<String> get customConstraints => const ['CHECK (singleton_id = 1)'];
 }
 
+class AutomaticSessionReauthenticationAttempts extends Table {
+  IntColumn get sessionRevision => integer()();
+  TextColumn get state => text()();
+  IntColumn get startedAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get deadlineAtUtc => integer().map(const UtcDateTimeConverter())();
+  IntColumn get completedAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+  TextColumn get failureKind => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {sessionRevision};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (session_revision >= 0 AND session_revision <= 2147483647)',
+    "CHECK (state IN ('running', 'succeeded', 'failed', 'cancelled'))",
+    'CHECK (deadline_at_utc >= started_at_utc)',
+    "CHECK ((state = 'running' AND completed_at_utc IS NULL "
+        'AND failure_kind IS NULL) OR '
+        "(state = 'succeeded' AND completed_at_utc IS NOT NULL "
+        'AND failure_kind IS NULL) OR '
+        "(state IN ('failed', 'cancelled') AND completed_at_utc IS NOT NULL "
+        'AND failure_kind IS NOT NULL))',
+    "CHECK (failure_kind IS NULL OR failure_kind IN "
+        "('notEnabled', 'invalidCredentials', 'identityMismatch', "
+        "'networkUnavailable', 'requestTimeout', 'backendUnavailable', "
+        "'rateLimited', 'invalidResponse', 'secureStorageUnavailable', "
+        "'localStorageUnavailable', 'cancelled', 'timedOut', 'superseded', "
+        "'unexpected'))",
+  ];
+}
+
 class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();

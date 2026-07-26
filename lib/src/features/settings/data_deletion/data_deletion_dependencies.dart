@@ -34,6 +34,11 @@ final localDataDeletionServiceProvider = Provider<LocalDataDeletionService>((
     ),
     credentials: SecureLocalDataCredentialCleanup(
       ref.read(credentialStoreProvider),
+      mutationGateLoader: () async => ref.read(sessionMutationGateProvider),
+      automaticReauthenticationStoreLoader: () =>
+          ref.read(automaticSessionReauthenticationStoreProvider.future),
+      lifecycleStoreLoader: () =>
+          ref.read(sessionLifecycleStoreProvider.future),
     ),
     database: DriftLocalDataDatabaseCleanup(
       ref.read(appDatabaseManagerProvider),

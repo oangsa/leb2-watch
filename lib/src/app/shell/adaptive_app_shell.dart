@@ -217,6 +217,7 @@ class _ShellContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final banner = globalBanner;
+    final scaledText = MediaQuery.textScalerOf(context).scale(1) > 1;
     return Column(
       children: [
         Align(
@@ -239,7 +240,22 @@ class _ShellContent extends StatelessWidget {
             ),
           ),
         ),
-        if (banner != null)
+        if (banner != null && scaledText)
+          Flexible(
+            fit: FlexFit.loose,
+            child: ListView(
+              primary: false,
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              children: [banner],
+            ),
+          ),
+        if (banner != null && !scaledText)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,

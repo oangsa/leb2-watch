@@ -30,6 +30,10 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
   late final GoRouter _router;
   late final NotificationNavigationCoordinator _notificationNavigation;
   AppLifecycleState? _lastLifecycleState;
+  SessionLifecycleSnapshot? _pendingSession;
+  SessionLifecycleSnapshot? _processingSession;
+  SessionLifecycleSnapshot? _lastHandledSession;
+  Future<void>? _sessionLifecycleDrain;
 
   @override
   void initState() {
@@ -83,6 +87,63 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     }
   }
 
+  void _queueSessionLifecycle(SessionLifecycleSnapshot session) {
+    final newestRevision =
+        [
+          _lastHandledSession?.revision,
+          _processingSession?.revision,
+          _pendingSession?.revision,
+        ].whereType<int>().fold<int>(
+          -1,
+          (value, item) => item > value ? item : value,
+        );
+    if (session.revision < newestRevision ||
+        session == _lastHandledSession ||
+        session == _processingSession ||
+        session == _pendingSession) {
+      return;
+    }
+    _pendingSession = session;
+    _sessionLifecycleDrain ??= _drainSessionLifecycle();
+  }
+
+  Future<void> _drainSessionLifecycle() async {
+    try {
+      while (mounted && _pendingSession != null) {
+        final current = _pendingSession!;
+        _pendingSession = null;
+        _processingSession = current;
+        await _reconcileBackgroundSchedule(current);
+        final pending = _pendingSession;
+        final superseded =
+            pending != null &&
+            pending != current &&
+            pending.revision >= current.revision;
+        if (current.state == SessionLifecycleState.expired && !superseded) {
+          try {
+            final automatic = await ref.read(
+              automaticSessionReauthenticationServiceProvider.future,
+            );
+            await automatic.reauthenticate(
+              expectedExpiredRevision: current.revision,
+            );
+          } on Object {
+            // Durable state keeps cached content available if recovery cannot
+            // initialize.
+          }
+        }
+        _lastHandledSession = current;
+        _processingSession = null;
+      }
+    } finally {
+      _processingSession = null;
+      _sessionLifecycleDrain = null;
+      if (mounted && _pendingSession != null) {
+        _sessionLifecycleDrain = _drainSessionLifecycle();
+      }
+    }
+  }
+
   Future<void> _handleAppResume() async {
     final lifecycle = await _backgroundLifecycle();
     if (lifecycle != null) {
@@ -111,7 +172,7 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
   Widget build(BuildContext context) {
     ref.listen(sessionLifecycleProvider, (_, next) {
       next.whenData((session) {
-        unawaited(_reconcileBackgroundSchedule(session));
+        _queueSessionLifecycle(session);
       });
     });
     return MaterialApp.router(

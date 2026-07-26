@@ -61,6 +61,11 @@ platform work cancelled. Returning to the foreground starts one best-effort
 `appResume` synchronization asynchronously; cached UI remains available while
 it runs.
 
+Persisted expiration reconciliation completes before automatic session
+reauthentication starts. Only the resulting durable active lifecycle event may
+restore the saved schedule, so a failed recovery cannot re-enable background
+work.
+
 Android requests one unique connected-network periodic task. iOS requests one
 best-effort BGAppRefresh task. Desktop keeps one non-overlapping process timer
 and exposes tray controls. None of these paths promises exact execution.
@@ -387,6 +392,7 @@ iOS/macOS/Windows native-host builds were unavailable.
 - `docs/contexts/assignment-synchronization.md`
 - `docs/contexts/synchronization-backoff.md`
 - `docs/contexts/session-expiration.md`
+- `docs/contexts/automatic-session-reauthentication.md`
 - `docs/contexts/course-preferences.md`
 - `docs/contexts/new-assignment-notifications.md`
 - `docs/contexts/deadline-reminders.md`

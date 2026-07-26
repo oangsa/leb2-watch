@@ -4,7 +4,12 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
+import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/reauthenticating_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_schedule_store.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
@@ -88,6 +93,62 @@ void main() {
     expect(sync.cancelledTargets, [(101, 2001)]);
     pending.complete(_cancelled(SyncReason.backgroundTask));
   });
+
+  test('headless recovery continues once and reports succeeded', () async {
+    await _seedTarget(database, session: 'active', withCourse: true);
+    await settings.setMonitoringEnabled(true);
+    final continuation = _success(SyncReason.backgroundTask);
+    final delegate = _SequenceSyncService([_expired(), continuation]);
+    final automatic = _AutomaticService(
+      const AutomaticSessionReauthenticationRecovered(),
+    );
+    final wrapped = ReauthenticatingAssignmentSyncService(
+      delegate,
+      automatic,
+      _LifecycleStore(expired: true),
+    );
+    final recoveryRunner = BackgroundSyncRunner(
+      DriftBackgroundSyncTargetStore(database),
+      wrapped,
+    );
+
+    expect(
+      await recoveryRunner.run(reason: SyncReason.backgroundTask),
+      isA<BackgroundSyncSucceeded>(),
+    );
+    expect(delegate.requests, hasLength(2));
+    expect(automatic.requests, [7]);
+  });
+
+  test(
+    'headless secure-store failure pauses without a second request',
+    () async {
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      final delegate = _SequenceSyncService([_expired()]);
+      final automatic = _AutomaticService(
+        const AutomaticSessionReauthenticationFailed(
+          AutomaticReauthenticationFailureKind.secureStorageUnavailable,
+        ),
+      );
+      final wrapped = ReauthenticatingAssignmentSyncService(
+        delegate,
+        automatic,
+        _LifecycleStore(expired: true),
+      );
+      final recoveryRunner = BackgroundSyncRunner(
+        DriftBackgroundSyncTargetStore(database),
+        wrapped,
+      );
+
+      expect(
+        await recoveryRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSessionPaused>(),
+      );
+      expect(delegate.requests, hasLength(1));
+      expect(automatic.requests, [7]);
+    },
+  );
 }
 
 Future<void> _seedTarget(
@@ -139,6 +200,15 @@ SyncCancelled _cancelled(SyncReason reason) => SyncCancelled(
   completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
 );
 
+SyncFailed _expired() => SyncFailed(
+  operationId: 1,
+  semesterId: 101,
+  reason: SyncReason.backgroundTask,
+  startedAtUtc: DateTime.utc(2026, 7, 26),
+  completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
+  failure: const SessionExpiredFailure(),
+);
+
 final class _SyncService implements AssignmentSyncService {
   final List<(int, int, SyncReason)> requests = [];
   final List<(int, int)> cancelledTargets = [];
@@ -174,4 +244,85 @@ final class _SyncService implements AssignmentSyncService {
   }) async {
     return null;
   }
+}
+
+final class _SequenceSyncService implements AssignmentSyncService {
+  _SequenceSyncService(this.outcomes);
+
+  final List<SyncOutcome> outcomes;
+  final requests = <(int, int, SyncReason)>[];
+
+  @override
+  Future<void> cancelCurrent({
+    required int semesterId,
+    required int userId,
+  }) async {}
+
+  @override
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  }) async => null;
+
+  @override
+  Future<SyncOutcome> synchronize({
+    required int semesterId,
+    required int userId,
+    required SyncReason reason,
+  }) async {
+    requests.add((semesterId, userId, reason));
+    return outcomes.removeAt(0);
+  }
+}
+
+final class _AutomaticService
+    implements AutomaticSessionReauthenticationService {
+  _AutomaticService(this.result);
+
+  final AutomaticSessionReauthenticationResult result;
+  final requests = <int>[];
+
+  @override
+  Future<void> cancelCurrent() async {}
+
+  @override
+  Future<AutomaticSessionReauthenticationResult> reauthenticate({
+    required int expectedExpiredRevision,
+    AutomaticSessionReauthenticationCancellation? cancellation,
+  }) async {
+    requests.add(expectedExpiredRevision);
+    return result;
+  }
+}
+
+final class _LifecycleStore implements SessionLifecycleStore {
+  _LifecycleStore({required bool expired})
+    : snapshot = SessionLifecycleSnapshot(
+        state: expired
+            ? SessionLifecycleState.expired
+            : SessionLifecycleState.active,
+        revision: 7,
+      );
+
+  final SessionLifecycleSnapshot snapshot;
+
+  @override
+  Future<bool> markExpired({required int expectedRevision}) async => false;
+
+  @override
+  Future<SessionLifecycleSnapshot> markVerifiedActive({
+    required int userId,
+  }) async => snapshot;
+
+  @override
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  }) async => snapshot == expected ? snapshot : null;
+
+  @override
+  Future<SessionLifecycleSnapshot> read() async => snapshot;
+
+  @override
+  Stream<SessionLifecycleSnapshot> watch() => Stream.value(snapshot);
 }

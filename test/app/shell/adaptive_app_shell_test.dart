@@ -14,6 +14,7 @@ import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
@@ -450,13 +451,22 @@ void main() {
             state: SessionLifecycleState.expired,
             revision: 3,
           ),
+          automaticAttempt: AutomaticReauthenticationAttempt(
+            sessionRevision: 3,
+            state: AutomaticReauthenticationAttemptState.running,
+            startedAtUtc: DateTime.utc(2026, 7, 26, 12),
+            deadlineAtUtc: DateTime.utc(2026, 7, 26, 12, 1),
+          ),
         );
         addTearDown(setup.dispose);
 
         expect(find.byKey(testCase.$2), findsOneWidget);
         expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
         expect(
-          find.text('Your LEB2 session expired. Showing saved data.'),
+          find.text(
+            'Your LEB2 session expired. Reconnecting securely… '
+            'Saved data remains available.',
+          ),
           findsOneWidget,
         );
         expect(
@@ -467,6 +477,87 @@ void main() {
       },
     );
   }
+
+  for (final testCase in <(AutomaticReauthenticationFailureKind, String)>[
+    (
+      AutomaticReauthenticationFailureKind.invalidCredentials,
+      'Saved sign-in was not accepted. Reconnect manually.',
+    ),
+    (
+      AutomaticReauthenticationFailureKind.notEnabled,
+      'Automatic reconnect is not enabled. Reconnect manually. '
+          'Saved data remains available.',
+    ),
+    (
+      AutomaticReauthenticationFailureKind.cancelled,
+      'Automatic reconnect was interrupted. Reconnect manually. '
+          'Saved data remains available.',
+    ),
+    (
+      AutomaticReauthenticationFailureKind.backendUnavailable,
+      'Automatic reconnect failed. Reconnect manually. '
+          'Saved data remains available.',
+    ),
+  ]) {
+    testWidgets('${testCase.$1.name} shows bounded reconnect guidance', (
+      tester,
+    ) async {
+      const lifecycle = SessionLifecycleSnapshot(
+        state: SessionLifecycleState.expired,
+        revision: 3,
+      );
+      final setup = await _pumpShell(
+        tester,
+        width: 375,
+        height: 520,
+        textScaler: const TextScaler.linear(2),
+        lifecycle: lifecycle,
+        automaticAttempt: AutomaticReauthenticationAttempt(
+          sessionRevision: 3,
+          state: AutomaticReauthenticationAttemptState.failed,
+          startedAtUtc: DateTime.utc(2026, 7, 26, 12),
+          deadlineAtUtc: DateTime.utc(2026, 7, 26, 12, 1),
+          completedAtUtc: DateTime.utc(2026, 7, 26, 12, 0, 1),
+          failureKind: testCase.$1,
+        ),
+      );
+      addTearDown(setup.dispose);
+
+      expect(find.text(testCase.$2), findsOneWidget);
+      expect(find.text('Reconnect'), findsOneWidget);
+      expect(
+        find.byKey(const Key('assignment-dashboard-list')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('<SESSION_COOKIE>'), findsNothing);
+      expect(find.textContaining('2001'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('active lifecycle removes a completed recovery banner', (
+    tester,
+  ) async {
+    final setup = await _pumpShell(
+      tester,
+      width: 1200,
+      lifecycle: const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.active,
+        revision: 4,
+      ),
+      automaticAttempt: AutomaticReauthenticationAttempt(
+        sessionRevision: 3,
+        state: AutomaticReauthenticationAttemptState.succeeded,
+        startedAtUtc: DateTime.utc(2026, 7, 26, 12),
+        deadlineAtUtc: DateTime.utc(2026, 7, 26, 12, 1),
+        completedAtUtc: DateTime.utc(2026, 7, 26, 12, 0, 1),
+      ),
+    );
+    addTearDown(setup.dispose);
+
+    expect(find.byKey(const Key('session-expired-banner')), findsNothing);
+    expect(find.byKey(const Key('assignment-dashboard-list')), findsOneWidget);
+  });
 }
 
 Future<_ShellSetup> _pumpShell(
@@ -478,6 +569,7 @@ Future<_ShellSetup> _pumpShell(
     state: SessionLifecycleState.active,
     revision: 1,
   ),
+  AutomaticReauthenticationAttempt? automaticAttempt,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, height);
@@ -490,6 +582,9 @@ Future<_ShellSetup> _pumpShell(
     ProviderScope(
       overrides: [
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
+        currentAutomaticSessionReauthenticationAttemptProvider.overrideWith(
+          (_) => Stream.value(automaticAttempt),
+        ),
         semesterSelectionServiceProvider.overrideWith(
           (_) => _ShellSemesterSelectionService(),
         ),

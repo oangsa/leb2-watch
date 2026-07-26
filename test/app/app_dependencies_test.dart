@@ -17,6 +17,9 @@ import 'package:leb2_watch/src/features/assignments/dashboard/application/assign
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/local_assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/assignments/sync/quiescence_aware_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/session_mutation_gate.dart';
+import 'package:leb2_watch/src/features/authentication/data/automatic_session_reauthentication_store.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/features/background_sync/application/local_background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_schedule_store.dart';
@@ -98,6 +101,20 @@ void main() {
       );
       final secondCoreSyncService = await container.read(
         coreAssignmentSyncServiceProvider.future,
+      );
+      final mutationGate = container.read(sessionMutationGateProvider);
+      final secondMutationGate = container.read(sessionMutationGateProvider);
+      final automaticAttemptStore = await container.read(
+        automaticSessionReauthenticationStoreProvider.future,
+      );
+      final secondAutomaticAttemptStore = await container.read(
+        automaticSessionReauthenticationStoreProvider.future,
+      );
+      final automaticReauthentication = await container.read(
+        automaticSessionReauthenticationServiceProvider.future,
+      );
+      final secondAutomaticReauthentication = await container.read(
+        automaticSessionReauthenticationServiceProvider.future,
       );
       final notificationStore = await container.read(
         newAssignmentNotificationStoreProvider.future,
@@ -191,6 +208,18 @@ void main() {
       expect(secondSyncService, same(syncService));
       expect(coreSyncService, isA<LocalAssignmentSyncService>());
       expect(secondCoreSyncService, same(coreSyncService));
+      expect(mutationGate, isA<FileSessionMutationGate>());
+      expect(secondMutationGate, same(mutationGate));
+      expect(
+        automaticAttemptStore,
+        isA<DriftAutomaticSessionReauthenticationStore>(),
+      );
+      expect(secondAutomaticAttemptStore, same(automaticAttemptStore));
+      expect(
+        automaticReauthentication,
+        isA<LocalAutomaticSessionReauthenticationService>(),
+      );
+      expect(secondAutomaticReauthentication, same(automaticReauthentication));
       expect(notificationStore, isA<DriftNewAssignmentNotificationStore>());
       expect(secondNotificationStore, same(notificationStore));
       expect(firstDashboardStore, isA<DriftAssignmentDashboardStore>());

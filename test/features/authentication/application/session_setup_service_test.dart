@@ -215,6 +215,10 @@ void main() {
           'identity:read',
           'lifecycle:read',
           'backend:verify',
+          'secure:readCookie',
+          'secure:readCredentials',
+          'identity:read',
+          'lifecycle:read',
           'secure:saveCookie',
           'secure:deleteCredentials',
           'identity:save',
@@ -278,6 +282,10 @@ void main() {
           'backend:login',
           'backend:cookie',
           'backend:verify',
+          'secure:readCookie',
+          'secure:readCredentials',
+          'identity:read',
+          'lifecycle:read',
           'secure:saveCookie',
           'secure:saveCredentials',
           'identity:save',
@@ -357,6 +365,30 @@ void main() {
             kind: BackendTransportFailureKind.invalidResponse,
           ),
           SessionSetupFailureKind.invalidResponse,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 502,
+              responseCode: 'SCRAPE_RESPONSE_CHANGED',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.invalidResponse,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 501,
+              responseCode: 'FUTURE_SERVER_ERROR',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.backendUnavailable,
         ),
         (
           const BackendTransportException(
@@ -1189,6 +1221,25 @@ final class _MemorySessionLifecycleStore implements SessionLifecycleStore {
     required int userId,
   }) async {
     _record('activate', mutation: true);
+    snapshot = SessionLifecycleSnapshot(
+      state: SessionLifecycleState.active,
+      revision: snapshot.revision + 1,
+    );
+    if (failAfterActivate) {
+      throw StateError('synthetic post-activation failure');
+    }
+    return snapshot;
+  }
+
+  @override
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  }) async {
+    _record('activate', mutation: true);
+    if (snapshot != expected) {
+      return null;
+    }
     snapshot = SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: snapshot.revision + 1,

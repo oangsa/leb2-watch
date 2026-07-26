@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/reauthenticating_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
+import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_monitoring_lifecycle.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_task_executor.dart';
@@ -134,6 +138,44 @@ void main() {
   );
 
   test(
+    'time budget drains automatic recovery ownership before DB close',
+    () async {
+      final automatic = _PendingAutomaticService();
+      final wrapped = ReauthenticatingAssignmentSyncService(
+        _ExpiringSyncService(),
+        automatic,
+        _LifecycleStore(),
+      );
+      final owned = _OwnedComposition(_runner(wrapped));
+      final executor = BackgroundSyncTaskExecutor(
+        _CompositionFactory(owned),
+        quiescenceDrainBudget: const Duration(milliseconds: 20),
+      );
+
+      final execution = executor.execute(
+        reason: SyncReason.backgroundTask,
+        timeBudget: const Duration(milliseconds: 10),
+      );
+      await automatic.started.future;
+
+      expect(
+        await execution.timeout(const Duration(seconds: 1)),
+        isA<BackgroundSyncCancelled>(),
+      );
+      expect(automatic.cancellationRequested.isCompleted, isTrue);
+      expect(owned.closeCalls, 0);
+
+      automatic.pending.complete(
+        const AutomaticSessionReauthenticationFailed(
+          AutomaticReauthenticationFailureKind.cancelled,
+        ),
+      );
+      await owned.closed.future.timeout(const Duration(seconds: 1));
+      expect(owned.closeCalls, 1);
+    },
+  );
+
+  test(
     'lifecycle serializes session reconciliation and resumes once invoked',
     () async {
       final reconciler = _Reconciler();
@@ -166,7 +208,7 @@ void main() {
   );
 }
 
-BackgroundSyncRunner _runner(_SyncService service) {
+BackgroundSyncRunner _runner(AssignmentSyncService service) {
   return BackgroundSyncRunner(
     const _TargetStore(
       BackgroundSyncTargetPolicy(
@@ -179,6 +221,90 @@ BackgroundSyncRunner _runner(_SyncService service) {
     ),
     service,
   );
+}
+
+final class _PendingAutomaticService
+    implements AutomaticSessionReauthenticationService {
+  final started = Completer<void>();
+  final cancellationRequested = Completer<void>();
+  final pending = Completer<AutomaticSessionReauthenticationResult>();
+
+  @override
+  Future<void> cancelCurrent() async {
+    if (!cancellationRequested.isCompleted) {
+      cancellationRequested.complete();
+    }
+    await pending.future;
+  }
+
+  @override
+  Future<AutomaticSessionReauthenticationResult> reauthenticate({
+    required int expectedExpiredRevision,
+    AutomaticSessionReauthenticationCancellation? cancellation,
+  }) {
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    return pending.future;
+  }
+}
+
+final class _ExpiringSyncService implements AssignmentSyncService {
+  @override
+  Future<void> cancelCurrent({
+    required int semesterId,
+    required int userId,
+  }) async {}
+
+  @override
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  }) async => null;
+
+  @override
+  Future<SyncOutcome> synchronize({
+    required int semesterId,
+    required int userId,
+    required SyncReason reason,
+  }) async {
+    final now = DateTime.utc(2026, 7, 26);
+    return SyncFailed(
+      operationId: 1,
+      semesterId: semesterId,
+      reason: reason,
+      startedAtUtc: now,
+      completedAtUtc: now,
+      failure: const SessionExpiredFailure(),
+    );
+  }
+}
+
+final class _LifecycleStore implements SessionLifecycleStore {
+  final snapshot = const SessionLifecycleSnapshot(
+    state: SessionLifecycleState.expired,
+    revision: 7,
+  );
+
+  @override
+  Future<bool> markExpired({required int expectedRevision}) async => false;
+
+  @override
+  Future<SessionLifecycleSnapshot> markVerifiedActive({
+    required int userId,
+  }) async => snapshot;
+
+  @override
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  }) async => snapshot == expected ? snapshot : null;
+
+  @override
+  Future<SessionLifecycleSnapshot> read() async => snapshot;
+
+  @override
+  Stream<SessionLifecycleSnapshot> watch() => Stream.value(snapshot);
 }
 
 final class _CompositionFactory implements BackgroundSyncCompositionFactory {

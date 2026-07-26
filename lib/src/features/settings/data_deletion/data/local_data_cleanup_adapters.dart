@@ -9,6 +9,9 @@ import '../../../../core/database/app_database_manager.dart';
 import '../../../../core/database/local_database_access_gate.dart';
 import '../../../../core/database/local_database_storage.dart';
 import '../../../../core/security/credential_store.dart';
+import '../../../../core/session/session_lifecycle.dart';
+import '../../../authentication/application/session_mutation_gate.dart';
+import '../../../authentication/data/automatic_session_reauthentication_store.dart';
 import '../../../background_sync/domain/background_scheduler.dart';
 import '../../../background_sync/domain/desktop_autostart_service.dart';
 import '../../../notifications/data/local_notifications_platform.dart';
@@ -103,14 +106,72 @@ final class PlatformLocalDataNotificationCleanup
 
 final class SecureLocalDataCredentialCleanup
     implements LocalDataCredentialCleanup {
-  SecureLocalDataCredentialCleanup(this._store);
+  factory SecureLocalDataCredentialCleanup(
+    CredentialStore store, {
+    SessionMutationGate? mutationGate,
+    Future<SessionMutationGate> Function()? mutationGateLoader,
+    AutomaticSessionReauthenticationStore? automaticReauthenticationStore,
+    Future<AutomaticSessionReauthenticationStore> Function()?
+    automaticReauthenticationStoreLoader,
+    SessionLifecycleStore? lifecycleStore,
+    Future<SessionLifecycleStore> Function()? lifecycleStoreLoader,
+    DateTime Function()? now,
+  }) {
+    return SecureLocalDataCredentialCleanup._(
+      store,
+      mutationGate,
+      mutationGateLoader,
+      automaticReauthenticationStore,
+      automaticReauthenticationStoreLoader,
+      lifecycleStore,
+      lifecycleStoreLoader,
+      now ?? (() => DateTime.now().toUtc()),
+    );
+  }
+
+  SecureLocalDataCredentialCleanup._(
+    this._store,
+    this._mutationGate,
+    this._mutationGateLoader,
+    this._automaticReauthenticationStore,
+    this._automaticReauthenticationStoreLoader,
+    this._lifecycleStore,
+    this._lifecycleStoreLoader,
+    this._now,
+  );
 
   final CredentialStore _store;
+  final SessionMutationGate? _mutationGate;
+  final Future<SessionMutationGate> Function()? _mutationGateLoader;
+  final AutomaticSessionReauthenticationStore? _automaticReauthenticationStore;
+  final Future<AutomaticSessionReauthenticationStore> Function()?
+  _automaticReauthenticationStoreLoader;
+  final SessionLifecycleStore? _lifecycleStore;
+  final Future<SessionLifecycleStore> Function()? _lifecycleStoreLoader;
+  final DateTime Function() _now;
 
   @override
   Future<LocalDataDeletionStepStatus> clear() async {
     try {
-      await _store.clear();
+      final gate = _mutationGate ?? await _mutationGateLoader?.call();
+      final attempts =
+          _automaticReauthenticationStore ??
+          await _automaticReauthenticationStoreLoader?.call();
+      final lifecycle = _lifecycleStore ?? await _lifecycleStoreLoader?.call();
+      if (gate == null || attempts == null || lifecycle == null) {
+        await _store.clear();
+      } else {
+        await gate.runExclusive(() async {
+          final snapshot = await lifecycle.read();
+          if (snapshot.state == SessionLifecycleState.expired) {
+            await attempts.cancelForManualReplacement(
+              expectedExpiredRevision: snapshot.revision,
+              completedAtUtc: _now().toUtc(),
+            );
+          }
+          await _store.clear();
+        });
+      }
       return LocalDataDeletionStepStatus.completed;
     } on Object {
       return LocalDataDeletionStepStatus.failed;
@@ -235,6 +296,9 @@ final class DriftLocalDataDatabaseCleanup implements LocalDataDatabaseCleanup {
       await database.transaction(() async {
         await database.delete(database.semesters).go();
         await database.delete(database.appSettings).go();
+        await database
+            .delete(database.automaticSessionReauthenticationAttempts)
+            .go();
         await database.delete(database.deadlineReminderPreferences).go();
         await database.delete(database.deadlineReminderReconciliations).go();
         await database.delete(database.backgroundScheduleSettings).go();

@@ -135,8 +135,9 @@ final class E2eAppLifetime {
     _disposed = true;
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await container.read(appDatabaseManagerProvider).close();
+    final databaseManager = container.read(appDatabaseManagerProvider);
     container.dispose();
+    await databaseManager.close();
   }
 }
 

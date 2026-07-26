@@ -1,11 +1,17 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' hide isNull;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:leb2_watch/src/app/app_dependencies.dart';
+import 'package:leb2_watch/src/core/database/app_database.dart';
+import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
+import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 
 import 'support/e2e_app_harness.dart';
 import 'support/sanitized_backend_fixtures.dart';
@@ -23,7 +29,22 @@ void main() {
     'onboards, synchronizes local-first, recovers, and deletes all data',
     (tester) async {
       final releaseRestartSync = Completer<void>();
+      final releaseAutomaticLogin = Completer<void>();
       final adapter = ScriptedBackendAdapter([
+        ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/login',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedUserProfileFixture,
+        ),
+        ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/cookie',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedCookieFixture(_cookieA),
+        ),
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Semester',
@@ -63,6 +84,21 @@ void main() {
           },
         ),
         ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/login',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedUserProfileFixture,
+          release: releaseAutomaticLogin.future,
+        ),
+        ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/cookie',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedCookieFixture(_cookieB),
+        ),
+        ScriptedBackendExchange(
           method: 'GET',
           path: '/Semester',
           authorization: 'Bearer $_cookieB',
@@ -85,6 +121,9 @@ void main() {
       addTearDown(() async {
         if (!releaseRestartSync.isCompleted) {
           releaseRestartSync.complete();
+        }
+        if (!releaseAutomaticLogin.isCompleted) {
+          releaseAutomaticLogin.complete();
         }
         await lifetime?.dispose(tester);
         await harness.dispose();
@@ -112,23 +151,34 @@ void main() {
       }
       await pumpUntil(
         tester,
-        () =>
-            find.byKey(const Key('session-cookie-field')).evaluate().isNotEmpty,
+        () => find
+            .byKey(const Key('session-method-control'))
+            .evaluate()
+            .isNotEmpty,
         reason: 'Onboarding did not open session setup.',
       );
       expect(adapter.requestCount, 0);
       expect(harness.credentials.mutationCount, 0);
       expect(harness.notifications.permissionRequestCount, 0);
 
+      await tester.tap(find.text('Username / password'));
+      await tester.pump();
       await tester.enterText(
-        find.byKey(const Key('session-cookie-field')),
-        _cookieA,
+        find.byKey(const Key('session-username-field')),
+        '<USERNAME>',
       );
       await tester.enterText(
-        find.byKey(const Key('session-user-id-field')),
-        '2001',
+        find.byKey(const Key('session-password-field')),
+        '<PASSWORD>',
       );
-      await tester.tap(find.byKey(const Key('session-submit')));
+      final automaticToggle = find.byKey(
+        const Key('automatic-reauthentication-toggle'),
+      );
+      await tester.ensureVisible(automaticToggle);
+      await tester.tap(automaticToggle);
+      final sessionSubmit = find.byKey(const Key('session-submit'));
+      await tester.ensureVisible(sessionSubmit);
+      await tester.tap(sessionSubmit);
       await pumpUntil(
         tester,
         () =>
@@ -141,8 +191,12 @@ void main() {
         isNull,
         reason: 'The strict backend adapter rejected a session request.',
       );
-      expect(adapter.requestCount, 2);
+      expect(adapter.requestCount, 4);
       expect(harness.credentials.sessionCookie, _cookieA);
+      expect(
+        harness.credentials.credentials,
+        const StoredCredentials(username: '<USERNAME>', password: '<PASSWORD>'),
+      );
 
       await tester.tap(find.byKey(const Key('semester-row-101')));
       await pumpUntil(
@@ -152,7 +206,7 @@ void main() {
       );
       await pumpUntil(
         tester,
-        () => adapter.requestCount == 3,
+        () => adapter.requestCount == 5,
         reason: 'The baseline snapshot was not requested.',
       );
       await pumpUntil(
@@ -176,13 +230,18 @@ void main() {
         isEmpty,
       );
       expect(harness.notifications.newAssignments, isEmpty);
+      final monitoring = await lifetime.container.read(
+        backgroundMonitoringSettingsServiceProvider.future,
+      );
+      await monitoring.setMonitoringEnabled(true);
+      expect(harness.background.scheduleCount, greaterThan(0));
 
       await lifetime.dispose(tester);
       lifetime = await harness.pumpApp(tester);
       await pumpUntil(
         tester,
         () =>
-            adapter.requestCount == 4 &&
+            adapter.requestCount == 6 &&
             find.byKey(_baselineCardKey).evaluate().isNotEmpty &&
             find
                 .byKey(const Key('assignment-inline-progress'))
@@ -223,12 +282,13 @@ void main() {
             .isEmpty,
         reason: 'The new-assignment synchronization did not finish.',
       );
+      final cancellationCountBeforeExpiry = harness.background.cancelCount;
       await tester.tap(find.byKey(const Key('assignment-refresh-button')));
       await pumpUntil(
         tester,
         () =>
             adapter.failure != null ||
-            adapter.requestCount == 5 &&
+            adapter.requestCount == 8 &&
                 find
                     .byKey(const Key('session-expired-banner'))
                     .evaluate()
@@ -253,29 +313,21 @@ void main() {
         SessionLifecycleState.expired.name,
       );
       expect(await database.select(database.activities).get(), hasLength(2));
-
-      await tester.tap(find.text('Reconnect').first);
+      expect(
+        find.text(
+          'Your LEB2 session expired. Reconnecting securely… '
+          'Saved data remains available.',
+        ),
+        findsOneWidget,
+      );
+      final scheduleCountBeforeRecovery = harness.background.scheduleCount;
+      releaseAutomaticLogin.complete();
       await pumpUntil(
         tester,
         () =>
-            find.byKey(const Key('session-cookie-field')).evaluate().isNotEmpty,
-        reason: 'Reconnect did not open session setup.',
-      );
-      await tester.enterText(
-        find.byKey(const Key('session-cookie-field')),
-        _cookieB,
-      );
-      await tester.enterText(
-        find.byKey(const Key('session-user-id-field')),
-        '2001',
-      );
-      await tester.tap(find.byKey(const Key('session-submit')));
-      await pumpUntil(
-        tester,
-        () =>
-            adapter.requestCount == 7 &&
+            adapter.requestCount == 11 &&
             find.byKey(_newAssignmentCardKey).evaluate().isNotEmpty,
-        reason: 'Replacement session did not resume assignment monitoring.',
+        reason: 'Automatic recovery did not resume assignment monitoring.',
       );
       await pumpUntil(
         tester,
@@ -297,6 +349,32 @@ void main() {
         activeSettings.sessionRevision,
         greaterThan(expiredSettings.sessionRevision),
       );
+      expect(
+        harness.background.cancelCount,
+        greaterThan(cancellationCountBeforeExpiry),
+      );
+      expect(
+        harness.background.scheduleCount,
+        greaterThan(scheduleCountBeforeRecovery),
+      );
+      final attempts = await database
+          .select(database.automaticSessionReauthenticationAttempts)
+          .get();
+      expect(attempts, hasLength(1));
+      expect(attempts.single.state, 'succeeded');
+      final requestCountAfterRecovery = adapter.requestCount;
+      final automatic = await lifetime.container.read(
+        automaticSessionReauthenticationServiceProvider.future,
+      );
+      expect(
+        await automatic.reauthenticate(
+          expectedExpiredRevision: expiredSettings.sessionRevision,
+        ),
+        const AutomaticSessionReauthenticationFailed(
+          AutomaticReauthenticationFailureKind.superseded,
+        ),
+      );
+      expect(adapter.requestCount, requestCountAfterRecovery);
       expect(harness.notifications.newAssignments, hasLength(1));
       expect(
         await database.select(database.notificationHistory).get(),
@@ -364,7 +442,7 @@ void main() {
       expect(harness.notifications.shown, hasLength(1));
       expect(harness.notifications.scheduled, isEmpty);
       expect(harness.notifications.cancelledIds, isEmpty);
-      expect(harness.background.scheduleCount, 0);
+      expect(harness.background.scheduleCount, greaterThan(0));
       expect(
         harness.background.cancelCount,
         greaterThan(backgroundCancellationsBeforeDelete),
@@ -408,5 +486,97 @@ void main() {
       tester.view.resetDevicePixelRatio();
     },
     timeout: const Timeout(Duration(minutes: 10)),
+  );
+
+  testWidgets(
+    'credential deletion during a gated candidate prevents late commit',
+    (tester) async {
+      final releaseCookie = Completer<void>();
+      final adapter = ScriptedBackendAdapter([
+        ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/login',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedUserProfileFixture,
+        ),
+        ScriptedBackendExchange(
+          method: 'POST',
+          path: '/User/cookie',
+          authorization: null,
+          requestBody: sanitizedCredentialsRequest,
+          body: sanitizedCookieFixture(_cookieB),
+          release: releaseCookie.future,
+        ),
+      ]);
+      final harness = await E2eAppHarness.create(adapter: adapter);
+      E2eAppLifetime? lifetime;
+      final seed = await harness.reopenDatabaseForInspection();
+      await seed
+          .into(seed.semesters)
+          .insert(SemestersCompanion.insert(semesterId: const Value(101)));
+      await seed
+          .into(seed.appSettings)
+          .insert(
+            const AppSettingsCompanion(
+              singletonId: Value(1),
+              activeSemesterId: Value(101),
+              leb2UserId: Value(2001),
+              sessionLifecycle: Value('expired'),
+              sessionRevision: Value(7),
+            ),
+          );
+      await seed.close();
+      harness.credentials
+        ..sessionCookie = _cookieA
+        ..credentials = const StoredCredentials(
+          username: '<USERNAME>',
+          password: '<PASSWORD>',
+        );
+      addTearDown(() async {
+        if (!releaseCookie.isCompleted) {
+          releaseCookie.complete();
+        }
+        await lifetime?.dispose(tester);
+        await harness.dispose();
+      });
+
+      lifetime = await harness.pumpApp(tester);
+      await pumpUntil(
+        tester,
+        () => adapter.requestCount == 2,
+        reason: 'Automatic recovery did not reach cookie acquisition.',
+      );
+      final deletion = lifetime.container.read(
+        localDataDeletionServiceProvider,
+      );
+      final result = await deletion.deleteSavedCredentials();
+      expect(result.isComplete, isTrue);
+      releaseCookie.complete();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final database = await lifetime.database();
+      var attempts = await database
+          .select(database.automaticSessionReauthenticationAttempts)
+          .get();
+      for (
+        var pump = 0;
+        pump < 80 && (attempts.isEmpty || attempts.single.state == 'running');
+        pump += 1
+      ) {
+        await tester.pump(const Duration(milliseconds: 10));
+        attempts = await database
+            .select(database.automaticSessionReauthenticationAttempts)
+            .get();
+      }
+      expect(attempts, hasLength(1));
+      expect(attempts.single.state, 'cancelled');
+      expect(harness.credentials.sessionCookie, isNull);
+      expect(harness.credentials.credentials, isNull);
+      expect(adapter.requestCount, 2);
+      adapter.verifyComplete();
+      expect(adapter.failure, isNull);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 }

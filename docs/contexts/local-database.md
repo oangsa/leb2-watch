@@ -2,12 +2,11 @@
 
 ## Status
 
-Completed through schema version 11, including ordered
-v1/v2/v3/v4/v5/v6/v7/v8/v9/v10-to-v11 migration, generated Drift source, in-memory
-relational tests, and real
-file-backed migration, simultaneous multi-isolate startup, and
-independent-connection tests. Linux remains the only build-verified native
-target on this host.
+Completed through schema version 12, including ordered upgrades from every
+supported version, a frozen physical v11 fixture, generated Drift source,
+in-memory relational tests, and real file-backed migration, simultaneous
+multi-isolate startup, and independent-connection tests. Linux remains the
+only build-verified native target on this host.
 
 ## Purpose
 
@@ -17,7 +16,7 @@ connections one durable coordination record for single-flight synchronization.
 
 ## Scope
 
-- Nineteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
+- Twenty Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
   notification/change and sync history, settings, and synchronization
   operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
@@ -58,10 +57,10 @@ when necessary. BUSY/LOCKED WAL transition races receive a short bounded retry.
 
 For a zero-version database only, setup creates a connection-local temporary
 marker and acquires `BEGIN IMMEDIATE` before Drift reads the version. The first
-connection creates schema v11 while later connections wait in SQLite. The
+connection creates schema v12 while later connections wait in SQLite. The
 marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`,
 drops the temporary marker, and only then enables foreign keys. A waiter
-therefore re-reads v11 and does not run a duplicate `createAll`. Existing and
+therefore re-reads v12 and does not run a duplicate `createAll`. Existing and
 legacy-version databases do not gain an outer transaction, so ordered
 migrations that use Drift table-rebuild transactions remain valid.
 `UtcDateTimeConverter` owns UTC epoch-millisecond conversion. Generated table
@@ -90,9 +89,9 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — nineteen table definitions,
+- `lib/src/core/database/database_tables.dart` — twenty table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 11, migration,
+- `lib/src/core/database/app_database.dart` — schema version 12, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -115,6 +114,9 @@ invalidation inside one explicit-semester/identity read transaction.
 - `test/core/database/v7_app_database.dart` — frozen physical v7 schema.
 - `test/core/database/v7_app_database.g.dart` — generated v7 fixture support.
 - `test/core/database/v10_app_database.dart` — frozen physical v10 schema.
+- `test/core/database/v11_app_database.dart` — frozen physical v11 schema.
+- `test/core/database/automatic_session_reauthentication_migration_test.dart`
+  — additive v11-to-v12 preservation and fixture-independence tests.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
@@ -134,9 +136,9 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `11`. Fresh databases call `createAll` and seed
+`AppDatabase.schemaVersion` is `12`. Fresh databases call `createAll` and seed
 the deadline-reminder, background-scheduling, and new-assignment-notification
-singleton rows. Supported upgrades are exactly `1 -> 11` through `10 -> 11`,
+singleton rows. Supported upgrades are exactly `1 -> 12` through `11 -> 12`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -232,6 +234,12 @@ timestamps. A partial unique index permits one global in-flight dispatcher
 owner across database connections. The `(semester_id, identity_key)` foreign
 key cascades local-data deletion. The additive frozen v10-to-v11 migration
 preserves existing data and history.
+
+Automatic session reauthentication raises the schema to v12 with
+`automatic_session_reauthentication_attempts`. The exact session revision is
+the primary idempotency key. Checked running/succeeded/failed/cancelled state,
+UTC start/deadline/completion times, and a fixed failure vocabulary contain no
+credential material. Claims retain only the newest 16 terminal attempts.
 
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
@@ -384,7 +392,7 @@ rolled back by connection close if schema creation fails.
 
 Database tests cover:
 
-- fresh nineteen-table v11 creation, all named indices, foreign keys, and busy
+- fresh twenty-table v12 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -392,8 +400,9 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen physical v3/v4/v5/v6/v7/v8 databases upgraded in
-  place to v9 with assignment, seen, fingerprint, reminder, notification, sync-run,
+- real v1, v2, and frozen physical v3/v4/v5/v6/v7/v8/v9/v10/v11 databases
+  upgraded in place to v12 with assignment, seen, fingerprint, reminder,
+  notification, sync-run,
   operation, baseline, operation-change, and backoff rows preserved,
   every legacy reminder mapped to checked unknown/pending state,
   empty baseline recovery, correct lifecycle/revision defaults or conservative
@@ -518,3 +527,4 @@ focused database suite passed 44/44 and the complete Flutter suite passed
 - [Course Preferences](course-preferences.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)

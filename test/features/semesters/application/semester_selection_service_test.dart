@@ -458,5 +458,11 @@ final class _FakeSessionLifecycleStore implements SessionLifecycleStore {
       throw StateError('Unexpected activation.');
 
   @override
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  }) => throw StateError('Unexpected activation.');
+
+  @override
   Stream<SessionLifecycleSnapshot> watch() => Stream.value(snapshot);
 }

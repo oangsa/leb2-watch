@@ -72,6 +72,41 @@ void main() {
   );
 
   test(
+    'conditional activation advances only the exact expired revision',
+    () async {
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      final store = DriftSessionLifecycleStore(database);
+      final active = await store.markVerifiedActive(userId: 2001);
+      await store.markExpired(expectedRevision: active.revision);
+
+      expect(
+        await store.markVerifiedActiveIfCurrent(
+          expected: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 0,
+          ),
+          userId: 2001,
+        ),
+        null,
+      );
+      expect(
+        await store.markVerifiedActiveIfCurrent(
+          expected: SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: active.revision,
+          ),
+          userId: 2001,
+        ),
+        const SessionLifecycleSnapshot(
+          state: SessionLifecycleState.active,
+          revision: 2,
+        ),
+      );
+    },
+  );
+
+  test(
     'activation clears only exact expired gates for the current user',
     () async {
       final database = AppDatabase.forTesting(NativeDatabase.memory());

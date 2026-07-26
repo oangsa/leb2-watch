@@ -25,6 +25,8 @@ anything was deleted from LEB2 or a self-hosted backend.
 - Transactional deletion of the complete semester-owned cache graph.
 - Session expiration and active-sync cancellation fencing for credential-only
   deletion.
+- Exact-revision automatic-recovery cancellation under the shared session
+  mutation gate before secure credentials are cleared.
 - A cross-isolate database and runtime-activity gate, cooperative active-sync
   cancellation, and joined foreground/headless operations.
 - Deletion-exclusive notification cancellation after every admitted
@@ -128,6 +130,12 @@ a complete result but before returning to the initiating widget. Navigation
 therefore survives the settings provider subtree being invalidated and
 unmounted. Incomplete results never update the flow.
 
+`SecureLocalDataCredentialCleanup` lazily resolves the same
+`SessionMutationGate`, `AutomaticSessionReauthenticationStore`, and
+`SessionLifecycleStore` used by foreground and headless recovery. Credential
+deletion consumes the exact expired revision before clearing secure storage.
+Full logical scrub deletes every durable automatic attempt.
+
 ## Important files
 
 - `lib/src/features/settings/data_deletion/domain/local_data_deletion.dart` —
@@ -156,6 +164,10 @@ unmounted. Incomplete results never update the flow.
   attempts.
 - `lib/src/core/database/app_database.dart` — idempotent close with owned lease
   release.
+- `lib/src/features/authentication/application/session_mutation_gate.dart` —
+  short secure-storage/session-commit serialization.
+- `lib/src/features/authentication/data/automatic_session_reauthentication_store.dart`
+  — exact recovery ownership cancellation.
 - `lib/src/app/app_dependencies.dart` — manager-backed database provider.
 - `lib/src/app/provider_background_sync_composition.dart` — headless
   composition that shares the exact injected storage for DB and activity
@@ -201,7 +213,9 @@ redacted. Raw caught objects are never retained.
 
 ## Data model
 
-No schema version or credential column was added.
+The deletion feature itself adds no credential column. Schema v12 now owns
+non-secret automatic-recovery attempt metadata, and full logical scrub removes
+every row from that table before physical deletion.
 
 Deleting cached assignments removes every `semesters` row in one transaction.
 Foreign keys cascade through courses, course preferences, activities, seen
@@ -472,3 +486,4 @@ removing cached assignments.
 - [Background scheduler](background-scheduler.md)
 - [Desktop tray monitoring](desktop-tray-monitoring.md)
 - [Notification settings](notification-settings.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)

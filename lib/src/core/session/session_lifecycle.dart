@@ -40,6 +40,11 @@ abstract interface class SessionLifecycleStore {
   Future<bool> markExpired({required int expectedRevision});
 
   Future<SessionLifecycleSnapshot> markVerifiedActive({required int userId});
+
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  });
 }
 
 enum SessionLifecycleStoreOperation { read, watch, expire, activate }
@@ -136,7 +141,24 @@ final class DriftSessionLifecycleStore implements SessionLifecycleStore {
   }
 
   @override
-  Future<SessionLifecycleSnapshot> markVerifiedActive({required int userId}) {
+  Future<SessionLifecycleSnapshot> markVerifiedActive({
+    required int userId,
+  }) async {
+    return (await _activate(userId: userId))!;
+  }
+
+  @override
+  Future<SessionLifecycleSnapshot?> markVerifiedActiveIfCurrent({
+    required SessionLifecycleSnapshot expected,
+    required int userId,
+  }) {
+    return _activate(userId: userId, expected: expected);
+  }
+
+  Future<SessionLifecycleSnapshot?> _activate({
+    required int userId,
+    SessionLifecycleSnapshot? expected,
+  }) {
     if (userId <= 0 || userId > _maximumUserId) {
       throw ArgumentError.value(userId, 'userId', 'Must be a positive int32.');
     }
@@ -147,6 +169,9 @@ final class DriftSessionLifecycleStore implements SessionLifecycleStore {
         final current = decodeStoredSessionLifecycle(
           await _database.select(_database.appSettings).getSingleOrNull(),
         );
+        if (expected != null && current != expected) {
+          return null;
+        }
         if (current.revision >= _maximumSessionRevision) {
           throw StateError('The session revision cannot be advanced.');
         }

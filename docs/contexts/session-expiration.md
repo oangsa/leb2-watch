@@ -4,10 +4,9 @@
 
 Completed for durable exact `SESSION_EXPIRED` lifecycle state, global
 synchronization pause, cached-data preservation, visible reauthentication
-guidance, verified-session recovery, and stale-response fencing. Native
-background schedulers do not exist yet, so this feature pauses the shared
-`backgroundTask` synchronization entry point rather than cancelling native
-jobs.
+guidance, verified manual or automatic recovery, and stale-response fencing.
+The composed scheduler is reconciled to paused before automatic recovery and
+resumes only after the durable lifecycle becomes active.
 
 ## Purpose
 
@@ -36,10 +35,11 @@ clear path to verify a replacement session.
 - Show a responsive, accessible shell banner over the existing route content.
 - Let a ready user reconnect at `/authentication` and return to assignments.
 - Migrate real schema versions 1 through 5 to schema version 6.
+- Start one durable automatic recovery attempt for an exact persisted expired
+  revision when opt-in credentials exist.
 
 ## Non-scope
 
-- Automatic username/password reauthentication.
 - Deleting an expired cookie or cached user data.
 - Android WorkManager, iOS BGTaskScheduler, or desktop timer cancellation.
 - Notification scheduling or cancellation.
@@ -62,6 +62,10 @@ The `Reconnect` action opens the existing secure authentication route. A
 verified replacement returns a ready user to `/assignments`; first-time setup
 continues to `/semesters`. Failed replacement verification leaves the prior
 session and cached content unchanged.
+
+If saved automatic credentials exist, expiration also starts one bounded
+background-safe recovery attempt. Failure leaves the same banner and manual
+action visible; success advances the session revision and removes the pause.
 
 The banner is present in compact, medium, and expanded shells. It reflows at
 200 percent text scaling and exposes a live-region status plus a normal
@@ -96,6 +100,11 @@ shared synchronization service. `_SessionAwareShell` only watches lifecycle
 state; watching does not invoke the backend. The route layer keeps
 `/authentication` reachable during the ready stage for recovery.
 
+`Leb2WatchApp` first reconciles `BackgroundScheduleReconciler` to the expired
+state, then invokes `AutomaticSessionReauthenticationService` for that exact
+revision. `ReauthenticatingAssignmentSyncService` supplies the equivalent
+headless path when synchronization itself observes `SESSION_EXPIRED`.
+
 ## Important files
 
 - `lib/src/core/session/session_lifecycle.dart` — lifecycle value, interface,
@@ -111,6 +120,8 @@ state; watching does not invoke the backend. The route layer keeps
   operation revision and queued terminalization.
 - `lib/src/features/authentication/application/session_setup_service.dart` —
   saved/candidate distinction, activation, and compensation.
+- `lib/src/features/authentication/application/automatic_session_reauthentication_service.dart`
+  — bounded exact-revision automatic recovery.
 - `lib/src/app/app_dependencies.dart` — lifecycle and synchronization
   providers.
 - `lib/src/app/design_system/widgets/app_status_banner.dart` — reusable
@@ -391,15 +402,12 @@ removed and is ignored.
 
 ## Known limitations
 
-- Native background scheduling is not implemented, so there is no platform job
-  registration to cancel yet.
 - The local-first dashboard now renders populated saved assignments underneath
   the global expired-session banner and disables its refresh action.
 - The app-flow stage remains in memory. Lifecycle state itself is durable and
   independently gates synchronization.
 - Revision exhaustion at int32 maximum fails closed and requires future
   maintenance; it cannot occur during practical use.
-- Automatic reauthentication remains unimplemented.
 - Android, iOS, macOS, and Windows builds are not verified on this Linux host.
 
 ## Future considerations
@@ -410,8 +418,8 @@ removed and is ignored.
   cached-data visibility.
 - Diagnostics should report expired/paused state without sensitive transport
   evidence.
-- Automatic reauthentication must reuse the candidate-verification and
-  revision-activation path.
+- Automatic reauthentication reuses the candidate-verification and
+  revision-activation path; future changes must preserve the same fences.
 
 ## Related contexts
 
@@ -423,3 +431,4 @@ removed and is ignored.
 - [Single-Flight Assignment Synchronization](assignment-synchronization.md)
 - [Synchronization Retry and Backoff](synchronization-backoff.md)
 - [Adaptive Application Shell](adaptive-app-shell.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)

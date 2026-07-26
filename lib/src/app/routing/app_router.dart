@@ -8,6 +8,7 @@ import '../design_system/widgets/app_state_view.dart';
 import '../shell/adaptive_app_shell.dart';
 import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
+import '../../features/authentication/domain/automatic_session_reauthentication.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
@@ -133,14 +134,49 @@ class _SessionAwareShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lifecycle = ref.watch(sessionLifecycleProvider).value;
+    final attempt = lifecycle?.state == SessionLifecycleState.expired
+        ? ref
+              .watch(currentAutomaticSessionReauthenticationAttemptProvider)
+              .value
+        : null;
+    final message = _automaticReconnectMessage(attempt);
     return AdaptiveAppShell(
       navigationShell: navigationShell,
       globalBanner: lifecycle?.state == SessionLifecycleState.expired
-          ? AppStatusBanner.sessionExpired(
-              key: const Key('session-expired-banner'),
-              onAction: () => context.push(AppRoute.authentication.path),
-            )
+          ? message == null
+                ? null
+                : AppStatusBanner.sessionExpired(
+                    key: const Key('session-expired-banner'),
+                    message: message,
+                    onAction: () => context.push(AppRoute.authentication.path),
+                  )
           : null,
     );
   }
+}
+
+String? _automaticReconnectMessage(AutomaticReauthenticationAttempt? attempt) {
+  if (attempt?.state == AutomaticReauthenticationAttemptState.succeeded) {
+    return null;
+  }
+  if (attempt?.state == AutomaticReauthenticationAttemptState.running) {
+    return 'Your LEB2 session expired. Reconnecting securely… '
+        'Saved data remains available.';
+  }
+  return switch (attempt?.failureKind) {
+    AutomaticReauthenticationFailureKind.invalidCredentials =>
+      'Saved sign-in was not accepted. Reconnect manually.',
+    AutomaticReauthenticationFailureKind.notEnabled =>
+      'Automatic reconnect is not enabled. Reconnect manually. '
+          'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.cancelled ||
+    AutomaticReauthenticationFailureKind.timedOut ||
+    AutomaticReauthenticationFailureKind.superseded =>
+      'Automatic reconnect was interrupted. Reconnect manually. '
+          'Saved data remains available.',
+    null => 'Your LEB2 session expired. Showing saved data.',
+    _ =>
+      'Automatic reconnect failed. Reconnect manually. '
+          'Saved data remains available.',
+  };
 }

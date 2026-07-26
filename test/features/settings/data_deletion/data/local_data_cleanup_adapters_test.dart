@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
@@ -7,12 +8,21 @@ import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/database/app_database_manager.dart';
 import 'package:leb2_watch/src/core/database/local_database_access_gate.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
+import 'package:leb2_watch/src/core/network/backend_api_client.dart';
+import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
+    as backend;
+import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/assignments/sync/sync_operation_store.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/session_mutation_gate.dart';
+import 'package:leb2_watch/src/features/authentication/data/automatic_session_reauthentication_store.dart';
+import 'package:leb2_watch/src/features/authentication/data/session_identity_store.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
@@ -236,6 +246,19 @@ void main() {
     () async {
       final database = await manager.open();
       await _seedSemesterGraph(database);
+      final now = DateTime.utc(2026, 7, 26);
+      await database
+          .into(database.automaticSessionReauthenticationAttempts)
+          .insert(
+            AutomaticSessionReauthenticationAttemptsCompanion.insert(
+              sessionRevision: const drift.Value(3),
+              state: 'failed',
+              startedAtUtc: now,
+              deadlineAtUtc: now,
+              completedAtUtc: drift.Value(now),
+              failureKind: const drift.Value('networkUnavailable'),
+            ),
+          );
       final databaseFile = await storage.resolveDatabaseFile();
       final unrelated = File(path.join(supportDirectory.path, 'preserve.txt'));
       await unrelated.writeAsString('keep');
@@ -245,6 +268,12 @@ void main() {
         LocalDataDeletionStepStatus.completed,
       );
       expect(await cleanup.scrubAll(), LocalDataDeletionStepStatus.completed);
+      expect(
+        await database
+            .select(database.automaticSessionReauthenticationAttempts)
+            .get(),
+        isEmpty,
+      );
       expect(
         await cleanup.deleteFiles(),
         LocalDataDeletionStepStatus.completed,
@@ -280,6 +309,75 @@ void main() {
             .enabled,
         isTrue,
       );
+    },
+  );
+
+  test(
+    'delete all cannot be followed by a late automatic recreation',
+    () async {
+      final database = await manager.open();
+      await database
+          .into(database.appSettings)
+          .insert(
+            const AppSettingsCompanion(
+              singletonId: drift.Value(1),
+              leb2UserId: drift.Value(2001),
+              sessionLifecycle: drift.Value('expired'),
+              sessionRevision: drift.Value(7),
+            ),
+          );
+      final credentials = _RecoveryCredentialStore();
+      final backendClient = _DelayedRecoveryBackend();
+      final attempts = DriftAutomaticSessionReauthenticationStore(database);
+      final lifecycle = DriftSessionLifecycleStore(database);
+      final mutationGate = FileSessionMutationGate(
+        lockFileProvider: storage.resolveSessionMutationLockFile,
+      );
+      final automatic = LocalAutomaticSessionReauthenticationService(
+        backendSessionClient: backendClient,
+        credentialStore: credentials,
+        identityStore: DriftSessionIdentityStore(database),
+        lifecycleStore: lifecycle,
+        attemptStore: attempts,
+        mutationGate: mutationGate,
+        pollInterval: const Duration(milliseconds: 1),
+      );
+      final recovery = automatic.reauthenticate(expectedExpiredRevision: 7);
+      await backendClient.cookieEntered.future;
+      final credentialCleanup = SecureLocalDataCredentialCleanup(
+        credentials,
+        mutationGate: mutationGate,
+        automaticReauthenticationStore: attempts,
+        lifecycleStore: lifecycle,
+      );
+      final databaseFile = await storage.resolveDatabaseFile();
+
+      expect(
+        await cleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await credentialCleanup.clear(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(await cleanup.scrubAll(), LocalDataDeletionStepStatus.completed);
+      expect(
+        await cleanup.deleteFiles(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await cleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      backendClient.releaseCookie.complete();
+
+      expect(await recovery, isA<AutomaticSessionReauthenticationFailed>());
+      expect(credentials.cookie, isNull);
+      expect(credentials.credentials, isNull);
+      expect(credentials.writesAfterClear, 0);
+      expect(await databaseFile.exists(), isFalse);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(await databaseFile.exists(), isFalse);
     },
   );
 
@@ -833,4 +931,82 @@ final class _CredentialStore implements CredentialStore {
 
   @override
   Future<void> saveSessionCookie(String value) async {}
+}
+
+final class _RecoveryCredentialStore implements CredentialStore {
+  String? cookie = '<SESSION_COOKIE_OLD>';
+  StoredCredentials? credentials = const StoredCredentials(
+    username: '<USERNAME>',
+    password: '<PASSWORD>',
+  );
+  bool cleared = false;
+  int writesAfterClear = 0;
+
+  @override
+  Future<void> clear() async {
+    cleared = true;
+    cookie = null;
+    credentials = null;
+  }
+
+  @override
+  Future<void> deleteCredentials() async {
+    credentials = null;
+  }
+
+  @override
+  Future<void> deleteSessionCookie() async {
+    cookie = null;
+  }
+
+  @override
+  Future<StoredCredentials?> readCredentials() async => credentials;
+
+  @override
+  Future<String?> readSessionCookie() async => cookie;
+
+  @override
+  Future<void> saveCredentials(StoredCredentials value) async {
+    if (cleared) {
+      writesAfterClear += 1;
+    }
+    credentials = value;
+  }
+
+  @override
+  Future<void> saveSessionCookie(String value) async {
+    if (cleared) {
+      writesAfterClear += 1;
+    }
+    cookie = value;
+  }
+}
+
+final class _DelayedRecoveryBackend implements BackendSessionClient {
+  final cookieEntered = Completer<void>();
+  final releaseCookie = Completer<void>();
+
+  @override
+  Future<BackendUserIdentity> authenticateUser({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  }) async => const BackendUserIdentity(id: 2001);
+
+  @override
+  Future<BackendSessionCookie> acquireSessionCookie({
+    required String username,
+    required String password,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    cookieEntered.complete();
+    await releaseCookie.future;
+    return const BackendSessionCookie('<SESSION_COOKIE_NEW>');
+  }
+
+  @override
+  Future<List<backend.Semester>> verifySessionCookie({
+    required String candidateCookie,
+    BackendRequestCancellation? cancellation,
+  }) async => const [backend.Semester(id: 101)];
 }

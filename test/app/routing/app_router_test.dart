@@ -995,6 +995,9 @@ class _RouterHarness extends StatelessWidget {
           (_) => const FakeNotificationSettingsService(),
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
+        currentAutomaticSessionReauthenticationAttemptProvider.overrideWith(
+          (_) => Stream.value(null),
+        ),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,

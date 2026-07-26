@@ -11,8 +11,8 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('fresh v11 schema enables new-assignment notifications', () async {
-    expect(database.schemaVersion, 11);
+  test('fresh v12 schema enables new-assignment notifications', () async {
+    expect(database.schemaVersion, 12);
 
     final preference = await database
         .select(database.newAssignmentNotificationPreferences)

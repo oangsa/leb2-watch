@@ -28,7 +28,8 @@ application-owned interface and fixed failures instead of depending on
 
 ## Non-scope
 
-- Session-expiration lifecycle or automatic-reauthentication execution.
+- Session-expiration lifecycle state; the automatic executor consumes this
+  storage only through `CredentialStore`.
 - Backend authentication transport behavior.
 - SQLite, SharedPreferences, settings, logs, or crash reporting.
 - Real desktop keyring writes in automated tests.
@@ -65,6 +66,12 @@ Riverpod scope. `LocalSessionSetupService` consumes only the interface and
 coordinates secure values with the non-secret SQLite identity. Candidate
 verification completes before secure mutation; a failed multi-store commit
 attempts to restore the prior secure values.
+
+`LocalAutomaticSessionReauthenticationService` reads the optional credential
+payload only after it wins the durable expired-revision claim. It verifies a
+candidate cookie before saving it, deletes credentials only for the exact
+verified login invalid-credential response, and revalidates their equality
+under the session mutation gate before any deletion or replacement.
 
 ## Important files
 
@@ -317,8 +324,8 @@ reviewed and contains no generated secret-bearing `toString`.
 
 ## Future considerations
 
-- Reuse the composed adapter when the session-expiration feature implements
-  automatic reauthentication.
+- Keep automatic recovery behind this interface and preserve its
+  candidate-before-save and exact-invalid-evidence rules.
 - Add schema migrations only when a real new credential shape is required.
 - Revalidate Android SharedPreferences exclusion paths whenever
   `flutter_secure_storage` is upgraded.
@@ -330,3 +337,4 @@ reviewed and contains no generated secret-bearing `toString`.
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)

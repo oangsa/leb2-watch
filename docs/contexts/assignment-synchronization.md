@@ -8,6 +8,8 @@ Feature 8.2 now extends successful results with committed assignment changes.
 Feature 8.3 now adds durable automatic-trigger admission and backoff outcomes.
 Feature 9.3 now adds a durable global session-expiration gate and revision
 fence.
+Automatic session reauthentication now decorates the notification-aware
+service and performs at most one direct continuation after verified recovery.
 Platform background entry points and end-to-end native background execution
 are not part of this feature.
 
@@ -31,6 +33,7 @@ success is visible only after its snapshot transaction commits.
 - Active-join-before-policy admission and fenced exact-once backoff mutation.
 - Global lifecycle admission before enqueue, all-queued terminalization while
   expired, and per-operation running-response revision fencing.
+- Exact-expiration automatic recovery with one non-recursive continuation.
 - Safe failure/cancellation history and a local persistence failure category.
 - Real file-backed multi-connection, rollback, migration, constraint, codec,
   and security tests.
@@ -53,6 +56,10 @@ enqueueing while policy is waiting or blocked. Successful completion means the
 new rows and policy reset are already committed.
 While the saved session is expired, every reason returns a redacted paused
 outcome before enqueue, history, or HTTP.
+If an operation itself receives exact expiration and saved recovery
+credentials exist, the composed decorator recovers the session and invokes
+the underlying service once. A second expiration is returned without another
+recovery loop.
 
 ## Architecture
 
@@ -65,6 +72,9 @@ snapshot-to-row reconciliation and diff persistence.
 transactions. `SyncBackoffStore` owns durable admission and failure-delay
 policy. `AppDatabase` owns the generated schema.
 `DriftSessionLifecycleStore` owns the global active/expired state and revision.
+`ReauthenticatingAssignmentSyncService` wraps the notification-aware service,
+while `QuiescenceAwareAssignmentSyncService` stays outermost for deletion
+cancellation and join semantics.
 
 The public layer imports no Dio or Drift type. The concrete service consumes
 `BackendApiClient`, whose implementation reads the current secure credential
@@ -88,6 +98,8 @@ per request.
   operation/backoff failure codec.
 - `lib/src/core/session/session_lifecycle.dart` — durable global lifecycle and
   revision fence.
+- `lib/src/features/authentication/application/reauthenticating_assignment_sync_service.dart`
+  — exact-expiration recovery and single continuation.
 - `lib/src/core/database/database_tables.dart` — synchronization and change
   persistence schema.
 - `lib/src/core/database/app_database.dart` — v6 migration and transactional
@@ -378,5 +390,6 @@ final broad evidence is recorded in
 - [Authenticated Backend API Client](backend-api-client.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [API Error Mapping](api-error-mapping.md)
+- [Automatic Session Reauthentication](automatic-session-reauthentication.md)
 - [Verified Backend API Contract](backend-api-contract.md)
 - [Session Expiration Recovery](session-expiration.md)

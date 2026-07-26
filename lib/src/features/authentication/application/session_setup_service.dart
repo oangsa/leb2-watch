@@ -3,7 +3,10 @@ import '../../../core/network/backend_transport_failure.dart';
 import '../../../core/security/credential_store.dart';
 import '../../../core/security/stored_credentials.dart';
 import '../../../core/session/session_lifecycle.dart';
+import '../data/automatic_session_reauthentication_store.dart';
 import '../data/session_identity_store.dart';
+import 'session_mutation_gate.dart';
+import 'session_transport_failure_mapper.dart';
 
 const _maximumInt32 = 2147483647;
 
@@ -103,17 +106,43 @@ final class SessionSetupCancellation {
 }
 
 final class LocalSessionSetupService implements SessionSetupService {
-  LocalSessionSetupService(
+  factory LocalSessionSetupService(
+    BackendSessionClient backendSessionClient,
+    CredentialStore credentialStore,
+    SessionIdentityStore identityStore,
+    SessionLifecycleStore lifecycleStore, {
+    SessionMutationGate? mutationGate,
+    AutomaticSessionReauthenticationStore? automaticReauthenticationStore,
+    DateTime Function()? now,
+  }) {
+    return LocalSessionSetupService._(
+      backendSessionClient,
+      credentialStore,
+      identityStore,
+      lifecycleStore,
+      mutationGate ?? const _ImmediateSessionMutationGate(),
+      automaticReauthenticationStore,
+      now ?? (() => DateTime.now().toUtc()),
+    );
+  }
+
+  LocalSessionSetupService._(
     this._backendSessionClient,
     this._credentialStore,
     this._identityStore,
     this._lifecycleStore,
+    this._mutationGate,
+    this._automaticReauthenticationStore,
+    this._now,
   );
 
   final BackendSessionClient _backendSessionClient;
   final CredentialStore _credentialStore;
   final SessionIdentityStore _identityStore;
   final SessionLifecycleStore _lifecycleStore;
+  final SessionMutationGate _mutationGate;
+  final AutomaticSessionReauthenticationStore? _automaticReauthenticationStore;
+  final DateTime Function() _now;
 
   bool _operationInProgress = false;
 
@@ -173,6 +202,11 @@ final class LocalSessionSetupService implements SessionSetupService {
           SessionSetupFailureKind.incompleteSavedSession,
         );
       }
+      if (!await _supersedeAutomaticRecovery(prior)) {
+        return const SessionSetupFailure(
+          SessionSetupFailureKind.localStorageUnavailable,
+        );
+      }
 
       SessionSetupResult verification;
       try {
@@ -195,7 +229,7 @@ final class LocalSessionSetupService implements SessionSetupService {
         }
         verification = _mapTransportFailure(
           error,
-          _SessionRequest.verification,
+          SessionTransportRequest.verification,
         );
       } on Object {
         verification = const SessionSetupFailure(
@@ -209,7 +243,15 @@ final class LocalSessionSetupService implements SessionSetupService {
         return verification;
       }
       try {
-        await _lifecycleStore.markVerifiedActive(userId: prior.userId!);
+        final activated = await _mutationGate.runExclusive(
+          () => _lifecycleStore.markVerifiedActiveIfCurrent(
+            expected: prior.lifecycle,
+            userId: prior.userId!,
+          ),
+        );
+        if (activated == null) {
+          return const SessionSetupFailure(SessionSetupFailureKind.busy);
+        }
       } on Object {
         return const SessionSetupFailure(
           SessionSetupFailureKind.localStorageUnavailable,
@@ -244,6 +286,11 @@ final class LocalSessionSetupService implements SessionSetupService {
       if (prior.userId != null && prior.userId != userId) {
         return const SessionSetupFailure(
           SessionSetupFailureKind.differentAccountData,
+        );
+      }
+      if (!await _supersedeAutomaticRecovery(prior)) {
+        return const SessionSetupFailure(
+          SessionSetupFailureKind.localStorageUnavailable,
         );
       }
 
@@ -290,6 +337,11 @@ final class LocalSessionSetupService implements SessionSetupService {
       if (cancellation?.isCancelled ?? false) {
         return const SessionSetupFailure(SessionSetupFailureKind.cancelled);
       }
+      if (!await _supersedeAutomaticRecovery(prior)) {
+        return const SessionSetupFailure(
+          SessionSetupFailureKind.localStorageUnavailable,
+        );
+      }
 
       final BackendUserIdentity identity;
       try {
@@ -299,7 +351,7 @@ final class LocalSessionSetupService implements SessionSetupService {
           cancellation: cancellation?._transport,
         );
       } on BackendTransportException catch (error) {
-        return _mapTransportFailure(error, _SessionRequest.login);
+        return _mapTransportFailure(error, SessionTransportRequest.login);
       } on Object {
         return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
       }
@@ -321,7 +373,10 @@ final class LocalSessionSetupService implements SessionSetupService {
           cancellation: cancellation?._transport,
         );
       } on BackendTransportException catch (error) {
-        return _mapTransportFailure(error, _SessionRequest.cookieAcquisition);
+        return _mapTransportFailure(
+          error,
+          SessionTransportRequest.cookieAcquisition,
+        );
       } on Object {
         return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
       }
@@ -408,13 +463,44 @@ final class LocalSessionSetupService implements SessionSetupService {
       );
       return const SessionSetupSuccess();
     } on BackendTransportException catch (error) {
-      return _mapTransportFailure(error, _SessionRequest.verification);
+      return _mapTransportFailure(error, SessionTransportRequest.verification);
     } on Object {
       return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
     }
   }
 
   Future<SessionSetupResult> _commit({
+    required _PriorSession prior,
+    required String candidateCookie,
+    required StoredCredentials? candidateCredentials,
+    required int candidateUserId,
+  }) {
+    return _mutationGate
+        .runExclusive(() async {
+          final current = await _readPriorSession();
+          if (current == null) {
+            return const SessionSetupFailure(
+              SessionSetupFailureKind.secureStorageUnavailable,
+            );
+          }
+          if (!_canCommitManualCandidate(prior, current, candidateUserId)) {
+            return const SessionSetupFailure(SessionSetupFailureKind.busy);
+          }
+          return _commitInsideGate(
+            prior: current,
+            candidateCookie: candidateCookie,
+            candidateCredentials: candidateCredentials,
+            candidateUserId: candidateUserId,
+          );
+        })
+        .onError((_, _) {
+          return const SessionSetupFailure(
+            SessionSetupFailureKind.localStorageUnavailable,
+          );
+        });
+  }
+
+  Future<SessionSetupResult> _commitInsideGate({
     required _PriorSession prior,
     required String candidateCookie,
     required StoredCredentials? candidateCredentials,
@@ -460,6 +546,38 @@ final class LocalSessionSetupService implements SessionSetupService {
       );
     }
     return SessionSetupFailure(commitFailure);
+  }
+
+  bool _canCommitManualCandidate(
+    _PriorSession captured,
+    _PriorSession current,
+    int candidateUserId,
+  ) {
+    if (current.lifecycle == captured.lifecycle) {
+      return current.userId == captured.userId &&
+          current.cookie == captured.cookie &&
+          current.credentials == captured.credentials;
+    }
+    return current.lifecycle.state == SessionLifecycleState.active &&
+        current.lifecycle.revision == captured.lifecycle.revision + 1 &&
+        current.userId == candidateUserId;
+  }
+
+  Future<bool> _supersedeAutomaticRecovery(_PriorSession prior) async {
+    final store = _automaticReauthenticationStore;
+    if (store == null ||
+        prior.lifecycle.state != SessionLifecycleState.expired) {
+      return true;
+    }
+    try {
+      await store.cancelForManualReplacement(
+        expectedExpiredRevision: prior.lifecycle.revision,
+        completedAtUtc: _now().toUtc(),
+      );
+      return true;
+    } on Object {
+      return false;
+    }
   }
 
   Future<bool> _restorePrior(_PriorSession prior) async {
@@ -514,98 +632,31 @@ final class LocalSessionSetupService implements SessionSetupService {
   String toString() => 'LocalSessionSetupService(redacted: true)';
 }
 
-enum _SessionRequest { verification, login, cookieAcquisition }
-
 SessionSetupFailure _mapTransportFailure(
   BackendTransportException error,
-  _SessionRequest request,
+  SessionTransportRequest request,
 ) {
-  return switch (error.kind) {
-    BackendTransportFailureKind.cancelled => const SessionSetupFailure(
-      SessionSetupFailureKind.cancelled,
-    ),
-    BackendTransportFailureKind.connectionTimeout ||
-    BackendTransportFailureKind.sendTimeout ||
-    BackendTransportFailureKind.receiveTimeout ||
-    BackendTransportFailureKind.transformTimeout => const SessionSetupFailure(
+  final mapped = mapSessionTransportFailure(error, request);
+  final kind = switch (mapped.kind) {
+    SessionTransportFailureKind.cancelled => SessionSetupFailureKind.cancelled,
+    SessionTransportFailureKind.requestTimeout =>
       SessionSetupFailureKind.requestTimeout,
-    ),
-    BackendTransportFailureKind.connectionError => const SessionSetupFailure(
+    SessionTransportFailureKind.networkUnavailable =>
       SessionSetupFailureKind.networkUnavailable,
-    ),
-    BackendTransportFailureKind.invalidResponse => const SessionSetupFailure(
+    SessionTransportFailureKind.invalidResponse =>
       SessionSetupFailureKind.invalidResponse,
-    ),
-    BackendTransportFailureKind.httpResponse => _mapHttpFailure(
-      error.httpError,
-      request,
-    ),
-    BackendTransportFailureKind.badCertificate => const SessionSetupFailure(
-      SessionSetupFailureKind.backendUnavailable,
-    ),
-    BackendTransportFailureKind.missingCredential ||
-    BackendTransportFailureKind.credentialAccessFailed ||
-    BackendTransportFailureKind.unknownFailure => const SessionSetupFailure(
-      SessionSetupFailureKind.unexpected,
-    ),
-  };
-}
-
-SessionSetupFailure _mapHttpFailure(
-  BackendHttpErrorEvidence? evidence,
-  _SessionRequest request,
-) {
-  if (evidence == null) {
-    return const SessionSetupFailure(SessionSetupFailureKind.invalidResponse);
-  }
-
-  final status = evidence.statusCode;
-  final code = evidence.responseCode;
-  if (request == _SessionRequest.verification &&
-      status == 401 &&
-      code == 'SESSION_EXPIRED') {
-    return const SessionSetupFailure(
+    SessionTransportFailureKind.invalidOrExpiredSession =>
       SessionSetupFailureKind.invalidOrExpiredSession,
-    );
-  }
-  if (request == _SessionRequest.login &&
-      status == 404 &&
-      code == 'RESOURCE_NOT_FOUND') {
-    return const SessionSetupFailure(
+    SessionTransportFailureKind.invalidCredentials =>
       SessionSetupFailureKind.invalidCredentials,
-    );
-  }
-  if (status == 429 && code == 'CLIENT_THROTTLE_ACTIVE' ||
-      status == 503 && code == 'REQUEST_BACKOFF_ACTIVE') {
-    return SessionSetupFailure(
+    SessionTransportFailureKind.rateLimited =>
       SessionSetupFailureKind.rateLimited,
-      retryAfter: evidence.retryAfter,
-    );
-  }
-  if (status == 408 && code == 'LEB2_UNAVAILABLE') {
-    return const SessionSetupFailure(SessionSetupFailureKind.requestTimeout);
-  }
-  if ((status == 502 || status == 503) && code == 'LEB2_UNAVAILABLE' ||
-      status == 500 && code == 'UNEXPECTED_ERROR') {
-    return SessionSetupFailure(
+    SessionTransportFailureKind.backendUnavailable =>
       SessionSetupFailureKind.backendUnavailable,
-      retryAfter: evidence.retryAfter,
-    );
-  }
-  if (status == 502 && code == 'SCRAPE_RESPONSE_CHANGED' ||
-      status == 401 && code == 'AUTHENTICATION_REQUIRED' ||
-      status == 400 && code == 'INVALID_REQUEST' ||
-      status == 404 && code == 'RESOURCE_NOT_FOUND' ||
-      code == 'SESSION_EXPIRED') {
-    return const SessionSetupFailure(SessionSetupFailureKind.invalidResponse);
-  }
-  if (status >= 500 && status <= 599) {
-    return SessionSetupFailure(
-      SessionSetupFailureKind.backendUnavailable,
-      retryAfter: evidence.retryAfter,
-    );
-  }
-  return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
+    SessionTransportFailureKind.unexpected =>
+      SessionSetupFailureKind.unexpected,
+  };
+  return SessionSetupFailure(kind, retryAfter: mapped.retryAfter);
 }
 
 final class _PriorSession {
@@ -637,4 +688,14 @@ final class _PriorSessionReadException implements Exception {
 
   @override
   String toString() => '_PriorSessionReadException(redacted: true)';
+}
+
+final class _ImmediateSessionMutationGate implements SessionMutationGate {
+  const _ImmediateSessionMutationGate();
+
+  @override
+  Future<T> runExclusive<T>(
+    Future<T> Function() action, {
+    bool Function()? isCancelled,
+  }) => action();
 }

@@ -139,7 +139,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(
         (await database.select(database.appSettings).getSingleOrNull())
             ?.leb2UserId,
@@ -295,7 +295,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(await database.select(database.activities).get(), hasLength(1));
       expect(
         await database.select(database.seenActivities).get(),
@@ -393,7 +393,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(
         (await database.select(database.semesters).getSingle()).semesterId,
         101,
@@ -458,7 +458,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved course',
@@ -519,7 +519,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       final setting = await database.select(database.appSettings).getSingle();
       expect(setting.activeSemesterId, 101);
       expect(setting.leb2UserId, 2001);
@@ -567,7 +567,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved v6 course',
@@ -625,7 +625,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 11);
+      expect(await _pragmaInt(database, 'user_version'), 12);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved v7 course',
@@ -664,7 +664,7 @@ void main() {
     final database = await storage.openDatabase();
     addTearDown(database.close);
 
-    expect(await _pragmaInt(database, 'user_version'), 11);
+    expect(await _pragmaInt(database, 'user_version'), 12);
     final settings = await database
         .select(database.backgroundScheduleSettings)
         .getSingle();

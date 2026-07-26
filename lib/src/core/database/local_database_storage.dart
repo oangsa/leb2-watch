@@ -24,6 +24,8 @@ class LocalDatabaseStorage {
        _databaseFileDelete = databaseFileDelete ?? ((file) => file.delete());
 
   static const databaseFileName = 'leb2_watch.sqlite';
+  static const sessionMutationLockFileName =
+      '.leb2_watch_session_mutation.lock';
 
   final ApplicationSupportDirectoryProvider
   _applicationSupportDirectoryProvider;
@@ -33,6 +35,13 @@ class LocalDatabaseStorage {
     final directory = await _applicationSupportDirectoryProvider();
     await directory.create(recursive: true);
     return File(path.join(directory.path, databaseFileName));
+  }
+
+  Future<File> resolveSessionMutationLockFile() async {
+    final databaseFile = await resolveDatabaseFile();
+    return File(
+      path.join(databaseFile.parent.path, sessionMutationLockFileName),
+    );
   }
 
   Future<AppDatabase> openDatabase() async {

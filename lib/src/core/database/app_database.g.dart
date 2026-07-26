@@ -9277,6 +9277,473 @@ class NewAssignmentNotificationPreferencesCompanion
   }
 }
 
+class $AutomaticSessionReauthenticationAttemptsTable
+    extends AutomaticSessionReauthenticationAttempts
+    with
+        TableInfo<
+          $AutomaticSessionReauthenticationAttemptsTable,
+          AutomaticSessionReauthenticationAttempt
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AutomaticSessionReauthenticationAttemptsTable(
+    this.attachedDatabase, [
+    this._alias,
+  ]);
+  static const VerificationMeta _sessionRevisionMeta = const VerificationMeta(
+    'sessionRevision',
+  );
+  @override
+  late final GeneratedColumn<int> sessionRevision = GeneratedColumn<int>(
+    'session_revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> startedAtUtc =
+      GeneratedColumn<int>(
+        'started_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterstartedAtUtc,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> deadlineAtUtc =
+      GeneratedColumn<int>(
+        'deadline_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterdeadlineAtUtc,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int> completedAtUtc =
+      GeneratedColumn<int>(
+        'completed_at_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      ).withConverter<DateTime?>(
+        $AutomaticSessionReauthenticationAttemptsTable
+            .$convertercompletedAtUtcn,
+      );
+  static const VerificationMeta _failureKindMeta = const VerificationMeta(
+    'failureKind',
+  );
+  @override
+  late final GeneratedColumn<String> failureKind = GeneratedColumn<String>(
+    'failure_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sessionRevision,
+    state,
+    startedAtUtc,
+    deadlineAtUtc,
+    completedAtUtc,
+    failureKind,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'automatic_session_reauthentication_attempts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AutomaticSessionReauthenticationAttempt> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_revision')) {
+      context.handle(
+        _sessionRevisionMeta,
+        sessionRevision.isAcceptableOrUnknown(
+          data['session_revision']!,
+          _sessionRevisionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('failure_kind')) {
+      context.handle(
+        _failureKindMeta,
+        failureKind.isAcceptableOrUnknown(
+          data['failure_kind']!,
+          _failureKindMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionRevision};
+  @override
+  AutomaticSessionReauthenticationAttempt map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AutomaticSessionReauthenticationAttempt(
+      sessionRevision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_revision'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      startedAtUtc: $AutomaticSessionReauthenticationAttemptsTable
+          .$converterstartedAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}started_at_utc'],
+            )!,
+          ),
+      deadlineAtUtc: $AutomaticSessionReauthenticationAttemptsTable
+          .$converterdeadlineAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}deadline_at_utc'],
+            )!,
+          ),
+      completedAtUtc: $AutomaticSessionReauthenticationAttemptsTable
+          .$convertercompletedAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}completed_at_utc'],
+            ),
+          ),
+      failureKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}failure_kind'],
+      ),
+    );
+  }
+
+  @override
+  $AutomaticSessionReauthenticationAttemptsTable createAlias(String alias) {
+    return $AutomaticSessionReauthenticationAttemptsTable(
+      attachedDatabase,
+      alias,
+    );
+  }
+
+  static TypeConverter<DateTime, int> $converterstartedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $converterdeadlineAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime, int> $convertercompletedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $convertercompletedAtUtcn =
+      NullAwareTypeConverter.wrap($convertercompletedAtUtc);
+}
+
+class AutomaticSessionReauthenticationAttempt extends DataClass
+    implements Insertable<AutomaticSessionReauthenticationAttempt> {
+  final int sessionRevision;
+  final String state;
+  final DateTime startedAtUtc;
+  final DateTime deadlineAtUtc;
+  final DateTime? completedAtUtc;
+  final String? failureKind;
+  const AutomaticSessionReauthenticationAttempt({
+    required this.sessionRevision,
+    required this.state,
+    required this.startedAtUtc,
+    required this.deadlineAtUtc,
+    this.completedAtUtc,
+    this.failureKind,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_revision'] = Variable<int>(sessionRevision);
+    map['state'] = Variable<String>(state);
+    {
+      map['started_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterstartedAtUtc
+            .toSql(startedAtUtc),
+      );
+    }
+    {
+      map['deadline_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterdeadlineAtUtc
+            .toSql(deadlineAtUtc),
+      );
+    }
+    if (!nullToAbsent || completedAtUtc != null) {
+      map['completed_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$convertercompletedAtUtcn
+            .toSql(completedAtUtc),
+      );
+    }
+    if (!nullToAbsent || failureKind != null) {
+      map['failure_kind'] = Variable<String>(failureKind);
+    }
+    return map;
+  }
+
+  AutomaticSessionReauthenticationAttemptsCompanion toCompanion(
+    bool nullToAbsent,
+  ) {
+    return AutomaticSessionReauthenticationAttemptsCompanion(
+      sessionRevision: Value(sessionRevision),
+      state: Value(state),
+      startedAtUtc: Value(startedAtUtc),
+      deadlineAtUtc: Value(deadlineAtUtc),
+      completedAtUtc: completedAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAtUtc),
+      failureKind: failureKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(failureKind),
+    );
+  }
+
+  factory AutomaticSessionReauthenticationAttempt.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AutomaticSessionReauthenticationAttempt(
+      sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
+      state: serializer.fromJson<String>(json['state']),
+      startedAtUtc: serializer.fromJson<DateTime>(json['startedAtUtc']),
+      deadlineAtUtc: serializer.fromJson<DateTime>(json['deadlineAtUtc']),
+      completedAtUtc: serializer.fromJson<DateTime?>(json['completedAtUtc']),
+      failureKind: serializer.fromJson<String?>(json['failureKind']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionRevision': serializer.toJson<int>(sessionRevision),
+      'state': serializer.toJson<String>(state),
+      'startedAtUtc': serializer.toJson<DateTime>(startedAtUtc),
+      'deadlineAtUtc': serializer.toJson<DateTime>(deadlineAtUtc),
+      'completedAtUtc': serializer.toJson<DateTime?>(completedAtUtc),
+      'failureKind': serializer.toJson<String?>(failureKind),
+    };
+  }
+
+  AutomaticSessionReauthenticationAttempt copyWith({
+    int? sessionRevision,
+    String? state,
+    DateTime? startedAtUtc,
+    DateTime? deadlineAtUtc,
+    Value<DateTime?> completedAtUtc = const Value.absent(),
+    Value<String?> failureKind = const Value.absent(),
+  }) => AutomaticSessionReauthenticationAttempt(
+    sessionRevision: sessionRevision ?? this.sessionRevision,
+    state: state ?? this.state,
+    startedAtUtc: startedAtUtc ?? this.startedAtUtc,
+    deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
+    completedAtUtc: completedAtUtc.present
+        ? completedAtUtc.value
+        : this.completedAtUtc,
+    failureKind: failureKind.present ? failureKind.value : this.failureKind,
+  );
+  AutomaticSessionReauthenticationAttempt copyWithCompanion(
+    AutomaticSessionReauthenticationAttemptsCompanion data,
+  ) {
+    return AutomaticSessionReauthenticationAttempt(
+      sessionRevision: data.sessionRevision.present
+          ? data.sessionRevision.value
+          : this.sessionRevision,
+      state: data.state.present ? data.state.value : this.state,
+      startedAtUtc: data.startedAtUtc.present
+          ? data.startedAtUtc.value
+          : this.startedAtUtc,
+      deadlineAtUtc: data.deadlineAtUtc.present
+          ? data.deadlineAtUtc.value
+          : this.deadlineAtUtc,
+      completedAtUtc: data.completedAtUtc.present
+          ? data.completedAtUtc.value
+          : this.completedAtUtc,
+      failureKind: data.failureKind.present
+          ? data.failureKind.value
+          : this.failureKind,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutomaticSessionReauthenticationAttempt(')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('state: $state, ')
+          ..write('startedAtUtc: $startedAtUtc, ')
+          ..write('deadlineAtUtc: $deadlineAtUtc, ')
+          ..write('completedAtUtc: $completedAtUtc, ')
+          ..write('failureKind: $failureKind')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sessionRevision,
+    state,
+    startedAtUtc,
+    deadlineAtUtc,
+    completedAtUtc,
+    failureKind,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AutomaticSessionReauthenticationAttempt &&
+          other.sessionRevision == this.sessionRevision &&
+          other.state == this.state &&
+          other.startedAtUtc == this.startedAtUtc &&
+          other.deadlineAtUtc == this.deadlineAtUtc &&
+          other.completedAtUtc == this.completedAtUtc &&
+          other.failureKind == this.failureKind);
+}
+
+class AutomaticSessionReauthenticationAttemptsCompanion
+    extends UpdateCompanion<AutomaticSessionReauthenticationAttempt> {
+  final Value<int> sessionRevision;
+  final Value<String> state;
+  final Value<DateTime> startedAtUtc;
+  final Value<DateTime> deadlineAtUtc;
+  final Value<DateTime?> completedAtUtc;
+  final Value<String?> failureKind;
+  const AutomaticSessionReauthenticationAttemptsCompanion({
+    this.sessionRevision = const Value.absent(),
+    this.state = const Value.absent(),
+    this.startedAtUtc = const Value.absent(),
+    this.deadlineAtUtc = const Value.absent(),
+    this.completedAtUtc = const Value.absent(),
+    this.failureKind = const Value.absent(),
+  });
+  AutomaticSessionReauthenticationAttemptsCompanion.insert({
+    this.sessionRevision = const Value.absent(),
+    required String state,
+    required DateTime startedAtUtc,
+    required DateTime deadlineAtUtc,
+    this.completedAtUtc = const Value.absent(),
+    this.failureKind = const Value.absent(),
+  }) : state = Value(state),
+       startedAtUtc = Value(startedAtUtc),
+       deadlineAtUtc = Value(deadlineAtUtc);
+  static Insertable<AutomaticSessionReauthenticationAttempt> custom({
+    Expression<int>? sessionRevision,
+    Expression<String>? state,
+    Expression<int>? startedAtUtc,
+    Expression<int>? deadlineAtUtc,
+    Expression<int>? completedAtUtc,
+    Expression<String>? failureKind,
+  }) {
+    return RawValuesInsertable({
+      if (sessionRevision != null) 'session_revision': sessionRevision,
+      if (state != null) 'state': state,
+      if (startedAtUtc != null) 'started_at_utc': startedAtUtc,
+      if (deadlineAtUtc != null) 'deadline_at_utc': deadlineAtUtc,
+      if (completedAtUtc != null) 'completed_at_utc': completedAtUtc,
+      if (failureKind != null) 'failure_kind': failureKind,
+    });
+  }
+
+  AutomaticSessionReauthenticationAttemptsCompanion copyWith({
+    Value<int>? sessionRevision,
+    Value<String>? state,
+    Value<DateTime>? startedAtUtc,
+    Value<DateTime>? deadlineAtUtc,
+    Value<DateTime?>? completedAtUtc,
+    Value<String?>? failureKind,
+  }) {
+    return AutomaticSessionReauthenticationAttemptsCompanion(
+      sessionRevision: sessionRevision ?? this.sessionRevision,
+      state: state ?? this.state,
+      startedAtUtc: startedAtUtc ?? this.startedAtUtc,
+      deadlineAtUtc: deadlineAtUtc ?? this.deadlineAtUtc,
+      completedAtUtc: completedAtUtc ?? this.completedAtUtc,
+      failureKind: failureKind ?? this.failureKind,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionRevision.present) {
+      map['session_revision'] = Variable<int>(sessionRevision.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (startedAtUtc.present) {
+      map['started_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterstartedAtUtc
+            .toSql(startedAtUtc.value),
+      );
+    }
+    if (deadlineAtUtc.present) {
+      map['deadline_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$converterdeadlineAtUtc
+            .toSql(deadlineAtUtc.value),
+      );
+    }
+    if (completedAtUtc.present) {
+      map['completed_at_utc'] = Variable<int>(
+        $AutomaticSessionReauthenticationAttemptsTable.$convertercompletedAtUtcn
+            .toSql(completedAtUtc.value),
+      );
+    }
+    if (failureKind.present) {
+      map['failure_kind'] = Variable<String>(failureKind.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutomaticSessionReauthenticationAttemptsCompanion(')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('state: $state, ')
+          ..write('startedAtUtc: $startedAtUtc, ')
+          ..write('deadlineAtUtc: $deadlineAtUtc, ')
+          ..write('completedAtUtc: $completedAtUtc, ')
+          ..write('failureKind: $failureKind')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AppSettingsTable extends AppSettings
     with TableInfo<$AppSettingsTable, AppSetting> {
   @override
@@ -9696,6 +10163,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NewAssignmentNotificationPreferencesTable
   newAssignmentNotificationPreferences =
       $NewAssignmentNotificationPreferencesTable(this);
+  late final $AutomaticSessionReauthenticationAttemptsTable
+  automaticSessionReauthenticationAttempts =
+      $AutomaticSessionReauthenticationAttemptsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -9792,6 +10262,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     deadlineReminderReconciliations,
     backgroundScheduleSettings,
     newAssignmentNotificationPreferences,
+    automaticSessionReauthenticationAttempts,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -14543,6 +15014,266 @@ typedef $$NewAssignmentNotificationPreferencesTableProcessedTableManager =
       NewAssignmentNotificationPreference,
       PrefetchHooks Function()
     >;
+typedef $$AutomaticSessionReauthenticationAttemptsTableCreateCompanionBuilder =
+    AutomaticSessionReauthenticationAttemptsCompanion Function({
+      Value<int> sessionRevision,
+      required String state,
+      required DateTime startedAtUtc,
+      required DateTime deadlineAtUtc,
+      Value<DateTime?> completedAtUtc,
+      Value<String?> failureKind,
+    });
+typedef $$AutomaticSessionReauthenticationAttemptsTableUpdateCompanionBuilder =
+    AutomaticSessionReauthenticationAttemptsCompanion Function({
+      Value<int> sessionRevision,
+      Value<String> state,
+      Value<DateTime> startedAtUtc,
+      Value<DateTime> deadlineAtUtc,
+      Value<DateTime?> completedAtUtc,
+      Value<String?> failureKind,
+    });
+
+class $$AutomaticSessionReauthenticationAttemptsTableFilterComposer
+    extends
+        Composer<
+          _$AppDatabase,
+          $AutomaticSessionReauthenticationAttemptsTable
+        > {
+  $$AutomaticSessionReauthenticationAttemptsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get startedAtUtc =>
+      $composableBuilder(
+        column: $table.startedAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get deadlineAtUtc =>
+      $composableBuilder(
+        column: $table.deadlineAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int> get completedAtUtc =>
+      $composableBuilder(
+        column: $table.completedAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get failureKind => $composableBuilder(
+    column: $table.failureKind,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AutomaticSessionReauthenticationAttemptsTableOrderingComposer
+    extends
+        Composer<
+          _$AppDatabase,
+          $AutomaticSessionReauthenticationAttemptsTable
+        > {
+  $$AutomaticSessionReauthenticationAttemptsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startedAtUtc => $composableBuilder(
+    column: $table.startedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deadlineAtUtc => $composableBuilder(
+    column: $table.deadlineAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get completedAtUtc => $composableBuilder(
+    column: $table.completedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get failureKind => $composableBuilder(
+    column: $table.failureKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AutomaticSessionReauthenticationAttemptsTableAnnotationComposer
+    extends
+        Composer<
+          _$AppDatabase,
+          $AutomaticSessionReauthenticationAttemptsTable
+        > {
+  $$AutomaticSessionReauthenticationAttemptsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get sessionRevision => $composableBuilder(
+    column: $table.sessionRevision,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get startedAtUtc =>
+      $composableBuilder(
+        column: $table.startedAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get deadlineAtUtc =>
+      $composableBuilder(
+        column: $table.deadlineAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get completedAtUtc =>
+      $composableBuilder(
+        column: $table.completedAtUtc,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<String> get failureKind => $composableBuilder(
+    column: $table.failureKind,
+    builder: (column) => column,
+  );
+}
+
+class $$AutomaticSessionReauthenticationAttemptsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AutomaticSessionReauthenticationAttemptsTable,
+          AutomaticSessionReauthenticationAttempt,
+          $$AutomaticSessionReauthenticationAttemptsTableFilterComposer,
+          $$AutomaticSessionReauthenticationAttemptsTableOrderingComposer,
+          $$AutomaticSessionReauthenticationAttemptsTableAnnotationComposer,
+          $$AutomaticSessionReauthenticationAttemptsTableCreateCompanionBuilder,
+          $$AutomaticSessionReauthenticationAttemptsTableUpdateCompanionBuilder,
+          (
+            AutomaticSessionReauthenticationAttempt,
+            BaseReferences<
+              _$AppDatabase,
+              $AutomaticSessionReauthenticationAttemptsTable,
+              AutomaticSessionReauthenticationAttempt
+            >,
+          ),
+          AutomaticSessionReauthenticationAttempt,
+          PrefetchHooks Function()
+        > {
+  $$AutomaticSessionReauthenticationAttemptsTableTableManager(
+    _$AppDatabase db,
+    $AutomaticSessionReauthenticationAttemptsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AutomaticSessionReauthenticationAttemptsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$AutomaticSessionReauthenticationAttemptsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AutomaticSessionReauthenticationAttemptsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> sessionRevision = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> startedAtUtc = const Value.absent(),
+                Value<DateTime> deadlineAtUtc = const Value.absent(),
+                Value<DateTime?> completedAtUtc = const Value.absent(),
+                Value<String?> failureKind = const Value.absent(),
+              }) => AutomaticSessionReauthenticationAttemptsCompanion(
+                sessionRevision: sessionRevision,
+                state: state,
+                startedAtUtc: startedAtUtc,
+                deadlineAtUtc: deadlineAtUtc,
+                completedAtUtc: completedAtUtc,
+                failureKind: failureKind,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> sessionRevision = const Value.absent(),
+                required String state,
+                required DateTime startedAtUtc,
+                required DateTime deadlineAtUtc,
+                Value<DateTime?> completedAtUtc = const Value.absent(),
+                Value<String?> failureKind = const Value.absent(),
+              }) => AutomaticSessionReauthenticationAttemptsCompanion.insert(
+                sessionRevision: sessionRevision,
+                state: state,
+                startedAtUtc: startedAtUtc,
+                deadlineAtUtc: deadlineAtUtc,
+                completedAtUtc: completedAtUtc,
+                failureKind: failureKind,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AutomaticSessionReauthenticationAttemptsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AutomaticSessionReauthenticationAttemptsTable,
+      AutomaticSessionReauthenticationAttempt,
+      $$AutomaticSessionReauthenticationAttemptsTableFilterComposer,
+      $$AutomaticSessionReauthenticationAttemptsTableOrderingComposer,
+      $$AutomaticSessionReauthenticationAttemptsTableAnnotationComposer,
+      $$AutomaticSessionReauthenticationAttemptsTableCreateCompanionBuilder,
+      $$AutomaticSessionReauthenticationAttemptsTableUpdateCompanionBuilder,
+      (
+        AutomaticSessionReauthenticationAttempt,
+        BaseReferences<
+          _$AppDatabase,
+          $AutomaticSessionReauthenticationAttemptsTable,
+          AutomaticSessionReauthenticationAttempt
+        >,
+      ),
+      AutomaticSessionReauthenticationAttempt,
+      PrefetchHooks Function()
+    >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> singletonId,
@@ -14806,6 +15537,12 @@ class $AppDatabaseManager {
       $$NewAssignmentNotificationPreferencesTableTableManager(
         _db,
         _db.newAssignmentNotificationPreferences,
+      );
+  $$AutomaticSessionReauthenticationAttemptsTableTableManager
+  get automaticSessionReauthenticationAttempts =>
+      $$AutomaticSessionReauthenticationAttemptsTableTableManager(
+        _db,
+        _db.automaticSessionReauthenticationAttempts,
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);

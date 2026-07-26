@@ -17,6 +17,8 @@ import 'package:leb2_watch/src/features/background_sync/application/background_m
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
+import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_drain.dart';
@@ -150,6 +152,7 @@ void main() {
     final reconciler = _AppBackgroundReconciler();
     final sync = _AppSyncService();
     final statusRefreshes = BackgroundScheduleStatusRefreshSignal();
+    final automatic = _AppAutomaticReauthenticationService();
     var statusRefreshRequests = 0;
     final statusRefreshSubscription = statusRefreshes.requests.listen((_) {
       statusRefreshRequests += 1;
@@ -179,6 +182,9 @@ void main() {
           backgroundScheduleStatusRefreshSignalProvider.overrideWithValue(
             statusRefreshes,
           ),
+          automaticSessionReauthenticationServiceProvider.overrideWith(
+            (_) async => automatic,
+          ),
         ],
         child: Leb2WatchApp(configuration: AppConfiguration.parse()),
       ),
@@ -195,13 +201,207 @@ void main() {
     expect(reconciler.executionAllowedValues, [isTrue]);
     expect(statusRefreshRequests, 1);
 
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.expired,
+        revision: 7,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(reconciler.executionAllowedValues, [isTrue, isFalse]);
+    expect(automatic.revisions, [7]);
+
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
 
     expect(sync.reasons, [SyncReason.appResume]);
-    expect(statusRefreshRequests, 2);
+    expect(statusRefreshRequests, 3);
   });
+
+  testWidgets('a newer active revision supersedes delayed expired work', (
+    tester,
+  ) async {
+    final sessions = StreamController<SessionLifecycleSnapshot>();
+    final reconciler = _AppBackgroundReconciler();
+    final gate = Completer<void>();
+    reconciler.nextGate = gate;
+    final automatic = _AppAutomaticReauthenticationService();
+    final setup = await _pumpLifecycleApp(
+      tester,
+      sessions: sessions,
+      reconciler: reconciler,
+      automatic: automatic,
+    );
+    addTearDown(setup.dispose);
+
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.expired,
+        revision: 7,
+      ),
+    );
+    await tester.pump();
+    expect(reconciler.executionAllowedValues, [isFalse]);
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.active,
+        revision: 8,
+      ),
+    );
+    await tester.pump();
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(reconciler.executionAllowedValues, [isFalse, isTrue]);
+    expect(automatic.revisions, isEmpty);
+  });
+
+  testWidgets('delayed active work cannot suppress a later expiry', (
+    tester,
+  ) async {
+    final sessions = StreamController<SessionLifecycleSnapshot>();
+    final reconciler = _AppBackgroundReconciler();
+    final gate = Completer<void>();
+    reconciler.nextGate = gate;
+    final automatic = _AppAutomaticReauthenticationService();
+    final setup = await _pumpLifecycleApp(
+      tester,
+      sessions: sessions,
+      reconciler: reconciler,
+      automatic: automatic,
+    );
+    addTearDown(setup.dispose);
+
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.active,
+        revision: 7,
+      ),
+    );
+    await tester.pump();
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.expired,
+        revision: 7,
+      ),
+    );
+    await tester.pump();
+
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(reconciler.executionAllowedValues, [isTrue, isFalse]);
+    expect(automatic.revisions, [7]);
+  });
+
+  testWidgets('duplicate persisted expiry triggers foreground recovery once', (
+    tester,
+  ) async {
+    final sessions = StreamController<SessionLifecycleSnapshot>();
+    final reconciler = _AppBackgroundReconciler();
+    final automatic = _AppAutomaticReauthenticationService();
+    final setup = await _pumpLifecycleApp(
+      tester,
+      sessions: sessions,
+      reconciler: reconciler,
+      automatic: automatic,
+    );
+    addTearDown(setup.dispose);
+    const expired = SessionLifecycleSnapshot(
+      state: SessionLifecycleState.expired,
+      revision: 7,
+    );
+
+    sessions
+      ..add(expired)
+      ..add(expired);
+    await tester.pumpAndSettle();
+
+    expect(reconciler.executionAllowedValues, [isFalse]);
+    expect(automatic.revisions, [7]);
+  });
+}
+
+Future<_LifecycleAppSetup> _pumpLifecycleApp(
+  WidgetTester tester, {
+  required StreamController<SessionLifecycleSnapshot> sessions,
+  required _AppBackgroundReconciler reconciler,
+  required _AppAutomaticReauthenticationService automatic,
+}) async {
+  final flow = AppFlowController();
+  final notifications = _AppNotificationService();
+  final refresh = BackgroundScheduleStatusRefreshSignal();
+  final lifecycle = BackgroundMonitoringLifecycle(
+    reconciler,
+    BackgroundSyncRunner(const _AppBackgroundTargetStore(), _AppSyncService()),
+  );
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        appFlowControllerProvider.overrideWithValue(flow),
+        localNotificationServiceProvider.overrideWithValue(notifications),
+        newAssignmentNotificationDrainProvider.overrideWith(
+          (_) async => _AppNotificationDrain(),
+        ),
+        sessionLifecycleProvider.overrideWith((_) => sessions.stream),
+        backgroundMonitoringLifecycleProvider.overrideWith(
+          (_) async => lifecycle,
+        ),
+        backgroundScheduleStatusRefreshSignalProvider.overrideWithValue(
+          refresh,
+        ),
+        automaticSessionReauthenticationServiceProvider.overrideWith(
+          (_) async => automatic,
+        ),
+      ],
+      child: Leb2WatchApp(configuration: AppConfiguration.parse()),
+    ),
+  );
+  await tester.pump();
+  return _LifecycleAppSetup(flow, notifications, refresh, sessions);
+}
+
+final class _LifecycleAppSetup {
+  const _LifecycleAppSetup(
+    this.flow,
+    this.notifications,
+    this.refresh,
+    this.sessions,
+  );
+
+  final AppFlowController flow;
+  final _AppNotificationService notifications;
+  final BackgroundScheduleStatusRefreshSignal refresh;
+  final StreamController<SessionLifecycleSnapshot> sessions;
+
+  Future<void> dispose() async {
+    flow.dispose();
+    notifications.dispose();
+    refresh.dispose();
+    await sessions.close();
+  }
+}
+
+final class _AppAutomaticReauthenticationService
+    implements AutomaticSessionReauthenticationService {
+  final revisions = <int>[];
+
+  @override
+  Future<void> cancelCurrent() async {}
+
+  @override
+  Future<AutomaticSessionReauthenticationResult> reauthenticate({
+    required int expectedExpiredRevision,
+    AutomaticSessionReauthenticationCancellation? cancellation,
+  }) async {
+    revisions.add(expectedExpiredRevision);
+    return const AutomaticSessionReauthenticationFailed(
+      AutomaticReauthenticationFailureKind.notEnabled,
+    );
+  }
 }
 
 final class _AppNotificationDrain implements NewAssignmentNotificationDrain {
@@ -318,10 +518,14 @@ final class _AppAssignmentDetailService implements AssignmentDetailService {
 
 final class _AppBackgroundReconciler implements BackgroundScheduleReconciler {
   final List<bool> executionAllowedValues = [];
+  Completer<void>? nextGate;
 
   @override
   Future<void> reconcilePeriodicSync({required bool executionAllowed}) async {
     executionAllowedValues.add(executionAllowed);
+    final gate = nextGate;
+    nextGate = null;
+    await gate?.future;
   }
 }
 

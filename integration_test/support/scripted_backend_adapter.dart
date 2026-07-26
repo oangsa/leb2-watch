@@ -14,6 +14,7 @@ final class ScriptedBackendExchange {
     required this.path,
     required this.authorization,
     required this.body,
+    this.requestBody,
     this.userId,
     this.statusCode = 200,
     this.additionalHeaders = const {},
@@ -22,9 +23,10 @@ final class ScriptedBackendExchange {
 
   final String method;
   final String path;
-  final String authorization;
+  final String? authorization;
   final String? userId;
   final Object body;
+  final Object? requestBody;
   final int statusCode;
   final Map<String, List<String>> additionalHeaders;
   final Future<void>? release;
@@ -67,7 +69,21 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
         options.headers['X-LEB2-USER-ID'] == exchange.userId,
         'Unexpected LEB2 user ID header.',
       );
-      _require(requestStream == null, 'Unexpected request body stream.');
+      final expectedRequestBody = exchange.requestBody;
+      if (expectedRequestBody == null) {
+        _require(requestStream == null, 'Unexpected request body stream.');
+      } else {
+        _require(requestStream != null, 'Expected a request body stream.');
+        final bytes = await requestStream!.fold<List<int>>(
+          <int>[],
+          (value, chunk) => value..addAll(chunk),
+        );
+        final actualRequestBody = jsonDecode(utf8.decode(bytes));
+        _require(
+          _jsonMatches(actualRequestBody, expectedRequestBody),
+          'Unexpected sanitized request body.',
+        );
+      }
       await exchange.release;
       return ResponseBody.fromString(
         jsonEncode(exchange.body),
@@ -93,6 +109,27 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
     if (!condition) {
       _fail(message);
     }
+  }
+
+  bool _jsonMatches(Object? actual, Object? expected) {
+    if (actual is Map && expected is Map) {
+      if (actual.length != expected.length) {
+        return false;
+      }
+      return expected.entries.every(
+        (entry) =>
+            actual.containsKey(entry.key) &&
+            _jsonMatches(actual[entry.key], entry.value),
+      );
+    }
+    if (actual is List && expected is List) {
+      return actual.length == expected.length &&
+          List.generate(
+            actual.length,
+            (index) => _jsonMatches(actual[index], expected[index]),
+          ).every((matches) => matches);
+    }
+    return actual == expected;
   }
 
   void verifyComplete() {

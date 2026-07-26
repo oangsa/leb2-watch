@@ -1,5 +1,24 @@
 const sanitizedSemestersFixture = <int>[101, 102];
 
+const sanitizedCredentialsRequest = <String, Object?>{
+  'username': '<USERNAME>',
+  'password': '<PASSWORD>',
+  'remember': false,
+};
+
+const sanitizedUserProfileFixture = <String, Object?>{
+  'id': 2001,
+  'kmuttId': '<KMUTT_ID>',
+  'nameThai': '<THAI_NAME>',
+  'nameEnglish': '<ENGLISH_NAME>',
+  'surnameThai': '<THAI_SURNAME>',
+  'surnameEnglish': '<ENGLISH_SURNAME>',
+};
+
+Map<String, Object?> sanitizedCookieFixture(String cookie) {
+  return <String, Object?>{'cookie': cookie};
+}
+
 const sanitizedBaselineActivity = <String, Object?>{
   'id': 1001,
   'userId': 2001,
