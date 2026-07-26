@@ -10,6 +10,15 @@ enum SyncReason {
   trayAction,
 }
 
+bool isBackgroundEffectSyncReason(SyncReason reason) => switch (reason) {
+  SyncReason.backgroundTask || SyncReason.desktopTimer => true,
+  SyncReason.initialSetup ||
+  SyncReason.appLaunch ||
+  SyncReason.appResume ||
+  SyncReason.manualRefresh ||
+  SyncReason.trayAction => false,
+};
+
 enum AssignmentChangeKind { newActivity, deadlineChanged, removed }
 
 final class AssignmentChange {

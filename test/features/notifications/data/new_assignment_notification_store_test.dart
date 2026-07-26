@@ -187,6 +187,36 @@ void main() {
     },
   );
 
+  test(
+    'background-disabled discovery waits for a later foreground claim',
+    () async {
+      await _seedCurrent(database, id: 1001, courseId: 3001);
+      await _seedCurrent(database, id: 1002, courseId: 3002);
+      await database
+          .into(database.coursePreferences)
+          .insert(
+            CoursePreferencesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              backgroundMonitoringEnabled: const drift.Value(false),
+            ),
+          );
+
+      final background = await store.claimNext(
+        semesterId: 101,
+        backgroundTriggered: true,
+      );
+
+      expect(background!.request!.courseId, 3002);
+      expect(
+        await store.claimNext(semesterId: 101, backgroundTriggered: true),
+        isNull,
+      );
+      final foreground = await store.claimNext(semesterId: 101);
+      expect(foreground!.request!.courseId, 3001);
+    },
+  );
+
   test('recognized legacy kind suppresses a canonical claim', () async {
     await _seedCurrent(database, id: 1001);
     await database
@@ -386,6 +416,7 @@ Future<void> _seedCurrent(
   DateTime? firstSeenAt,
   String? identityKey,
   bool persistBackendActivityId = true,
+  int courseId = 3001,
 }) async {
   await database
       .into(database.semesters)
@@ -398,8 +429,8 @@ Future<void> _seedCurrent(
       .insert(
         CoursesCompanion.insert(
           semesterId: 101,
-          courseId: 3001,
-          name: 'Course 3001',
+          courseId: courseId,
+          name: 'Course $courseId',
         ),
         mode: drift.InsertMode.insertOrIgnore,
       );
@@ -410,7 +441,7 @@ Future<void> _seedCurrent(
         SeenActivitiesCompanion.insert(
           semesterId: 101,
           identityKey: identity,
-          courseId: 3001,
+          courseId: courseId,
           firstSeenAtUtc: firstSeenAt ?? DateTime.utc(2026, 7, 25),
           lastSeenAtUtc: DateTime.utc(2026, 7, 26),
           isBaseline: baseline,
@@ -422,7 +453,7 @@ Future<void> _seedCurrent(
         ActivitiesCompanion.insert(
           semesterId: 101,
           identityKey: identity,
-          courseId: 3001,
+          courseId: courseId,
           backendActivityId: drift.Value(persistBackendActivityId ? id : null),
           userId: 2001,
           advStarred: 0,

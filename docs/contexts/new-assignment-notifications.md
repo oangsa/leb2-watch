@@ -4,8 +4,10 @@
 
 Completed for post-baseline assignment discovery, durable local claim
 deduplication, per-course mute consumption, and one normal-path app-level show
-request. Platform I/O, operating-system display, and delivery are not inferred
-from the durable claim.
+request. Background-triggered sweeps also preserve discoveries from courses
+whose background monitoring is disabled for a later foreground sweep.
+Platform I/O, operating-system display, and delivery are not inferred from the
+durable claim.
 
 ## Purpose
 
@@ -28,7 +30,7 @@ or presenting assignments from muted courses.
 - Deadline reminder scheduling or reconciliation.
 - Permission explanation or request UI, global notification settings, and test
   actions.
-- Background workers, timers, tray actions, or autostart.
+- Native background workers, timers, tray actions, or autostart.
 - A retryable notification outbox, delivery receipts, or exact-once OS
   delivery.
 - Schema migrations, push notifications, remote user persistence, analytics,
@@ -85,7 +87,8 @@ identities; allocates an ID; inserts history; then returns the committed claim.
 
 ## Contracts and interfaces
 
-`NewAssignmentNotificationStore.claimNext(semesterId:)` returns:
+`NewAssignmentNotificationStore.claimNext(semesterId:,
+backgroundTriggered:)` returns:
 
 - `null` when no eligible current discovery remains;
 - `NewAssignmentNotificationClaim.show` after a normal history claim commits;
@@ -107,7 +110,7 @@ decorator unchanged.
 ## Data model
 
 Feature 12.2 itself added no migration. The application schema is now version
-8 because Feature 12.3 owns deadline-reminder preferences and reconciliation.
+9 because Feature 13.1 owns background scheduling and reminder effect scope.
 
 `seen_activities.is_baseline = false` supplies durable discovery evidence,
 while an inner join to `activities` and `courses` requires verified current
@@ -140,6 +143,13 @@ identity prevents a valid claim before discovery persistence.
     claimed by that in-process operation sweep.
 11. The decorator invokes deadline-reminder reconciliation independently.
 12. The decorator returns the original synchronization outcome.
+
+For `backgroundTask` and `desktopTimer` outcomes only, the decorator marks the
+effect sweep background-triggered. The store then joins course preferences
+inside the claim transaction and excludes rows whose
+`background_monitoring_enabled` value is false. Those rows receive no history
+claim and remain eligible for a later foreground-triggered success. Missing
+preference rows retain the documented enabled default.
 
 ## Platform behavior
 
@@ -179,6 +189,8 @@ and requests use redacted debug representations.
   recover pending work.
 - Bound completed-operation memory to 128 process-local keys.
 - Preserve valid sync success across every notification-side failure.
+- Enforce per-course background policy at the transactional claim boundary so
+  a background-disabled discovery is neither shown nor consumed.
 
 ## Alternatives rejected
 

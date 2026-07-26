@@ -24,7 +24,10 @@ final class NewAssignmentNotificationClaim {
 }
 
 abstract interface class NewAssignmentNotificationStore {
-  Future<NewAssignmentNotificationClaim?> claimNext({required int semesterId});
+  Future<NewAssignmentNotificationClaim?> claimNext({
+    required int semesterId,
+    bool backgroundTriggered = false,
+  });
 }
 
 final class NewAssignmentNotificationStoreException implements Exception {
@@ -50,6 +53,7 @@ final class DriftNewAssignmentNotificationStore
   @override
   Future<NewAssignmentNotificationClaim?> claimNext({
     required int semesterId,
+    bool backgroundTriggered = false,
   }) async {
     if (semesterId <= 0 || semesterId > 2147483647) {
       throw ArgumentError('Notification semester is invalid.');
@@ -78,6 +82,9 @@ LEFT JOIN course_preferences
  AND course_preferences.course_id = activities.course_id
 WHERE seen_activities.semester_id = ?
   AND seen_activities.is_baseline = 0
+  AND (? = 0 OR COALESCE(
+    course_preferences.background_monitoring_enabled, 1
+  ) = 1)
   AND NOT EXISTS (
     SELECT 1
     FROM notification_history
@@ -91,6 +98,7 @@ ORDER BY seen_activities.first_seen_at_utc, seen_activities.identity_key
 ''',
               variables: [
                 Variable.withInt(semesterId),
+                Variable.withInt(backgroundTriggered ? 1 : 0),
                 Variable.withString(newAssignmentNotificationKind),
                 Variable.withString(mutedNewAssignmentNotificationKind),
               ],

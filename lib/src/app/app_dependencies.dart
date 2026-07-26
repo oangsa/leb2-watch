@@ -11,6 +11,13 @@ import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
+import '../features/background_sync/application/background_monitoring_lifecycle.dart';
+import '../features/background_sync/application/background_sync_runner.dart';
+import '../features/background_sync/application/local_background_scheduler.dart';
+import '../features/background_sync/data/background_schedule_store.dart';
+import '../features/background_sync/data/background_sync_target_store.dart';
+import '../features/background_sync/domain/background_scheduler.dart';
+import '../features/background_sync/domain/desktop_autostart_service.dart';
 import '../features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import '../features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import '../features/assignments/detail/application/assignment_detail_service.dart';
@@ -31,6 +38,8 @@ import '../features/notifications/data/new_assignment_notification_store.dart';
 import '../features/notifications/domain/local_notification_service.dart';
 import '../features/semesters/application/semester_selection_service.dart';
 import '../features/semesters/data/semester_selection_store.dart';
+import '../platform/background/background_scheduler_factory.dart';
+import '../platform/background/background_scheduler_platform.dart';
 
 final appConfigurationProvider = Provider<AppConfiguration>((ref) {
   throw StateError('AppConfiguration was not provided.');
@@ -79,6 +88,54 @@ final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
     await _closeDatabase(openedDatabase);
   }
   return openedDatabase;
+});
+
+final backgroundSchedulerPlatformProvider =
+    Provider<BackgroundSchedulerPlatform>((ref) {
+      final platform = createBackgroundSchedulerPlatform(
+        detectBackgroundRuntimePlatform(),
+      );
+      ref.onDispose(platform.dispose);
+      return platform;
+    });
+
+final backgroundScheduleStoreProvider = FutureProvider<BackgroundScheduleStore>(
+  (ref) async {
+    final database = await ref.watch(appDatabaseProvider.future);
+    return DriftBackgroundScheduleStore(database);
+  },
+);
+
+final _localBackgroundSchedulerProvider =
+    FutureProvider<LocalBackgroundScheduler>((ref) async {
+      final scheduler = LocalBackgroundScheduler(
+        await ref.watch(backgroundScheduleStoreProvider.future),
+        await ref.watch(sessionLifecycleStoreProvider.future),
+        ref.watch(backgroundSchedulerPlatformProvider),
+      );
+      return scheduler;
+    });
+
+final backgroundSchedulerProvider = FutureProvider<BackgroundScheduler>((
+  ref,
+) async {
+  return ref.watch(_localBackgroundSchedulerProvider.future);
+});
+
+final backgroundScheduleReconcilerProvider =
+    FutureProvider<BackgroundScheduleReconciler>((ref) async {
+      return ref.watch(_localBackgroundSchedulerProvider.future);
+    });
+
+final backgroundMonitoringSettingsServiceProvider =
+    FutureProvider<BackgroundMonitoringSettingsService>((ref) async {
+      return ref.watch(_localBackgroundSchedulerProvider.future);
+    });
+
+final desktopAutostartServiceProvider = Provider<DesktopAutostartService>((
+  ref,
+) {
+  return const UnsupportedDesktopAutostartService();
 });
 
 Future<void> _closeDatabase(AppDatabase database) async {
@@ -206,6 +263,29 @@ final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
     deadlineReminderCoordinator,
   );
 });
+
+final backgroundSyncTargetStoreProvider =
+    FutureProvider<BackgroundSyncTargetStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftBackgroundSyncTargetStore(database);
+    });
+
+final backgroundSyncRunnerProvider = FutureProvider<BackgroundSyncRunner>((
+  ref,
+) async {
+  return BackgroundSyncRunner(
+    await ref.watch(backgroundSyncTargetStoreProvider.future),
+    await ref.watch(assignmentSyncServiceProvider.future),
+  );
+});
+
+final backgroundMonitoringLifecycleProvider =
+    FutureProvider<BackgroundMonitoringLifecycle>((ref) async {
+      return BackgroundMonitoringLifecycle(
+        await ref.watch(backgroundScheduleReconcilerProvider.future),
+        await ref.watch(backgroundSyncRunnerProvider.future),
+      );
+    });
 
 final assignmentDashboardStoreProvider =
     FutureProvider<AssignmentDashboardStore>((ref) async {

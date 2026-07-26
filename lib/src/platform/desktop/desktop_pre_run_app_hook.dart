@@ -1,0 +1,48 @@
+import 'dart:io';
+
+import 'window/window_manager_desktop_window_platform.dart';
+
+abstract interface class DesktopPreRunAppHook {
+  Future<void> initialize();
+}
+
+final class NoOpDesktopPreRunAppHook implements DesktopPreRunAppHook {
+  const NoOpDesktopPreRunAppHook();
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  String toString() => 'NoOpDesktopPreRunAppHook(redacted: true)';
+}
+
+final class WindowManagerDesktopPreRunAppHook implements DesktopPreRunAppHook {
+  factory WindowManagerDesktopPreRunAppHook({
+    DesktopWindowPlugin plugin = const WindowManagerDesktopWindowPlugin(),
+  }) => WindowManagerDesktopPreRunAppHook._(plugin);
+
+  WindowManagerDesktopPreRunAppHook._(this._plugin);
+
+  final DesktopWindowPlugin _plugin;
+
+  @override
+  Future<void> initialize() async {
+    try {
+      await _plugin.ensureInitialized();
+      await _plugin.setPreventClose(true);
+    } on Object {
+      // The runtime coordinator will keep normal close behavior if a native
+      // window plugin is unavailable.
+    }
+  }
+
+  @override
+  String toString() => 'WindowManagerDesktopPreRunAppHook(redacted: true)';
+}
+
+DesktopPreRunAppHook createDesktopPreRunAppHook() {
+  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+    return WindowManagerDesktopPreRunAppHook();
+  }
+  return const NoOpDesktopPreRunAppHook();
+}

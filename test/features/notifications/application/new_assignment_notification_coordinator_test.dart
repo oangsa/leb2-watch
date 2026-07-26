@@ -252,6 +252,29 @@ void main() {
       },
     );
 
+    test(
+      'propagates background effect scope from the committed outcome',
+      () async {
+        final success = _success(reason: SyncReason.backgroundTask);
+        final store = _ClaimStore();
+        final reminders = _ReminderReconciler(<String>[]);
+        final decorator = NotificationAwareAssignmentSyncService(
+          _SyncService(success),
+          NewAssignmentNotificationCoordinator(store, _NotificationService()),
+          reminders,
+        );
+
+        await decorator.synchronize(
+          semesterId: 101,
+          userId: 2001,
+          reason: SyncReason.manualRefresh,
+        );
+
+        expect(store.backgroundTriggeredValues, [isTrue]);
+        expect(reminders.backgroundTriggeredValues, [isTrue]);
+      },
+    );
+
     test('notification failures cannot replace committed success', () async {
       final success = _success();
       final delegate = _SyncService(success);
@@ -359,13 +382,16 @@ final class _ReminderReconciler implements DeadlineReminderReconciler {
   final List<String> events;
   Object? failure;
   int calls = 0;
+  final List<bool> backgroundTriggeredValues = [];
 
   @override
   Future<void> reconcileAfterCommittedSync({
     required int semesterId,
     required int operationId,
+    bool backgroundTriggered = false,
   }) async {
     calls += 1;
+    backgroundTriggeredValues.add(backgroundTriggered);
     events.add('deadline:$semesterId:$operationId');
     final current = failure;
     if (current != null) {
@@ -379,11 +405,11 @@ final class _ReminderReconciler implements DeadlineReminderReconciler {
   }
 }
 
-SyncSuccess _success() {
+SyncSuccess _success({SyncReason reason = SyncReason.manualRefresh}) {
   return SyncSuccess(
     operationId: 1,
     semesterId: 101,
-    reason: SyncReason.manualRefresh,
+    reason: reason,
     startedAtUtc: DateTime.utc(2026, 7, 26),
     completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
     courseCount: 1,
@@ -415,6 +441,7 @@ final class _ClaimStore implements NewAssignmentNotificationStore {
   final List<NewAssignmentNotificationClaim> claims;
   final List<String>? events;
   final List<int> semesterIds = [];
+  final List<bool> backgroundTriggeredValues = [];
   Object? claimError;
   Completer<void>? claimGate;
   int claimCalls = 0;
@@ -422,9 +449,11 @@ final class _ClaimStore implements NewAssignmentNotificationStore {
   @override
   Future<NewAssignmentNotificationClaim?> claimNext({
     required int semesterId,
+    bool backgroundTriggered = false,
   }) async {
     claimCalls += 1;
     semesterIds.add(semesterId);
+    backgroundTriggeredValues.add(backgroundTriggered);
     events?.add('claim');
     final error = claimError;
     if (error != null) {

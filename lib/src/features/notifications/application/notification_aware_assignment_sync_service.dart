@@ -26,10 +26,12 @@ final class NotificationAwareAssignmentSyncService
       reason: reason,
     );
     if (outcome is SyncSuccess) {
+      final backgroundTriggered = isBackgroundEffectSyncReason(outcome.reason);
       try {
         await _coordinator.processCommittedSuccess(
           semesterId: outcome.semesterId,
           operationId: outcome.operationId,
+          backgroundTriggered: backgroundTriggered,
         );
       } on Object {
         // A local notification side effect cannot replace a committed sync.
@@ -40,6 +42,7 @@ final class NotificationAwareAssignmentSyncService
           await deadlineReminderReconciler.reconcileAfterCommittedSync(
             semesterId: outcome.semesterId,
             operationId: outcome.operationId,
+            backgroundTriggered: backgroundTriggered,
           );
         } on Object {
           // A local reminder side effect cannot replace a committed sync.

@@ -125,6 +125,81 @@ void main() {
   );
 
   test(
+    'background plan preserves every durable owner for a disabled course',
+    () async {
+      final firstGeneration = await store.requestGeneration();
+      await store.tryClaim(
+        ownerToken: 'owner-a',
+        nowUtc: now,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      final first = await store.plan(
+        ownerToken: 'owner-a',
+        generation: firstGeneration,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      for (final item in first.schedules) {
+        await store.markScheduled(
+          ownerToken: 'owner-a',
+          generation: firstGeneration,
+          item: item,
+        );
+      }
+      await store.completeGeneration(
+        ownerToken: 'owner-a',
+        generation: firstGeneration,
+      );
+      final before = await database.select(database.scheduledReminders).get();
+      await database
+          .into(database.coursePreferences)
+          .insert(
+            CoursePreferencesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              backgroundMonitoringEnabled: const Value(false),
+            ),
+          );
+      await (database.update(database.activities)..where(
+            (row) =>
+                row.semesterId.equals(101) &
+                row.identityKey.equals('backend:1001'),
+          ))
+          .write(
+            const ActivitiesCompanion(
+              dueDateSource: Value('2026-08-03T12:00:00Z'),
+            ),
+          );
+
+      final backgroundGeneration = await store.requestGeneration(
+        backgroundTriggered: true,
+      );
+      final background = await store.plan(
+        ownerToken: 'owner-a',
+        generation: backgroundGeneration,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+
+      expect(background.cancellations, isEmpty);
+      expect(background.schedules, isEmpty);
+      expect(await database.select(database.scheduledReminders).get(), before);
+
+      final foregroundGeneration = await store.requestGeneration();
+      final foreground = await store.plan(
+        ownerToken: 'owner-a',
+        generation: foregroundGeneration,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      expect(foreground.schedules, hasLength(2));
+    },
+  );
+
+  test(
     'cancel retains tombstones and re-enable reuses their owner IDs',
     () async {
       final firstGeneration = await store.requestGeneration();

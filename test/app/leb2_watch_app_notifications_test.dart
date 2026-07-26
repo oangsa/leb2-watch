@@ -13,6 +13,10 @@ import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_da
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/background_sync/application/background_monitoring_lifecycle.dart';
+import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
+import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
+import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 
@@ -127,6 +131,53 @@ void main() {
 
     expect(details.keys, <AssignmentDetailKey>[target]);
   });
+
+  testWidgets('root lifecycle reconciles session and refreshes on resume', (
+    tester,
+  ) async {
+    final flow = AppFlowController();
+    final notifications = _AppNotificationService();
+    final sessions = StreamController<SessionLifecycleSnapshot>();
+    final reconciler = _AppBackgroundReconciler();
+    final sync = _AppSyncService();
+    final lifecycle = BackgroundMonitoringLifecycle(
+      reconciler,
+      BackgroundSyncRunner(const _AppBackgroundTargetStore(), sync),
+    );
+    addTearDown(flow.dispose);
+    addTearDown(notifications.dispose);
+    addTearDown(sessions.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appFlowControllerProvider.overrideWithValue(flow),
+          localNotificationServiceProvider.overrideWithValue(notifications),
+          sessionLifecycleProvider.overrideWith((_) => sessions.stream),
+          backgroundMonitoringLifecycleProvider.overrideWith(
+            (_) async => lifecycle,
+          ),
+        ],
+        child: Leb2WatchApp(configuration: AppConfiguration.parse()),
+      ),
+    );
+    sessions.add(
+      const SessionLifecycleSnapshot(
+        state: SessionLifecycleState.active,
+        revision: 1,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(reconciler.executionAllowedValues, [isTrue]);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(sync.reasons, [SyncReason.appResume]);
+  });
 }
 
 final class _AppNotificationService implements LocalNotificationService {
@@ -224,6 +275,65 @@ final class _AppAssignmentDetailService implements AssignmentDetailService {
           latestSuccessCompletedAtUtc: null,
         ),
       ),
+    );
+  }
+}
+
+final class _AppBackgroundReconciler implements BackgroundScheduleReconciler {
+  final List<bool> executionAllowedValues = [];
+
+  @override
+  Future<void> reconcilePeriodicSync({required bool executionAllowed}) async {
+    executionAllowedValues.add(executionAllowed);
+  }
+}
+
+final class _AppBackgroundTargetStore implements BackgroundSyncTargetStore {
+  const _AppBackgroundTargetStore();
+
+  @override
+  Future<BackgroundSyncTargetPolicy> readPolicy() async {
+    return const BackgroundSyncTargetPolicy(
+      monitoringEnabled: true,
+      semesterId: 101,
+      userId: 2001,
+      sessionState: SessionLifecycleState.active,
+      backgroundMonitoredCourseCount: 1,
+    );
+  }
+}
+
+final class _AppSyncService implements AssignmentSyncService {
+  final List<SyncReason> reasons = [];
+
+  @override
+  Future<void> cancelCurrent({
+    required int semesterId,
+    required int userId,
+  }) async {}
+
+  @override
+  Future<SyncBackoffStatus?> getBackoffStatus({
+    required int semesterId,
+    required int userId,
+  }) async => null;
+
+  @override
+  Future<SyncOutcome> synchronize({
+    required int semesterId,
+    required int userId,
+    required SyncReason reason,
+  }) async {
+    reasons.add(reason);
+    final now = DateTime.utc(2026, 7, 26);
+    return SyncSuccess(
+      operationId: 1,
+      semesterId: semesterId,
+      reason: reason,
+      startedAtUtc: now,
+      completedAtUtc: now,
+      courseCount: 1,
+      activityCount: 1,
     );
   }
 }

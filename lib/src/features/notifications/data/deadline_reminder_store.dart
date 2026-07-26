@@ -92,12 +92,14 @@ final class DeadlineReminderReconciliationState {
     required this.completedGeneration,
     required this.ownerToken,
     required this.leaseExpiresAtUtc,
+    required this.backgroundEffectsOnly,
   });
 
   final int requestedGeneration;
   final int completedGeneration;
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
+  final bool backgroundEffectsOnly;
 
   bool isCompleted(int generation) => completedGeneration >= generation;
 
@@ -151,7 +153,7 @@ final class DeadlineReminderStoreException implements Exception {
 }
 
 abstract interface class DeadlineReminderStore {
-  Future<int> requestGeneration();
+  Future<int> requestGeneration({bool backgroundTriggered = false});
 
   Future<DeadlineReminderReconciliationState> readState();
 
@@ -209,9 +211,13 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
   final LocalNotificationIdFactory idFactory;
 
   @override
-  Future<int> requestGeneration() async {
+  Future<int> requestGeneration({bool backgroundTriggered = false}) async {
     try {
-      return await _database.transaction(_advanceRequestedGeneration);
+      return await _database.transaction(
+        () => _advanceRequestedGeneration(
+          backgroundTriggered: backgroundTriggered,
+        ),
+      );
     } on Object {
       throw const DeadlineReminderStoreException();
     }
@@ -228,6 +234,7 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
         completedGeneration: row.completedGeneration,
         ownerToken: row.ownerToken,
         leaseExpiresAtUtc: row.leaseExpiresAtUtc,
+        backgroundEffectsOnly: row.backgroundEffectsOnly,
       );
     } on Object {
       throw const DeadlineReminderStoreException();
@@ -316,10 +323,44 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
         if (fenced != 1) {
           throw StateError('Deadline reminder ownership was lost.');
         }
+        final reconciliation = await _database
+            .select(_database.deadlineReminderReconciliations)
+            .getSingle();
+        final backgroundTriggered = reconciliation.backgroundEffectsOnly;
 
         final preference = await _database
             .select(_database.deadlineReminderPreferences)
             .getSingle();
+        final backgroundAllowedByAssignment = <(int, String), bool>{};
+        if (backgroundTriggered) {
+          final policyRows = await _database
+              .customSelect(
+                '''
+SELECT
+  seen_activities.semester_id,
+  seen_activities.identity_key,
+  COALESCE(
+    course_preferences.background_monitoring_enabled, 1
+  ) AS background_monitoring_enabled
+FROM seen_activities
+LEFT JOIN course_preferences
+  ON course_preferences.semester_id = seen_activities.semester_id
+ AND course_preferences.course_id = seen_activities.course_id
+''',
+                readsFrom: {
+                  _database.seenActivities,
+                  _database.coursePreferences,
+                },
+              )
+              .get();
+          for (final row in policyRows) {
+            backgroundAllowedByAssignment[(
+                  row.read<int>('semester_id'),
+                  row.read<String>('identity_key'),
+                )] =
+                row.read<int>('background_monitoring_enabled') != 0;
+          }
+        }
         final candidates = <_DesiredReminder>[];
         if (policy.supportsScheduling &&
             policy.supportsCancellation &&
@@ -355,6 +396,14 @@ ORDER BY activities.semester_id, activities.identity_key
           for (final row in rows) {
             if (row.read<bool>('due_date_exceed') ||
                 row.read<int>('notifications_muted') != 0) {
+              continue;
+            }
+            if (backgroundTriggered &&
+                backgroundAllowedByAssignment[(
+                      row.read<int>('semester_id'),
+                      row.read<String>('identity_key'),
+                    )] !=
+                    true) {
               continue;
             }
             final assignment = AssignmentDetailKey.tryParse(
@@ -492,6 +541,14 @@ ORDER BY activities.semester_id, activities.identity_key
 
         final cancellations = <DeadlineReminderCancellationWork>[];
         for (final existing in existingRows) {
+          if (backgroundTriggered &&
+              backgroundAllowedByAssignment[(
+                    existing.semesterId,
+                    existing.identityKey,
+                  )] !=
+                  true) {
+            continue;
+          }
           final key = _ownerKeyOfRow(existing);
           if (desiredKeys.contains(key)) {
             continue;
@@ -724,21 +781,36 @@ ORDER BY activities.semester_id, activities.identity_key
     throw StateError('No local notification identifier is available.');
   }
 
-  Future<int> _advanceRequestedGeneration() async {
+  Future<int> _advanceRequestedGeneration({bool? backgroundTriggered}) async {
+    final variables = <Variable<Object>>[];
+    final scopeUpdate = backgroundTriggered == null
+        ? ''
+        : ', background_effects_only = CASE '
+              'WHEN completed_generation = requested_generation THEN ? '
+              'ELSE background_effects_only AND ? END';
+    if (backgroundTriggered != null) {
+      variables
+        ..add(Variable<int>(backgroundTriggered ? 1 : 0))
+        ..add(Variable<int>(backgroundTriggered ? 1 : 0));
+    }
     var updated = await _database.customUpdate(
       'UPDATE deadline_reminder_reconciliations '
-      'SET requested_generation = requested_generation + 1 '
+      'SET requested_generation = requested_generation + 1'
+      '$scopeUpdate '
       'WHERE singleton_id = 1 AND requested_generation < 2147483647',
+      variables: variables,
       updates: {_database.deadlineReminderReconciliations},
     );
     if (updated != 1) {
       updated = await _database.customUpdate(
         'UPDATE deadline_reminder_reconciliations '
-        'SET requested_generation = 1, completed_generation = 0 '
+        'SET requested_generation = 1, completed_generation = 0, '
+        'background_effects_only = ? '
         'WHERE singleton_id = 1 '
         'AND requested_generation = 2147483647 '
         'AND completed_generation = requested_generation '
         'AND owner_token IS NULL',
+        variables: [Variable<int>(backgroundTriggered == true ? 1 : 0)],
         updates: {_database.deadlineReminderReconciliations},
       );
       if (updated != 1) {

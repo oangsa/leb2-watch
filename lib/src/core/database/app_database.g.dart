@@ -7669,6 +7669,21 @@ class $DeadlineReminderReconciliationsTable
       ).withConverter<DateTime?>(
         $DeadlineReminderReconciliationsTable.$converterleaseExpiresAtUtcn,
       );
+  static const VerificationMeta _backgroundEffectsOnlyMeta =
+      const VerificationMeta('backgroundEffectsOnly');
+  @override
+  late final GeneratedColumn<bool> backgroundEffectsOnly =
+      GeneratedColumn<bool>(
+        'background_effects_only',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("background_effects_only" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -7676,6 +7691,7 @@ class $DeadlineReminderReconciliationsTable
     completedGeneration,
     ownerToken,
     leaseExpiresAtUtc,
+    backgroundEffectsOnly,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7722,6 +7738,15 @@ class $DeadlineReminderReconciliationsTable
         ownerToken.isAcceptableOrUnknown(data['owner_token']!, _ownerTokenMeta),
       );
     }
+    if (data.containsKey('background_effects_only')) {
+      context.handle(
+        _backgroundEffectsOnlyMeta,
+        backgroundEffectsOnly.isAcceptableOrUnknown(
+          data['background_effects_only']!,
+          _backgroundEffectsOnlyMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -7758,6 +7783,10 @@ class $DeadlineReminderReconciliationsTable
               data['${effectivePrefix}lease_expires_at_utc'],
             ),
           ),
+      backgroundEffectsOnly: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}background_effects_only'],
+      )!,
     );
   }
 
@@ -7779,12 +7808,14 @@ class DeadlineReminderReconciliation extends DataClass
   final int completedGeneration;
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
+  final bool backgroundEffectsOnly;
   const DeadlineReminderReconciliation({
     required this.singletonId,
     required this.requestedGeneration,
     required this.completedGeneration,
     this.ownerToken,
     this.leaseExpiresAtUtc,
+    required this.backgroundEffectsOnly,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7801,6 +7832,7 @@ class DeadlineReminderReconciliation extends DataClass
             .toSql(leaseExpiresAtUtc),
       );
     }
+    map['background_effects_only'] = Variable<bool>(backgroundEffectsOnly);
     return map;
   }
 
@@ -7815,6 +7847,7 @@ class DeadlineReminderReconciliation extends DataClass
       leaseExpiresAtUtc: leaseExpiresAtUtc == null && nullToAbsent
           ? const Value.absent()
           : Value(leaseExpiresAtUtc),
+      backgroundEffectsOnly: Value(backgroundEffectsOnly),
     );
   }
 
@@ -7835,6 +7868,9 @@ class DeadlineReminderReconciliation extends DataClass
       leaseExpiresAtUtc: serializer.fromJson<DateTime?>(
         json['leaseExpiresAtUtc'],
       ),
+      backgroundEffectsOnly: serializer.fromJson<bool>(
+        json['backgroundEffectsOnly'],
+      ),
     );
   }
   @override
@@ -7846,6 +7882,7 @@ class DeadlineReminderReconciliation extends DataClass
       'completedGeneration': serializer.toJson<int>(completedGeneration),
       'ownerToken': serializer.toJson<String?>(ownerToken),
       'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
+      'backgroundEffectsOnly': serializer.toJson<bool>(backgroundEffectsOnly),
     };
   }
 
@@ -7855,6 +7892,7 @@ class DeadlineReminderReconciliation extends DataClass
     int? completedGeneration,
     Value<String?> ownerToken = const Value.absent(),
     Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+    bool? backgroundEffectsOnly,
   }) => DeadlineReminderReconciliation(
     singletonId: singletonId ?? this.singletonId,
     requestedGeneration: requestedGeneration ?? this.requestedGeneration,
@@ -7863,6 +7901,7 @@ class DeadlineReminderReconciliation extends DataClass
     leaseExpiresAtUtc: leaseExpiresAtUtc.present
         ? leaseExpiresAtUtc.value
         : this.leaseExpiresAtUtc,
+    backgroundEffectsOnly: backgroundEffectsOnly ?? this.backgroundEffectsOnly,
   );
   DeadlineReminderReconciliation copyWithCompanion(
     DeadlineReminderReconciliationsCompanion data,
@@ -7883,6 +7922,9 @@ class DeadlineReminderReconciliation extends DataClass
       leaseExpiresAtUtc: data.leaseExpiresAtUtc.present
           ? data.leaseExpiresAtUtc.value
           : this.leaseExpiresAtUtc,
+      backgroundEffectsOnly: data.backgroundEffectsOnly.present
+          ? data.backgroundEffectsOnly.value
+          : this.backgroundEffectsOnly,
     );
   }
 
@@ -7893,7 +7935,8 @@ class DeadlineReminderReconciliation extends DataClass
           ..write('requestedGeneration: $requestedGeneration, ')
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
-          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
           ..write(')'))
         .toString();
   }
@@ -7905,6 +7948,7 @@ class DeadlineReminderReconciliation extends DataClass
     completedGeneration,
     ownerToken,
     leaseExpiresAtUtc,
+    backgroundEffectsOnly,
   );
   @override
   bool operator ==(Object other) =>
@@ -7914,7 +7958,8 @@ class DeadlineReminderReconciliation extends DataClass
           other.requestedGeneration == this.requestedGeneration &&
           other.completedGeneration == this.completedGeneration &&
           other.ownerToken == this.ownerToken &&
-          other.leaseExpiresAtUtc == this.leaseExpiresAtUtc);
+          other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
+          other.backgroundEffectsOnly == this.backgroundEffectsOnly);
 }
 
 class DeadlineReminderReconciliationsCompanion
@@ -7924,12 +7969,14 @@ class DeadlineReminderReconciliationsCompanion
   final Value<int> completedGeneration;
   final Value<String?> ownerToken;
   final Value<DateTime?> leaseExpiresAtUtc;
+  final Value<bool> backgroundEffectsOnly;
   const DeadlineReminderReconciliationsCompanion({
     this.singletonId = const Value.absent(),
     this.requestedGeneration = const Value.absent(),
     this.completedGeneration = const Value.absent(),
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
+    this.backgroundEffectsOnly = const Value.absent(),
   });
   DeadlineReminderReconciliationsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -7937,6 +7984,7 @@ class DeadlineReminderReconciliationsCompanion
     this.completedGeneration = const Value.absent(),
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
+    this.backgroundEffectsOnly = const Value.absent(),
   });
   static Insertable<DeadlineReminderReconciliation> custom({
     Expression<int>? singletonId,
@@ -7944,6 +7992,7 @@ class DeadlineReminderReconciliationsCompanion
     Expression<int>? completedGeneration,
     Expression<String>? ownerToken,
     Expression<int>? leaseExpiresAtUtc,
+    Expression<bool>? backgroundEffectsOnly,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -7953,6 +8002,8 @@ class DeadlineReminderReconciliationsCompanion
         'completed_generation': completedGeneration,
       if (ownerToken != null) 'owner_token': ownerToken,
       if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
+      if (backgroundEffectsOnly != null)
+        'background_effects_only': backgroundEffectsOnly,
     });
   }
 
@@ -7962,6 +8013,7 @@ class DeadlineReminderReconciliationsCompanion
     Value<int>? completedGeneration,
     Value<String?>? ownerToken,
     Value<DateTime?>? leaseExpiresAtUtc,
+    Value<bool>? backgroundEffectsOnly,
   }) {
     return DeadlineReminderReconciliationsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -7969,6 +8021,8 @@ class DeadlineReminderReconciliationsCompanion
       completedGeneration: completedGeneration ?? this.completedGeneration,
       ownerToken: ownerToken ?? this.ownerToken,
       leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
+      backgroundEffectsOnly:
+          backgroundEffectsOnly ?? this.backgroundEffectsOnly,
     );
   }
 
@@ -7993,6 +8047,11 @@ class DeadlineReminderReconciliationsCompanion
             .toSql(leaseExpiresAtUtc.value),
       );
     }
+    if (backgroundEffectsOnly.present) {
+      map['background_effects_only'] = Variable<bool>(
+        backgroundEffectsOnly.value,
+      );
+    }
     return map;
   }
 
@@ -8003,7 +8062,298 @@ class DeadlineReminderReconciliationsCompanion
           ..write('requestedGeneration: $requestedGeneration, ')
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
-          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc')
+          ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
+    with
+        TableInfo<$BackgroundScheduleSettingsTable, BackgroundScheduleSetting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BackgroundScheduleSettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _singletonIdMeta = const VerificationMeta(
+    'singletonId',
+  );
+  @override
+  late final GeneratedColumn<int> singletonId = GeneratedColumn<int>(
+    'singleton_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _monitoringEnabledMeta = const VerificationMeta(
+    'monitoringEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> monitoringEnabled = GeneratedColumn<bool>(
+    'monitoring_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("monitoring_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _installJitterSecondsMeta =
+      const VerificationMeta('installJitterSeconds');
+  @override
+  late final GeneratedColumn<int> installJitterSeconds = GeneratedColumn<int>(
+    'install_jitter_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singletonId,
+    monitoringEnabled,
+    installJitterSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'background_schedule_settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BackgroundScheduleSetting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton_id')) {
+      context.handle(
+        _singletonIdMeta,
+        singletonId.isAcceptableOrUnknown(
+          data['singleton_id']!,
+          _singletonIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('monitoring_enabled')) {
+      context.handle(
+        _monitoringEnabledMeta,
+        monitoringEnabled.isAcceptableOrUnknown(
+          data['monitoring_enabled']!,
+          _monitoringEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('install_jitter_seconds')) {
+      context.handle(
+        _installJitterSecondsMeta,
+        installJitterSeconds.isAcceptableOrUnknown(
+          data['install_jitter_seconds']!,
+          _installJitterSecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singletonId};
+  @override
+  BackgroundScheduleSetting map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BackgroundScheduleSetting(
+      singletonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton_id'],
+      )!,
+      monitoringEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}monitoring_enabled'],
+      )!,
+      installJitterSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}install_jitter_seconds'],
+      ),
+    );
+  }
+
+  @override
+  $BackgroundScheduleSettingsTable createAlias(String alias) {
+    return $BackgroundScheduleSettingsTable(attachedDatabase, alias);
+  }
+}
+
+class BackgroundScheduleSetting extends DataClass
+    implements Insertable<BackgroundScheduleSetting> {
+  final int singletonId;
+  final bool monitoringEnabled;
+  final int? installJitterSeconds;
+  const BackgroundScheduleSetting({
+    required this.singletonId,
+    required this.monitoringEnabled,
+    this.installJitterSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton_id'] = Variable<int>(singletonId);
+    map['monitoring_enabled'] = Variable<bool>(monitoringEnabled);
+    if (!nullToAbsent || installJitterSeconds != null) {
+      map['install_jitter_seconds'] = Variable<int>(installJitterSeconds);
+    }
+    return map;
+  }
+
+  BackgroundScheduleSettingsCompanion toCompanion(bool nullToAbsent) {
+    return BackgroundScheduleSettingsCompanion(
+      singletonId: Value(singletonId),
+      monitoringEnabled: Value(monitoringEnabled),
+      installJitterSeconds: installJitterSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(installJitterSeconds),
+    );
+  }
+
+  factory BackgroundScheduleSetting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BackgroundScheduleSetting(
+      singletonId: serializer.fromJson<int>(json['singletonId']),
+      monitoringEnabled: serializer.fromJson<bool>(json['monitoringEnabled']),
+      installJitterSeconds: serializer.fromJson<int?>(
+        json['installJitterSeconds'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singletonId': serializer.toJson<int>(singletonId),
+      'monitoringEnabled': serializer.toJson<bool>(monitoringEnabled),
+      'installJitterSeconds': serializer.toJson<int?>(installJitterSeconds),
+    };
+  }
+
+  BackgroundScheduleSetting copyWith({
+    int? singletonId,
+    bool? monitoringEnabled,
+    Value<int?> installJitterSeconds = const Value.absent(),
+  }) => BackgroundScheduleSetting(
+    singletonId: singletonId ?? this.singletonId,
+    monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
+    installJitterSeconds: installJitterSeconds.present
+        ? installJitterSeconds.value
+        : this.installJitterSeconds,
+  );
+  BackgroundScheduleSetting copyWithCompanion(
+    BackgroundScheduleSettingsCompanion data,
+  ) {
+    return BackgroundScheduleSetting(
+      singletonId: data.singletonId.present
+          ? data.singletonId.value
+          : this.singletonId,
+      monitoringEnabled: data.monitoringEnabled.present
+          ? data.monitoringEnabled.value
+          : this.monitoringEnabled,
+      installJitterSeconds: data.installJitterSeconds.present
+          ? data.installJitterSeconds.value
+          : this.installJitterSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundScheduleSetting(')
+          ..write('singletonId: $singletonId, ')
+          ..write('monitoringEnabled: $monitoringEnabled, ')
+          ..write('installJitterSeconds: $installJitterSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(singletonId, monitoringEnabled, installJitterSeconds);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BackgroundScheduleSetting &&
+          other.singletonId == this.singletonId &&
+          other.monitoringEnabled == this.monitoringEnabled &&
+          other.installJitterSeconds == this.installJitterSeconds);
+}
+
+class BackgroundScheduleSettingsCompanion
+    extends UpdateCompanion<BackgroundScheduleSetting> {
+  final Value<int> singletonId;
+  final Value<bool> monitoringEnabled;
+  final Value<int?> installJitterSeconds;
+  const BackgroundScheduleSettingsCompanion({
+    this.singletonId = const Value.absent(),
+    this.monitoringEnabled = const Value.absent(),
+    this.installJitterSeconds = const Value.absent(),
+  });
+  BackgroundScheduleSettingsCompanion.insert({
+    this.singletonId = const Value.absent(),
+    this.monitoringEnabled = const Value.absent(),
+    this.installJitterSeconds = const Value.absent(),
+  });
+  static Insertable<BackgroundScheduleSetting> custom({
+    Expression<int>? singletonId,
+    Expression<bool>? monitoringEnabled,
+    Expression<int>? installJitterSeconds,
+  }) {
+    return RawValuesInsertable({
+      if (singletonId != null) 'singleton_id': singletonId,
+      if (monitoringEnabled != null) 'monitoring_enabled': monitoringEnabled,
+      if (installJitterSeconds != null)
+        'install_jitter_seconds': installJitterSeconds,
+    });
+  }
+
+  BackgroundScheduleSettingsCompanion copyWith({
+    Value<int>? singletonId,
+    Value<bool>? monitoringEnabled,
+    Value<int?>? installJitterSeconds,
+  }) {
+    return BackgroundScheduleSettingsCompanion(
+      singletonId: singletonId ?? this.singletonId,
+      monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
+      installJitterSeconds: installJitterSeconds ?? this.installJitterSeconds,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singletonId.present) {
+      map['singleton_id'] = Variable<int>(singletonId.value);
+    }
+    if (monitoringEnabled.present) {
+      map['monitoring_enabled'] = Variable<bool>(monitoringEnabled.value);
+    }
+    if (installJitterSeconds.present) {
+      map['install_jitter_seconds'] = Variable<int>(installJitterSeconds.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BackgroundScheduleSettingsCompanion(')
+          ..write('singletonId: $singletonId, ')
+          ..write('monitoringEnabled: $monitoringEnabled, ')
+          ..write('installJitterSeconds: $installJitterSeconds')
           ..write(')'))
         .toString();
   }
@@ -8421,6 +8771,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $DeadlineReminderPreferencesTable(this);
   late final $DeadlineReminderReconciliationsTable
   deadlineReminderReconciliations = $DeadlineReminderReconciliationsTable(this);
+  late final $BackgroundScheduleSettingsTable backgroundScheduleSettings =
+      $BackgroundScheduleSettingsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -8502,6 +8854,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     syncBackoffStates,
     deadlineReminderPreferences,
     deadlineReminderReconciliations,
+    backgroundScheduleSettings,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -12333,6 +12686,7 @@ typedef $$DeadlineReminderReconciliationsTableCreateCompanionBuilder =
       Value<int> completedGeneration,
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
+      Value<bool> backgroundEffectsOnly,
     });
 typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
     DeadlineReminderReconciliationsCompanion Function({
@@ -12341,6 +12695,7 @@ typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
       Value<int> completedGeneration,
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
+      Value<bool> backgroundEffectsOnly,
     });
 
 class $$DeadlineReminderReconciliationsTableFilterComposer
@@ -12377,6 +12732,11 @@ class $$DeadlineReminderReconciliationsTableFilterComposer
     column: $table.leaseExpiresAtUtc,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<bool> get backgroundEffectsOnly => $composableBuilder(
+    column: $table.backgroundEffectsOnly,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$DeadlineReminderReconciliationsTableOrderingComposer
@@ -12410,6 +12770,11 @@ class $$DeadlineReminderReconciliationsTableOrderingComposer
 
   ColumnOrderings<int> get leaseExpiresAtUtc => $composableBuilder(
     column: $table.leaseExpiresAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get backgroundEffectsOnly => $composableBuilder(
+    column: $table.backgroundEffectsOnly,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -12448,6 +12813,11 @@ class $$DeadlineReminderReconciliationsTableAnnotationComposer
         column: $table.leaseExpiresAtUtc,
         builder: (column) => column,
       );
+
+  GeneratedColumn<bool> get backgroundEffectsOnly => $composableBuilder(
+    column: $table.backgroundEffectsOnly,
+    builder: (column) => column,
+  );
 }
 
 class $$DeadlineReminderReconciliationsTableTableManager
@@ -12501,12 +12871,14 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<int> completedGeneration = const Value.absent(),
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                Value<bool> backgroundEffectsOnly = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
                 completedGeneration: completedGeneration,
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
+                backgroundEffectsOnly: backgroundEffectsOnly,
               ),
           createCompanionCallback:
               ({
@@ -12515,12 +12887,14 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<int> completedGeneration = const Value.absent(),
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
+                Value<bool> backgroundEffectsOnly = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion.insert(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
                 completedGeneration: completedGeneration,
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
+                backgroundEffectsOnly: backgroundEffectsOnly,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -12549,6 +12923,187 @@ typedef $$DeadlineReminderReconciliationsTableProcessedTableManager =
         >,
       ),
       DeadlineReminderReconciliation,
+      PrefetchHooks Function()
+    >;
+typedef $$BackgroundScheduleSettingsTableCreateCompanionBuilder =
+    BackgroundScheduleSettingsCompanion Function({
+      Value<int> singletonId,
+      Value<bool> monitoringEnabled,
+      Value<int?> installJitterSeconds,
+    });
+typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
+    BackgroundScheduleSettingsCompanion Function({
+      Value<int> singletonId,
+      Value<bool> monitoringEnabled,
+      Value<int?> installJitterSeconds,
+    });
+
+class $$BackgroundScheduleSettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+  $$BackgroundScheduleSettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get monitoringEnabled => $composableBuilder(
+    column: $table.monitoringEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get installJitterSeconds => $composableBuilder(
+    column: $table.installJitterSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BackgroundScheduleSettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+  $$BackgroundScheduleSettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get monitoringEnabled => $composableBuilder(
+    column: $table.monitoringEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get installJitterSeconds => $composableBuilder(
+    column: $table.installJitterSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BackgroundScheduleSettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+  $$BackgroundScheduleSettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get monitoringEnabled => $composableBuilder(
+    column: $table.monitoringEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get installJitterSeconds => $composableBuilder(
+    column: $table.installJitterSeconds,
+    builder: (column) => column,
+  );
+}
+
+class $$BackgroundScheduleSettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BackgroundScheduleSettingsTable,
+          BackgroundScheduleSetting,
+          $$BackgroundScheduleSettingsTableFilterComposer,
+          $$BackgroundScheduleSettingsTableOrderingComposer,
+          $$BackgroundScheduleSettingsTableAnnotationComposer,
+          $$BackgroundScheduleSettingsTableCreateCompanionBuilder,
+          $$BackgroundScheduleSettingsTableUpdateCompanionBuilder,
+          (
+            BackgroundScheduleSetting,
+            BaseReferences<
+              _$AppDatabase,
+              $BackgroundScheduleSettingsTable,
+              BackgroundScheduleSetting
+            >,
+          ),
+          BackgroundScheduleSetting,
+          PrefetchHooks Function()
+        > {
+  $$BackgroundScheduleSettingsTableTableManager(
+    _$AppDatabase db,
+    $BackgroundScheduleSettingsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BackgroundScheduleSettingsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$BackgroundScheduleSettingsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$BackgroundScheduleSettingsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<bool> monitoringEnabled = const Value.absent(),
+                Value<int?> installJitterSeconds = const Value.absent(),
+              }) => BackgroundScheduleSettingsCompanion(
+                singletonId: singletonId,
+                monitoringEnabled: monitoringEnabled,
+                installJitterSeconds: installJitterSeconds,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<bool> monitoringEnabled = const Value.absent(),
+                Value<int?> installJitterSeconds = const Value.absent(),
+              }) => BackgroundScheduleSettingsCompanion.insert(
+                singletonId: singletonId,
+                monitoringEnabled: monitoringEnabled,
+                installJitterSeconds: installJitterSeconds,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BackgroundScheduleSettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BackgroundScheduleSettingsTable,
+      BackgroundScheduleSetting,
+      $$BackgroundScheduleSettingsTableFilterComposer,
+      $$BackgroundScheduleSettingsTableOrderingComposer,
+      $$BackgroundScheduleSettingsTableAnnotationComposer,
+      $$BackgroundScheduleSettingsTableCreateCompanionBuilder,
+      $$BackgroundScheduleSettingsTableUpdateCompanionBuilder,
+      (
+        BackgroundScheduleSetting,
+        BaseReferences<
+          _$AppDatabase,
+          $BackgroundScheduleSettingsTable,
+          BackgroundScheduleSetting
+        >,
+      ),
+      BackgroundScheduleSetting,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -12796,6 +13351,12 @@ class $AppDatabaseManager {
       $$DeadlineReminderReconciliationsTableTableManager(
         _db,
         _db.deadlineReminderReconciliations,
+      );
+  $$BackgroundScheduleSettingsTableTableManager
+  get backgroundScheduleSettings =>
+      $$BackgroundScheduleSettingsTableTableManager(
+        _db,
+        _db.backgroundScheduleSettings,
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);

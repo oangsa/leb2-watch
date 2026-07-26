@@ -19,6 +19,7 @@ final class NewAssignmentNotificationCoordinator {
   Future<void> processCommittedSuccess({
     required int semesterId,
     required int operationId,
+    bool backgroundTriggered = false,
   }) {
     final key = (semesterId, operationId);
     if (_completed.contains(key)) {
@@ -31,27 +32,39 @@ final class NewAssignmentNotificationCoordinator {
 
     final prior = _tail;
     late final Future<void> tracked;
-    tracked = _runAfter(prior, semesterId).whenComplete(() {
-      if (identical(_inFlight[key], tracked)) {
-        _inFlight.remove(key);
-      }
-      _rememberCompleted(key);
-    });
+    tracked =
+        _runAfter(
+          prior,
+          semesterId,
+          backgroundTriggered: backgroundTriggered,
+        ).whenComplete(() {
+          if (identical(_inFlight[key], tracked)) {
+            _inFlight.remove(key);
+          }
+          _rememberCompleted(key);
+        });
     _inFlight[key] = tracked;
     _tail = tracked;
     return tracked;
   }
 
-  Future<void> _runAfter(Future<void> prior, int semesterId) async {
+  Future<void> _runAfter(
+    Future<void> prior,
+    int semesterId, {
+    required bool backgroundTriggered,
+  }) async {
     try {
       await prior;
-      await _sweep(semesterId);
+      await _sweep(semesterId, backgroundTriggered: backgroundTriggered);
     } on Object {
       // Notification work never poisons later committed synchronization work.
     }
   }
 
-  Future<void> _sweep(int semesterId) async {
+  Future<void> _sweep(
+    int semesterId, {
+    required bool backgroundTriggered,
+  }) async {
     try {
       await _service.initialize();
     } on Object {
@@ -61,7 +74,10 @@ final class NewAssignmentNotificationCoordinator {
     while (true) {
       final NewAssignmentNotificationClaim? claim;
       try {
-        claim = await _store.claimNext(semesterId: semesterId);
+        claim = await _store.claimNext(
+          semesterId: semesterId,
+          backgroundTriggered: backgroundTriggered,
+        );
       } on Object {
         return;
       }

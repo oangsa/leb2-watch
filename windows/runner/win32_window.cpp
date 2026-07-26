@@ -16,7 +16,7 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
-constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
+constexpr const wchar_t kWindowClassName[] = L"LEB2WATCH_MAIN_WINDOW_V1";
 
 /// Registry key for app theme preference.
 ///
@@ -118,6 +118,11 @@ Win32Window::Win32Window() {
 Win32Window::~Win32Window() {
   --g_active_window_count;
   Destroy();
+}
+
+// static
+const wchar_t* Win32Window::GetWindowClassName() {
+  return kWindowClassName;
 }
 
 bool Win32Window::Create(const std::wstring& title,

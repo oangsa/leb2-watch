@@ -6,7 +6,9 @@ Completed for plugin-free persisted preferences, global cache planning,
 durable generation/lease reconciliation, local app-level scheduling requests,
 retained cancellation tombstones, periodic platform-effect heartbeats,
 bounded platform-effect waits, late-effect recovery, course-mute effects, and
-post-sync composition. Linux is build-verified on this host; Android, iOS,
+post-sync composition. Background-triggered reconciliation now preserves every
+owner belonging to a course with background monitoring disabled. Linux is
+build-verified on this host; Android, iOS,
 macOS, and Windows runtime behavior remains unverified.
 
 ## Purpose
@@ -33,6 +35,8 @@ an owner, or presenting an operating-system request as delivery evidence.
   only up to the per-call timeout, and durably recover any successful effect
   that returns after the bounded attempt has finished.
 - Apply the iOS nearest-64 limit globally and deterministically.
+- Persist whether a pending generation is restricted to background-eligible
+  courses, with foreground requests taking precedence when work coalesces.
 
 ## Non-scope
 
@@ -88,9 +92,9 @@ the two effects independently and returning the original outcome.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — v8 preference and
-  reconciliation singleton definitions.
-- `lib/src/core/database/app_database.dart` — ordered v1-v7-to-v8 migration
+- `lib/src/core/database/database_tables.dart` — reminder singleton
+  definitions and the v9 background-effect scope.
+- `lib/src/core/database/app_database.dart` — ordered v1-v8-to-v9 migration
   and singleton seeding.
 - `lib/src/features/notifications/domain/deadline_reminder_preferences.dart`
   — exact supported offsets and immutable preferences.
@@ -125,7 +129,8 @@ twentyFourHours     = 1440 minutes
 ```
 
 `DeadlineReminderReconciler` exposes only
-`reconcileAfterCommittedSync(semesterId, operationId)` and
+`reconcileAfterCommittedSync(semesterId, operationId,
+backgroundTriggered:)` and
 `reconcileAfterPreferenceChange()`. Each call requests durable generation
 work. The committed-sync identifiers are trigger evidence; planning is global
 across the entire current cache.
@@ -163,6 +168,12 @@ deadline_reminder_reconciliations
 ```
 
 Owner and lease are both null or both present; a present owner is nonblank.
+Schema v9 adds
+`deadline_reminder_reconciliations.background_effects_only`, default false.
+The value is part of durable generation intent. A foreground request writes
+false and dominates any pending/coalesced background request; a background
+request may write true only when no foreground-capable generation is pending.
+
 `scheduled_reminders` remains the per-assignment/offset owner table and adds:
 
 ```text
@@ -217,6 +228,12 @@ conservatively to `unknown`. Deadline reminders never write
     become an unhandled asynchronous error. Completed generation means one
     bounded attempt, not platform delivery.
 
+For `backgroundTask` and `desktopTimer` successes, planning reads each current
+course's `background_monitoring_enabled` policy in the same coherent
+transaction. Disabled or unknown courses produce no schedule, cancel, update,
+or durable-owner mutation. A later foreground generation can reconcile those
+preserved owners and current deadlines.
+
 ## Platform behavior
 
 - Android: inexact one-shot schedule and cancellation, without exact-alarm
@@ -260,6 +277,8 @@ nonce is never logged. Reconciliation never requests notification permission.
   second date grammar.
 - Preserve the successful preference or synchronization result when local
   platform effects fail.
+- Persist generation scope so a headless continuation cannot lose the
+  background-only policy, and let foreground intent dominate coalesced work.
 
 ## Alternatives rejected
 
@@ -346,6 +365,9 @@ blocking valid owners.
   provider identity.
 - Migration tests cover fresh v8 and real v1-v7 upgrades, including a frozen
   connected v7 graph.
+- Feature 13.1 tests cover persisted background-only generation scope,
+  background-disabled owner preservation, foreground recovery, and the frozen
+  v8-to-v9 migration.
 
 ## Validation evidence
 

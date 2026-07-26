@@ -71,6 +71,13 @@ updates and implements `CourseEffectPolicyReader`. The policy seam is separate
 from the widget service so future effect producers do not depend on UI state.
 Storage exceptions are converted to safe failures.
 
+Feature 13.1 now enforces the same saved background setting in the shared
+runner and post-commit effect stores. Automatic synchronization stops before
+HTTP when no current course permits background monitoring. After a permitted
+semester-wide snapshot, background-disabled courses retain unclaimed
+new-assignment evidence and unchanged reminder owners for a later foreground
+reconciliation.
+
 Riverpod composes one store and service from the existing application database.
 `CoursePreferencesRoute` owns bounded provider loading/error states, while
 `CoursePreferencesPage` owns the local stream, persistence interactions, and
@@ -120,6 +127,10 @@ A background-triggered notification also requires background monitoring.
 `allowsBackgroundEffect` requires the same known/storage checks and enabled
 monitoring.
 
+The headless runner uses a coherent Drift count rather than presentation state;
+missing preference rows for known current courses inherit enabled. Effect
+stores fail closed for unknown courses during a background-triggered pass.
+
 Keys accept positive int32 semester and course IDs only. Public values and
 exceptions redact course data from `toString`.
 
@@ -158,6 +169,11 @@ defaults. No credential or remote user-specific state is added.
    do not trigger notification effects.
 8. A matching watched value clears the pending state. A stale key or storage
    failure clears it without changing the visible saved value.
+
+Automatic `backgroundTask` and `desktopTimer` work separately reads these
+saved values. Disabled-course new assignments are not claimed, and
+disabled-course deadline owners are neither cancelled nor updated. User-driven
+foreground refresh can process that preserved work.
 
 No transaction is held across a network request, and this feature performs no
 request.
@@ -238,6 +254,8 @@ Tests cover:
   320/375/414/768/1200 logical pixels, and lazy large-list construction.
 - Route provider loading, redacted initialization failure, retry, real shell
   reachability, and expired-session banner coexistence.
+- Shared-runner no-course gating plus transactional background notification
+  and reminder enforcement, including later foreground recovery.
 - Adaptive-shell resizing, pointer, keyboard, scaling, and session-state tests
   against a deterministic local course catalog.
 

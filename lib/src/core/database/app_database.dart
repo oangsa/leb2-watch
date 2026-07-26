@@ -25,6 +25,7 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     SyncBackoffStates,
     DeadlineReminderPreferences,
     DeadlineReminderReconciliations,
+    BackgroundScheduleSettings,
     AppSettings,
   ],
 )
@@ -36,17 +37,17 @@ class AppDatabase extends _$AppDatabase {
   final bool completeOpenTransaction;
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (migrator) async {
         await migrator.createAll();
-        await _seedDeadlineReminderSingletons();
+        await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 7 || to != 8) {
+        if (from < 1 || from > 8 || to != 9) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -69,10 +70,19 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 6) {
           await migrator.createTable(coursePreferences);
         }
-        await _migrateFrom7To8(addScheduleState: from > 2);
-        await migrator.createTable(deadlineReminderPreferences);
-        await migrator.createTable(deadlineReminderReconciliations);
-        await _seedDeadlineReminderSingletons();
+        if (from <= 7) {
+          await _migrateFrom7To8(addScheduleState: from > 2);
+          await migrator.createTable(deadlineReminderPreferences);
+          await migrator.createTable(deadlineReminderReconciliations);
+        } else {
+          await customStatement(
+            'ALTER TABLE deadline_reminder_reconciliations '
+            'ADD COLUMN background_effects_only INTEGER NOT NULL DEFAULT 0 '
+            'CHECK (background_effects_only IN (0, 1))',
+          );
+        }
+        await migrator.createTable(backgroundScheduleSettings);
+        await _seedSingletons();
       },
       beforeOpen: (details) async {
         if (completeOpenTransaction) {
@@ -96,13 +106,17 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> _seedDeadlineReminderSingletons() async {
+  Future<void> _seedSingletons() async {
     await customStatement(
       'INSERT OR IGNORE INTO deadline_reminder_preferences '
       '(singleton_id) VALUES (1)',
     );
     await customStatement(
       'INSERT OR IGNORE INTO deadline_reminder_reconciliations '
+      '(singleton_id) VALUES (1)',
+    );
+    await customStatement(
+      'INSERT OR IGNORE INTO background_schedule_settings '
       '(singleton_id) VALUES (1)',
     );
   }

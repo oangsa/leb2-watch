@@ -29,6 +29,9 @@ without prematurely defining an application domain or database schema.
   convert untrusted assignment description fragments to inert plain text.
 - Exact `flutter_local_notifications 22.2.0` and direct `timezone 0.11.1`
   dependencies used behind Feature 12.1's application-owned adapter.
+- Exact `workmanager 0.9.0+3`, `tray_manager 0.5.3`,
+  `launch_at_startup 0.5.1`, and `window_manager 0.5.2` dependencies resolved
+  for the later platform adapters behind Feature 13.1's plugin-free ports.
 
 ## Non-scope
 
@@ -38,7 +41,8 @@ without prematurely defining an application domain or database schema.
 - A credential-store interface or use of secure storage.
 - Secure-storage native entitlements, backup policy, or deployment-floor
   changes.
-- Design-system, notification-settings, or background-work dependencies.
+- Design-system or notification-settings UI dependencies.
+- Native background-work, tray, window, or autostart implementation.
 - Native builds unsupported by the current Linux host.
 
 ## User-visible behavior
@@ -72,6 +76,8 @@ the database feature supplies a real schema.
   — the only production consumer of the direct `html` parser dependency.
 - `lib/src/features/notifications/data/flutter_local_notifications_adapter.dart`
   — the only production consumer of notification/timezone plugin types.
+- `lib/src/platform/background/` and `lib/src/platform/desktop/` — shared
+  plugin-free ports; later platform features own direct plugin calls.
 - `analysis_options.yaml` — Flutter lints plus Riverpod lint plugin.
 - `lib/bootstrap.dart` — root `ProviderScope`.
 - `test/codegen/domain_value.dart` — Freezed smoke source.
@@ -149,6 +155,13 @@ The Linux release build passed and its bundle contains
 provided by `sqlite3` 3.x native assets through Drift, so
 `sqlite3_flutter_libs` is not required.
 
+Feature 13.1 resolution adds generated tray/window registration on Linux,
+macOS, and Windows and WorkManager registration on Android/iOS. It does not
+add task identifiers, manifests, capabilities, callback registration, tray
+assets, or direct plugin calls. Pub selected compatible transitive
+`flutter_secure_storage_windows 4.1.0` and `win32 5.15.0`; the complete
+analysis/test/Linux-build gates remained green after resolution.
+
 Android, iOS, macOS, and Windows were not built. Their deployment floors,
 secure-storage entitlements, Android backup policy, and other native setup
 belong to the features that first use those capabilities.
@@ -194,6 +207,8 @@ initialization.
   regex-only tag stripper.
 - Pin `flutter_local_notifications 22.2.0` and `timezone 0.11.1` exactly to the
   researched contracts used by the native configuration and adapter.
+- Pin the four background/desktop packages exactly so Features 13.2–13.4
+  implement against one reviewed native contract rather than a moving range.
 
 ## Alternatives rejected
 

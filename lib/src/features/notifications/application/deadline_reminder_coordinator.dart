@@ -55,20 +55,24 @@ final class DeadlineReminderCoordinator implements DeadlineReminderReconciler {
   Future<void> reconcileAfterCommittedSync({
     required int semesterId,
     required int operationId,
+    bool backgroundTriggered = false,
   }) {
     if (semesterId <= 0 || semesterId > 2147483647 || operationId <= 0) {
       return Future<void>.error(
         ArgumentError('Committed synchronization identity is invalid.'),
       );
     }
-    return _request();
+    return _request(backgroundTriggered: backgroundTriggered);
   }
 
   @override
-  Future<void> reconcileAfterPreferenceChange() => _request();
+  Future<void> reconcileAfterPreferenceChange() =>
+      _request(backgroundTriggered: false);
 
-  Future<void> _request() async {
-    var generation = await _store.requestGeneration();
+  Future<void> _request({required bool backgroundTriggered}) async {
+    var generation = await _store.requestGeneration(
+      backgroundTriggered: backgroundTriggered,
+    );
     while (true) {
       final existing = _inFlight;
       if (existing != null) {

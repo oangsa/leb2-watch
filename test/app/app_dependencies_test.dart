@@ -16,6 +16,11 @@ import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/local_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
+import 'package:leb2_watch/src/features/background_sync/application/local_background_scheduler.dart';
+import 'package:leb2_watch/src/features/background_sync/data/background_schedule_store.dart';
+import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
+import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/notification_aware_assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_coordinator.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
@@ -157,6 +162,25 @@ void main() {
       final secondReminderPreferences = await container.read(
         deadlineReminderPreferencesServiceProvider.future,
       );
+      final scheduler = await container.read(
+        backgroundSchedulerProvider.future,
+      );
+      final scheduleReconciler = await container.read(
+        backgroundScheduleReconcilerProvider.future,
+      );
+      final monitoringSettings = await container.read(
+        backgroundMonitoringSettingsServiceProvider.future,
+      );
+      final backgroundStore = await container.read(
+        backgroundScheduleStoreProvider.future,
+      );
+      final backgroundTargetStore = await container.read(
+        backgroundSyncTargetStoreProvider.future,
+      );
+      final backgroundRunner = await container.read(
+        backgroundSyncRunnerProvider.future,
+      );
+      final autostart = container.read(desktopAutostartServiceProvider);
 
       expect(storage.openCalls, 1);
       expect(firstDatabase, same(database));
@@ -191,6 +215,13 @@ void main() {
         isA<LocalDeadlineReminderPreferencesService>(),
       );
       expect(secondReminderPreferences, same(reminderPreferences));
+      expect(scheduler, isA<LocalBackgroundScheduler>());
+      expect(scheduleReconciler, same(scheduler));
+      expect(monitoringSettings, same(scheduler));
+      expect(backgroundStore, isA<DriftBackgroundScheduleStore>());
+      expect(backgroundTargetStore, isA<DriftBackgroundSyncTargetStore>());
+      expect(backgroundRunner, isA<BackgroundSyncRunner>());
+      expect(autostart, isA<UnsupportedDesktopAutostartService>());
       expect(backend.requestCalls, 0);
 
       lifecycleSubscription.close();

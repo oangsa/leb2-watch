@@ -11,8 +11,8 @@ void main() {
 
   tearDown(() => database.close());
 
-  test('fresh v8 schema seeds checked reminder singletons', () async {
-    expect(database.schemaVersion, 8);
+  test('fresh v9 schema seeds checked reminder singletons', () async {
+    expect(database.schemaVersion, 9);
 
     final preferences = await database
         .select(database.deadlineReminderPreferences)
@@ -30,6 +30,14 @@ void main() {
     expect(reconciliation.completedGeneration, 0);
     expect(reconciliation.ownerToken, isNull);
     expect(reconciliation.leaseExpiresAtUtc, isNull);
+    expect(reconciliation.backgroundEffectsOnly, isFalse);
+
+    final background = await database
+        .select(database.backgroundScheduleSettings)
+        .getSingle();
+    expect(background.singletonId, 1);
+    expect(background.monitoringEnabled, isFalse);
+    expect(background.installJitterSeconds, isNull);
   });
 
   test(

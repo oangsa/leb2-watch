@@ -496,6 +496,8 @@ class DeadlineReminderReconciliations extends Table {
   TextColumn get ownerToken => text().nullable()();
   IntColumn get leaseExpiresAtUtc =>
       integer().map(const UtcDateTimeConverter()).nullable()();
+  BoolColumn get backgroundEffectsOnly =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
@@ -510,6 +512,23 @@ class DeadlineReminderReconciliations extends Table {
     'CHECK ((owner_token IS NULL AND lease_expires_at_utc IS NULL) OR '
         '(owner_token IS NOT NULL AND lease_expires_at_utc IS NOT NULL '
         'AND length(trim(owner_token)) > 0))',
+  ];
+}
+
+class BackgroundScheduleSettings extends Table {
+  IntColumn get singletonId => integer()();
+  BoolColumn get monitoringEnabled =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get installJitterSeconds => integer().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (singleton_id = 1)',
+    'CHECK (install_jitter_seconds IS NULL OR '
+        '(install_jitter_seconds >= 0 AND install_jitter_seconds <= 300))',
   ];
 }
 

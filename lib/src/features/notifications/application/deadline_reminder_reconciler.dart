@@ -7,5 +7,6 @@ abstract interface class DeadlineReminderReconciler
   Future<void> reconcileAfterCommittedSync({
     required int semesterId,
     required int operationId,
+    bool backgroundTriggered = false,
   });
 }

@@ -2,8 +2,9 @@
 
 ## Status
 
-Completed for schema version 8, including ordered v1/v2/v3/v4/v5/v6/v7-to-v8
-migration, generated Drift source, in-memory relational tests, and real
+Completed through schema version 9, including ordered
+v1/v2/v3/v4/v5/v6/v7/v8-to-v9 migration, generated Drift source, in-memory
+relational tests, and real
 file-backed migration, simultaneous multi-isolate startup, and
 independent-connection tests. Linux remains the only build-verified native
 target on this host.
@@ -16,7 +17,7 @@ connections one durable coordination record for single-flight synchronization.
 
 ## Scope
 
-- Sixteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
+- Seventeen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
   notification/change and sync history, settings, and synchronization
   operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
@@ -57,10 +58,10 @@ when necessary. BUSY/LOCKED WAL transition races receive a short bounded retry.
 
 For a zero-version database only, setup creates a connection-local temporary
 marker and acquires `BEGIN IMMEDIATE` before Drift reads the version. The first
-connection creates schema v8 while later connections wait in SQLite. The
+connection creates schema v9 while later connections wait in SQLite. The
 marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`,
 drops the temporary marker, and only then enables foreign keys. A waiter
-therefore re-reads v8 and does not run a duplicate `createAll`. Existing and
+therefore re-reads v9 and does not run a duplicate `createAll`. Existing and
 legacy-version databases do not gain an outer transaction, so ordered
 migrations that use Drift table-rebuild transactions remain valid.
 `UtcDateTimeConverter` owns UTC epoch-millisecond conversion. Generated table
@@ -89,9 +90,9 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — sixteen table definitions,
+- `lib/src/core/database/database_tables.dart` — seventeen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 8, migration,
+- `lib/src/core/database/app_database.dart` — schema version 9, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -132,10 +133,10 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `8`. Fresh databases call `createAll` and seed
-the two deadline-reminder singleton rows.
-Supported upgrades are exactly `1 -> 8`, `2 -> 8`, `3 -> 8`, `4 -> 8`,
-`5 -> 8`, `6 -> 8`, and `7 -> 8`,
+`AppDatabase.schemaVersion` is `9`. Fresh databases call `createAll` and seed
+the two deadline-reminder singleton rows plus background scheduling settings.
+Supported upgrades are exactly `1 -> 9`, `2 -> 9`, `3 -> 9`, `4 -> 9`,
+`5 -> 9`, `6 -> 9`, `7 -> 9`, and `8 -> 9`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
@@ -210,6 +211,14 @@ coordination. Both are seeded on fresh creation and every supported upgrade.
 row becomes unknown/pending during migration; cancelled rows remain bounded
 owner/ID tombstones under the observed seen assignment and offset.
 
+Feature 13.1 raises the schema to v9 with checked singleton
+`background_schedule_settings`. Monitoring defaults off and the nullable
+stable install jitter is constrained to `0..300` seconds. It also adds
+`deadline_reminder_reconciliations.background_effects_only`, default false,
+so a pending generation retains whether only background-eligible courses may
+produce platform effects. A frozen physical v8 fixture verifies the additive
+migration and default values.
+
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
 backend contract does not define authoritative removal and the semester
@@ -246,7 +255,7 @@ short writer owns the database; the busy timeout lets normal write races wait.
 
 Production startup uses a separate zero-version-only `BEGIN IMMEDIATE`
 bootstrap transaction. It serializes first schema creation across independent
-Dart isolates without a Dart static or process file lock. Once v8 exists,
+Dart isolates without a Dart static or process file lock. Once v9 exists,
 connections observe WAL and skip both the redundant journal transition and
 bootstrap creation transaction.
 
@@ -284,6 +293,10 @@ state column, then creates and seeds the two deadline-reminder singleton
 tables. The v1/v2 TableMigration introduces the current reminder columns while
 rebuilding the old foreign key; frozen v3-v7 schemas add the state column in
 the final step. Every path preserves owner IDs and row data.
+The v8-to-v9 step adds the background-only reconciliation scope, creates the
+background scheduling singleton, and seeds monitoring off. Earlier versions
+create the current reconciliation shape directly after their ordered legacy
+steps.
 
 ## Platform behavior
 
@@ -357,7 +370,7 @@ rolled back by connection close if schema creation fails.
 
 Database tests cover:
 
-- fresh sixteen-table v8 creation, all named indices, foreign keys, and busy
+- fresh seventeen-table v9 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -365,8 +378,8 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen physical v3/v4/v5/v6/v7 databases upgraded in place
-  to v8 with assignment, seen, fingerprint, reminder, notification, sync-run,
+- real v1, v2, and frozen physical v3/v4/v5/v6/v7/v8 databases upgraded in
+  place to v9 with assignment, seen, fingerprint, reminder, notification, sync-run,
   operation, baseline, operation-change, and backoff rows preserved,
   every legacy reminder mapped to checked unknown/pending state,
   empty baseline recovery, correct lifecycle/revision defaults or conservative
@@ -436,6 +449,13 @@ coverage for simultaneous zero-version and already-WAL opens. Its focused
 storage/migration suite passed 15/15, and the two-case stress command passed
 12/12 separate invocations; final broad counts, generated hashes, analyzers,
 and build evidence are recorded in `deadline-reminders.md`.
+
+Feature 13.1 raised the live schema to v9 and added a frozen physical v8
+fixture. Fresh schema plus every real v1-v8 upgrade passed, monitoring started
+off, stable jitter remained nullable until first scheduling, and the new
+deadline reconciliation scope defaulted to foreground-capable false. The
+focused database suite passed 44/44 and the complete Flutter suite passed
+728/728 in the combined feature workspace.
 
 ## Known limitations
 
