@@ -21,8 +21,8 @@ guessing a backend URL, or mixing later architecture into the scaffold.
   `dev.oangsa.leb2watch`.
 - Desktop executable name `leb2-watch` (with the native `.exe` suffix on
   Windows) and iOS internal executable name `leb2-watch`.
-- A thin Dart entry point, bootstrap function, minimal application root, and
-  empty feature/platform seams.
+- A thin Dart entry point, recoverable bootstrap shell, application root, and
+  feature/platform seams.
 - Compile-time development and production configuration.
 - Focused configuration and root-widget tests.
 - A basic SHA-pinned Linux CI validation workflow.
@@ -49,8 +49,10 @@ features.
 ## Architecture
 
 `lib/main.dart` delegates immediately to `bootstrap()` in
-`lib/bootstrap.dart`. Bootstrap initializes Flutter bindings, reads the
-compile-time configuration, and passes it to `Leb2WatchApp`.
+`lib/bootstrap.dart`. Bootstrap initializes Flutter bindings, performs required
+desktop plugin preparation, and mounts a dependency-light Material recovery
+shell. The shell then reads compile-time configuration and resolves local
+startup before passing the successful result to `Leb2WatchApp`.
 
 Feature 9.2 retains that boundary while adding the root Riverpod composition:
 bootstrap creates `AppConfiguration` exactly once, overrides
@@ -102,8 +104,10 @@ BACKEND_BASE_URL
 ```
 
 `APP_ENV` defaults to `development`. The only supported nonempty values are
-`development` and `production`; an unsupported value throws a `FormatException`
-during bootstrap. An explicitly empty value also resolves to development.
+`development` and `production`; the configuration loader throws a
+`FormatException` for an unsupported value. Bootstrap converts that error to
+fixed invalid-build copy without retaining or displaying the rejected value.
+An explicitly empty value resolves to development.
 
 `BACKEND_BASE_URL` defaults to an empty string and is preserved without
 transport-level validation. An empty URL is valid at this scaffold boundary
@@ -128,12 +132,15 @@ At process start:
 
 1. `main()` calls `bootstrap()`.
 2. Flutter bindings are initialized.
-3. `AppConfiguration.fromEnvironment()` reads compile-time definitions.
-4. Unknown nonempty `APP_ENV` values fail immediately.
-5. Valid configuration is installed as the exact Riverpod override and passed
-   to the root widget.
-6. The Flutter application renders; lazy transport/database providers open
-   only when a consuming workflow requests them.
+3. Required desktop plugin preparation completes before `runApp`.
+4. A Material loading/recovery shell mounts.
+5. `AppConfiguration.fromEnvironment()` reads compile-time definitions.
+6. Unknown nonempty `APP_ENV` values produce fixed recovery copy without
+   invoking local startup.
+7. Valid configuration and the local initial stage are installed as exact
+   Riverpod overrides in one cached application graph.
+8. Lazy transport/database providers open only when a consuming workflow
+   requests them.
 
 Bootstrap itself performs no networking. Current owning features add local
 persistence and transport behind lazy application providers.
@@ -182,9 +189,9 @@ treated as a fully immutable action graph.
   keep generated platform projects under version control.
 - Keep `main.dart` thin and put bootstrap, application, and configuration
   concerns in their intended directories.
-- Pass configuration into the root widget so invalid environments are rejected
-  at startup. Once Riverpod was added by its owning feature, reuse that exact
-  object as the root provider override rather than parsing configuration twice.
+- Pass configuration into the root widget after the recovery shell accepts the
+  startup result. Reuse that exact object as the root provider override rather
+  than parsing configuration twice.
 - Keep the backend URL optional until the authenticated API client is
   implemented.
 - Track empty feature and platform seams with `.gitkeep` rather than placeholder
@@ -209,12 +216,15 @@ treated as a fully immutable action graph.
 
 ## Failure behavior
 
-An unknown nonempty `APP_ENV` throws a `FormatException` before the root widget
-is installed. The optional backend URL produces no runtime failure in this
-feature because no network request exists.
+An unknown nonempty `APP_ENV` is reduced to a fixed, sanitized recovery surface
+after desktop preparation. Local startup failures receive a separate fixed
+surface and do not delete saved data. The optional backend URL produces no
+failure at this scaffold boundary because no network request is made during
+bootstrap.
 
-There is no retry, timeout, session-expiration, rollback, or user-facing API
-error behavior in the scaffold.
+There is no bootstrap retry, timeout abandonment, database repair, or global
+framework error handler. See `bootstrap-recovery-shell.md` for the exact
+boundary and hard limits.
 
 ## Tests
 
@@ -227,6 +237,11 @@ error behavior in the scaffold.
 
 `test/leb2_watch_app_test.dart` verifies that the Material application root and
 the `LEB2 Watch` label render.
+
+`test/bootstrap_test.dart` verifies desktop ordering, loading before local
+resolution, sanitized terminal failures, exactly-once ready composition,
+disposed late completion, and narrow/text-scaled light and dark recovery
+layouts.
 
 `test/platform/background/ios_background_configuration_test.dart` statically
 verifies that:
@@ -327,3 +342,4 @@ No iOS build was run or claimed because this host does not provide Xcode.
 
 - [Repository Frontend Preflight](repository-preflight.md)
 - [Backend API Contract](backend-api-contract.md)
+- [Bootstrap Recovery Shell](bootstrap-recovery-shell.md)

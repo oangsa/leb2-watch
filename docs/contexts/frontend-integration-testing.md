@@ -71,7 +71,9 @@ The automated workflow performs the same visible actions as a user:
 
 `E2eAppHarness` creates one temporary application-support directory, one
 temporary cache directory, a production `LocalDatabaseStorage`, shared
-recording journals, and a strict backend adapter.
+recording journals, and a strict backend adapter. This harness composes app
+lifetimes directly; the separate bootstrap widget tests own the
+dependency-light loading/recovery shell boundary.
 
 Before each lifetime, the harness calls the same
 `resolveInitialAppFlowStage` function as production bootstrap using the same
@@ -187,9 +189,9 @@ proven active or expired lifecycle with positive revision, verified user, saved
 cookie presence (or temporarily unavailable secure storage), and active
 semester resolves `ready`. Proven prior users with no selected semester resolve
 semester selection; verifiably missing credentials resolve authentication.
-Missing or inconsistent proof resolves onboarding. Bootstrap supplies that
-one resolved value to the provider-owned controller before the first product
-frame and performs no network request.
+Missing or inconsistent proof resolves onboarding. After its loading shell,
+bootstrap supplies that one resolved value to the provider-owned controller in
+the cached ready graph and performs no network request.
 
 The exact expiration response flows through the real Dio error evidence,
 domain error mapper, synchronization service, Drift lifecycle store, dashboard
@@ -345,8 +347,9 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
   intentionally non-durable. With no verified-session evidence, restart
   conservatively returns to onboarding rather than skipping privacy
   disclosures.
-- A database open/read/close failure stops bootstrap with a redacted exception;
-  there is no dedicated startup retry page yet.
+- A database open/read/close failure produces fixed bootstrap recovery copy.
+  There is intentionally no same-process retry because cleanup safety is not
+  encoded by the startup exception.
 - The local machine has a graphical Linux display but no `xvfb-run`; the exact
   workflow was run directly with `-d linux`. The Xvfb command is configured for
   Ubuntu CI and remains to be observed in CI.
@@ -367,6 +370,7 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 
 ## Related contexts
 
+- [Bootstrap recovery shell](bootstrap-recovery-shell.md)
 - [Privacy onboarding](privacy-onboarding.md)
 - [Session setup](session-setup.md)
 - [Semester selection](semester-selection.md)
