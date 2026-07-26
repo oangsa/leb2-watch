@@ -119,15 +119,17 @@ dedupe key, user ID, or opaque backend JSON.
 
 ## Data model
 
-No table, column, index, or migration changed; schema remains version 7.
+This reader added no table, column, index, or migration. The application schema
+is now version 8 because Feature 12.3 owns deadline-reminder state.
 
 The detail reader observes:
 
 - `activities` and `courses` for the current verified display record.
 - `seen_activities` for durable observation evidence.
 - `course_preferences` for the local per-course mute value.
-- `scheduled_reminders` for counts, reconciliation count, and the earliest
-  non-pending scheduled time.
+- `scheduled_reminders` for non-cancelled counts, unknown reconciliation
+  count, and the earliest scheduled time. Cancelled tombstones are deliberately
+  excluded from active reminder evidence.
 - `notification_history` for count and latest local record time.
 - `sync_runs` for the latest retained attempt and success.
 

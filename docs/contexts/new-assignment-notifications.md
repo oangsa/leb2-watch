@@ -49,9 +49,10 @@ local claim persistence, or the app-level show request fails.
 ## Architecture
 
 `NotificationAwareAssignmentSyncService` decorates the single core
-`AssignmentSyncService`. It invokes
-`NewAssignmentNotificationCoordinator` only after the delegate returns
-`SyncSuccess`, then returns the original outcome unchanged.
+`AssignmentSyncService`. After `SyncSuccess`, it invokes
+`NewAssignmentNotificationCoordinator` first and the Feature 12.3
+`DeadlineReminderReconciler` second. Each effect is caught independently, and
+the original outcome is returned unchanged.
 
 The coordinator coalesces callers that received the same semester/operation
 success, serializes distinct successful operations in process, initializes
@@ -105,7 +106,8 @@ decorator unchanged.
 
 ## Data model
 
-Schema version remains 7. No table or migration changed.
+Feature 12.2 itself added no migration. The application schema is now version
+8 because Feature 12.3 owns deadline-reminder preferences and reconciliation.
 
 `seen_activities.is_baseline = false` supplies durable discovery evidence,
 while an inner join to `activities` and `courses` requires verified current
@@ -136,7 +138,8 @@ identity prevents a valid claim before discovery persistence.
 10. A candidate-specific invalid request remains consumed and the sweep
     continues; infrastructure failure stops before later candidates are
     claimed by that in-process operation sweep.
-11. The decorator returns the original synchronization outcome.
+11. The decorator invokes deadline-reminder reconciliation independently.
+12. The decorator returns the original synchronization outcome.
 
 ## Platform behavior
 
@@ -202,10 +205,12 @@ and continues.
 
 Same-process callers joined to one sync operation share that stop decision.
 Distinct later operations serialize and may recover remaining work. Separate
-processes have no shared dispatcher lock under schema v7, so a second process
+processes have no shared new-assignment dispatcher lock, so a second process
 can claim later work before the first learns that its show request failed.
-Global cross-process batch-stop would require a durable dispatcher/lease;
-holding a SQLite transaction across platform I/O is deliberately rejected.
+The schema-v8 deadline-reminder lease does not own this producer. Global
+cross-process new-assignment batch-stop would require its own durable
+dispatcher/lease; holding a SQLite transaction across platform I/O is
+deliberately rejected.
 
 There is no atomic transaction spanning SQLite and the OS:
 
@@ -266,15 +271,17 @@ Two build-runner passes completed; the stability pass wrote zero outputs and
   pending work; there is no feature-introduction cutover marker.
 - Assignment/history ownership remains semester-scoped under the existing
   documented account-partition limitation.
-- Operation coalescing and batch-stop ordering are process-local. Separate
-  processes retain one-claim-per-identity and ID-collision safety but cannot
-  share a global stop decision under schema v7.
+- New-assignment operation coalescing and batch-stop ordering remain
+  process-local. Separate processes retain one-claim-per-identity and
+  ID-collision safety but do not share a global new-assignment stop decision.
+  Feature 12.3 deadline reconciliation separately uses the schema-v8 durable
+  generation and lease.
 - Completed-operation memory is deliberately bounded to 128 keys; a very late
   duplicate after eviction may start an empty deduplicated sweep.
 
 ## Future considerations
 
-- Feature 12.3 may allocate deadline-reminder IDs through the same candidate
+- Feature 12.3 allocates deadline-reminder IDs through the same candidate
   factory and both owner tables.
 - Feature 13 may invoke the shared decorated sync service from platform
   background triggers while enforcing the appropriate monitoring policy.
@@ -291,3 +298,4 @@ Two build-runner passes completed; the stability pass wrote zero outputs and
 - [Assignment Detail](assignment-detail.md)
 - [Local Database](local-database.md)
 - [Local Notification Service](local-notifications.md)
+- [Deadline Reminders](deadline-reminders.md)

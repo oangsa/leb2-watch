@@ -1,15 +1,18 @@
 import '../../assignments/sync/assignment_sync_service.dart';
+import 'deadline_reminder_reconciler.dart';
 import 'new_assignment_notification_coordinator.dart';
 
 final class NotificationAwareAssignmentSyncService
     implements AssignmentSyncService {
   const NotificationAwareAssignmentSyncService(
     this._delegate,
-    this._coordinator,
-  );
+    this._coordinator, [
+    this._deadlineReminderReconciler,
+  ]);
 
   final AssignmentSyncService _delegate;
   final NewAssignmentNotificationCoordinator _coordinator;
+  final DeadlineReminderReconciler? _deadlineReminderReconciler;
 
   @override
   Future<SyncOutcome> synchronize({
@@ -30,6 +33,17 @@ final class NotificationAwareAssignmentSyncService
         );
       } on Object {
         // A local notification side effect cannot replace a committed sync.
+      }
+      final deadlineReminderReconciler = _deadlineReminderReconciler;
+      if (deadlineReminderReconciler != null) {
+        try {
+          await deadlineReminderReconciler.reconcileAfterCommittedSync(
+            semesterId: outcome.semesterId,
+            operationId: outcome.operationId,
+          );
+        } on Object {
+          // A local reminder side effect cannot replace a committed sync.
+        }
       }
     }
     return outcome;

@@ -2,11 +2,13 @@
 
 ## Status
 
-Completed for Feature 12.1, with Feature 12.2 now supplying durable
-new-assignment claims. The application-owned service, platform adapter,
-validated assignment targets, navigation coordinator, Android native setup,
-iOS delegate setup, tests, and Linux release build are implemented. Android,
-iOS, macOS, and Windows native builds remain unverified on this Linux host.
+Completed for Feature 12.1, with Feature 12.2 supplying durable
+new-assignment claims and Feature 12.3 supplying durable deadline-reminder
+ownership and reconciliation. The application-owned service, platform
+adapter, validated assignment targets, navigation coordinator, Android native
+setup, iOS delegate setup, tests, and Linux release build are implemented.
+Android, iOS, macOS, and Windows native builds remain unverified on this Linux
+host.
 
 ## Purpose
 
@@ -39,7 +41,8 @@ exposing plugin types to application callers.
 - Deciding whether a synchronized assignment is new.
 - Baseline, dedupe, history-write, or notification-delivery orchestration.
 - Persisting or transactionally allocating notification IDs.
-- Reminder offsets, reconciliation, limits, or removal policy.
+- Reminder offsets, reconciliation, limits, or removal policy; Feature 12.3
+  owns those concerns behind this service.
 - Global or per-course notification setting decisions.
 - Notification settings UI or permission explanation UI.
 - Android WorkManager, Apple background tasks, desktop timers, tray, or
@@ -74,7 +77,8 @@ unpackaged Windows notification can be cancelled.
 `LocalNotificationService` is the plugin-free application boundary.
 `LocalNotificationServiceImpl` validates requests, composes fixed copy,
 encodes targets, maps permission and platform failures, joins concurrent
-initialization, and publishes a broadcast response stream.
+initialization, exposes attempt-scoped abandonment to bounded application
+orchestrators, and publishes a broadcast response stream.
 
 `LocalNotificationsPlatform` is an injected application-owned adapter seam.
 `FlutterLocalNotificationsAdapter` is the only production file that imports
@@ -93,7 +97,7 @@ the notification service.
 - `lib/src/features/notifications/domain/local_notification_models.dart` —
   plugin-free requests, owners, IDs, targets, permissions, and failures.
 - `lib/src/features/notifications/domain/local_notification_service.dart` —
-  application-owned service interface.
+  application-owned service and initialization-attempt interfaces.
 - `lib/src/features/notifications/domain/local_notification_payload_codec.dart`
   — strict versioned assignment-target codec.
 - `lib/src/features/notifications/domain/local_notification_id_factory.dart` —
@@ -137,7 +141,21 @@ abstract interface class LocalNotificationService {
   Future<void> cancelAll();
   void dispose();
 }
+
+abstract interface class LocalNotificationInitializationAttempt {
+  Future<void> get completion;
+  void abandon();
+}
+
+abstract interface class LocalNotificationInitializationControl {
+  LocalNotificationInitializationAttempt beginInitializationAttempt();
+}
 ```
+
+The attempt-control seam is optional to notification callers. Normal
+`initialize()` delegates to it. Concurrent callers receive handles for one
+shared active attempt. Only the holder of the exact active attempt can abandon
+it; returned failures reset it for retry, and success remains retained.
 
 Payloads are deterministic JSON with exactly:
 
@@ -161,9 +179,10 @@ and exactly its declared positive offset before the deadline.
 
 ## Data model
 
-No database table, column, index, or migration changed; schema remains version
-7. No notification is presented as delivered merely because a plugin call
-completed.
+The service itself owns no database table. Feature 12.3 raises the application
+schema to version 8 for deadline-reminder preferences and durable
+reconciliation. No notification is presented as delivered merely because a
+plugin call completed.
 
 The canonical candidate owner keys are:
 
@@ -182,27 +201,34 @@ claiming the truncated mapping is collision-free.
 Feature 12.2 resolves the new-assignment sequence against
 `notification_history` and `scheduled_reminders` inside its persistence
 transaction and uses the canonical owner key as its dedupe key. Feature 12.3
-must apply the same collision rule for deadline reminders. The platform
-service itself neither reads nor writes those rows.
+applies the same collision rule for deadline reminders and persists ownership
+before platform I/O. The platform service itself neither reads nor writes
+those rows.
 
 ## State and control flow
 
 1. Riverpod creates one platform adapter and one local service.
 2. `Leb2WatchApp` creates the router and response coordinator.
 3. The coordinator subscribes before service initialization.
-4. Concurrent initialization callers join one future.
+4. Concurrent initialization callers join one attempt and one completion
+   future.
 5. The adapter registers one main-isolate response callback without prompting.
 6. Initialization becomes ready only after adapter initialization and the
    supported cold-launch lookup both succeed; either failure resets the whole
    operation for a retry.
 7. A supported cold-launch payload is consumed once through the retained
-   successful initialization future.
+   successful initialization attempt.
 8. Every distinct live callback is decoded and emitted, including repeated
    callbacks carrying the same valid target.
 9. A ready flow navigates immediately; a gated flow retains the newest target.
 10. Becoming ready consumes the pending target before navigating, preventing
    reentrant duplicate delivery.
-11. App disposal removes flow and stream listeners; provider disposal closes
+11. A coordinator timeout may abandon only its captured active initialization
+    attempt. A later caller may replace it even if the underlying platform
+    Future cannot be cancelled. Every state mutation and launch-payload
+    delivery is identity-fenced, so late abandoned success or error cannot
+    clear or replace newer readiness.
+12. App disposal removes flow and stream listeners; provider disposal closes
     the service response stream and adapter bridge. Disposal is checked before
     platform entry and after every initialization await, so queued or in-flight
     work cannot enter the platform after teardown or become ready.
@@ -307,6 +333,10 @@ and continues to show local cached data.
   `platformUnavailable` and permits a later retry.
 - Launch-detail lookup failure maps to `platformFailure`, leaves the service
   unready, and permits a complete later retry.
+- Explicit abandonment maps that attempt's completion to a redacted
+  `platformFailure` and permits replacement. The non-cancellable underlying
+  Future is contained; its late success, error, or launch payload cannot mutate
+  a newer successful attempt.
 - Linux scheduling and unpackaged-Windows scheduling/cancellation fail with
   `unsupported`.
 - Platform exceptions map to `platformFailure` without raw details.
@@ -334,6 +364,9 @@ and continues to show local cached data.
   grouping/content, UTC inexact reminders, display-control rejection,
   Unicode/emoji preservation, validation-before-I/O, unsupported platforms,
   cancellation, bounded platform failures, and disposal.
+- Deadline-reminder convergence tests exercise the production service wrapper
+  across bounded initialization and launch-payload timeouts, second-owner
+  replacement, and late abandoned success/error fencing.
 - Deadline formatter tests cover deterministic positive and negative
   half-hour UTC offsets.
 - Adapter tests cover Darwin permission flags, Android icon, Windows identity,
@@ -379,8 +412,10 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - Android was statically validated but not built because the Android SDK is
   unavailable on this host.
 - iOS, macOS, and Windows were not build-verified on their native toolchains.
-- iOS retains at most 64 pending local notifications; Feature 12.3 must enforce
-  a global reconciliation cap.
+- iOS retains at most 64 pending local notifications; Feature 12.3 enforces a
+  deterministic global app-owned deadline-reminder cap, but other pending
+  notification requests owned by LEB2 Watch remain application-capacity
+  factors.
 - Android/OEM and Apple policies may delay or suppress a scheduled reminder.
 - Plugin success does not prove that the OS displayed or delivered a
   notification.
@@ -388,12 +423,12 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - Current unpackaged Windows builds cannot reliably schedule-and-cancel
   reminders; MSIX runtime identity is required.
 - New-assignment history proves a committed app-level show request or muted
-  decision, not platform display or delivery. Reminder ownership remains
-  unimplemented.
+  decision, not platform display or delivery. Deadline-reminder ready state
+  likewise proves only that the latest app-level scheduling call returned.
 
 ## Future considerations
 
-- Feature 12.3 should own reminder offset selection, iOS pending limits,
+- Feature 12.3 owns reminder offset selection, iOS pending limits,
   persistence, reconciliation, rescheduling, and removal.
 - Feature 14.1 should explain permission purpose and platform reliability
   before calling `requestPermission`.
@@ -413,3 +448,4 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - [Local Database](local-database.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
+- [Deadline Reminders](deadline-reminders.md)

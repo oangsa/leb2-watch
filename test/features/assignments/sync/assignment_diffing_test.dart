@@ -536,6 +536,8 @@ Future<void> _insertReminder(AppDatabase database) {
           deadlineAtUtc: DateTime.utc(2026, 7, 31, 16, 59),
           scheduledForUtc: DateTime.utc(2026, 7, 31, 15, 59),
           createdAtUtc: DateTime.utc(2026, 7, 1),
+          needsReconciliation: const Value(false),
+          scheduleState: const Value('scheduled'),
         ),
       );
 }

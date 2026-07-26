@@ -19,3 +19,13 @@ abstract interface class LocalNotificationService {
 
   void dispose();
 }
+
+abstract interface class LocalNotificationInitializationAttempt {
+  Future<void> get completion;
+
+  void abandon();
+}
+
+abstract interface class LocalNotificationInitializationControl {
+  LocalNotificationInitializationAttempt beginInitializationAttempt();
+}

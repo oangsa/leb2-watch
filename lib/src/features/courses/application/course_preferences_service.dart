@@ -1,4 +1,5 @@
 import '../data/course_preferences_store.dart';
+import '../../notifications/application/deadline_reminder_reconciler.dart';
 
 abstract interface class CoursePreferencesService {
   Stream<ActiveCourseCatalog> watchCatalog();
@@ -81,9 +82,14 @@ final class CourseEffectPolicy {
 
 final class LocalCoursePreferencesService
     implements CoursePreferencesService, CourseEffectPolicyReader {
-  LocalCoursePreferencesService(this._store);
+  LocalCoursePreferencesService(
+    this._store, [
+    this._deadlineReminderReconciliationRequester,
+  ]);
 
   final CoursePreferencesStore _store;
+  final DeadlineReminderReconciliationRequester?
+  _deadlineReminderReconciliationRequester;
 
   @override
   Stream<ActiveCourseCatalog> watchCatalog() => _store.watchActiveCatalog();
@@ -92,8 +98,19 @@ final class LocalCoursePreferencesService
   Future<CoursePreferenceUpdateResult> setNotificationsMuted(
     CourseKey key, {
     required bool muted,
-  }) {
-    return _update(() => _store.setNotificationsMuted(key, muted: muted));
+  }) async {
+    final result = await _update(
+      () => _store.setNotificationsMuted(key, muted: muted),
+    );
+    final requester = _deadlineReminderReconciliationRequester;
+    if (result is CoursePreferenceUpdateSuccess && requester != null) {
+      try {
+        await requester.reconcileAfterPreferenceChange();
+      } on Object {
+        // The committed course preference remains the authoritative result.
+      }
+    }
+    return result;
   }
 
   @override

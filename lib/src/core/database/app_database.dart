@@ -23,23 +23,30 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     AssignmentBaselines,
     SyncOperationChanges,
     SyncBackoffStates,
+    DeadlineReminderPreferences,
+    DeadlineReminderReconciliations,
     AppSettings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase(super.executor);
+  AppDatabase(super.executor, {this.completeOpenTransaction = false});
 
-  AppDatabase.forTesting(super.executor);
+  AppDatabase.forTesting(super.executor) : completeOpenTransaction = false;
+
+  final bool completeOpenTransaction;
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
-      onCreate: (migrator) => migrator.createAll(),
+      onCreate: (migrator) async {
+        await migrator.createAll();
+        await _seedDeadlineReminderSingletons();
+      },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 6 || to != 7) {
+        if (from < 1 || from > 7 || to != 8) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -59,15 +66,61 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 5) {
           await _migrateFrom5To6(addSyncOperationRevision: from != 1);
         }
-        await migrator.createTable(coursePreferences);
+        if (from <= 6) {
+          await migrator.createTable(coursePreferences);
+        }
+        await _migrateFrom7To8(addScheduleState: from > 2);
+        await migrator.createTable(deadlineReminderPreferences);
+        await migrator.createTable(deadlineReminderReconciliations);
+        await _seedDeadlineReminderSingletons();
       },
       beforeOpen: (details) async {
+        if (completeOpenTransaction) {
+          final marker = await customSelect(
+            "SELECT 1 FROM sqlite_temp_schema WHERE type = 'table' "
+            "AND name = 'leb2_watch_open_transaction'",
+          ).getSingleOrNull();
+          if (marker != null) {
+            await customStatement('PRAGMA user_version = $schemaVersion');
+            await customStatement('COMMIT');
+            await customStatement(
+              'DROP TABLE temp.leb2_watch_open_transaction',
+            );
+          }
+        }
         await customStatement('PRAGMA foreign_keys = ON');
         await customStatement(
           'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
         );
       },
     );
+  }
+
+  Future<void> _seedDeadlineReminderSingletons() async {
+    await customStatement(
+      'INSERT OR IGNORE INTO deadline_reminder_preferences '
+      '(singleton_id) VALUES (1)',
+    );
+    await customStatement(
+      'INSERT OR IGNORE INTO deadline_reminder_reconciliations '
+      '(singleton_id) VALUES (1)',
+    );
+  }
+
+  Future<void> _migrateFrom7To8({required bool addScheduleState}) async {
+    await customStatement(
+      "UPDATE scheduled_reminders SET needs_reconciliation = 1"
+      "${addScheduleState ? '' : ", schedule_state = 'unknown'"}",
+    );
+    if (addScheduleState) {
+      await customStatement(
+        "ALTER TABLE scheduled_reminders ADD COLUMN schedule_state TEXT "
+        "NOT NULL DEFAULT 'unknown' "
+        "CHECK ((schedule_state = 'unknown' AND needs_reconciliation = 1) OR "
+        "(schedule_state IN ('scheduled', 'cancelled') "
+        'AND needs_reconciliation = 0))',
+      );
+    }
   }
 
   Future<void> _migrateFrom1To2(Migrator migrator) async {
@@ -137,7 +190,10 @@ class AppDatabase extends _$AppDatabase {
     await migrator.alterTable(
       TableMigration(
         scheduledReminders,
-        newColumns: [scheduledReminders.needsReconciliation],
+        newColumns: [
+          scheduledReminders.needsReconciliation,
+          scheduledReminders.scheduleState,
+        ],
       ),
     );
     await customStatement(

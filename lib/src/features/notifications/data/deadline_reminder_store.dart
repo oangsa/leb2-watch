@@ -1,0 +1,838 @@
+import 'package:drift/drift.dart';
+
+import '../../../core/database/app_database.dart';
+import '../../assignments/detail/application/assignment_detail_service.dart';
+import '../../assignments/detail/domain/assignment_detail_key.dart';
+import '../domain/deadline_reminder_policy.dart';
+import '../domain/deadline_reminder_preferences.dart' as domain;
+import '../domain/local_notification_id_factory.dart';
+import '../domain/local_notification_models.dart';
+
+const _reminderStateUnknown = 'unknown';
+const _reminderStateScheduled = 'scheduled';
+const _reminderStateCancelled = 'cancelled';
+
+abstract interface class DeadlineReminderPreferencesStore {
+  Stream<domain.DeadlineReminderPreferences> watch();
+
+  Future<void> setEnabled(bool enabled);
+
+  Future<void> setOffsetEnabled(
+    domain.DeadlineReminderOffset offset, {
+    required bool enabled,
+  });
+}
+
+final class DriftDeadlineReminderPreferencesStore
+    implements DeadlineReminderPreferencesStore {
+  const DriftDeadlineReminderPreferencesStore(this._database);
+
+  final AppDatabase _database;
+
+  @override
+  Stream<domain.DeadlineReminderPreferences> watch() {
+    return _database
+        .select(_database.deadlineReminderPreferences)
+        .watchSingle()
+        .map(_map);
+  }
+
+  @override
+  Future<void> setEnabled(bool enabled) async {
+    final count =
+        await (_database.update(
+          _database.deadlineReminderPreferences,
+        )..where((row) => row.singletonId.equals(1))).write(
+          DeadlineReminderPreferencesCompanion(enabled: Value(enabled)),
+        );
+    if (count != 1) {
+      throw StateError('Deadline reminder preferences are unavailable.');
+    }
+  }
+
+  @override
+  Future<void> setOffsetEnabled(
+    domain.DeadlineReminderOffset offset, {
+    required bool enabled,
+  }) async {
+    final companion = switch (offset) {
+      domain.DeadlineReminderOffset.oneHour =>
+        DeadlineReminderPreferencesCompanion(oneHourEnabled: Value(enabled)),
+      domain.DeadlineReminderOffset.twentyFourHours =>
+        DeadlineReminderPreferencesCompanion(
+          twentyFourHoursEnabled: Value(enabled),
+        ),
+    };
+    final count = await (_database.update(
+      _database.deadlineReminderPreferences,
+    )..where((row) => row.singletonId.equals(1))).write(companion);
+    if (count != 1) {
+      throw StateError('Deadline reminder preferences are unavailable.');
+    }
+  }
+
+  domain.DeadlineReminderPreferences _map(DeadlineReminderPreference row) {
+    return domain.DeadlineReminderPreferences(
+      enabled: row.enabled,
+      offsets: {
+        if (row.oneHourEnabled) domain.DeadlineReminderOffset.oneHour,
+        if (row.twentyFourHoursEnabled)
+          domain.DeadlineReminderOffset.twentyFourHours,
+      },
+    );
+  }
+
+  @override
+  String toString() => 'DriftDeadlineReminderPreferencesStore(redacted: true)';
+}
+
+final class DeadlineReminderReconciliationState {
+  const DeadlineReminderReconciliationState({
+    required this.requestedGeneration,
+    required this.completedGeneration,
+    required this.ownerToken,
+    required this.leaseExpiresAtUtc,
+  });
+
+  final int requestedGeneration;
+  final int completedGeneration;
+  final String? ownerToken;
+  final DateTime? leaseExpiresAtUtc;
+
+  bool isCompleted(int generation) => completedGeneration >= generation;
+
+  @override
+  String toString() => 'DeadlineReminderReconciliationState(redacted: true)';
+}
+
+final class DeadlineReminderScheduleWork {
+  const DeadlineReminderScheduleWork(this.request);
+
+  final DeadlineReminderNotification request;
+
+  @override
+  String toString() => 'DeadlineReminderScheduleWork(redacted: true)';
+}
+
+final class DeadlineReminderCancellationWork {
+  const DeadlineReminderCancellationWork({
+    required this.id,
+    required this.deadlineAtUtc,
+    required this.scheduledForUtc,
+  });
+
+  final LocalNotificationId id;
+  final DateTime deadlineAtUtc;
+  final DateTime scheduledForUtc;
+
+  @override
+  String toString() => 'DeadlineReminderCancellationWork(redacted: true)';
+}
+
+final class DeadlineReminderPlan {
+  DeadlineReminderPlan({
+    required List<DeadlineReminderCancellationWork> cancellations,
+    required List<DeadlineReminderScheduleWork> schedules,
+  }) : cancellations = List.unmodifiable(cancellations),
+       schedules = List.unmodifiable(schedules);
+
+  final List<DeadlineReminderCancellationWork> cancellations;
+  final List<DeadlineReminderScheduleWork> schedules;
+
+  @override
+  String toString() => 'DeadlineReminderPlan(redacted: true)';
+}
+
+final class DeadlineReminderStoreException implements Exception {
+  const DeadlineReminderStoreException();
+
+  @override
+  String toString() => 'DeadlineReminderStoreException(redacted: true)';
+}
+
+abstract interface class DeadlineReminderStore {
+  Future<int> requestGeneration();
+
+  Future<DeadlineReminderReconciliationState> readState();
+
+  Future<bool> tryClaim({
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  });
+
+  Future<bool> heartbeat({
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  });
+
+  Future<DeadlineReminderPlan> plan({
+    required String ownerToken,
+    required int generation,
+    required DateTime nowUtc,
+    required DeadlineReminderSchedulingPolicy policy,
+    required Duration leaseDuration,
+  });
+
+  Future<bool> markScheduled({
+    required String ownerToken,
+    required int generation,
+    required DeadlineReminderScheduleWork item,
+  });
+
+  Future<bool> markCancelled({
+    required String ownerToken,
+    required int generation,
+    required DeadlineReminderCancellationWork item,
+  });
+
+  Future<int?> markUnknownAndRequestReconciliation({
+    required Iterable<LocalNotificationId> ids,
+  });
+
+  Future<bool> completeGeneration({
+    required String ownerToken,
+    required int generation,
+  });
+
+  Future<bool> release({required String ownerToken});
+}
+
+final class DriftDeadlineReminderStore implements DeadlineReminderStore {
+  const DriftDeadlineReminderStore(
+    this._database, {
+    this.idFactory = const LocalNotificationIdFactory(),
+  });
+
+  final AppDatabase _database;
+  final LocalNotificationIdFactory idFactory;
+
+  @override
+  Future<int> requestGeneration() async {
+    try {
+      return await _database.transaction(_advanceRequestedGeneration);
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<DeadlineReminderReconciliationState> readState() async {
+    try {
+      final row = await _database
+          .select(_database.deadlineReminderReconciliations)
+          .getSingle();
+      return DeadlineReminderReconciliationState(
+        requestedGeneration: row.requestedGeneration,
+        completedGeneration: row.completedGeneration,
+        ownerToken: row.ownerToken,
+        leaseExpiresAtUtc: row.leaseExpiresAtUtc,
+      );
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> tryClaim({
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  }) async {
+    _validateOwnerAndLease(ownerToken, nowUtc, leaseDuration);
+    try {
+      final updated = await _database.customUpdate(
+        'UPDATE deadline_reminder_reconciliations '
+        'SET owner_token = ?, lease_expires_at_utc = ? '
+        'WHERE singleton_id = 1 '
+        'AND completed_generation < requested_generation '
+        'AND (owner_token IS NULL OR owner_token = ? '
+        'OR lease_expires_at_utc <= ?)',
+        variables: [
+          Variable.withString(ownerToken),
+          Variable.withInt(nowUtc.add(leaseDuration).millisecondsSinceEpoch),
+          Variable.withString(ownerToken),
+          Variable.withInt(nowUtc.millisecondsSinceEpoch),
+        ],
+        updates: {_database.deadlineReminderReconciliations},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> heartbeat({
+    required String ownerToken,
+    required DateTime nowUtc,
+    required Duration leaseDuration,
+  }) async {
+    _validateOwnerAndLease(ownerToken, nowUtc, leaseDuration);
+    try {
+      final updated = await _database.customUpdate(
+        'UPDATE deadline_reminder_reconciliations '
+        'SET lease_expires_at_utc = ? '
+        'WHERE singleton_id = 1 AND owner_token = ?',
+        variables: [
+          Variable.withInt(nowUtc.add(leaseDuration).millisecondsSinceEpoch),
+          Variable.withString(ownerToken),
+        ],
+        updates: {_database.deadlineReminderReconciliations},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<DeadlineReminderPlan> plan({
+    required String ownerToken,
+    required int generation,
+    required DateTime nowUtc,
+    required DeadlineReminderSchedulingPolicy policy,
+    required Duration leaseDuration,
+  }) async {
+    _validateOwnerAndLease(ownerToken, nowUtc, leaseDuration);
+    if (generation <= 0 || generation > 2147483647) {
+      throw const DeadlineReminderStoreException();
+    }
+    try {
+      return await _database.transaction(() async {
+        final fenced = await _database.customUpdate(
+          'UPDATE deadline_reminder_reconciliations '
+          'SET lease_expires_at_utc = ? '
+          'WHERE singleton_id = 1 AND owner_token = ? '
+          'AND requested_generation = ?',
+          variables: [
+            Variable.withInt(nowUtc.add(leaseDuration).millisecondsSinceEpoch),
+            Variable.withString(ownerToken),
+            Variable.withInt(generation),
+          ],
+          updates: {_database.deadlineReminderReconciliations},
+        );
+        if (fenced != 1) {
+          throw StateError('Deadline reminder ownership was lost.');
+        }
+
+        final preference = await _database
+            .select(_database.deadlineReminderPreferences)
+            .getSingle();
+        final candidates = <_DesiredReminder>[];
+        if (policy.supportsScheduling &&
+            policy.supportsCancellation &&
+            preference.enabled) {
+          final rows = await _database
+              .customSelect(
+                '''
+SELECT
+  activities.semester_id,
+  activities.identity_key,
+  activities.course_id,
+  activities.title,
+  activities.due_date_source,
+  activities.due_date_exceed,
+  courses.name AS course_name,
+  COALESCE(course_preferences.notifications_muted, 0) AS notifications_muted
+FROM activities
+INNER JOIN courses
+  ON courses.semester_id = activities.semester_id
+ AND courses.course_id = activities.course_id
+LEFT JOIN course_preferences
+  ON course_preferences.semester_id = activities.semester_id
+ AND course_preferences.course_id = activities.course_id
+ORDER BY activities.semester_id, activities.identity_key
+''',
+                readsFrom: {
+                  _database.activities,
+                  _database.courses,
+                  _database.coursePreferences,
+                },
+              )
+              .get();
+          for (final row in rows) {
+            if (row.read<bool>('due_date_exceed') ||
+                row.read<int>('notifications_muted') != 0) {
+              continue;
+            }
+            final assignment = AssignmentDetailKey.tryParse(
+              semesterIdSource: row.read<int>('semester_id').toString(),
+              identityKeySource: row.read<String>('identity_key'),
+            );
+            final timestamp = AssignmentDetailTimestamp.fromSource(
+              row.readNullable<String>('due_date_source'),
+            );
+            if (assignment == null ||
+                timestamp is! ZonedAssignmentDetailTimestamp) {
+              continue;
+            }
+            for (final offset in domain.DeadlineReminderOffset.values) {
+              final selected = switch (offset) {
+                domain.DeadlineReminderOffset.oneHour =>
+                  preference.oneHourEnabled,
+                domain.DeadlineReminderOffset.twentyFourHours =>
+                  preference.twentyFourHoursEnabled,
+              };
+              if (!selected) {
+                continue;
+              }
+              final scheduledFor = timestamp.instantUtc.subtract(
+                Duration(minutes: offset.minutes),
+              );
+              if (!scheduledFor.isAfter(nowUtc)) {
+                continue;
+              }
+              candidates.add(
+                _DesiredReminder(
+                  assignment: assignment,
+                  courseId: row.read<int>('course_id'),
+                  courseName: row.read<String>('course_name'),
+                  assignmentTitle: row.read<String>('title'),
+                  deadlineAtUtc: timestamp.instantUtc,
+                  scheduledForUtc: scheduledFor,
+                  offsetMinutes: offset.minutes,
+                ),
+              );
+            }
+          }
+        }
+        candidates.sort(_compareDesired);
+        final cap = policy.maximumPendingCount;
+        final desired = cap != null && candidates.length > cap
+            ? candidates.sublist(0, cap)
+            : candidates;
+
+        final existingRows = await _database
+            .select(_database.scheduledReminders)
+            .get();
+        final existingByOwner = {
+          for (final row in existingRows) _ownerKeyOfRow(row): row,
+        };
+        final desiredKeys = <String>{};
+        final schedules = <DeadlineReminderScheduleWork>[];
+        for (final candidate in desired) {
+          final owner = NotificationOwner.deadlineReminder(
+            candidate.assignment,
+            offsetMinutes: candidate.offsetMinutes,
+          );
+          final ownerKey = idFactory.canonicalOwnerKey(owner);
+          desiredKeys.add(ownerKey);
+          final existing = existingByOwner[ownerKey];
+          late final LocalNotificationId id;
+          var needsWork = true;
+          if (existing == null) {
+            id = await _allocateId(owner);
+            await _database
+                .into(_database.scheduledReminders)
+                .insert(
+                  ScheduledRemindersCompanion.insert(
+                    notificationId: Value(id.value),
+                    semesterId: candidate.assignment.semesterId,
+                    identityKey: candidate.assignment.identityKey,
+                    offsetMinutes: candidate.offsetMinutes,
+                    deadlineAtUtc: candidate.deadlineAtUtc,
+                    scheduledForUtc: candidate.scheduledForUtc,
+                    createdAtUtc: nowUtc,
+                    needsReconciliation: const Value(true),
+                    scheduleState: const Value(_reminderStateUnknown),
+                  ),
+                );
+          } else {
+            try {
+              id = LocalNotificationId(
+                value: existing.notificationId,
+                owner: owner,
+              );
+            } on Object {
+              continue;
+            }
+            final changed =
+                existing.deadlineAtUtc != candidate.deadlineAtUtc ||
+                existing.scheduledForUtc != candidate.scheduledForUtc;
+            needsWork =
+                changed || existing.scheduleState != _reminderStateScheduled;
+            if (needsWork &&
+                (changed || existing.scheduleState != _reminderStateUnknown)) {
+              await (_database.update(_database.scheduledReminders)..where(
+                    (row) => row.notificationId.equals(existing.notificationId),
+                  ))
+                  .write(
+                    ScheduledRemindersCompanion(
+                      deadlineAtUtc: changed
+                          ? Value(candidate.deadlineAtUtc)
+                          : const Value.absent(),
+                      scheduledForUtc: changed
+                          ? Value(candidate.scheduledForUtc)
+                          : const Value.absent(),
+                      needsReconciliation: const Value(true),
+                      scheduleState: const Value(_reminderStateUnknown),
+                    ),
+                  );
+            }
+          }
+          if (needsWork) {
+            schedules.add(
+              DeadlineReminderScheduleWork(
+                DeadlineReminderNotification(
+                  id: id,
+                  assignment: candidate.assignment,
+                  courseId: candidate.courseId,
+                  courseName: candidate.courseName,
+                  assignmentTitle: candidate.assignmentTitle,
+                  deadlineAtUtc: candidate.deadlineAtUtc,
+                  scheduledForUtc: candidate.scheduledForUtc,
+                  offsetMinutes: candidate.offsetMinutes,
+                ),
+              ),
+            );
+          }
+        }
+
+        final cancellations = <DeadlineReminderCancellationWork>[];
+        for (final existing in existingRows) {
+          final key = _ownerKeyOfRow(existing);
+          if (desiredKeys.contains(key)) {
+            continue;
+          }
+          if (existing.scheduleState == _reminderStateCancelled) {
+            continue;
+          }
+          if (existing.scheduleState != _reminderStateUnknown) {
+            await (_database.update(_database.scheduledReminders)..where(
+                  (row) => row.notificationId.equals(existing.notificationId),
+                ))
+                .write(
+                  const ScheduledRemindersCompanion(
+                    needsReconciliation: Value(true),
+                    scheduleState: Value(_reminderStateUnknown),
+                  ),
+                );
+          }
+          if (!policy.supportsCancellation) {
+            continue;
+          }
+          final assignment = AssignmentDetailKey.tryParse(
+            semesterIdSource: existing.semesterId.toString(),
+            identityKeySource: existing.identityKey,
+          );
+          if (assignment == null) {
+            continue;
+          }
+          try {
+            final owner = NotificationOwner.deadlineReminder(
+              assignment,
+              offsetMinutes: existing.offsetMinutes,
+            );
+            cancellations.add(
+              DeadlineReminderCancellationWork(
+                id: LocalNotificationId(
+                  value: existing.notificationId,
+                  owner: owner,
+                ),
+                deadlineAtUtc: existing.deadlineAtUtc,
+                scheduledForUtc: existing.scheduledForUtc,
+              ),
+            );
+          } on Object {
+            // A poison legacy row remains pending and cannot block valid work.
+          }
+        }
+        cancellations.sort(_compareCancellation);
+        return DeadlineReminderPlan(
+          cancellations: cancellations,
+          schedules: schedules,
+        );
+      });
+    } on DeadlineReminderStoreException {
+      rethrow;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> markScheduled({
+    required String ownerToken,
+    required int generation,
+    required DeadlineReminderScheduleWork item,
+  }) async {
+    final request = item.request;
+    try {
+      final updated = await _database.customUpdate(
+        "UPDATE scheduled_reminders SET needs_reconciliation = 0, "
+        "schedule_state = 'scheduled' "
+        'WHERE notification_id = ? AND semester_id = ? '
+        'AND identity_key = ? AND offset_minutes = ? '
+        'AND deadline_at_utc = ? AND scheduled_for_utc = ? '
+        'AND EXISTS ('
+        'SELECT 1 FROM deadline_reminder_reconciliations '
+        'WHERE singleton_id = 1 AND owner_token = ? '
+        'AND requested_generation = ?)',
+        variables: [
+          Variable.withInt(request.id.value),
+          Variable.withInt(request.assignment.semesterId),
+          Variable.withString(request.assignment.identityKey),
+          Variable.withInt(request.offsetMinutes),
+          Variable.withInt(request.deadlineAtUtc.millisecondsSinceEpoch),
+          Variable.withInt(request.scheduledForUtc.millisecondsSinceEpoch),
+          Variable.withString(ownerToken),
+          Variable.withInt(generation),
+        ],
+        updates: {_database.scheduledReminders},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> markCancelled({
+    required String ownerToken,
+    required int generation,
+    required DeadlineReminderCancellationWork item,
+  }) async {
+    try {
+      final updated = await _database.customUpdate(
+        "UPDATE scheduled_reminders SET needs_reconciliation = 0, "
+        "schedule_state = 'cancelled' "
+        'WHERE notification_id = ? AND semester_id = ? '
+        'AND identity_key = ? AND offset_minutes = ? '
+        'AND deadline_at_utc = ? AND scheduled_for_utc = ? '
+        'AND EXISTS ('
+        'SELECT 1 FROM deadline_reminder_reconciliations '
+        'WHERE singleton_id = 1 AND owner_token = ? '
+        'AND requested_generation = ?)',
+        variables: [
+          Variable.withInt(item.id.value),
+          Variable.withInt(item.id.owner.assignment.semesterId),
+          Variable.withString(item.id.owner.assignment.identityKey),
+          Variable.withInt(item.id.owner.offsetMinutes!),
+          Variable.withInt(item.deadlineAtUtc.millisecondsSinceEpoch),
+          Variable.withInt(item.scheduledForUtc.millisecondsSinceEpoch),
+          Variable.withString(ownerToken),
+          Variable.withInt(generation),
+        ],
+        updates: {_database.scheduledReminders},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<int?> markUnknownAndRequestReconciliation({
+    required Iterable<LocalNotificationId> ids,
+  }) async {
+    try {
+      final uniqueIds = <int, LocalNotificationId>{
+        for (final id in ids) id.value: id,
+      }.values;
+      if (uniqueIds.isEmpty) {
+        return null;
+      }
+      return await _database.transaction(() async {
+        var changed = 0;
+        for (final id in uniqueIds) {
+          changed += await _database.customUpdate(
+            "UPDATE scheduled_reminders SET needs_reconciliation = 1, "
+            "schedule_state = 'unknown' "
+            'WHERE notification_id = ? AND semester_id = ? '
+            'AND identity_key = ? AND offset_minutes = ?',
+            variables: [
+              Variable.withInt(id.value),
+              Variable.withInt(id.owner.assignment.semesterId),
+              Variable.withString(id.owner.assignment.identityKey),
+              Variable.withInt(id.owner.offsetMinutes!),
+            ],
+            updates: {_database.scheduledReminders},
+          );
+        }
+        if (changed == 0) {
+          return null;
+        }
+        return _advanceRequestedGeneration();
+      });
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> completeGeneration({
+    required String ownerToken,
+    required int generation,
+  }) async {
+    try {
+      final updated = await _database.customUpdate(
+        'UPDATE deadline_reminder_reconciliations '
+        'SET completed_generation = ? '
+        'WHERE singleton_id = 1 AND owner_token = ? '
+        'AND requested_generation = ? AND completed_generation <= ?',
+        variables: [
+          Variable.withInt(generation),
+          Variable.withString(ownerToken),
+          Variable.withInt(generation),
+          Variable.withInt(generation),
+        ],
+        updates: {_database.deadlineReminderReconciliations},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<bool> release({required String ownerToken}) async {
+    try {
+      final updated = await _database.customUpdate(
+        'UPDATE deadline_reminder_reconciliations '
+        'SET owner_token = NULL, lease_expires_at_utc = NULL '
+        'WHERE singleton_id = 1 AND owner_token = ?',
+        variables: [Variable.withString(ownerToken)],
+        updates: {_database.deadlineReminderReconciliations},
+      );
+      return updated == 1;
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  Future<LocalNotificationId> _allocateId(NotificationOwner owner) async {
+    for (final candidate in idFactory.candidates(owner)) {
+      final history =
+          await (_database.select(_database.notificationHistory)
+                ..where((row) => row.notificationId.equals(candidate.value))
+                ..limit(1))
+              .getSingleOrNull();
+      if (history != null) {
+        continue;
+      }
+      final reminder =
+          await (_database.select(_database.scheduledReminders)
+                ..where((row) => row.notificationId.equals(candidate.value))
+                ..limit(1))
+              .getSingleOrNull();
+      if (reminder == null) {
+        return candidate;
+      }
+    }
+    throw StateError('No local notification identifier is available.');
+  }
+
+  Future<int> _advanceRequestedGeneration() async {
+    var updated = await _database.customUpdate(
+      'UPDATE deadline_reminder_reconciliations '
+      'SET requested_generation = requested_generation + 1 '
+      'WHERE singleton_id = 1 AND requested_generation < 2147483647',
+      updates: {_database.deadlineReminderReconciliations},
+    );
+    if (updated != 1) {
+      updated = await _database.customUpdate(
+        'UPDATE deadline_reminder_reconciliations '
+        'SET requested_generation = 1, completed_generation = 0 '
+        'WHERE singleton_id = 1 '
+        'AND requested_generation = 2147483647 '
+        'AND completed_generation = requested_generation '
+        'AND owner_token IS NULL',
+        updates: {_database.deadlineReminderReconciliations},
+      );
+      if (updated != 1) {
+        throw StateError('Deadline reminder generation is unavailable.');
+      }
+    }
+    final row = await _database
+        .select(_database.deadlineReminderReconciliations)
+        .getSingle();
+    return row.requestedGeneration;
+  }
+
+  void _validateOwnerAndLease(
+    String ownerToken,
+    DateTime nowUtc,
+    Duration leaseDuration,
+  ) {
+    if (ownerToken.trim().isEmpty ||
+        !nowUtc.isUtc ||
+        leaseDuration <= Duration.zero) {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  String toString() => 'DriftDeadlineReminderStore(redacted: true)';
+}
+
+final class _DesiredReminder {
+  const _DesiredReminder({
+    required this.assignment,
+    required this.courseId,
+    required this.courseName,
+    required this.assignmentTitle,
+    required this.deadlineAtUtc,
+    required this.scheduledForUtc,
+    required this.offsetMinutes,
+  });
+
+  final AssignmentDetailKey assignment;
+  final int courseId;
+  final String courseName;
+  final String assignmentTitle;
+  final DateTime deadlineAtUtc;
+  final DateTime scheduledForUtc;
+  final int offsetMinutes;
+}
+
+int _compareDesired(_DesiredReminder left, _DesiredReminder right) {
+  final schedule = left.scheduledForUtc.compareTo(right.scheduledForUtc);
+  if (schedule != 0) {
+    return schedule;
+  }
+  final semester = left.assignment.semesterId.compareTo(
+    right.assignment.semesterId,
+  );
+  if (semester != 0) {
+    return semester;
+  }
+  final identity = left.assignment.identityKey.compareTo(
+    right.assignment.identityKey,
+  );
+  if (identity != 0) {
+    return identity;
+  }
+  return left.offsetMinutes.compareTo(right.offsetMinutes);
+}
+
+int _compareCancellation(
+  DeadlineReminderCancellationWork left,
+  DeadlineReminderCancellationWork right,
+) {
+  final schedule = left.scheduledForUtc.compareTo(right.scheduledForUtc);
+  if (schedule != 0) {
+    return schedule;
+  }
+  final leftOwner = left.id.owner;
+  final rightOwner = right.id.owner;
+  final semester = leftOwner.assignment.semesterId.compareTo(
+    rightOwner.assignment.semesterId,
+  );
+  if (semester != 0) {
+    return semester;
+  }
+  final identity = leftOwner.assignment.identityKey.compareTo(
+    rightOwner.assignment.identityKey,
+  );
+  if (identity != 0) {
+    return identity;
+  }
+  return leftOwner.offsetMinutes!.compareTo(rightOwner.offsetMinutes!);
+}
+
+String _ownerKeyOfRow(ScheduledReminder row) {
+  return 'leb2-notification:v1:deadline:'
+      '${row.semesterId}:${row.identityKey}:${row.offsetMinutes}';
+}

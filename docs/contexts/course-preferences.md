@@ -153,7 +153,10 @@ defaults. No credential or remote user-specific state is added.
 5. A control interaction starts one row-scoped pessimistic write.
 6. The store transaction verifies the same semester remains active and the
    course still exists, then upserts the preference.
-7. A matching watched value clears the pending state. A stale key or storage
+7. A successful notification-mute write requests best-effort global
+   deadline-reminder reconciliation after commit. Background-monitoring writes
+   do not trigger notification effects.
+8. A matching watched value clears the pending state. A stale key or storage
    failure clears it without changing the visible saved value.
 
 No transaction is held across a network request, and this feature performs no
@@ -270,7 +273,8 @@ hashes remained unchanged.
 - Disabling background monitoring does not avoid the semester-wide snapshot
   request.
 - Feature 12.2 consumes notification mute in the same transaction as its
-  durable new-assignment decision. Background consumers remain unimplemented.
+  durable new-assignment decision. Feature 12.3 consumes the same value in its
+  global deadline-reminder plan. Background consumers remain unimplemented.
 - Android, iOS, macOS, and Windows native builds are not verified on this
   Linux host.
 
@@ -279,6 +283,9 @@ hashes remained unchanged.
 - Feature 12.2 transactionally re-reads the course and
   `notifications_muted`; muted discoveries are consumed without a platform
   call and do not surface after unmuting.
+- Feature 12.3 transactionally reads `notifications_muted`; successful mute
+  changes request prompt best-effort cancellation while preserving the saved
+  preference if platform reconciliation fails.
 - Feature 13 background scheduling should use
   `readBackgroundMonitoredCourses` for post-download effects.
 - A separately designed read-state feature could add a true unread count.
@@ -292,3 +299,4 @@ hashes remained unchanged.
 - [Assignment Diffing](assignment-diffing.md)
 - [Semester Selection](semester-selection.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
+- [Deadline Reminders](deadline-reminders.md)

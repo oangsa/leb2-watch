@@ -17,6 +17,9 @@ import 'package:leb2_watch/src/features/assignments/dashboard/application/assign
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/local_assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/notification_aware_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
+import 'package:leb2_watch/src/features/notifications/data/deadline_reminder_store.dart';
 import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
@@ -136,6 +139,24 @@ void main() {
       final policyReader = await container.read(
         courseEffectPolicyReaderProvider.future,
       );
+      final reminderStore = await container.read(
+        deadlineReminderStoreProvider.future,
+      );
+      final secondReminderStore = await container.read(
+        deadlineReminderStoreProvider.future,
+      );
+      final reminderCoordinator = await container.read(
+        deadlineReminderCoordinatorProvider.future,
+      );
+      final secondReminderCoordinator = await container.read(
+        deadlineReminderCoordinatorProvider.future,
+      );
+      final reminderPreferences = await container.read(
+        deadlineReminderPreferencesServiceProvider.future,
+      );
+      final secondReminderPreferences = await container.read(
+        deadlineReminderPreferencesServiceProvider.future,
+      );
 
       expect(storage.openCalls, 1);
       expect(firstDatabase, same(database));
@@ -161,6 +182,15 @@ void main() {
       expect(firstCourseService, isA<LocalCoursePreferencesService>());
       expect(secondCourseService, same(firstCourseService));
       expect(policyReader, same(firstCourseService));
+      expect(reminderStore, isA<DriftDeadlineReminderStore>());
+      expect(secondReminderStore, same(reminderStore));
+      expect(reminderCoordinator, isA<DeadlineReminderCoordinator>());
+      expect(secondReminderCoordinator, same(reminderCoordinator));
+      expect(
+        reminderPreferences,
+        isA<LocalDeadlineReminderPreferencesService>(),
+      );
+      expect(secondReminderPreferences, same(reminderPreferences));
       expect(backend.requestCalls, 0);
 
       lifecycleSubscription.close();

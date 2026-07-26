@@ -207,7 +207,10 @@ final class AssignmentSnapshotReconciler {
               row.identityKey.equals(identityKey),
         ))
         .write(
-          const ScheduledRemindersCompanion(needsReconciliation: Value(true)),
+          const ScheduledRemindersCompanion(
+            needsReconciliation: Value(true),
+            scheduleState: Value('unknown'),
+          ),
         );
   }
 

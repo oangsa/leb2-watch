@@ -8,6 +8,10 @@ import 'app_database.dart';
 
 typedef ApplicationSupportDirectoryProvider = Future<Directory> Function();
 
+const _sqliteBusyResultCode = 5;
+const _sqliteLockedResultCode = 6;
+const _walSetupAttempts = 8;
+
 class LocalDatabaseStorage {
   LocalDatabaseStorage({
     ApplicationSupportDirectoryProvider? applicationSupportDirectoryProvider,
@@ -28,19 +32,59 @@ class LocalDatabaseStorage {
 
   Future<AppDatabase> openDatabase() async {
     final file = await resolveDatabaseFile();
-    return AppDatabase(
+    final database = AppDatabase(
       NativeDatabase.createInBackground(
         file,
         logStatements: false,
         readPool: 0,
         setup: (database) {
-          database.execute('PRAGMA journal_mode = WAL');
           database.execute(
             'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
           );
+          for (var attempt = 0; attempt < _walSetupAttempts; attempt += 1) {
+            try {
+              final journalMode = database
+                  .select('PRAGMA journal_mode')
+                  .single
+                  .values
+                  .single;
+              if (journalMode is String && journalMode.toLowerCase() == 'wal') {
+                break;
+              }
+              database.execute('PRAGMA journal_mode = WAL');
+              break;
+            } on SqliteException catch (error) {
+              final isContention =
+                  error.resultCode == _sqliteBusyResultCode ||
+                  error.resultCode == _sqliteLockedResultCode;
+              if (!isContention || attempt == _walSetupAttempts - 1) {
+                rethrow;
+              }
+              sleep(Duration(milliseconds: 10 * (attempt + 1)));
+            }
+          }
+          final userVersion = database
+              .select('PRAGMA user_version')
+              .single
+              .values
+              .single;
+          if (userVersion == 0) {
+            database.execute(
+              'CREATE TEMP TABLE leb2_watch_open_transaction (value INTEGER)',
+            );
+            database.execute('BEGIN IMMEDIATE');
+          }
         },
       ),
+      completeOpenTransaction: true,
     );
+    try {
+      await database.customSelect('SELECT 1').getSingle();
+      return database;
+    } on Object {
+      await database.close();
+      rethrow;
+    }
   }
 
   /// Deletes only LEB2 Watch database files.

@@ -2,10 +2,11 @@
 
 ## Status
 
-Completed for schema version 7, including ordered v1/v2/v3/v4/v5/v6-to-v7
+Completed for schema version 8, including ordered v1/v2/v3/v4/v5/v6/v7-to-v8
 migration, generated Drift source, in-memory relational tests, and real
-file-backed migration and independent-connection tests. Linux remains the only
-build-verified native target on this host.
+file-backed migration, simultaneous multi-isolate startup, and
+independent-connection tests. Linux remains the only build-verified native
+target on this host.
 
 ## Purpose
 
@@ -15,7 +16,7 @@ connections one durable coordination record for single-flight synchronization.
 
 ## Scope
 
-- Fourteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
+- Sixteen Drift tables covering snapshots, preferences, baselines, seen identity, reminders,
   notification/change and sync history, settings, and synchronization
   operations.
 - UTC epoch-millisecond storage for application-owned timestamps.
@@ -24,7 +25,8 @@ connections one durable coordination record for single-flight synchronization.
 - Honest ordered migration from frozen v1/v2/v3 schemas and explicit pre-v5,
   pre-v6, and pre-v7 fixtures.
 - A non-secret positive numeric LEB2 user ID in the singleton app-settings row.
-- Background SQLite opening with WAL, foreign keys, a 5-second busy timeout,
+- Eager background SQLite opening with the busy timeout installed before WAL,
+  no redundant WAL transition, serialized first creation, foreign keys,
   disabled statement logging, and no read pool.
 - Application-support file resolution and bounded database-file deletion.
 
@@ -48,7 +50,19 @@ rows through the ordered v1/v2/v3/v4/v5-to-v6 upgrade.
 
 `AppDatabase` registers the schema and ordered migration.
 `LocalDatabaseStorage` owns
-the production file lifecycle and opens `NativeDatabase.createInBackground`.
+the production file lifecycle and eagerly opens
+`NativeDatabase.createInBackground`. Its setup installs the busy timeout before
+any WAL transition, reads the persistent journal mode, and changes it only
+when necessary. BUSY/LOCKED WAL transition races receive a short bounded retry.
+
+For a zero-version database only, setup creates a connection-local temporary
+marker and acquires `BEGIN IMMEDIATE` before Drift reads the version. The first
+connection creates schema v8 while later connections wait in SQLite. The
+marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`,
+drops the temporary marker, and only then enables foreign keys. A waiter
+therefore re-reads v8 and does not run a duplicate `createAll`. Existing and
+legacy-version databases do not gain an outer transaction, so ordered
+migrations that use Drift table-rebuild transactions remain valid.
 `UtcDateTimeConverter` owns UTC epoch-millisecond conversion. Generated table
 and companion code remains in `app_database.g.dart`.
 
@@ -68,16 +82,16 @@ first-seen ledger evidence, and bounded sync history, then resolves each
 emission in one read transaction. It adds no table, column, index, or
 migration.
 
-`DriftAssignmentDetailStore` is another feature-owned read adapter over schema
-version 7. It watches current/seen assignment state, course name/preference,
+`DriftAssignmentDetailStore` is another feature-owned read adapter over the
+current schema. It watches current/seen assignment state, course name/preference,
 reminder/history aggregates, and retained sync evidence, then resolves each
 invalidation inside one explicit-semester/identity read transaction.
 
 ## Important files
 
-- `lib/src/core/database/database_tables.dart` — fourteen table definitions,
+- `lib/src/core/database/database_tables.dart` — sixteen table definitions,
   constraints, and indices.
-- `lib/src/core/database/app_database.dart` — schema version 7, migration,
+- `lib/src/core/database/app_database.dart` — schema version 8, migration,
   connection pragmas, and bounded sync history.
 - `lib/src/core/database/app_database.g.dart` — generated Drift source.
 - `lib/src/core/database/local_database_storage.dart` — production opener and
@@ -97,6 +111,8 @@ invalidation inside one explicit-semester/identity read transaction.
 - `test/core/database/v5_app_database.g.dart` — generated v5 fixture support.
 - `test/core/database/v6_app_database.dart` — frozen physical v6 schema.
 - `test/core/database/v6_app_database.g.dart` — generated v6 fixture support.
+- `test/core/database/v7_app_database.dart` — frozen physical v7 schema.
+- `test/core/database/v7_app_database.g.dart` — generated v7 fixture support.
 - `test/core/database/app_database_test.dart` — schema and relational tests.
 - `test/core/database/local_database_storage_test.dart` — opener and migration
   tests.
@@ -116,17 +132,21 @@ invalidation inside one explicit-semester/identity read transaction.
 
 ## Contracts and interfaces
 
-`AppDatabase.schemaVersion` is `7`. Fresh databases call `createAll`.
-Supported upgrades are exactly `1 -> 7`, `2 -> 7`, `3 -> 7`, `4 -> 7`,
-`5 -> 7`, and `6 -> 7`,
+`AppDatabase.schemaVersion` is `8`. Fresh databases call `createAll` and seed
+the two deadline-reminder singleton rows.
+Supported upgrades are exactly `1 -> 8`, `2 -> 8`, `3 -> 8`, `4 -> 8`,
+`5 -> 8`, `6 -> 8`, and `7 -> 8`,
 with older versions applying each ordered intermediate step. Every other
 transition fails with `UnsupportedError` rather than destroying data.
 
-Every open enables:
+Every open enables, in this order:
 
 ```text
-PRAGMA foreign_keys = ON
 PRAGMA busy_timeout = 5000
+read PRAGMA journal_mode
+set PRAGMA journal_mode = WAL only when necessary
+serialize zero-version creation with BEGIN IMMEDIATE
+PRAGMA foreign_keys = ON after any bootstrap commit
 ```
 
 The production opener also selects WAL. Sync history retains the newest 100
@@ -178,6 +198,18 @@ before an app-level show request; kind `new-assignment-muted` records an
 intentional mute decision. Candidate IDs are checked against every history and
 scheduled-reminder ID inside the same short transaction.
 
+Feature 12.3 raises the schema to v8 with typed singleton
+`deadline_reminder_preferences` and
+`deadline_reminder_reconciliations` tables. The first owns global enabled and
+60/1,440-minute selection state. The second owns bounded requested/completed
+generations and paired owner/lease fields for cross-connection effect
+coordination. Both are seeded on fresh creation and every supported upgrade.
+`scheduled_reminders.schedule_state` distinguishes checked `unknown`,
+`scheduled`, and `cancelled` states. Its invariant pairs unknown with
+`needs_reconciliation=true` and scheduled/cancelled with false. Every legacy
+row becomes unknown/pending during migration; cancelled rows remain bounded
+owner/ID tombstones under the observed seen assignment and offset.
+
 Feature 10.1 used schema v6 unchanged. Semester refresh inserts positive
 int32 IDs with `INSERT OR IGNORE`; it never deletes absent IDs because the
 backend contract does not define authoritative removal and the semester
@@ -212,6 +244,12 @@ heartbeat, cancellation, and completion writes. No database transaction is
 held across HTTP or a polling delay. WAL permits independent readers while one
 short writer owns the database; the busy timeout lets normal write races wait.
 
+Production startup uses a separate zero-version-only `BEGIN IMMEDIATE`
+bootstrap transaction. It serializes first schema creation across independent
+Dart isolates without a Dart static or process file lock. Once v8 exists,
+connections observe WAL and skip both the redundant journal transition and
+bootstrap creation transaction.
+
 A semester deletion cascades its snapshot, baselines, ledgers, operation
 changes, history, reminders, and operation rows while clearing the active
 setting. Current activity removal leaves the seen ledger, notification
@@ -241,6 +279,11 @@ user. Backoff rows remain intact. A real v1 upgrade already creates the current
 adding the operation revision twice.
 The v6-to-v7 step creates only `course_preferences`; older migrations run
 their ordered steps first and then create the same table.
+The v7-to-v8 step marks every legacy reminder unknown/pending, adds its checked
+state column, then creates and seeds the two deadline-reminder singleton
+tables. The v1/v2 TableMigration introduces the current reminder columns while
+rebuilding the old foreign key; frozen v3-v7 schemas add the state column in
+the final step. Every path preserves owner IDs and row data.
 
 ## Platform behavior
 
@@ -272,7 +315,9 @@ nullable retry duration. File deletion remains limited to
 - Preserve v1/v2/v3/v4 rows with ordered migrations and versioned fixtures.
 - Add the v5 identity column with explicit checked SQLite SQL so upgraded
   databases enforce the same positive-int32 constraint as fresh databases.
-- Set the busy timeout on every connection and WAL in the production opener.
+- Install the busy timeout before WAL, skip an already-active WAL transition,
+  and use SQLite itself to serialize zero-version schema creation across
+  isolates.
 - Keep source date strings unchanged until timezone semantics are verified.
 - Keep semester refresh insert-only until the backend defines authoritative
   removal semantics.
@@ -303,11 +348,16 @@ A busy timeout is bounded and may still return `SQLITE_BUSY` after five
 seconds. The synchronization layer converts local persistence failure into a
 bounded non-retryable failure without storing the SQLite message.
 
+Production open is eager: setup or migration failure is reported by
+`openDatabase` and its background executor is closed. WAL BUSY/LOCKED
+transition retries are bounded. A zero-version bootstrap transaction is
+rolled back by connection close if schema creation fails.
+
 ## Tests
 
 Database tests cover:
 
-- fresh fourteen-table v7 creation, all named indices, foreign keys, and busy
+- fresh sixteen-table v8 creation, all named indices, foreign keys, and busy
   timeout;
 - active-key and one-running uniqueness, state/failure checks including
   rejected NULL timeout/unknown details, cascades, and credential-column scans;
@@ -315,9 +365,10 @@ Database tests cover:
   rejection and exact unique-index/foreign-key structure;
 - exact activity round trips, UTC conversion, transaction rollback, and
   sync-history retention/rollback;
-- real v1, v2, and frozen physical v3/v4/v5/v6 databases upgraded in place to
-  v7 with assignment, seen, fingerprint, reminder, notification, sync-run,
+- real v1, v2, and frozen physical v3/v4/v5/v6/v7 databases upgraded in place
+  to v8 with assignment, seen, fingerprint, reminder, notification, sync-run,
   operation, baseline, operation-change, and backoff rows preserved,
+  every legacy reminder mapped to checked unknown/pending state,
   empty baseline recovery, correct lifecycle/revision defaults or conservative
   exact-expiration state, and clean `foreign_key_check`;
 - frozen-v5 matching-user, null-current-user, and mismatched-known-user
@@ -327,6 +378,9 @@ Database tests cover:
 - positive identity CRUD, invalid identity rejection, and preservation of
   active-semester/unrelated singleton settings;
 - production WAL opening and bounded main/WAL/SHM deletion;
+- simultaneous production first-creation and already-WAL opening through a
+  real four-isolate start barrier, repeated internally with concurrent
+  generation writes;
 - file-backed independent-connection coordination through the synchronization
   tests.
 
@@ -374,6 +428,15 @@ remained valid. The complete file-backed migration suite passed 12/12, the full
 Flutter suite remained 437/437, both strict analyzers passed, generated
 database hashes stayed unchanged, and the Linux release build succeeded.
 
+Feature 12.3 raised the live schema to v8, added a frozen physical v7 fixture,
+and verified fresh singleton defaults plus real v1/v2/v3/v4/v5/v6/v7-to-v8
+upgrades. The retained-state correction kept schema version 8 and mapped all
+legacy reminders unknown. The production-open correction added start-barrier
+coverage for simultaneous zero-version and already-WAL opens. Its focused
+storage/migration suite passed 15/15, and the two-case stress command passed
+12/12 separate invocations; final broad counts, generated hashes, analyzers,
+and build evidence are recorded in `deadline-reminders.md`.
+
 ## Known limitations
 
 - Lease recovery cannot mathematically prevent a second GET after an owner is
@@ -381,6 +444,10 @@ database hashes stayed unchanged, and the Linux release build succeeded.
   persisting.
 - WAL coordination is for a local application-support file, not a network
   filesystem.
+- Each SQLite lock wait is bounded by the configured five-second busy timeout;
+  the WAL retry loop can make the aggregate lock-wait duration longer.
+  Filesystem access and schema migration have no separate application-level
+  deadline, so a non-returning operation can keep `openDatabase` pending.
 - Terminal operation rows are retained for 24 hours without waiter
   acknowledgements; a waiter suspended longer may lose its stored result.
 - A pruned successful-empty v2 baseline is irrecoverable when no current or
@@ -388,16 +455,16 @@ database hashes stayed unchanged, and the Linux release build succeeded.
 - Snapshot state remains semester-scoped rather than account-scoped.
 - Drift runtime/development preview-schema versions remain mismatched, so
   normal generation works but CLI schema export does not.
-- Frozen v4, v5, and v6 fixtures build their historical added tables with explicit
-  SQL over frozen v2 Dart definitions. They validate the physical schema but
-  do not expose generated typed APIs for every historical table.
+- Frozen v4, v5, and v6 fixtures build their historical added tables with
+  explicit SQL over frozen v2 Dart definitions. They validate the physical
+  schema but do not expose generated typed APIs for every historical table.
 - Android, iOS, macOS, and Windows database runtime behavior is not verified on
   this Linux host.
 
 ## Future considerations
 
-- Consume and clear durable reminder reconciliation state in the owning
-  notification feature.
+- Deadline reminders consume durable reconciliation state through guarded
+  generation/lease finalization and retain bounded cancelled owner tombstones.
 - Compose database lifetime into future background entry points.
 - Align Drift package versions in a dependency-specific feature.
 - Add later additive migrations only when a persistence owner defines their
@@ -416,3 +483,4 @@ database hashes stayed unchanged, and the Linux release build succeeded.
 - [Semester Selection](semester-selection.md)
 - [Course Preferences](course-preferences.md)
 - [New-Assignment Notifications](new-assignment-notifications.md)
+- [Deadline Reminders](deadline-reminders.md)

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart' hide isNotNull;
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart'
@@ -11,8 +11,11 @@ import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/assignments/sync/local_assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_coordinator.dart';
 import 'package:leb2_watch/src/features/notifications/application/notification_aware_assignment_sync_service.dart';
+import 'package:leb2_watch/src/features/notifications/data/deadline_reminder_store.dart';
 import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
+import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_policy.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 
@@ -40,6 +43,15 @@ void main() {
           clock: () => DateTime.utc(2026, 7, 26),
         ),
         notifications,
+      ),
+      DeadlineReminderCoordinator(
+        DriftDeadlineReminderStore(database),
+        notifications,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        nowUtc: () => DateTime.utc(2026, 7, 26),
+        ownerTokenFactory: () => 'sync-test-owner',
+        wait: (_) async {},
+        platformEffectTimeout: const Duration(milliseconds: 40),
       ),
     );
     await database
@@ -86,6 +98,37 @@ void main() {
       expect(
         await database.select(database.notificationHistory).get(),
         hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'baseline schedules deadlines and identical snapshots do not duplicate',
+    () async {
+      final baseline = _snapshot(const [_ActivitySpec(1001)]);
+      final withNew = _snapshot(const [
+        _ActivitySpec(1001),
+        _ActivitySpec(1002),
+      ]);
+      client.snapshots
+        ..add(baseline)
+        ..add(withNew)
+        ..add(withNew);
+
+      await _sync(service);
+      expect(notifications.shown, isEmpty);
+      expect(notifications.scheduled, hasLength(2));
+
+      await _sync(service);
+      expect(notifications.shown, hasLength(1));
+      expect(notifications.scheduled, hasLength(4));
+
+      await _sync(service);
+      expect(notifications.shown, hasLength(1));
+      expect(notifications.scheduled, hasLength(4));
+      expect(
+        await database.select(database.scheduledReminders).get(),
+        hasLength(4),
       );
     },
   );
@@ -314,6 +357,31 @@ void main() {
       );
     },
   );
+
+  test('committed synchronization returns after reminder timeout', () async {
+    final never = Completer<void>();
+    notifications.onSchedule = (_) => never.future;
+    client.snapshots.add(_snapshot(const [_ActivitySpec(1001)]));
+
+    final result = await _sync(
+      service,
+    ).timeout(const Duration(milliseconds: 500));
+
+    expect(result, isA<SyncSuccess>());
+    final reminders = await database.select(database.scheduledReminders).get();
+    expect(reminders, hasLength(2));
+    expect(
+      reminders.every(
+        (row) => row.scheduleState == 'unknown' && row.needsReconciliation,
+      ),
+      isTrue,
+    );
+    final state = await database
+        .select(database.deadlineReminderReconciliations)
+        .getSingle();
+    expect(state.completedGeneration, state.requestedGeneration);
+    expect(state.ownerToken, isNull);
+  });
 }
 
 NotificationAwareAssignmentSyncService _decoratedService(
@@ -332,6 +400,15 @@ NotificationAwareAssignmentSyncService _decoratedService(
     NewAssignmentNotificationCoordinator(
       DriftNewAssignmentNotificationStore(database),
       notifications,
+    ),
+    DeadlineReminderCoordinator(
+      DriftDeadlineReminderStore(database),
+      notifications,
+      policy: DeadlineReminderSchedulingPolicy.android,
+      nowUtc: () => DateTime.utc(2026, 7, 26),
+      ownerTokenFactory: () => 'sync-test-owner',
+      wait: (_) async {},
+      platformEffectTimeout: const Duration(milliseconds: 40),
     ),
   );
 }
@@ -445,9 +522,11 @@ final class _SnapshotClient implements BackendApiClient {
 
 final class _RecordingNotificationService implements LocalNotificationService {
   final List<NewAssignmentNotification> shown = [];
+  final List<DeadlineReminderNotification> scheduled = [];
   final StreamController<LocalNotificationTarget> _responses =
       StreamController.broadcast();
   Future<void> Function(NewAssignmentNotification request)? onShow;
+  Future<void> Function(DeadlineReminderNotification request)? onSchedule;
   int showCalls = 0;
 
   @override
@@ -482,7 +561,10 @@ final class _RecordingNotificationService implements LocalNotificationService {
   @override
   Future<void> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async {
+    await onSchedule?.call(request);
+    scheduled.add(request);
+  }
 
   @override
   Future<void> showTestNotification() async {}

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
@@ -13,6 +14,7 @@ import 'v3_app_database.dart' as v3;
 import 'v4_app_database.dart' as v4;
 import 'v5_app_database.dart' as v5;
 import 'v6_app_database.dart' as v6;
+import 'v7_app_database.dart' as v7;
 
 void main() {
   late Directory temporaryDirectory;
@@ -46,10 +48,38 @@ void main() {
     expect(await _pragmaText(database, 'journal_mode'), 'wal');
     expect(await _pragmaInt(database, 'foreign_keys'), 1);
     expect(await _pragmaInt(database, 'busy_timeout'), 5000);
+    expect(
+      await database
+          .customSelect(
+            "SELECT 1 FROM sqlite_temp_schema WHERE type = 'table' "
+            "AND name = 'leb2_watch_open_transaction'",
+          )
+          .get(),
+      isEmpty,
+    );
   });
 
+  for (final preseedWal in [false, true]) {
+    test('production opener handles simultaneous isolate opens '
+        '${preseedWal ? 'when already WAL' : 'on first creation'}', () async {
+      for (var round = 0; round < 3; round += 1) {
+        final roundDirectory = Directory(
+          path.join(
+            temporaryDirectory.path,
+            '${preseedWal ? 'wal' : 'first'}-$round',
+          ),
+        );
+        await roundDirectory.create(recursive: true);
+        await _exerciseSimultaneousIsolateOpens(
+          roundDirectory.path,
+          preseedWal: preseedWal,
+        );
+      }
+    });
+  }
+
   test(
-    'migrates a real v1 database to v7 and seeds durable baseline state',
+    'migrates a real v1 database to v8 and seeds durable baseline state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v1.V1AppDatabase(NativeDatabase(databaseFile));
@@ -108,7 +138,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       expect(
         (await database.select(database.appSettings).getSingleOrNull())
             ?.leb2UserId,
@@ -143,7 +173,8 @@ void main() {
           .select(database.scheduledReminders)
           .getSingle();
       expect(reminder.notificationId, 7001);
-      expect(reminder.needsReconciliation, isFalse);
+      expect(reminder.needsReconciliation, isTrue);
+      expect(reminder.scheduleState, 'unknown');
       expect(
         await database.select(database.syncOperationChanges).get(),
         isEmpty,
@@ -209,12 +240,13 @@ void main() {
       await _expectLeb2UserIdConstraint(database);
       await _expectSessionLifecycleDefaultsAndConstraints(database);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a real v2 database to v7 preserving ledgers and reminders',
+    'migrates a real v2 database to v8 preserving ledgers and reminders',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v2.V2AppDatabase(NativeDatabase(databaseFile));
@@ -262,7 +294,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       expect(await database.select(database.activities).get(), hasLength(1));
       expect(
         await database.select(database.seenActivities).get(),
@@ -276,7 +308,8 @@ void main() {
           .select(database.scheduledReminders)
           .getSingle();
       expect(reminder.notificationId, 7001);
-      expect(reminder.needsReconciliation, isFalse);
+      expect(reminder.needsReconciliation, isTrue);
+      expect(reminder.scheduleState, 'unknown');
       expect(
         await database.select(database.syncOperationChanges).get(),
         isEmpty,
@@ -319,12 +352,13 @@ void main() {
       await _expectLeb2UserIdConstraint(database);
       await _expectSessionLifecycleDefaultsAndConstraints(database);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a frozen real v3 database to v7 without seeding backoff',
+    'migrates a frozen real v3 database to v8 without seeding backoff',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v3.V3AppDatabase(NativeDatabase(databaseFile));
@@ -358,7 +392,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       expect(
         (await database.select(database.semesters).getSingle()).semesterId,
         101,
@@ -375,12 +409,13 @@ void main() {
       await _expectLeb2UserIdConstraint(database);
       await _expectSessionLifecycleDefaultsAndConstraints(database);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a frozen real v4 database to v7 preserving every prior table',
+    'migrates a frozen real v4 database to v8 preserving every prior table',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v4.V4AppDatabase(NativeDatabase(databaseFile));
@@ -422,7 +457,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved course',
@@ -437,6 +472,7 @@ void main() {
       await _expectLeb2UserIdConstraint(database);
       await _expectSessionLifecycleDefaultsAndConstraints(database);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
       expect(
         (await database.select(database.appSettings).getSingle())
             .activeSemesterId,
@@ -482,7 +518,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       final setting = await database.select(database.appSettings).getSingle();
       expect(setting.activeSemesterId, 101);
       expect(setting.leb2UserId, 2001);
@@ -495,12 +531,13 @@ void main() {
       expect(operation.sessionRevision, 0);
       await _expectSessionLifecycleDefaultsAndConstraints(database);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
 
   test(
-    'migrates a frozen real v6 database to v7 without changing prior state',
+    'migrates a frozen real v6 database to v8 without changing prior state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v6.V6AppDatabase(NativeDatabase(databaseFile));
@@ -529,7 +566,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 7);
+      expect(await _pragmaInt(database, 'user_version'), 8);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved v6 course',
@@ -542,6 +579,68 @@ void main() {
       await _expectFrozenV6ConnectedGraphPreserved(database);
       expect(await database.select(database.coursePreferences).get(), isEmpty);
       await _expectCoursePreferenceSchema(database);
+      await _expectDeadlineReminderSchema(database);
+      expect(await _foreignKeyViolations(database), isEmpty);
+    },
+  );
+
+  test(
+    'migrates a frozen connected v7 database to v8 and seeds reminder state',
+    () async {
+      final databaseFile = await storage.resolveDatabaseFile();
+      final legacy = v7.V7AppDatabase(NativeDatabase(databaseFile));
+      await legacy
+          .into(legacy.semesters)
+          .insert(v7.SemestersCompanion.insert(semesterId: const Value(101)));
+      await legacy
+          .into(legacy.courses)
+          .insert(
+            v7.CoursesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              name: 'Preserved v7 course',
+            ),
+          );
+      await legacy.customStatement(
+        'INSERT INTO app_settings '
+        '(singleton_id, active_semester_id, leb2_user_id, '
+        'session_lifecycle, session_revision) '
+        "VALUES (1, 101, 2001, 'active', 9)",
+      );
+      await _seedFrozenV6ConnectedGraph(legacy);
+      await legacy
+          .into(legacy.coursePreferences)
+          .insert(
+            v7.CoursePreferencesCompanion.insert(
+              semesterId: 101,
+              courseId: 3001,
+              notificationsMuted: const Value(true),
+              backgroundMonitoringEnabled: const Value(false),
+            ),
+          );
+      expect(await _pragmaInt(legacy, 'user_version'), 7);
+      await legacy.close();
+
+      final database = await storage.openDatabase();
+      addTearDown(database.close);
+
+      expect(await _pragmaInt(database, 'user_version'), 8);
+      expect(
+        (await database.select(database.courses).getSingle()).name,
+        'Preserved v7 course',
+      );
+      final settings = await database.select(database.appSettings).getSingle();
+      expect(settings.activeSemesterId, 101);
+      expect(settings.leb2UserId, 2001);
+      expect(settings.sessionLifecycle, 'active');
+      expect(settings.sessionRevision, 9);
+      await _expectFrozenV6ConnectedGraphPreserved(database);
+      final coursePreference = await database
+          .select(database.coursePreferences)
+          .getSingle();
+      expect(coursePreference.notificationsMuted, isTrue);
+      expect(coursePreference.backgroundMonitoringEnabled, isFalse);
+      await _expectDeadlineReminderSchema(database);
       expect(await _foreignKeyViolations(database), isEmpty);
     },
   );
@@ -635,74 +734,148 @@ void main() {
   });
 }
 
-Future<void> _seedFrozenV6ConnectedGraph(v6.V6AppDatabase database) async {
+Future<void> _exerciseSimultaneousIsolateOpens(
+  String directoryPath, {
+  required bool preseedWal,
+}) async {
+  const isolateCount = 4;
+  const writesPerIsolate = 15;
+  final storage = _storageForIsolate(directoryPath);
+  if (preseedWal) {
+    final seed = await storage.openDatabase();
+    await seed.select(seed.deadlineReminderReconciliations).getSingle();
+    await seed.close();
+  }
+
+  final ready = ReceivePort();
+  final readySendPort = ready.sendPort;
+  final operations = [
+    for (var index = 0; index < isolateCount; index += 1)
+      Isolate.run(
+        () => _openAfterBarrier(directoryPath, readySendPort, writesPerIsolate),
+      ),
+  ];
+  final releases = await ready.take(isolateCount).cast<SendPort>().toList();
+  ready.close();
+  for (final release in releases) {
+    release.send(null);
+  }
+  await Future.wait(operations).timeout(const Duration(seconds: 30));
+
+  final verifier = await storage.openDatabase();
+  final state = await verifier
+      .select(verifier.deadlineReminderReconciliations)
+      .getSingle();
+  expect(state.requestedGeneration, isolateCount * writesPerIsolate);
+  expect(await _pragmaText(verifier, 'journal_mode'), 'wal');
+  expect(await _pragmaInt(verifier, 'busy_timeout'), 5000);
+  await verifier.close();
+  await storage.deleteDatabaseFiles();
+}
+
+Future<void> _openAfterBarrier(
+  String directoryPath,
+  SendPort ready,
+  int writeCount,
+) async {
+  final release = ReceivePort();
+  ready.send(release.sendPort);
+  await release.first;
+  release.close();
+
+  final database = await _storageForIsolate(directoryPath).openDatabase();
+  try {
+    for (var index = 0; index < writeCount; index += 1) {
+      await database.transaction(() async {
+        final updated = await database.customUpdate(
+          'UPDATE deadline_reminder_reconciliations '
+          'SET requested_generation = requested_generation + 1 '
+          'WHERE singleton_id = 1 AND requested_generation < 2147483647',
+          updates: {database.deadlineReminderReconciliations},
+        );
+        if (updated != 1) {
+          throw StateError('Unexpected generation update count.');
+        }
+      });
+    }
+  } finally {
+    await database.close();
+  }
+}
+
+LocalDatabaseStorage _storageForIsolate(String directoryPath) {
+  return LocalDatabaseStorage(
+    applicationSupportDirectoryProvider: () async => Directory(directoryPath),
+  );
+}
+
+Future<void> _seedFrozenV6ConnectedGraph(dynamic database) async {
   await database.transaction(() async {
-    await database
-        .into(database.activities)
-        .insert(
-          v6.ActivitiesCompanion.insert(
-            semesterId: 101,
-            identityKey: 'backend:6101',
-            courseId: 3001,
-            backendActivityId: const Value(6101),
-            userId: 2001,
-            advStarred: 1,
-            groupType: 'individual',
-            activityType: 'ASM',
-            peerAssessment: 0,
-            isAllowRepeat: 1,
-            title: 'Preserved v6 assignment',
-            description: 'Frozen v6 description',
-            startDateSource: const Value('2026-07-26T08:00:00+07:00'),
-            dueDateSource: const Value('2026-08-02T23:59:00+07:00'),
-            editGroupMode: 'none',
-            createdAtSource: '2026-07-26T08:00:00+07:00',
-            userValue: 2001,
-            activitySubmissionId: const Value(7101),
-            classUserId: 4001,
-            activityGroupId: const Value(7201),
-            activityGroupName: const Value('Frozen group'),
-            activitySubmissionSubmittedAtJson: const Value(
-              '{"submitted_at":"2026-07-27T09:00:00+07:00"}',
-            ),
-            dueDateExceed: false,
-            quizSubmissionIsSubmitted: true,
-            countGroupMember: 2,
-            activitySubmissionIsLate: false,
-            fileActivitiesJson: '[{"name":"frozen-v6.pdf"}]',
-            questionsJson: '[{"id":1}]',
-            submissionsJson: '[{"id":7101}]',
-            lastDueDateNotificationDateSource: const Value(
-              '2026-07-28T10:00:00+07:00',
-            ),
-            lastStatusChangeNotificationDateSource: const Value(
-              '2026-07-29T11:00:00+07:00',
-            ),
-            previousSubmissionStatus: const Value(true),
-          ),
-        );
-    await database
-        .into(database.seenActivities)
-        .insert(
-          v6.SeenActivitiesCompanion.insert(
-            semesterId: 101,
-            identityKey: 'backend:6101',
-            courseId: 3001,
-            firstSeenAtUtc: DateTime.utc(2026, 7, 26, 1),
-            lastSeenAtUtc: DateTime.utc(2026, 7, 27, 2),
-            isBaseline: false,
-          ),
-        );
-    await database
-        .into(database.activityFingerprints)
-        .insert(
-          v6.ActivityFingerprintsCompanion.insert(
-            semesterId: 101,
-            identityKey: 'backend:6101',
-            fingerprintVersion: 2,
-            fingerprint: 'sha256:frozen-v6-6101',
-          ),
-        );
+    await database.customStatement(
+      'INSERT INTO activities ('
+      'semester_id, identity_key, course_id, backend_activity_id, user_id, '
+      'adv_starred, group_type, activity_type, peer_assessment, '
+      'is_allow_repeat, title, description, start_date_source, '
+      'due_date_source, edit_group_mode, created_at_source, user_value, '
+      'activity_submission_id, class_user_id, activity_group_id, '
+      'activity_group_name, activity_submission_submitted_at_json, '
+      'due_date_exceed, quiz_submission_is_submitted, count_group_member, '
+      'activity_submission_is_late, file_activities_json, questions_json, '
+      'submissions_json, last_due_date_notification_date_source, '
+      'last_status_change_notification_date_source, previous_submission_status'
+      ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+      '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        101,
+        'backend:6101',
+        3001,
+        6101,
+        2001,
+        1,
+        'individual',
+        'ASM',
+        0,
+        1,
+        'Preserved v6 assignment',
+        'Frozen v6 description',
+        '2026-07-26T08:00:00+07:00',
+        '2026-08-02T23:59:00+07:00',
+        'none',
+        '2026-07-26T08:00:00+07:00',
+        2001,
+        7101,
+        4001,
+        7201,
+        'Frozen group',
+        '{"submitted_at":"2026-07-27T09:00:00+07:00"}',
+        0,
+        1,
+        2,
+        0,
+        '[{"name":"frozen-v6.pdf"}]',
+        '[{"id":1}]',
+        '[{"id":7101}]',
+        '2026-07-28T10:00:00+07:00',
+        '2026-07-29T11:00:00+07:00',
+        1,
+      ],
+    );
+    await database.customStatement(
+      'INSERT INTO seen_activities '
+      '(semester_id, identity_key, course_id, first_seen_at_utc, '
+      'last_seen_at_utc, is_baseline) VALUES (101, ?, 3001, ?, ?, 0)',
+      [
+        'backend:6101',
+        DateTime.utc(2026, 7, 26, 1).millisecondsSinceEpoch,
+        DateTime.utc(2026, 7, 27, 2).millisecondsSinceEpoch,
+      ],
+    );
+    await database.customStatement(
+      'INSERT INTO activity_fingerprints '
+      '(semester_id, identity_key, fingerprint_version, fingerprint) '
+      'VALUES (101, ?, 2, ?)',
+      ['backend:6101', 'sha256:frozen-v6-6101'],
+    );
     await database.customStatement(
       'INSERT INTO scheduled_reminders '
       '(notification_id, semester_id, identity_key, offset_minutes, '
@@ -716,31 +889,28 @@ Future<void> _seedFrozenV6ConnectedGraph(v6.V6AppDatabase database) async {
         DateTime.utc(2026, 7, 26, 3).millisecondsSinceEpoch,
       ],
     );
-    await database
-        .into(database.notificationHistory)
-        .insert(
-          v6.NotificationHistoryCompanion.insert(
-            dedupeKey: 'v6:new-assignment:backend:6101',
-            semesterId: 101,
-            identityKey: 'backend:6101',
-            kind: 'newAssignment',
-            notificationId: 6202,
-            recordedAtUtc: DateTime.utc(2026, 7, 27, 3),
-          ),
-        );
-    await database
-        .into(database.syncRuns)
-        .insert(
-          v6.SyncRunsCompanion.insert(
-            syncRunId: const Value(6301),
-            semesterId: 101,
-            reason: 'desktopTimer',
-            outcome: 'failure',
-            startedAtUtc: DateTime.utc(2026, 7, 27, 4),
-            completedAtUtc: Value(DateTime.utc(2026, 7, 27, 4, 1)),
-            failureCategory: const Value('networkUnavailable'),
-          ),
-        );
+    await database.customStatement(
+      'INSERT INTO notification_history '
+      '(dedupe_key, semester_id, identity_key, kind, notification_id, '
+      'recorded_at_utc) VALUES (?, 101, ?, ?, 6202, ?)',
+      [
+        'v6:new-assignment:backend:6101',
+        'backend:6101',
+        'newAssignment',
+        DateTime.utc(2026, 7, 27, 3).millisecondsSinceEpoch,
+      ],
+    );
+    await database.customStatement(
+      'INSERT INTO sync_runs '
+      '(sync_run_id, semester_id, reason, outcome, started_at_utc, '
+      'completed_at_utc, failure_category) '
+      "VALUES (6301, 101, 'desktopTimer', 'failure', ?, ?, "
+      "'networkUnavailable')",
+      [
+        DateTime.utc(2026, 7, 27, 4).millisecondsSinceEpoch,
+        DateTime.utc(2026, 7, 27, 4, 1).millisecondsSinceEpoch,
+      ],
+    );
     await database.customStatement(
       'INSERT INTO sync_operations '
       '(operation_id, semester_id, user_id, reason, state, enqueued_at_utc, '
@@ -818,6 +988,7 @@ Future<void> _expectFrozenV6ConnectedGraphPreserved(
   expect(reminder.scheduledForUtc, DateTime.utc(2026, 8, 2, 15, 29));
   expect(reminder.createdAtUtc, DateTime.utc(2026, 7, 26, 3));
   expect(reminder.needsReconciliation, isTrue);
+  expect(reminder.scheduleState, 'unknown');
 
   final notification = await database
       .select(database.notificationHistory)
@@ -1026,6 +1197,25 @@ Future<void> _expectCoursePreferenceSchema(AppDatabase database) async {
         .get(),
     isEmpty,
   );
+}
+
+Future<void> _expectDeadlineReminderSchema(AppDatabase database) async {
+  final preference = await database
+      .select(database.deadlineReminderPreferences)
+      .getSingle();
+  expect(preference.singletonId, 1);
+  expect(preference.enabled, isTrue);
+  expect(preference.oneHourEnabled, isTrue);
+  expect(preference.twentyFourHoursEnabled, isTrue);
+
+  final reconciliation = await database
+      .select(database.deadlineReminderReconciliations)
+      .getSingle();
+  expect(reconciliation.singletonId, 1);
+  expect(reconciliation.requestedGeneration, 0);
+  expect(reconciliation.completedGeneration, 0);
+  expect(reconciliation.ownerToken, isNull);
+  expect(reconciliation.leaseExpiresAtUtc, isNull);
 }
 
 v1.ActivitiesCompanion _legacyActivity() {

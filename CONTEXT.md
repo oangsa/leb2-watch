@@ -62,3 +62,9 @@ A durable assignment-scoped record that the app consumed a muted discovery or
 committed to one app-level show request. It is not evidence of platform I/O,
 OS display, delivery, acknowledgement, or read state.
 _Avoid_: Delivered notification, notification receipt
+
+**Deadline reminder request**:
+A durable assignment-and-offset owner whose state is scheduled, cancelled, or
+unknown pending reconciliation. It is not evidence of exact execution, OS
+retention, display, or delivery.
+_Avoid_: Delivered reminder, exact alarm, reminder receipt

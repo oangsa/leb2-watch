@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
+import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_reconciler.dart';
 
 void main() {
   const key = CourseKey(semesterId: 101, courseId: 3001);
@@ -90,6 +91,55 @@ void main() {
     expect(keys, {key});
     expect(() => keys.add(key), throwsUnsupportedError);
   });
+
+  test(
+    'committed notification mute requests reconciliation only for mute',
+    () async {
+      final store = _FakeCoursePreferencesStore();
+      final requester = _RecordingReminderRequester();
+      final service = LocalCoursePreferencesService(store, requester);
+
+      expect(
+        await service.setNotificationsMuted(key, muted: true),
+        isA<CoursePreferenceUpdateSuccess>(),
+      );
+      expect(requester.calls, 1);
+
+      expect(
+        await service.setBackgroundMonitoringEnabled(key, enabled: false),
+        isA<CoursePreferenceUpdateSuccess>(),
+      );
+      expect(requester.calls, 1);
+    },
+  );
+
+  test('mute success survives reminder reconciliation failure', () async {
+    final store = _FakeCoursePreferencesStore();
+    final requester = _RecordingReminderRequester()
+      ..failure = StateError('sensitive platform detail');
+    final service = LocalCoursePreferencesService(store, requester);
+
+    final result = await service.setNotificationsMuted(key, muted: true);
+
+    expect(result, isA<CoursePreferenceUpdateSuccess>());
+    expect(result.toString(), isNot(contains('sensitive')));
+    expect(requester.calls, 1);
+  });
+}
+
+final class _RecordingReminderRequester
+    implements DeadlineReminderReconciliationRequester {
+  int calls = 0;
+  Object? failure;
+
+  @override
+  Future<void> reconcileAfterPreferenceChange() async {
+    calls += 1;
+    final current = failure;
+    if (current != null) {
+      throw current;
+    }
+  }
 }
 
 final class _FakeCoursePreferencesStore implements CoursePreferencesStore {

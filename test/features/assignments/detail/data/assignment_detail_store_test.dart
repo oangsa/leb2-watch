@@ -82,6 +82,8 @@ void main() {
               deadlineAtUtc: DateTime.utc(2026, 8, 1, 9),
               scheduledForUtc: DateTime.utc(2026, 8, 1, 8),
               createdAtUtc: DateTime.utc(2026, 7, 25),
+              needsReconciliation: const drift.Value(false),
+              scheduleState: const drift.Value('scheduled'),
             ),
           );
       await database
@@ -102,6 +104,21 @@ void main() {
           .into(database.scheduledReminders)
           .insert(
             ScheduledRemindersCompanion.insert(
+              notificationId: const drift.Value(7004),
+              semesterId: 101,
+              identityKey: 'backend:1001',
+              offsetMinutes: 2880,
+              deadlineAtUtc: DateTime.utc(2026, 8, 1, 9),
+              scheduledForUtc: DateTime.utc(2026, 7, 30, 9),
+              createdAtUtc: DateTime.utc(2026, 7, 25),
+              needsReconciliation: const drift.Value(false),
+              scheduleState: const drift.Value('cancelled'),
+            ),
+          );
+      await database
+          .into(database.scheduledReminders)
+          .insert(
+            ScheduledRemindersCompanion.insert(
               notificationId: const drift.Value(7101),
               semesterId: 101,
               identityKey: 'backend:2002',
@@ -109,6 +126,8 @@ void main() {
               deadlineAtUtc: DateTime.utc(2026, 9),
               scheduledForUtc: DateTime.utc(2026, 8, 31, 23, 30),
               createdAtUtc: DateTime.utc(2026, 7, 20),
+              needsReconciliation: const drift.Value(false),
+              scheduleState: const drift.Value('scheduled'),
             ),
           );
       await database
@@ -122,6 +141,8 @@ void main() {
               deadlineAtUtc: DateTime.utc(2026, 10),
               scheduledForUtc: DateTime.utc(2026, 9, 30, 23, 45),
               createdAtUtc: DateTime.utc(2026, 7, 20),
+              needsReconciliation: const drift.Value(false),
+              scheduleState: const drift.Value('scheduled'),
             ),
           );
       await database

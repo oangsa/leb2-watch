@@ -19,9 +19,12 @@ import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
 import '../features/courses/application/course_preferences_service.dart';
 import '../features/courses/data/course_preferences_store.dart';
+import '../features/notifications/application/deadline_reminder_coordinator.dart';
+import '../features/notifications/application/deadline_reminder_preferences_service.dart';
 import '../features/notifications/application/local_notification_service_impl.dart';
 import '../features/notifications/application/new_assignment_notification_coordinator.dart';
 import '../features/notifications/application/notification_aware_assignment_sync_service.dart';
+import '../features/notifications/data/deadline_reminder_store.dart';
 import '../features/notifications/data/flutter_local_notifications_adapter.dart';
 import '../features/notifications/data/local_notifications_platform.dart';
 import '../features/notifications/data/new_assignment_notification_store.dart';
@@ -149,6 +152,44 @@ final newAssignmentNotificationCoordinatorProvider =
       );
     });
 
+final deadlineReminderStoreProvider = FutureProvider<DeadlineReminderStore>((
+  ref,
+) async {
+  final database = await ref.watch(appDatabaseProvider.future);
+  return DriftDeadlineReminderStore(database);
+});
+
+final deadlineReminderPreferencesStoreProvider =
+    FutureProvider<DeadlineReminderPreferencesStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftDeadlineReminderPreferencesStore(database);
+    });
+
+final deadlineReminderCoordinatorProvider =
+    FutureProvider<DeadlineReminderCoordinator>((ref) async {
+      final store = await ref.watch(deadlineReminderStoreProvider.future);
+      final policy = ref
+          .watch(localNotificationsPlatformProvider)
+          .capabilities
+          .deadlineReminderPolicy;
+      return DeadlineReminderCoordinator(
+        store,
+        ref.watch(localNotificationServiceProvider),
+        policy: policy,
+      );
+    });
+
+final deadlineReminderPreferencesServiceProvider =
+    FutureProvider<DeadlineReminderPreferencesService>((ref) async {
+      final store = await ref.watch(
+        deadlineReminderPreferencesStoreProvider.future,
+      );
+      final coordinator = await ref.watch(
+        deadlineReminderCoordinatorProvider.future,
+      );
+      return LocalDeadlineReminderPreferencesService(store, coordinator);
+    });
+
 final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
   ref,
 ) async {
@@ -156,7 +197,14 @@ final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
   final coordinator = await ref.watch(
     newAssignmentNotificationCoordinatorProvider.future,
   );
-  return NotificationAwareAssignmentSyncService(delegate, coordinator);
+  final deadlineReminderCoordinator = await ref.watch(
+    deadlineReminderCoordinatorProvider.future,
+  );
+  return NotificationAwareAssignmentSyncService(
+    delegate,
+    coordinator,
+    deadlineReminderCoordinator,
+  );
 });
 
 final assignmentDashboardStoreProvider =
@@ -229,7 +277,10 @@ final coursePreferencesStoreProvider = FutureProvider<CoursePreferencesStore>((
 final coursePreferencesServiceProvider =
     FutureProvider<CoursePreferencesService>((ref) async {
       final store = await ref.watch(coursePreferencesStoreProvider.future);
-      return LocalCoursePreferencesService(store);
+      final coordinator = await ref.watch(
+        deadlineReminderCoordinatorProvider.future,
+      );
+      return LocalCoursePreferencesService(store, coordinator);
     });
 
 final courseEffectPolicyReaderProvider =

@@ -115,6 +115,8 @@ Schema version 3 adds:
   semester/identity foreign key preserves seen-ledger ownership. Operation
   deletion and seen-ledger deletion cascade these result-evidence rows.
 - `scheduled_reminders.needs_reconciliation`: durable eventual-work flag.
+- `scheduled_reminders.schedule_state`: checked unknown, scheduled, or
+  cancelled ownership; diffing moves changed/removed owners to unknown.
 
 Scheduled reminders now reference `seen_activities`, not current
 `activities`. An unchanged reminder survives snapshot upsert; a deadline
@@ -272,7 +274,8 @@ recorded in the worker handoff for this feature.
 ## Known limitations
 
 - The backend contract does not define the timezone of unzoned deadlines or
-  deadline inclusivity, so actual reminder instants remain blocked.
+  deadline inclusivity. Feature 12.3 schedules explicitly zoned instants and
+  intentionally leaves unzoned values ineligible.
 - Every verified current activity has a positive backend ID. Fingerprint v1 is
   dormant policy and has not processed a real valid transport response.
 - Snapshot/baseline tables are semester-scoped while synchronization operations
@@ -290,8 +293,9 @@ recorded in the worker handoff for this feature.
 
 - Feature 12.2 now consumes current non-baseline seen rows with durable
   notification-history deduplication after committed success.
-- Reconcile and clear pending reminder rows in Feature 12.3 after timezone
-  semantics are resolved.
+- Feature 12.3 now consumes pending reminder rows, reconciles explicitly zoned
+  deadlines, and routes ineligible unzoned owners through safe cancellation
+  to retained cancelled tombstones or unknown retry state.
 - Define account-change ownership before allowing two users' semester caches to
   coexist.
 - Activate the fallback path only after a verified transport contract permits a
@@ -306,3 +310,4 @@ recorded in the worker handoff for this feature.
 - [New-Assignment Notifications](new-assignment-notifications.md)
 - [API Error Mapping](api-error-mapping.md)
 - [Course Preferences](course-preferences.md)
+- [Deadline Reminders](deadline-reminders.md)

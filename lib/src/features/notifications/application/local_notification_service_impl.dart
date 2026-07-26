@@ -7,7 +7,10 @@ import '../domain/local_notification_payload_codec.dart';
 import '../domain/local_notification_service.dart';
 import 'local_notification_deadline_formatter.dart';
 
-final class LocalNotificationServiceImpl implements LocalNotificationService {
+final class LocalNotificationServiceImpl
+    implements
+        LocalNotificationService,
+        LocalNotificationInitializationControl {
   LocalNotificationServiceImpl(
     this._platform, {
     this._payloadCodec = const LocalNotificationPayloadCodec(),
@@ -29,7 +32,7 @@ final class LocalNotificationServiceImpl implements LocalNotificationService {
   final StreamController<LocalNotificationTarget> _responses =
       StreamController<LocalNotificationTarget>.broadcast(sync: true);
 
-  Future<void>? _initializeFuture;
+  _InitializationAttemptState? _initializeAttempt;
   bool _initialized = false;
   bool _disposed = false;
 
@@ -37,31 +40,46 @@ final class LocalNotificationServiceImpl implements LocalNotificationService {
   Stream<LocalNotificationTarget> get responses => _responses.stream;
 
   @override
-  Future<void> initialize() {
+  Future<void> initialize() => beginInitializationAttempt().completion;
+
+  @override
+  LocalNotificationInitializationAttempt beginInitializationAttempt() {
     if (_disposed) {
-      return Future<void>.error(
-        const LocalNotificationFailure(
-          LocalNotificationFailureKind.notInitialized,
+      return _ImmediateInitializationAttempt(
+        Future<void>.error(
+          const LocalNotificationFailure(
+            LocalNotificationFailureKind.notInitialized,
+          ),
         ),
       );
     }
-    final existing = _initializeFuture;
+    final existing = _initializeAttempt;
     if (existing != null) {
-      return existing;
+      return _InitializationAttemptHandle(this, existing);
     }
 
-    final operation = Future<void>.microtask(_performInitialization);
-    _initializeFuture = operation;
-    return operation;
+    final attempt = _InitializationAttemptState();
+    _initializeAttempt = attempt;
+    _initialized = false;
+    unawaited(Future<void>.microtask(() => _performInitialization(attempt)));
+    return _InitializationAttemptHandle(this, attempt);
   }
 
-  Future<void> _performInitialization() async {
-    _throwIfDisposed();
-    _initialized = false;
+  Future<void> _performInitialization(
+    _InitializationAttemptState attempt,
+  ) async {
     try {
+      _throwIfDisposed();
       final initialized = await _platform.initialize(
-        onResponse: _handlePayload,
+        onResponse: (payload) {
+          if (_isCurrentInitialization(attempt)) {
+            _handlePayload(payload);
+          }
+        },
       );
+      if (!_isCurrentInitialization(attempt)) {
+        return;
+      }
       if (initialized != true) {
         throw const LocalNotificationFailure(
           LocalNotificationFailureKind.platformUnavailable,
@@ -72,22 +90,54 @@ final class LocalNotificationServiceImpl implements LocalNotificationService {
       String? launchPayload;
       if (_platform.capabilities.supportsLaunchPayload) {
         launchPayload = await _platform.getLaunchPayload();
+        if (!_isCurrentInitialization(attempt)) {
+          return;
+        }
         _throwIfDisposed();
       }
 
       _initialized = true;
       _handlePayload(launchPayload);
-    } on LocalNotificationFailure {
-      _initialized = false;
-      _initializeFuture = null;
-      rethrow;
+      attempt.complete();
+    } on LocalNotificationFailure catch (failure) {
+      _completeInitializationFailure(attempt, failure);
     } on Object {
-      _initialized = false;
-      _initializeFuture = null;
-      throw const LocalNotificationFailure(
-        LocalNotificationFailureKind.platformFailure,
+      _completeInitializationFailure(
+        attempt,
+        const LocalNotificationFailure(
+          LocalNotificationFailureKind.platformFailure,
+        ),
       );
     }
+  }
+
+  bool _isCurrentInitialization(_InitializationAttemptState attempt) {
+    return identical(_initializeAttempt, attempt);
+  }
+
+  void _completeInitializationFailure(
+    _InitializationAttemptState attempt,
+    LocalNotificationFailure failure,
+  ) {
+    if (!_isCurrentInitialization(attempt)) {
+      return;
+    }
+    _initialized = false;
+    _initializeAttempt = null;
+    attempt.completeError(failure);
+  }
+
+  void _abandonInitialization(_InitializationAttemptState attempt) {
+    if (!_isCurrentInitialization(attempt) || attempt.isCompleted) {
+      return;
+    }
+    _initialized = false;
+    _initializeAttempt = null;
+    attempt.completeError(
+      const LocalNotificationFailure(
+        LocalNotificationFailureKind.platformFailure,
+      ),
+    );
   }
 
   @override
@@ -351,3 +401,48 @@ final class LocalNotificationServiceImpl implements LocalNotificationService {
 }
 
 DateTime _systemUtcNow() => DateTime.now().toUtc();
+
+final class _InitializationAttemptState {
+  final Completer<void> _completion = Completer<void>();
+
+  Future<void> get completion => _completion.future;
+
+  bool get isCompleted => _completion.isCompleted;
+
+  void complete() {
+    if (!_completion.isCompleted) {
+      _completion.complete();
+    }
+  }
+
+  void completeError(LocalNotificationFailure failure) {
+    if (!_completion.isCompleted) {
+      _completion.completeError(failure);
+    }
+  }
+}
+
+final class _InitializationAttemptHandle
+    implements LocalNotificationInitializationAttempt {
+  const _InitializationAttemptHandle(this._owner, this._attempt);
+
+  final LocalNotificationServiceImpl _owner;
+  final _InitializationAttemptState _attempt;
+
+  @override
+  Future<void> get completion => _attempt.completion;
+
+  @override
+  void abandon() => _owner._abandonInitialization(_attempt);
+}
+
+final class _ImmediateInitializationAttempt
+    implements LocalNotificationInitializationAttempt {
+  const _ImmediateInitializationAttempt(this.completion);
+
+  @override
+  final Future<void> completion;
+
+  @override
+  void abandon() {}
+}

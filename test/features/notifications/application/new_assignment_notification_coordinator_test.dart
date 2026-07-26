@@ -5,6 +5,7 @@ import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_reconciler.dart';
 import 'package:leb2_watch/src/features/notifications/application/notification_aware_assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/notifications/data/new_assignment_notification_store.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
@@ -221,6 +222,36 @@ void main() {
       expect(store.semesterIds, [101]);
     });
 
+    test(
+      'runs new-assignment then deadline work and isolates both failures',
+      () async {
+        final success = _success();
+        final events = <String>[];
+        final store = _ClaimStore(events: events)
+          ..claimError = StateError('private assignment detail');
+        final reminders = _ReminderReconciler(events)
+          ..failure = StateError('private reminder detail');
+        final decorator = NotificationAwareAssignmentSyncService(
+          _SyncService(success),
+          NewAssignmentNotificationCoordinator(
+            store,
+            _NotificationService(events: events),
+          ),
+          reminders,
+        );
+
+        final result = await decorator.synchronize(
+          semesterId: 101,
+          userId: 2001,
+          reason: SyncReason.manualRefresh,
+        );
+
+        expect(result, same(success));
+        expect(events, ['initialize', 'claim', 'deadline:101:1']);
+        expect(reminders.calls, 1);
+      },
+    );
+
     test('notification failures cannot replace committed success', () async {
       final success = _success();
       final delegate = _SyncService(success);
@@ -320,6 +351,32 @@ void main() {
       expect(delegate.backoffArguments, (101, 2001));
     });
   });
+}
+
+final class _ReminderReconciler implements DeadlineReminderReconciler {
+  _ReminderReconciler(this.events);
+
+  final List<String> events;
+  Object? failure;
+  int calls = 0;
+
+  @override
+  Future<void> reconcileAfterCommittedSync({
+    required int semesterId,
+    required int operationId,
+  }) async {
+    calls += 1;
+    events.add('deadline:$semesterId:$operationId');
+    final current = failure;
+    if (current != null) {
+      throw current;
+    }
+  }
+
+  @override
+  Future<void> reconcileAfterPreferenceChange() async {
+    calls += 1;
+  }
 }
 
 SyncSuccess _success() {

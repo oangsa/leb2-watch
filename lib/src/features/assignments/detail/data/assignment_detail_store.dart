@@ -280,10 +280,11 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
     ];
     final reminders = await _database
         .customSelect(
-          'SELECT COUNT(*) AS total_count, '
-          'COALESCE(SUM(CASE WHEN needs_reconciliation = 1 '
+          "SELECT COUNT(CASE WHEN schedule_state != 'cancelled' "
+          'THEN 1 ELSE NULL END) AS total_count, '
+          "COALESCE(SUM(CASE WHEN schedule_state = 'unknown' "
           'THEN 1 ELSE 0 END), 0) AS pending_count, '
-          'MIN(CASE WHEN needs_reconciliation = 0 '
+          "MIN(CASE WHEN schedule_state = 'scheduled' "
           'THEN scheduled_for_utc ELSE NULL END) AS earliest_ready '
           'FROM scheduled_reminders '
           'WHERE semester_id = ? AND identity_key = ?',

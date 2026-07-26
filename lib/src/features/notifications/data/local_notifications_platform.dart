@@ -1,3 +1,5 @@
+import '../domain/deadline_reminder_policy.dart';
+
 enum NotificationRuntimePlatform {
   android,
   iOS,
@@ -69,6 +71,25 @@ final class LocalNotificationPlatformCapabilities {
   final bool supportsCancellation;
   final bool supportsLaunchPayload;
   final bool requiresPermissionRequest;
+
+  DeadlineReminderSchedulingPolicy get deadlineReminderPolicy {
+    return switch (platform) {
+      NotificationRuntimePlatform.android =>
+        DeadlineReminderSchedulingPolicy.android,
+      NotificationRuntimePlatform.iOS => DeadlineReminderSchedulingPolicy.iOS,
+      NotificationRuntimePlatform.macOS =>
+        DeadlineReminderSchedulingPolicy.macOS,
+      NotificationRuntimePlatform.linux =>
+        DeadlineReminderSchedulingPolicy.linux,
+      NotificationRuntimePlatform.windows
+          when supportsScheduling && supportsCancellation =>
+        DeadlineReminderSchedulingPolicy.windowsPackaged,
+      NotificationRuntimePlatform.windows =>
+        DeadlineReminderSchedulingPolicy.windowsUnpackaged,
+      NotificationRuntimePlatform.unsupported =>
+        DeadlineReminderSchedulingPolicy.unsupported,
+    };
+  }
 }
 
 enum PlatformNotificationKind { test, newAssignment, deadlineReminder }

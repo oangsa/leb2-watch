@@ -180,7 +180,9 @@ class ScheduledReminders extends Table {
       integer().map(const UtcDateTimeConverter())();
   IntColumn get createdAtUtc => integer().map(const UtcDateTimeConverter())();
   BoolColumn get needsReconciliation =>
-      boolean().withDefault(const Constant(false))();
+      boolean().withDefault(const Constant(true))();
+  TextColumn get scheduleState =>
+      text().withDefault(const Constant('unknown'))();
 
   @override
   Set<Column<Object>> get primaryKey => {notificationId};
@@ -189,6 +191,10 @@ class ScheduledReminders extends Table {
   List<String> get customConstraints => const [
     'CHECK (length(trim(identity_key)) > 0)',
     'CHECK (offset_minutes > 0)',
+    "CHECK (schedule_state IN ('unknown', 'scheduled', 'cancelled'))",
+    "CHECK ((schedule_state = 'unknown' AND needs_reconciliation = 1) OR "
+        "(schedule_state IN ('scheduled', 'cancelled') "
+        'AND needs_reconciliation = 0))',
     'FOREIGN KEY (semester_id, identity_key) '
         'REFERENCES seen_activities (semester_id, identity_key) '
         'ON DELETE CASCADE',
@@ -463,6 +469,47 @@ class SyncBackoffStates extends Table {
         "'unexpectedHttpResponse', 'persistenceFailed')))",
     'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
         'ON DELETE CASCADE',
+  ];
+}
+
+class DeadlineReminderPreferences extends Table {
+  IntColumn get singletonId => integer()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  BoolColumn get oneHourEnabled =>
+      boolean().withDefault(const Constant(true))();
+  BoolColumn get twentyFourHoursEnabled =>
+      boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+
+  @override
+  List<String> get customConstraints => const ['CHECK (singleton_id = 1)'];
+}
+
+class DeadlineReminderReconciliations extends Table {
+  IntColumn get singletonId => integer()();
+  IntColumn get requestedGeneration =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get completedGeneration =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get ownerToken => text().nullable()();
+  IntColumn get leaseExpiresAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (singleton_id = 1)',
+    'CHECK (requested_generation >= 0 AND '
+        'requested_generation <= 2147483647)',
+    'CHECK (completed_generation >= 0 AND '
+        'completed_generation <= requested_generation)',
+    'CHECK ((owner_token IS NULL AND lease_expires_at_utc IS NULL) OR '
+        '(owner_token IS NOT NULL AND lease_expires_at_utc IS NOT NULL '
+        'AND length(trim(owner_token)) > 0))',
   ];
 }
 

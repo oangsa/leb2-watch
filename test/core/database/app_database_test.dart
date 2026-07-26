@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 7', () {
+  group('schema version 8', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 7);
+        expect(database.schemaVersion, 8);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -37,6 +37,8 @@ void main() {
           'assignment_baselines',
           'course_preferences',
           'courses',
+          'deadline_reminder_preferences',
+          'deadline_reminder_reconciliations',
           'notification_history',
           'scheduled_reminders',
           'seen_activities',
@@ -46,7 +48,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 7);
+        expect(await _pragmaInt(database, 'user_version'), 8);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -119,7 +121,12 @@ void main() {
 
       for (final entry in columnsByTable) {
         for (final fragment in prohibitedColumnFragments) {
-          if (entry == (table: 'sync_operations', column: 'ownertoken')) {
+          if (entry == (table: 'sync_operations', column: 'ownertoken') ||
+              entry ==
+                  (
+                    table: 'deadline_reminder_reconciliations',
+                    column: 'ownertoken',
+                  )) {
             continue;
           }
           expect(entry.column, isNot(contains(fragment)));
