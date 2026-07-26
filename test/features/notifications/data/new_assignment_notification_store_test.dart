@@ -188,6 +188,37 @@ void main() {
   );
 
   test(
+    'globally disabled discovery is consumed without a later burst',
+    () async {
+      await _seedCurrent(database, id: 1001);
+      await database
+          .update(database.newAssignmentNotificationPreferences)
+          .write(
+            const NewAssignmentNotificationPreferencesCompanion(
+              enabled: drift.Value(false),
+            ),
+          );
+
+      final disabledClaim = await store.claimNext(semesterId: 101);
+
+      expect(disabledClaim, isNotNull);
+      expect(disabledClaim!.request, isNull);
+      expect(
+        (await database.select(database.notificationHistory).getSingle()).kind,
+        disabledNewAssignmentNotificationKind,
+      );
+      await database
+          .update(database.newAssignmentNotificationPreferences)
+          .write(
+            const NewAssignmentNotificationPreferencesCompanion(
+              enabled: drift.Value(true),
+            ),
+          );
+      expect(await store.claimNext(semesterId: 101), isNull);
+    },
+  );
+
+  test(
     'background-disabled discovery waits for a later foreground claim',
     () async {
       await _seedCurrent(database, id: 1001, courseId: 3001);

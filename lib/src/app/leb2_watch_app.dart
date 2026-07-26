@@ -78,12 +78,18 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     if (lifecycle != null) {
       await lifecycle.reconcileSession(session);
     }
+    if (mounted) {
+      ref.read(backgroundScheduleStatusRefreshSignalProvider).requestRefresh();
+    }
   }
 
   Future<void> _handleAppResume() async {
     final lifecycle = await _backgroundLifecycle();
     if (lifecycle != null) {
       await lifecycle.handleAppResume();
+    }
+    if (mounted) {
+      ref.read(backgroundScheduleStatusRefreshSignalProvider).requestRefresh();
     }
   }
 

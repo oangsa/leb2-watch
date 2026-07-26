@@ -122,6 +122,13 @@ final backgroundSchedulerProvider = FutureProvider<BackgroundScheduler>((
   return ref.watch(_localBackgroundSchedulerProvider.future);
 });
 
+final backgroundScheduleStatusRefreshSignalProvider =
+    Provider<BackgroundScheduleStatusRefreshSignal>((ref) {
+      final signal = BackgroundScheduleStatusRefreshSignal();
+      ref.onDispose(signal.dispose);
+      return signal;
+    });
+
 final backgroundScheduleReconcilerProvider =
     FutureProvider<BackgroundScheduleReconciler>((ref) async {
       return ref.watch(_localBackgroundSchedulerProvider.future);

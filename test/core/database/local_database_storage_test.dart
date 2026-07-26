@@ -80,7 +80,7 @@ void main() {
   }
 
   test(
-    'migrates a real v1 database to v9 and seeds durable baseline state',
+    'migrates a real v1 database to v10 and seeds durable baseline state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v1.V1AppDatabase(NativeDatabase(databaseFile));
@@ -139,7 +139,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(
         (await database.select(database.appSettings).getSingleOrNull())
             ?.leb2UserId,
@@ -247,7 +247,7 @@ void main() {
   );
 
   test(
-    'migrates a real v2 database to v9 preserving ledgers and reminders',
+    'migrates a real v2 database to v10 preserving ledgers and reminders',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v2.V2AppDatabase(NativeDatabase(databaseFile));
@@ -295,7 +295,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(await database.select(database.activities).get(), hasLength(1));
       expect(
         await database.select(database.seenActivities).get(),
@@ -359,7 +359,7 @@ void main() {
   );
 
   test(
-    'migrates a frozen real v3 database to v9 without seeding backoff',
+    'migrates a frozen real v3 database to v10 without seeding backoff',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v3.V3AppDatabase(NativeDatabase(databaseFile));
@@ -393,7 +393,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(
         (await database.select(database.semesters).getSingle()).semesterId,
         101,
@@ -416,7 +416,7 @@ void main() {
   );
 
   test(
-    'migrates a frozen real v4 database to v9 preserving every prior table',
+    'migrates a frozen real v4 database to v10 preserving every prior table',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v4.V4AppDatabase(NativeDatabase(databaseFile));
@@ -458,7 +458,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved course',
@@ -519,7 +519,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       final setting = await database.select(database.appSettings).getSingle();
       expect(setting.activeSemesterId, 101);
       expect(setting.leb2UserId, 2001);
@@ -538,7 +538,7 @@ void main() {
   );
 
   test(
-    'migrates a frozen real v6 database to v9 without changing prior state',
+    'migrates a frozen real v6 database to v10 without changing prior state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v6.V6AppDatabase(NativeDatabase(databaseFile));
@@ -567,7 +567,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved v6 course',
@@ -586,7 +586,7 @@ void main() {
   );
 
   test(
-    'migrates a frozen connected v7 database to v9 and seeds reminder state',
+    'migrates a frozen connected v7 database to v10 and seeds reminder state',
     () async {
       final databaseFile = await storage.resolveDatabaseFile();
       final legacy = v7.V7AppDatabase(NativeDatabase(databaseFile));
@@ -625,7 +625,7 @@ void main() {
       final database = await storage.openDatabase();
       addTearDown(database.close);
 
-      expect(await _pragmaInt(database, 'user_version'), 9);
+      expect(await _pragmaInt(database, 'user_version'), 10);
       expect(
         (await database.select(database.courses).getSingle()).name,
         'Preserved v7 course',
@@ -646,7 +646,7 @@ void main() {
     },
   );
 
-  test('migrates a frozen v8 database to v9 with monitoring off', () async {
+  test('migrates a frozen v8 database to v10 with monitoring off', () async {
     final databaseFile = await storage.resolveDatabaseFile();
     final legacy = v8.V8AppDatabase(NativeDatabase(databaseFile));
     await legacy
@@ -664,7 +664,7 @@ void main() {
     final database = await storage.openDatabase();
     addTearDown(database.close);
 
-    expect(await _pragmaInt(database, 'user_version'), 9);
+    expect(await _pragmaInt(database, 'user_version'), 10);
     final settings = await database
         .select(database.backgroundScheduleSettings)
         .getSingle();
@@ -683,6 +683,13 @@ void main() {
     expect(appSettings.leb2UserId, 2001);
     expect(appSettings.sessionLifecycle, 'active');
     expect(appSettings.sessionRevision, 9);
+    expect(
+      (await database
+              .select(database.newAssignmentNotificationPreferences)
+              .getSingle())
+          .enabled,
+      isTrue,
+    );
     expect(await _foreignKeyViolations(database), isEmpty);
   });
 
@@ -1265,6 +1272,12 @@ Future<void> _expectDeadlineReminderSchema(AppDatabase database) async {
   expect(background.singletonId, 1);
   expect(background.monitoringEnabled, isFalse);
   expect(background.installJitterSeconds, isNull);
+
+  final newAssignments = await database
+      .select(database.newAssignmentNotificationPreferences)
+      .getSingle();
+  expect(newAssignments.singletonId, 1);
+  expect(newAssignments.enabled, isTrue);
 }
 
 v1.ActivitiesCompanion _legacyActivity() {

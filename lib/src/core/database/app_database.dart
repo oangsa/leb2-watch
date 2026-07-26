@@ -26,6 +26,7 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     DeadlineReminderPreferences,
     DeadlineReminderReconciliations,
     BackgroundScheduleSettings,
+    NewAssignmentNotificationPreferences,
     AppSettings,
   ],
 )
@@ -37,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   final bool completeOpenTransaction;
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -47,41 +48,44 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 8 || to != 9) {
+        if (from < 1 || from > 9 || to != 10) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
         }
-        if (from == 1) {
-          await _migrateFrom1To2(migrator);
+        if (from <= 8) {
+          if (from == 1) {
+            await _migrateFrom1To2(migrator);
+          }
+          if (from <= 2) {
+            await _migrateFrom2To3(migrator);
+          }
+          if (from <= 3) {
+            await _migrateFrom3To4(migrator);
+          }
+          if (from <= 4) {
+            await _migrateFrom4To5();
+          }
+          if (from <= 5) {
+            await _migrateFrom5To6(addSyncOperationRevision: from != 1);
+          }
+          if (from <= 6) {
+            await migrator.createTable(coursePreferences);
+          }
+          if (from <= 7) {
+            await _migrateFrom7To8(addScheduleState: from > 2);
+            await migrator.createTable(deadlineReminderPreferences);
+            await migrator.createTable(deadlineReminderReconciliations);
+          } else {
+            await customStatement(
+              'ALTER TABLE deadline_reminder_reconciliations '
+              'ADD COLUMN background_effects_only INTEGER NOT NULL DEFAULT 0 '
+              'CHECK (background_effects_only IN (0, 1))',
+            );
+          }
+          await migrator.createTable(backgroundScheduleSettings);
         }
-        if (from <= 2) {
-          await _migrateFrom2To3(migrator);
-        }
-        if (from <= 3) {
-          await _migrateFrom3To4(migrator);
-        }
-        if (from <= 4) {
-          await _migrateFrom4To5();
-        }
-        if (from <= 5) {
-          await _migrateFrom5To6(addSyncOperationRevision: from != 1);
-        }
-        if (from <= 6) {
-          await migrator.createTable(coursePreferences);
-        }
-        if (from <= 7) {
-          await _migrateFrom7To8(addScheduleState: from > 2);
-          await migrator.createTable(deadlineReminderPreferences);
-          await migrator.createTable(deadlineReminderReconciliations);
-        } else {
-          await customStatement(
-            'ALTER TABLE deadline_reminder_reconciliations '
-            'ADD COLUMN background_effects_only INTEGER NOT NULL DEFAULT 0 '
-            'CHECK (background_effects_only IN (0, 1))',
-          );
-        }
-        await migrator.createTable(backgroundScheduleSettings);
+        await migrator.createTable(newAssignmentNotificationPreferences);
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -117,6 +121,10 @@ class AppDatabase extends _$AppDatabase {
     );
     await customStatement(
       'INSERT OR IGNORE INTO background_schedule_settings '
+      '(singleton_id) VALUES (1)',
+    );
+    await customStatement(
+      'INSERT OR IGNORE INTO new_assignment_notification_preferences '
       '(singleton_id) VALUES (1)',
     );
   }

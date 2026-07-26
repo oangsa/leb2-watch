@@ -20,8 +20,15 @@ import 'package:leb2_watch/src/features/assignments/detail/presentation/assignme
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
+import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
+import 'package:leb2_watch/src/features/diagnostics/application/synchronization_diagnostics_service.dart';
+import 'package:leb2_watch/src/features/diagnostics/domain/synchronization_diagnostics.dart';
+import 'package:leb2_watch/src/features/diagnostics/presentation/synchronization_diagnostics_route.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
+import 'package:leb2_watch/src/features/settings/notifications/notification_settings_dependencies.dart';
+
+import '../../features/settings/notifications/support/fake_notification_settings_service.dart';
 
 void main() {
   group('AppFlowController', () {
@@ -595,6 +602,20 @@ void main() {
           expect(find.text('Course controls'), findsOneWidget);
           expect(find.text('Router course'), findsOneWidget);
           expect(find.byKey(const Key('courses-surface')), findsNothing);
+        } else if (destination == AppDestination.diagnostics) {
+          expect(find.text('Synchronization diagnostics'), findsOneWidget);
+          expect(
+            find.byKey(const Key('synchronization-diagnostics-page')),
+            findsOneWidget,
+          );
+          expect(find.byKey(const Key('diagnostics-surface')), findsNothing);
+        } else if (destination == AppDestination.settings) {
+          expect(find.text('Notification settings'), findsOneWidget);
+          expect(
+            find.byKey(const Key('notification-settings-page')),
+            findsOneWidget,
+          );
+          expect(find.byKey(const Key('settings-surface')), findsNothing);
         } else {
           expect(
             find.byKey(Key('${destination.name}-surface')),
@@ -633,6 +654,40 @@ void main() {
       await tester.tap(find.byKey(const Key('course-mute-3001')));
       await tester.pump();
       expect(courseService.muteCalls, 1);
+    });
+
+    testWidgets('expired banner coexists with cached diagnostics', (
+      tester,
+    ) async {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final router = createAppRouter(
+        controller,
+        initialLocation: AppRoute.diagnostics.path,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _RouterHarness(
+          router: router,
+          lifecycle: const SessionLifecycleSnapshot(
+            state: SessionLifecycleState.expired,
+            revision: 3,
+          ),
+          diagnosticsServiceLoader: () => const _RouteDiagnosticsService(
+            sessionState: SessionLifecycleState.expired,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+      expect(
+        find.byKey(const Key('synchronization-diagnostics-page')),
+        findsOneWidget,
+      );
+      expect(find.text('Expired — reconnect required'), findsOneWidget);
+      expect(find.text('7 saved for the selected semester'), findsOneWidget);
     });
 
     testWidgets('unknown ready route renders only the safe error surface', (
@@ -840,6 +895,7 @@ class _RouterHarness extends StatelessWidget {
     this.semesterServiceLoader,
     this.courseServiceLoader,
     this.detailServiceLoader,
+    this.diagnosticsServiceLoader,
     this.lifecycle = const SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: 1,
@@ -852,6 +908,8 @@ class _RouterHarness extends StatelessWidget {
   final FutureOr<SemesterSelectionService> Function()? semesterServiceLoader;
   final FutureOr<CoursePreferencesService> Function()? courseServiceLoader;
   final FutureOr<AssignmentDetailService> Function()? detailServiceLoader;
+  final FutureOr<SynchronizationDiagnosticsService> Function()?
+  diagnosticsServiceLoader;
   final SessionLifecycleSnapshot lifecycle;
 
   @override
@@ -877,6 +935,14 @@ class _RouterHarness extends StatelessWidget {
         assignmentDetailServiceProvider.overrideWith(
           (_) => detailServiceLoader?.call() ?? _RouteAssignmentDetailService(),
         ),
+        synchronizationDiagnosticsServiceProvider.overrideWith(
+          (_) =>
+              diagnosticsServiceLoader?.call() ??
+              const _RouteDiagnosticsService(),
+        ),
+        notificationSettingsServiceProvider.overrideWith(
+          (_) => const FakeNotificationSettingsService(),
+        ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
       ],
       child: MaterialApp.router(
@@ -886,6 +952,40 @@ class _RouterHarness extends StatelessWidget {
       ),
     );
   }
+}
+
+final class _RouteDiagnosticsService
+    implements SynchronizationDiagnosticsService {
+  const _RouteDiagnosticsService({
+    this.sessionState = SessionLifecycleState.active,
+  });
+
+  final SessionLifecycleState sessionState;
+
+  SynchronizationDiagnosticsSnapshot get _snapshot =>
+      SynchronizationDiagnosticsSnapshot(
+        hasActiveSemester: true,
+        hasConfiguredTarget: true,
+        sessionState: sessionState,
+        cachedAssignmentCount: 7,
+        syncState: DiagnosticsSyncState.idle,
+        lastAttemptedAtUtc: DateTime.utc(2026, 7, 26, 12),
+        lastSuccessfulAtUtc: DateTime.utc(2026, 7, 26, 12),
+        lastFailureAtUtc: null,
+        lastFailureCategory: null,
+        backoff: const DiagnosticsBackoffReady(),
+      );
+
+  @override
+  Stream<SynchronizationDiagnosticsSnapshot> watchLocal() =>
+      Stream.value(_snapshot);
+
+  @override
+  Future<SynchronizationDiagnosticsSnapshot> readLocal() async => _snapshot;
+
+  @override
+  Future<BackgroundScheduleStatus> readSchedulerStatus() async =>
+      const BackgroundScheduleInactive();
 }
 
 String _labelForRoute(AppRoute route) {

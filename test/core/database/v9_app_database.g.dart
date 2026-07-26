@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'app_database.dart';
+part of 'v9_app_database.dart';
 
 // ignore_for_file: type=lint
 class $SemestersTable extends Semesters
@@ -8359,237 +8359,6 @@ class BackgroundScheduleSettingsCompanion
   }
 }
 
-class $NewAssignmentNotificationPreferencesTable
-    extends NewAssignmentNotificationPreferences
-    with
-        TableInfo<
-          $NewAssignmentNotificationPreferencesTable,
-          NewAssignmentNotificationPreference
-        > {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $NewAssignmentNotificationPreferencesTable(
-    this.attachedDatabase, [
-    this._alias,
-  ]);
-  static const VerificationMeta _singletonIdMeta = const VerificationMeta(
-    'singletonId',
-  );
-  @override
-  late final GeneratedColumn<int> singletonId = GeneratedColumn<int>(
-    'singleton_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _enabledMeta = const VerificationMeta(
-    'enabled',
-  );
-  @override
-  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
-    'enabled',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("enabled" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [singletonId, enabled];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'new_assignment_notification_preferences';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<NewAssignmentNotificationPreference> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('singleton_id')) {
-      context.handle(
-        _singletonIdMeta,
-        singletonId.isAcceptableOrUnknown(
-          data['singleton_id']!,
-          _singletonIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('enabled')) {
-      context.handle(
-        _enabledMeta,
-        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {singletonId};
-  @override
-  NewAssignmentNotificationPreference map(
-    Map<String, dynamic> data, {
-    String? tablePrefix,
-  }) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return NewAssignmentNotificationPreference(
-      singletonId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}singleton_id'],
-      )!,
-      enabled: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}enabled'],
-      )!,
-    );
-  }
-
-  @override
-  $NewAssignmentNotificationPreferencesTable createAlias(String alias) {
-    return $NewAssignmentNotificationPreferencesTable(attachedDatabase, alias);
-  }
-}
-
-class NewAssignmentNotificationPreference extends DataClass
-    implements Insertable<NewAssignmentNotificationPreference> {
-  final int singletonId;
-  final bool enabled;
-  const NewAssignmentNotificationPreference({
-    required this.singletonId,
-    required this.enabled,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['singleton_id'] = Variable<int>(singletonId);
-    map['enabled'] = Variable<bool>(enabled);
-    return map;
-  }
-
-  NewAssignmentNotificationPreferencesCompanion toCompanion(bool nullToAbsent) {
-    return NewAssignmentNotificationPreferencesCompanion(
-      singletonId: Value(singletonId),
-      enabled: Value(enabled),
-    );
-  }
-
-  factory NewAssignmentNotificationPreference.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return NewAssignmentNotificationPreference(
-      singletonId: serializer.fromJson<int>(json['singletonId']),
-      enabled: serializer.fromJson<bool>(json['enabled']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'singletonId': serializer.toJson<int>(singletonId),
-      'enabled': serializer.toJson<bool>(enabled),
-    };
-  }
-
-  NewAssignmentNotificationPreference copyWith({
-    int? singletonId,
-    bool? enabled,
-  }) => NewAssignmentNotificationPreference(
-    singletonId: singletonId ?? this.singletonId,
-    enabled: enabled ?? this.enabled,
-  );
-  NewAssignmentNotificationPreference copyWithCompanion(
-    NewAssignmentNotificationPreferencesCompanion data,
-  ) {
-    return NewAssignmentNotificationPreference(
-      singletonId: data.singletonId.present
-          ? data.singletonId.value
-          : this.singletonId,
-      enabled: data.enabled.present ? data.enabled.value : this.enabled,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('NewAssignmentNotificationPreference(')
-          ..write('singletonId: $singletonId, ')
-          ..write('enabled: $enabled')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(singletonId, enabled);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is NewAssignmentNotificationPreference &&
-          other.singletonId == this.singletonId &&
-          other.enabled == this.enabled);
-}
-
-class NewAssignmentNotificationPreferencesCompanion
-    extends UpdateCompanion<NewAssignmentNotificationPreference> {
-  final Value<int> singletonId;
-  final Value<bool> enabled;
-  const NewAssignmentNotificationPreferencesCompanion({
-    this.singletonId = const Value.absent(),
-    this.enabled = const Value.absent(),
-  });
-  NewAssignmentNotificationPreferencesCompanion.insert({
-    this.singletonId = const Value.absent(),
-    this.enabled = const Value.absent(),
-  });
-  static Insertable<NewAssignmentNotificationPreference> custom({
-    Expression<int>? singletonId,
-    Expression<bool>? enabled,
-  }) {
-    return RawValuesInsertable({
-      if (singletonId != null) 'singleton_id': singletonId,
-      if (enabled != null) 'enabled': enabled,
-    });
-  }
-
-  NewAssignmentNotificationPreferencesCompanion copyWith({
-    Value<int>? singletonId,
-    Value<bool>? enabled,
-  }) {
-    return NewAssignmentNotificationPreferencesCompanion(
-      singletonId: singletonId ?? this.singletonId,
-      enabled: enabled ?? this.enabled,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (singletonId.present) {
-      map['singleton_id'] = Variable<int>(singletonId.value);
-    }
-    if (enabled.present) {
-      map['enabled'] = Variable<bool>(enabled.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('NewAssignmentNotificationPreferencesCompanion(')
-          ..write('singletonId: $singletonId, ')
-          ..write('enabled: $enabled')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $AppSettingsTable extends AppSettings
     with TableInfo<$AppSettingsTable, AppSetting> {
   @override
@@ -8975,9 +8744,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
-abstract class _$AppDatabase extends GeneratedDatabase {
-  _$AppDatabase(QueryExecutor e) : super(e);
-  $AppDatabaseManager get managers => $AppDatabaseManager(this);
+abstract class _$V9AppDatabase extends GeneratedDatabase {
+  _$V9AppDatabase(QueryExecutor e) : super(e);
+  $V9AppDatabaseManager get managers => $V9AppDatabaseManager(this);
   late final $SemestersTable semesters = $SemestersTable(this);
   late final $CoursesTable courses = $CoursesTable(this);
   late final $CoursePreferencesTable coursePreferences =
@@ -9004,9 +8773,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   deadlineReminderReconciliations = $DeadlineReminderReconciliationsTable(this);
   late final $BackgroundScheduleSettingsTable backgroundScheduleSettings =
       $BackgroundScheduleSettingsTable(this);
-  late final $NewAssignmentNotificationPreferencesTable
-  newAssignmentNotificationPreferences =
-      $NewAssignmentNotificationPreferencesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
@@ -9089,7 +8855,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     deadlineReminderPreferences,
     deadlineReminderReconciliations,
     backgroundScheduleSettings,
-    newAssignmentNotificationPreferences,
     appSettings,
     activitiesBackendIdentity,
     activitiesByCourse,
@@ -9115,7 +8880,7 @@ typedef $$SemestersTableUpdateCompanionBuilder =
     SemestersCompanion Function({Value<int> semesterId});
 
 class $$SemestersTableFilterComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V9AppDatabase, $SemestersTable> {
   $$SemestersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9130,7 +8895,7 @@ class $$SemestersTableFilterComposer
 }
 
 class $$SemestersTableOrderingComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V9AppDatabase, $SemestersTable> {
   $$SemestersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9145,7 +8910,7 @@ class $$SemestersTableOrderingComposer
 }
 
 class $$SemestersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SemestersTable> {
+    extends Composer<_$V9AppDatabase, $SemestersTable> {
   $$SemestersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9162,7 +8927,7 @@ class $$SemestersTableAnnotationComposer
 class $$SemestersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SemestersTable,
           Semester,
           $$SemestersTableFilterComposer,
@@ -9170,11 +8935,14 @@ class $$SemestersTableTableManager
           $$SemestersTableAnnotationComposer,
           $$SemestersTableCreateCompanionBuilder,
           $$SemestersTableUpdateCompanionBuilder,
-          (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+          (
+            Semester,
+            BaseReferences<_$V9AppDatabase, $SemestersTable, Semester>,
+          ),
           Semester,
           PrefetchHooks Function()
         > {
-  $$SemestersTableTableManager(_$AppDatabase db, $SemestersTable table)
+  $$SemestersTableTableManager(_$V9AppDatabase db, $SemestersTable table)
     : super(
         TableManagerState(
           db: db,
@@ -9201,7 +8969,7 @@ class $$SemestersTableTableManager
 
 typedef $$SemestersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SemestersTable,
       Semester,
       $$SemestersTableFilterComposer,
@@ -9209,7 +8977,7 @@ typedef $$SemestersTableProcessedTableManager =
       $$SemestersTableAnnotationComposer,
       $$SemestersTableCreateCompanionBuilder,
       $$SemestersTableUpdateCompanionBuilder,
-      (Semester, BaseReferences<_$AppDatabase, $SemestersTable, Semester>),
+      (Semester, BaseReferences<_$V9AppDatabase, $SemestersTable, Semester>),
       Semester,
       PrefetchHooks Function()
     >;
@@ -9229,7 +8997,7 @@ typedef $$CoursesTableUpdateCompanionBuilder =
     });
 
 class $$CoursesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V9AppDatabase, $CoursesTable> {
   $$CoursesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9254,7 +9022,7 @@ class $$CoursesTableFilterComposer
 }
 
 class $$CoursesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V9AppDatabase, $CoursesTable> {
   $$CoursesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9279,7 +9047,7 @@ class $$CoursesTableOrderingComposer
 }
 
 class $$CoursesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursesTable> {
+    extends Composer<_$V9AppDatabase, $CoursesTable> {
   $$CoursesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9302,7 +9070,7 @@ class $$CoursesTableAnnotationComposer
 class $$CoursesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $CoursesTable,
           Course,
           $$CoursesTableFilterComposer,
@@ -9310,11 +9078,11 @@ class $$CoursesTableTableManager
           $$CoursesTableAnnotationComposer,
           $$CoursesTableCreateCompanionBuilder,
           $$CoursesTableUpdateCompanionBuilder,
-          (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+          (Course, BaseReferences<_$V9AppDatabase, $CoursesTable, Course>),
           Course,
           PrefetchHooks Function()
         > {
-  $$CoursesTableTableManager(_$AppDatabase db, $CoursesTable table)
+  $$CoursesTableTableManager(_$V9AppDatabase db, $CoursesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -9359,7 +9127,7 @@ class $$CoursesTableTableManager
 
 typedef $$CoursesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $CoursesTable,
       Course,
       $$CoursesTableFilterComposer,
@@ -9367,7 +9135,7 @@ typedef $$CoursesTableProcessedTableManager =
       $$CoursesTableAnnotationComposer,
       $$CoursesTableCreateCompanionBuilder,
       $$CoursesTableUpdateCompanionBuilder,
-      (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+      (Course, BaseReferences<_$V9AppDatabase, $CoursesTable, Course>),
       Course,
       PrefetchHooks Function()
     >;
@@ -9389,7 +9157,7 @@ typedef $$CoursePreferencesTableUpdateCompanionBuilder =
     });
 
 class $$CoursePreferencesTableFilterComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
+    extends Composer<_$V9AppDatabase, $CoursePreferencesTable> {
   $$CoursePreferencesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9419,7 +9187,7 @@ class $$CoursePreferencesTableFilterComposer
 }
 
 class $$CoursePreferencesTableOrderingComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
+    extends Composer<_$V9AppDatabase, $CoursePreferencesTable> {
   $$CoursePreferencesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9449,7 +9217,7 @@ class $$CoursePreferencesTableOrderingComposer
 }
 
 class $$CoursePreferencesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $CoursePreferencesTable> {
+    extends Composer<_$V9AppDatabase, $CoursePreferencesTable> {
   $$CoursePreferencesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -9479,7 +9247,7 @@ class $$CoursePreferencesTableAnnotationComposer
 class $$CoursePreferencesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $CoursePreferencesTable,
           CoursePreference,
           $$CoursePreferencesTableFilterComposer,
@@ -9490,7 +9258,7 @@ class $$CoursePreferencesTableTableManager
           (
             CoursePreference,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $CoursePreferencesTable,
               CoursePreference
             >,
@@ -9499,7 +9267,7 @@ class $$CoursePreferencesTableTableManager
           PrefetchHooks Function()
         > {
   $$CoursePreferencesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $CoursePreferencesTable table,
   ) : super(
         TableManagerState(
@@ -9552,7 +9320,7 @@ class $$CoursePreferencesTableTableManager
 
 typedef $$CoursePreferencesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $CoursePreferencesTable,
       CoursePreference,
       $$CoursePreferencesTableFilterComposer,
@@ -9563,7 +9331,7 @@ typedef $$CoursePreferencesTableProcessedTableManager =
       (
         CoursePreference,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $CoursePreferencesTable,
           CoursePreference
         >,
@@ -9645,7 +9413,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$ActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -9818,7 +9586,7 @@ class $$ActivitiesTableFilterComposer
 }
 
 class $$ActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -9991,7 +9759,7 @@ class $$ActivitiesTableOrderingComposer
 }
 
 class $$ActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $ActivitiesTable> {
   $$ActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10156,7 +9924,7 @@ class $$ActivitiesTableAnnotationComposer
 class $$ActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $ActivitiesTable,
           Activity,
           $$ActivitiesTableFilterComposer,
@@ -10164,11 +9932,14 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableAnnotationComposer,
           $$ActivitiesTableCreateCompanionBuilder,
           $$ActivitiesTableUpdateCompanionBuilder,
-          (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+          (
+            Activity,
+            BaseReferences<_$V9AppDatabase, $ActivitiesTable, Activity>,
+          ),
           Activity,
           PrefetchHooks Function()
         > {
-  $$ActivitiesTableTableManager(_$AppDatabase db, $ActivitiesTable table)
+  $$ActivitiesTableTableManager(_$V9AppDatabase db, $ActivitiesTable table)
     : super(
         TableManagerState(
           db: db,
@@ -10341,7 +10112,7 @@ class $$ActivitiesTableTableManager
 
 typedef $$ActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $ActivitiesTable,
       Activity,
       $$ActivitiesTableFilterComposer,
@@ -10349,7 +10120,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableAnnotationComposer,
       $$ActivitiesTableCreateCompanionBuilder,
       $$ActivitiesTableUpdateCompanionBuilder,
-      (Activity, BaseReferences<_$AppDatabase, $ActivitiesTable, Activity>),
+      (Activity, BaseReferences<_$V9AppDatabase, $ActivitiesTable, Activity>),
       Activity,
       PrefetchHooks Function()
     >;
@@ -10375,7 +10146,7 @@ typedef $$SeenActivitiesTableUpdateCompanionBuilder =
     });
 
 class $$SeenActivitiesTableFilterComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -10417,7 +10188,7 @@ class $$SeenActivitiesTableFilterComposer
 }
 
 class $$SeenActivitiesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -10457,7 +10228,7 @@ class $$SeenActivitiesTableOrderingComposer
 }
 
 class $$SeenActivitiesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SeenActivitiesTable> {
+    extends Composer<_$V9AppDatabase, $SeenActivitiesTable> {
   $$SeenActivitiesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10499,7 +10270,7 @@ class $$SeenActivitiesTableAnnotationComposer
 class $$SeenActivitiesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SeenActivitiesTable,
           SeenActivity,
           $$SeenActivitiesTableFilterComposer,
@@ -10509,13 +10280,13 @@ class $$SeenActivitiesTableTableManager
           $$SeenActivitiesTableUpdateCompanionBuilder,
           (
             SeenActivity,
-            BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+            BaseReferences<_$V9AppDatabase, $SeenActivitiesTable, SeenActivity>,
           ),
           SeenActivity,
           PrefetchHooks Function()
         > {
   $$SeenActivitiesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $SeenActivitiesTable table,
   ) : super(
         TableManagerState(
@@ -10573,7 +10344,7 @@ class $$SeenActivitiesTableTableManager
 
 typedef $$SeenActivitiesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SeenActivitiesTable,
       SeenActivity,
       $$SeenActivitiesTableFilterComposer,
@@ -10583,7 +10354,7 @@ typedef $$SeenActivitiesTableProcessedTableManager =
       $$SeenActivitiesTableUpdateCompanionBuilder,
       (
         SeenActivity,
-        BaseReferences<_$AppDatabase, $SeenActivitiesTable, SeenActivity>,
+        BaseReferences<_$V9AppDatabase, $SeenActivitiesTable, SeenActivity>,
       ),
       SeenActivity,
       PrefetchHooks Function()
@@ -10606,7 +10377,7 @@ typedef $$ActivityFingerprintsTableUpdateCompanionBuilder =
     });
 
 class $$ActivityFingerprintsTableFilterComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V9AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -10636,7 +10407,7 @@ class $$ActivityFingerprintsTableFilterComposer
 }
 
 class $$ActivityFingerprintsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V9AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -10666,7 +10437,7 @@ class $$ActivityFingerprintsTableOrderingComposer
 }
 
 class $$ActivityFingerprintsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ActivityFingerprintsTable> {
+    extends Composer<_$V9AppDatabase, $ActivityFingerprintsTable> {
   $$ActivityFingerprintsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10698,7 +10469,7 @@ class $$ActivityFingerprintsTableAnnotationComposer
 class $$ActivityFingerprintsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint,
           $$ActivityFingerprintsTableFilterComposer,
@@ -10709,7 +10480,7 @@ class $$ActivityFingerprintsTableTableManager
           (
             ActivityFingerprint,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $ActivityFingerprintsTable,
               ActivityFingerprint
             >,
@@ -10718,7 +10489,7 @@ class $$ActivityFingerprintsTableTableManager
           PrefetchHooks Function()
         > {
   $$ActivityFingerprintsTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $ActivityFingerprintsTable table,
   ) : super(
         TableManagerState(
@@ -10774,7 +10545,7 @@ class $$ActivityFingerprintsTableTableManager
 
 typedef $$ActivityFingerprintsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $ActivityFingerprintsTable,
       ActivityFingerprint,
       $$ActivityFingerprintsTableFilterComposer,
@@ -10785,7 +10556,7 @@ typedef $$ActivityFingerprintsTableProcessedTableManager =
       (
         ActivityFingerprint,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $ActivityFingerprintsTable,
           ActivityFingerprint
         >,
@@ -10819,7 +10590,7 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
     });
 
 class $$ScheduledRemindersTableFilterComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -10877,7 +10648,7 @@ class $$ScheduledRemindersTableFilterComposer
 }
 
 class $$ScheduledRemindersTableOrderingComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -10932,7 +10703,7 @@ class $$ScheduledRemindersTableOrderingComposer
 }
 
 class $$ScheduledRemindersTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ScheduledRemindersTable> {
+    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
   $$ScheduledRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -10992,7 +10763,7 @@ class $$ScheduledRemindersTableAnnotationComposer
 class $$ScheduledRemindersTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder,
           $$ScheduledRemindersTableFilterComposer,
@@ -11003,7 +10774,7 @@ class $$ScheduledRemindersTableTableManager
           (
             ScheduledReminder,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $ScheduledRemindersTable,
               ScheduledReminder
             >,
@@ -11012,7 +10783,7 @@ class $$ScheduledRemindersTableTableManager
           PrefetchHooks Function()
         > {
   $$ScheduledRemindersTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $ScheduledRemindersTable table,
   ) : super(
         TableManagerState(
@@ -11081,7 +10852,7 @@ class $$ScheduledRemindersTableTableManager
 
 typedef $$ScheduledRemindersTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $ScheduledRemindersTable,
       ScheduledReminder,
       $$ScheduledRemindersTableFilterComposer,
@@ -11092,7 +10863,7 @@ typedef $$ScheduledRemindersTableProcessedTableManager =
       (
         ScheduledReminder,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $ScheduledRemindersTable,
           ScheduledReminder
         >,
@@ -11122,7 +10893,7 @@ typedef $$NotificationHistoryTableUpdateCompanionBuilder =
     });
 
 class $$NotificationHistoryTableFilterComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V9AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -11163,7 +10934,7 @@ class $$NotificationHistoryTableFilterComposer
 }
 
 class $$NotificationHistoryTableOrderingComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V9AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -11203,7 +10974,7 @@ class $$NotificationHistoryTableOrderingComposer
 }
 
 class $$NotificationHistoryTableAnnotationComposer
-    extends Composer<_$AppDatabase, $NotificationHistoryTable> {
+    extends Composer<_$V9AppDatabase, $NotificationHistoryTable> {
   $$NotificationHistoryTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -11242,7 +11013,7 @@ class $$NotificationHistoryTableAnnotationComposer
 class $$NotificationHistoryTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData,
           $$NotificationHistoryTableFilterComposer,
@@ -11253,7 +11024,7 @@ class $$NotificationHistoryTableTableManager
           (
             NotificationHistoryData,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $NotificationHistoryTable,
               NotificationHistoryData
             >,
@@ -11262,7 +11033,7 @@ class $$NotificationHistoryTableTableManager
           PrefetchHooks Function()
         > {
   $$NotificationHistoryTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $NotificationHistoryTable table,
   ) : super(
         TableManagerState(
@@ -11326,7 +11097,7 @@ class $$NotificationHistoryTableTableManager
 
 typedef $$NotificationHistoryTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $NotificationHistoryTable,
       NotificationHistoryData,
       $$NotificationHistoryTableFilterComposer,
@@ -11337,7 +11108,7 @@ typedef $$NotificationHistoryTableProcessedTableManager =
       (
         NotificationHistoryData,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $NotificationHistoryTable,
           NotificationHistoryData
         >,
@@ -11367,7 +11138,7 @@ typedef $$SyncRunsTableUpdateCompanionBuilder =
     });
 
 class $$SyncRunsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V9AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -11414,7 +11185,7 @@ class $$SyncRunsTableFilterComposer
 }
 
 class $$SyncRunsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V9AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -11459,7 +11230,7 @@ class $$SyncRunsTableOrderingComposer
 }
 
 class $$SyncRunsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncRunsTable> {
+    extends Composer<_$V9AppDatabase, $SyncRunsTable> {
   $$SyncRunsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -11502,7 +11273,7 @@ class $$SyncRunsTableAnnotationComposer
 class $$SyncRunsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncRunsTable,
           SyncRun,
           $$SyncRunsTableFilterComposer,
@@ -11510,11 +11281,11 @@ class $$SyncRunsTableTableManager
           $$SyncRunsTableAnnotationComposer,
           $$SyncRunsTableCreateCompanionBuilder,
           $$SyncRunsTableUpdateCompanionBuilder,
-          (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+          (SyncRun, BaseReferences<_$V9AppDatabase, $SyncRunsTable, SyncRun>),
           SyncRun,
           PrefetchHooks Function()
         > {
-  $$SyncRunsTableTableManager(_$AppDatabase db, $SyncRunsTable table)
+  $$SyncRunsTableTableManager(_$V9AppDatabase db, $SyncRunsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -11571,7 +11342,7 @@ class $$SyncRunsTableTableManager
 
 typedef $$SyncRunsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SyncRunsTable,
       SyncRun,
       $$SyncRunsTableFilterComposer,
@@ -11579,7 +11350,7 @@ typedef $$SyncRunsTableProcessedTableManager =
       $$SyncRunsTableAnnotationComposer,
       $$SyncRunsTableCreateCompanionBuilder,
       $$SyncRunsTableUpdateCompanionBuilder,
-      (SyncRun, BaseReferences<_$AppDatabase, $SyncRunsTable, SyncRun>),
+      (SyncRun, BaseReferences<_$V9AppDatabase, $SyncRunsTable, SyncRun>),
       SyncRun,
       PrefetchHooks Function()
     >;
@@ -11625,7 +11396,7 @@ typedef $$SyncOperationsTableUpdateCompanionBuilder =
     });
 
 class $$SyncOperationsTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -11724,7 +11495,7 @@ class $$SyncOperationsTableFilterComposer
 }
 
 class $$SyncOperationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -11819,7 +11590,7 @@ class $$SyncOperationsTableOrderingComposer
 }
 
 class $$SyncOperationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationsTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationsTable> {
   $$SyncOperationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -11914,7 +11685,7 @@ class $$SyncOperationsTableAnnotationComposer
 class $$SyncOperationsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncOperationsTable,
           SyncOperation,
           $$SyncOperationsTableFilterComposer,
@@ -11924,13 +11695,17 @@ class $$SyncOperationsTableTableManager
           $$SyncOperationsTableUpdateCompanionBuilder,
           (
             SyncOperation,
-            BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+            BaseReferences<
+              _$V9AppDatabase,
+              $SyncOperationsTable,
+              SyncOperation
+            >,
           ),
           SyncOperation,
           PrefetchHooks Function()
         > {
   $$SyncOperationsTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $SyncOperationsTable table,
   ) : super(
         TableManagerState(
@@ -12028,7 +11803,7 @@ class $$SyncOperationsTableTableManager
 
 typedef $$SyncOperationsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SyncOperationsTable,
       SyncOperation,
       $$SyncOperationsTableFilterComposer,
@@ -12038,7 +11813,7 @@ typedef $$SyncOperationsTableProcessedTableManager =
       $$SyncOperationsTableUpdateCompanionBuilder,
       (
         SyncOperation,
-        BaseReferences<_$AppDatabase, $SyncOperationsTable, SyncOperation>,
+        BaseReferences<_$V9AppDatabase, $SyncOperationsTable, SyncOperation>,
       ),
       SyncOperation,
       PrefetchHooks Function()
@@ -12055,7 +11830,7 @@ typedef $$AssignmentBaselinesTableUpdateCompanionBuilder =
     });
 
 class $$AssignmentBaselinesTableFilterComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
+    extends Composer<_$V9AppDatabase, $AssignmentBaselinesTable> {
   $$AssignmentBaselinesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -12076,7 +11851,7 @@ class $$AssignmentBaselinesTableFilterComposer
 }
 
 class $$AssignmentBaselinesTableOrderingComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
+    extends Composer<_$V9AppDatabase, $AssignmentBaselinesTable> {
   $$AssignmentBaselinesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -12096,7 +11871,7 @@ class $$AssignmentBaselinesTableOrderingComposer
 }
 
 class $$AssignmentBaselinesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AssignmentBaselinesTable> {
+    extends Composer<_$V9AppDatabase, $AssignmentBaselinesTable> {
   $$AssignmentBaselinesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -12119,7 +11894,7 @@ class $$AssignmentBaselinesTableAnnotationComposer
 class $$AssignmentBaselinesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $AssignmentBaselinesTable,
           AssignmentBaseline,
           $$AssignmentBaselinesTableFilterComposer,
@@ -12130,7 +11905,7 @@ class $$AssignmentBaselinesTableTableManager
           (
             AssignmentBaseline,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $AssignmentBaselinesTable,
               AssignmentBaseline
             >,
@@ -12139,7 +11914,7 @@ class $$AssignmentBaselinesTableTableManager
           PrefetchHooks Function()
         > {
   $$AssignmentBaselinesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $AssignmentBaselinesTable table,
   ) : super(
         TableManagerState(
@@ -12183,7 +11958,7 @@ class $$AssignmentBaselinesTableTableManager
 
 typedef $$AssignmentBaselinesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $AssignmentBaselinesTable,
       AssignmentBaseline,
       $$AssignmentBaselinesTableFilterComposer,
@@ -12194,7 +11969,7 @@ typedef $$AssignmentBaselinesTableProcessedTableManager =
       (
         AssignmentBaseline,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $AssignmentBaselinesTable,
           AssignmentBaseline
         >,
@@ -12220,7 +11995,7 @@ typedef $$SyncOperationChangesTableUpdateCompanionBuilder =
     });
 
 class $$SyncOperationChangesTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationChangesTable> {
   $$SyncOperationChangesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -12250,7 +12025,7 @@ class $$SyncOperationChangesTableFilterComposer
 }
 
 class $$SyncOperationChangesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationChangesTable> {
   $$SyncOperationChangesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -12280,7 +12055,7 @@ class $$SyncOperationChangesTableOrderingComposer
 }
 
 class $$SyncOperationChangesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncOperationChangesTable> {
+    extends Composer<_$V9AppDatabase, $SyncOperationChangesTable> {
   $$SyncOperationChangesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -12310,7 +12085,7 @@ class $$SyncOperationChangesTableAnnotationComposer
 class $$SyncOperationChangesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncOperationChangesTable,
           SyncOperationChange,
           $$SyncOperationChangesTableFilterComposer,
@@ -12321,7 +12096,7 @@ class $$SyncOperationChangesTableTableManager
           (
             SyncOperationChange,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $SyncOperationChangesTable,
               SyncOperationChange
             >,
@@ -12330,7 +12105,7 @@ class $$SyncOperationChangesTableTableManager
           PrefetchHooks Function()
         > {
   $$SyncOperationChangesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $SyncOperationChangesTable table,
   ) : super(
         TableManagerState(
@@ -12386,7 +12161,7 @@ class $$SyncOperationChangesTableTableManager
 
 typedef $$SyncOperationChangesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SyncOperationChangesTable,
       SyncOperationChange,
       $$SyncOperationChangesTableFilterComposer,
@@ -12397,7 +12172,7 @@ typedef $$SyncOperationChangesTableProcessedTableManager =
       (
         SyncOperationChange,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncOperationChangesTable,
           SyncOperationChange
         >,
@@ -12433,7 +12208,7 @@ typedef $$SyncBackoffStatesTableUpdateCompanionBuilder =
     });
 
 class $$SyncBackoffStatesTableFilterComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+    extends Composer<_$V9AppDatabase, $SyncBackoffStatesTable> {
   $$SyncBackoffStatesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -12490,7 +12265,7 @@ class $$SyncBackoffStatesTableFilterComposer
 }
 
 class $$SyncBackoffStatesTableOrderingComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+    extends Composer<_$V9AppDatabase, $SyncBackoffStatesTable> {
   $$SyncBackoffStatesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -12545,7 +12320,7 @@ class $$SyncBackoffStatesTableOrderingComposer
 }
 
 class $$SyncBackoffStatesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $SyncBackoffStatesTable> {
+    extends Composer<_$V9AppDatabase, $SyncBackoffStatesTable> {
   $$SyncBackoffStatesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -12600,7 +12375,7 @@ class $$SyncBackoffStatesTableAnnotationComposer
 class $$SyncBackoffStatesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncBackoffStatesTable,
           SyncBackoffState,
           $$SyncBackoffStatesTableFilterComposer,
@@ -12611,7 +12386,7 @@ class $$SyncBackoffStatesTableTableManager
           (
             SyncBackoffState,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $SyncBackoffStatesTable,
               SyncBackoffState
             >,
@@ -12620,7 +12395,7 @@ class $$SyncBackoffStatesTableTableManager
           PrefetchHooks Function()
         > {
   $$SyncBackoffStatesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $SyncBackoffStatesTable table,
   ) : super(
         TableManagerState(
@@ -12695,7 +12470,7 @@ class $$SyncBackoffStatesTableTableManager
 
 typedef $$SyncBackoffStatesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $SyncBackoffStatesTable,
       SyncBackoffState,
       $$SyncBackoffStatesTableFilterComposer,
@@ -12706,7 +12481,7 @@ typedef $$SyncBackoffStatesTableProcessedTableManager =
       (
         SyncBackoffState,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $SyncBackoffStatesTable,
           SyncBackoffState
         >,
@@ -12730,7 +12505,7 @@ typedef $$DeadlineReminderPreferencesTableUpdateCompanionBuilder =
     });
 
 class $$DeadlineReminderPreferencesTableFilterComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderPreferencesTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderPreferencesTable> {
   $$DeadlineReminderPreferencesTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -12760,7 +12535,7 @@ class $$DeadlineReminderPreferencesTableFilterComposer
 }
 
 class $$DeadlineReminderPreferencesTableOrderingComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderPreferencesTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderPreferencesTable> {
   $$DeadlineReminderPreferencesTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -12790,7 +12565,7 @@ class $$DeadlineReminderPreferencesTableOrderingComposer
 }
 
 class $$DeadlineReminderPreferencesTableAnnotationComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderPreferencesTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderPreferencesTable> {
   $$DeadlineReminderPreferencesTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -12820,7 +12595,7 @@ class $$DeadlineReminderPreferencesTableAnnotationComposer
 class $$DeadlineReminderPreferencesTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $DeadlineReminderPreferencesTable,
           DeadlineReminderPreference,
           $$DeadlineReminderPreferencesTableFilterComposer,
@@ -12831,7 +12606,7 @@ class $$DeadlineReminderPreferencesTableTableManager
           (
             DeadlineReminderPreference,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $DeadlineReminderPreferencesTable,
               DeadlineReminderPreference
             >,
@@ -12840,7 +12615,7 @@ class $$DeadlineReminderPreferencesTableTableManager
           PrefetchHooks Function()
         > {
   $$DeadlineReminderPreferencesTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $DeadlineReminderPreferencesTable table,
   ) : super(
         TableManagerState(
@@ -12895,7 +12670,7 @@ class $$DeadlineReminderPreferencesTableTableManager
 
 typedef $$DeadlineReminderPreferencesTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $DeadlineReminderPreferencesTable,
       DeadlineReminderPreference,
       $$DeadlineReminderPreferencesTableFilterComposer,
@@ -12906,7 +12681,7 @@ typedef $$DeadlineReminderPreferencesTableProcessedTableManager =
       (
         DeadlineReminderPreference,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $DeadlineReminderPreferencesTable,
           DeadlineReminderPreference
         >,
@@ -12934,7 +12709,7 @@ typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
     });
 
 class $$DeadlineReminderReconciliationsTableFilterComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderReconciliationsTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderReconciliationsTable> {
   $$DeadlineReminderReconciliationsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -12975,7 +12750,7 @@ class $$DeadlineReminderReconciliationsTableFilterComposer
 }
 
 class $$DeadlineReminderReconciliationsTableOrderingComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderReconciliationsTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderReconciliationsTable> {
   $$DeadlineReminderReconciliationsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -13015,7 +12790,7 @@ class $$DeadlineReminderReconciliationsTableOrderingComposer
 }
 
 class $$DeadlineReminderReconciliationsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $DeadlineReminderReconciliationsTable> {
+    extends Composer<_$V9AppDatabase, $DeadlineReminderReconciliationsTable> {
   $$DeadlineReminderReconciliationsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -13058,7 +12833,7 @@ class $$DeadlineReminderReconciliationsTableAnnotationComposer
 class $$DeadlineReminderReconciliationsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $DeadlineReminderReconciliationsTable,
           DeadlineReminderReconciliation,
           $$DeadlineReminderReconciliationsTableFilterComposer,
@@ -13069,7 +12844,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
           (
             DeadlineReminderReconciliation,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $DeadlineReminderReconciliationsTable,
               DeadlineReminderReconciliation
             >,
@@ -13078,7 +12853,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
           PrefetchHooks Function()
         > {
   $$DeadlineReminderReconciliationsTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $DeadlineReminderReconciliationsTable table,
   ) : super(
         TableManagerState(
@@ -13141,7 +12916,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
 
 typedef $$DeadlineReminderReconciliationsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $DeadlineReminderReconciliationsTable,
       DeadlineReminderReconciliation,
       $$DeadlineReminderReconciliationsTableFilterComposer,
@@ -13152,7 +12927,7 @@ typedef $$DeadlineReminderReconciliationsTableProcessedTableManager =
       (
         DeadlineReminderReconciliation,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $DeadlineReminderReconciliationsTable,
           DeadlineReminderReconciliation
         >,
@@ -13174,7 +12949,7 @@ typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
     });
 
 class $$BackgroundScheduleSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+    extends Composer<_$V9AppDatabase, $BackgroundScheduleSettingsTable> {
   $$BackgroundScheduleSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -13199,7 +12974,7 @@ class $$BackgroundScheduleSettingsTableFilterComposer
 }
 
 class $$BackgroundScheduleSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+    extends Composer<_$V9AppDatabase, $BackgroundScheduleSettingsTable> {
   $$BackgroundScheduleSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -13224,7 +12999,7 @@ class $$BackgroundScheduleSettingsTableOrderingComposer
 }
 
 class $$BackgroundScheduleSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $BackgroundScheduleSettingsTable> {
+    extends Composer<_$V9AppDatabase, $BackgroundScheduleSettingsTable> {
   $$BackgroundScheduleSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -13251,7 +13026,7 @@ class $$BackgroundScheduleSettingsTableAnnotationComposer
 class $$BackgroundScheduleSettingsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $BackgroundScheduleSettingsTable,
           BackgroundScheduleSetting,
           $$BackgroundScheduleSettingsTableFilterComposer,
@@ -13262,7 +13037,7 @@ class $$BackgroundScheduleSettingsTableTableManager
           (
             BackgroundScheduleSetting,
             BaseReferences<
-              _$AppDatabase,
+              _$V9AppDatabase,
               $BackgroundScheduleSettingsTable,
               BackgroundScheduleSetting
             >,
@@ -13271,7 +13046,7 @@ class $$BackgroundScheduleSettingsTableTableManager
           PrefetchHooks Function()
         > {
   $$BackgroundScheduleSettingsTableTableManager(
-    _$AppDatabase db,
+    _$V9AppDatabase db,
     $BackgroundScheduleSettingsTable table,
   ) : super(
         TableManagerState(
@@ -13322,7 +13097,7 @@ class $$BackgroundScheduleSettingsTableTableManager
 
 typedef $$BackgroundScheduleSettingsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $BackgroundScheduleSettingsTable,
       BackgroundScheduleSetting,
       $$BackgroundScheduleSettingsTableFilterComposer,
@@ -13333,173 +13108,12 @@ typedef $$BackgroundScheduleSettingsTableProcessedTableManager =
       (
         BackgroundScheduleSetting,
         BaseReferences<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $BackgroundScheduleSettingsTable,
           BackgroundScheduleSetting
         >,
       ),
       BackgroundScheduleSetting,
-      PrefetchHooks Function()
-    >;
-typedef $$NewAssignmentNotificationPreferencesTableCreateCompanionBuilder =
-    NewAssignmentNotificationPreferencesCompanion Function({
-      Value<int> singletonId,
-      Value<bool> enabled,
-    });
-typedef $$NewAssignmentNotificationPreferencesTableUpdateCompanionBuilder =
-    NewAssignmentNotificationPreferencesCompanion Function({
-      Value<int> singletonId,
-      Value<bool> enabled,
-    });
-
-class $$NewAssignmentNotificationPreferencesTableFilterComposer
-    extends
-        Composer<_$AppDatabase, $NewAssignmentNotificationPreferencesTable> {
-  $$NewAssignmentNotificationPreferencesTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get singletonId => $composableBuilder(
-    column: $table.singletonId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get enabled => $composableBuilder(
-    column: $table.enabled,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$NewAssignmentNotificationPreferencesTableOrderingComposer
-    extends
-        Composer<_$AppDatabase, $NewAssignmentNotificationPreferencesTable> {
-  $$NewAssignmentNotificationPreferencesTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get singletonId => $composableBuilder(
-    column: $table.singletonId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get enabled => $composableBuilder(
-    column: $table.enabled,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$NewAssignmentNotificationPreferencesTableAnnotationComposer
-    extends
-        Composer<_$AppDatabase, $NewAssignmentNotificationPreferencesTable> {
-  $$NewAssignmentNotificationPreferencesTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get singletonId => $composableBuilder(
-    column: $table.singletonId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get enabled =>
-      $composableBuilder(column: $table.enabled, builder: (column) => column);
-}
-
-class $$NewAssignmentNotificationPreferencesTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $NewAssignmentNotificationPreferencesTable,
-          NewAssignmentNotificationPreference,
-          $$NewAssignmentNotificationPreferencesTableFilterComposer,
-          $$NewAssignmentNotificationPreferencesTableOrderingComposer,
-          $$NewAssignmentNotificationPreferencesTableAnnotationComposer,
-          $$NewAssignmentNotificationPreferencesTableCreateCompanionBuilder,
-          $$NewAssignmentNotificationPreferencesTableUpdateCompanionBuilder,
-          (
-            NewAssignmentNotificationPreference,
-            BaseReferences<
-              _$AppDatabase,
-              $NewAssignmentNotificationPreferencesTable,
-              NewAssignmentNotificationPreference
-            >,
-          ),
-          NewAssignmentNotificationPreference,
-          PrefetchHooks Function()
-        > {
-  $$NewAssignmentNotificationPreferencesTableTableManager(
-    _$AppDatabase db,
-    $NewAssignmentNotificationPreferencesTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$NewAssignmentNotificationPreferencesTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$NewAssignmentNotificationPreferencesTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$NewAssignmentNotificationPreferencesTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> singletonId = const Value.absent(),
-                Value<bool> enabled = const Value.absent(),
-              }) => NewAssignmentNotificationPreferencesCompanion(
-                singletonId: singletonId,
-                enabled: enabled,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> singletonId = const Value.absent(),
-                Value<bool> enabled = const Value.absent(),
-              }) => NewAssignmentNotificationPreferencesCompanion.insert(
-                singletonId: singletonId,
-                enabled: enabled,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$NewAssignmentNotificationPreferencesTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $NewAssignmentNotificationPreferencesTable,
-      NewAssignmentNotificationPreference,
-      $$NewAssignmentNotificationPreferencesTableFilterComposer,
-      $$NewAssignmentNotificationPreferencesTableOrderingComposer,
-      $$NewAssignmentNotificationPreferencesTableAnnotationComposer,
-      $$NewAssignmentNotificationPreferencesTableCreateCompanionBuilder,
-      $$NewAssignmentNotificationPreferencesTableUpdateCompanionBuilder,
-      (
-        NewAssignmentNotificationPreference,
-        BaseReferences<
-          _$AppDatabase,
-          $NewAssignmentNotificationPreferencesTable,
-          NewAssignmentNotificationPreference
-        >,
-      ),
-      NewAssignmentNotificationPreference,
       PrefetchHooks Function()
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
@@ -13520,7 +13134,7 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
     });
 
 class $$AppSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V9AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableFilterComposer({
     required super.$db,
     required super.$table,
@@ -13555,7 +13169,7 @@ class $$AppSettingsTableFilterComposer
 }
 
 class $$AppSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V9AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableOrderingComposer({
     required super.$db,
     required super.$table,
@@ -13590,7 +13204,7 @@ class $$AppSettingsTableOrderingComposer
 }
 
 class $$AppSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
+    extends Composer<_$V9AppDatabase, $AppSettingsTable> {
   $$AppSettingsTableAnnotationComposer({
     required super.$db,
     required super.$table,
@@ -13627,7 +13241,7 @@ class $$AppSettingsTableAnnotationComposer
 class $$AppSettingsTableTableManager
     extends
         RootTableManager<
-          _$AppDatabase,
+          _$V9AppDatabase,
           $AppSettingsTable,
           AppSetting,
           $$AppSettingsTableFilterComposer,
@@ -13637,12 +13251,12 @@ class $$AppSettingsTableTableManager
           $$AppSettingsTableUpdateCompanionBuilder,
           (
             AppSetting,
-            BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+            BaseReferences<_$V9AppDatabase, $AppSettingsTable, AppSetting>,
           ),
           AppSetting,
           PrefetchHooks Function()
         > {
-  $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
+  $$AppSettingsTableTableManager(_$V9AppDatabase db, $AppSettingsTable table)
     : super(
         TableManagerState(
           db: db,
@@ -13691,7 +13305,7 @@ class $$AppSettingsTableTableManager
 
 typedef $$AppSettingsTableProcessedTableManager =
     ProcessedTableManager<
-      _$AppDatabase,
+      _$V9AppDatabase,
       $AppSettingsTable,
       AppSetting,
       $$AppSettingsTableFilterComposer,
@@ -13701,15 +13315,15 @@ typedef $$AppSettingsTableProcessedTableManager =
       $$AppSettingsTableUpdateCompanionBuilder,
       (
         AppSetting,
-        BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>,
+        BaseReferences<_$V9AppDatabase, $AppSettingsTable, AppSetting>,
       ),
       AppSetting,
       PrefetchHooks Function()
     >;
 
-class $AppDatabaseManager {
-  final _$AppDatabase _db;
-  $AppDatabaseManager(this._db);
+class $V9AppDatabaseManager {
+  final _$V9AppDatabase _db;
+  $V9AppDatabaseManager(this._db);
   $$SemestersTableTableManager get semesters =>
       $$SemestersTableTableManager(_db, _db.semesters);
   $$CoursesTableTableManager get courses =>
@@ -13753,12 +13367,6 @@ class $AppDatabaseManager {
       $$BackgroundScheduleSettingsTableTableManager(
         _db,
         _db.backgroundScheduleSettings,
-      );
-  $$NewAssignmentNotificationPreferencesTableTableManager
-  get newAssignmentNotificationPreferences =>
-      $$NewAssignmentNotificationPreferencesTableTableManager(
-        _db,
-        _db.newAssignmentNotificationPreferences,
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);

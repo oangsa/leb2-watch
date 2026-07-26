@@ -140,6 +140,11 @@ void main() {
     final sessions = StreamController<SessionLifecycleSnapshot>();
     final reconciler = _AppBackgroundReconciler();
     final sync = _AppSyncService();
+    final statusRefreshes = BackgroundScheduleStatusRefreshSignal();
+    var statusRefreshRequests = 0;
+    final statusRefreshSubscription = statusRefreshes.requests.listen((_) {
+      statusRefreshRequests += 1;
+    });
     final lifecycle = BackgroundMonitoringLifecycle(
       reconciler,
       BackgroundSyncRunner(const _AppBackgroundTargetStore(), sync),
@@ -147,6 +152,8 @@ void main() {
     addTearDown(flow.dispose);
     addTearDown(notifications.dispose);
     addTearDown(sessions.close);
+    addTearDown(statusRefreshSubscription.cancel);
+    addTearDown(statusRefreshes.dispose);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -156,6 +163,9 @@ void main() {
           sessionLifecycleProvider.overrideWith((_) => sessions.stream),
           backgroundMonitoringLifecycleProvider.overrideWith(
             (_) async => lifecycle,
+          ),
+          backgroundScheduleStatusRefreshSignalProvider.overrideWithValue(
+            statusRefreshes,
           ),
         ],
         child: Leb2WatchApp(configuration: AppConfiguration.parse()),
@@ -171,12 +181,14 @@ void main() {
     await tester.pump();
 
     expect(reconciler.executionAllowedValues, [isTrue]);
+    expect(statusRefreshRequests, 1);
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
 
     expect(sync.reasons, [SyncReason.appResume]);
+    expect(statusRefreshRequests, 2);
   });
 }
 

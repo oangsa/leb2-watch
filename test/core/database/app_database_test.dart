@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 9', () {
+  group('schema version 10', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 9);
+        expect(database.schemaVersion, 10);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -40,6 +40,7 @@ void main() {
           'courses',
           'deadline_reminder_preferences',
           'deadline_reminder_reconciliations',
+          'new_assignment_notification_preferences',
           'notification_history',
           'scheduled_reminders',
           'seen_activities',
@@ -49,7 +50,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 9);
+        expect(await _pragmaInt(database, 'user_version'), 10);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );

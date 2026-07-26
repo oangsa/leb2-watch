@@ -1,5 +1,23 @@
+import 'dart:async';
+
 const backgroundSyncCadence = Duration(minutes: 15);
 const maximumBackgroundInstallJitter = Duration(minutes: 5);
+
+final class BackgroundScheduleStatusRefreshSignal {
+  final StreamController<void> _requests = StreamController<void>.broadcast(
+    sync: true,
+  );
+
+  Stream<void> get requests => _requests.stream;
+
+  void requestRefresh() {
+    if (!_requests.isClosed) {
+      _requests.add(null);
+    }
+  }
+
+  Future<void> dispose() => _requests.close();
+}
 
 abstract interface class BackgroundScheduler {
   Future<void> initialize();

@@ -532,6 +532,17 @@ class BackgroundScheduleSettings extends Table {
   ];
 }
 
+class NewAssignmentNotificationPreferences extends Table {
+  IntColumn get singletonId => integer()();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+
+  @override
+  List<String> get customConstraints => const ['CHECK (singleton_id = 1)'];
+}
+
 class AppSettings extends Table {
   IntColumn get singletonId => integer()();
   IntColumn get activeSemesterId => integer().nullable()();

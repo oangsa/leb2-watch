@@ -11,8 +11,10 @@ import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
+import '../../features/diagnostics/presentation/synchronization_diagnostics_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
 import '../../features/semesters/presentation/semester_selection_route.dart';
+import '../../features/settings/notifications/presentation/notification_settings_route.dart';
 import 'app_flow.dart';
 import 'app_placeholder_page.dart';
 import 'app_route.dart';
@@ -67,10 +69,10 @@ GoRouter createAppRouter(
                     AppDestination.assignments =>
                       const AssignmentDashboardRoute(),
                     AppDestination.courses => const CoursePreferencesRoute(),
-                    _ => AppPlaceholderSurface(
-                      key: Key('${destination.name}-surface'),
-                      label: destination.label,
-                    ),
+                    AppDestination.settings =>
+                      const NotificationSettingsRoute(),
+                    AppDestination.diagnostics =>
+                      const SynchronizationDiagnosticsRoute(),
                   },
                   routes: destination == AppDestination.assignments
                       ? [

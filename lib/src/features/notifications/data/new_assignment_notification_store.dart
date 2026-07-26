@@ -8,6 +8,7 @@ import '../domain/local_notification_models.dart';
 
 const newAssignmentNotificationKind = 'new-assignment';
 const mutedNewAssignmentNotificationKind = 'new-assignment-muted';
+const disabledNewAssignmentNotificationKind = 'new-assignment-disabled';
 
 final class NewAssignmentNotificationClaim {
   const NewAssignmentNotificationClaim._(this.request);
@@ -60,6 +61,10 @@ final class DriftNewAssignmentNotificationStore
     }
     try {
       return await _database.transaction(() async {
+        final notificationsEnabled = await _database
+            .select(_database.newAssignmentNotificationPreferences)
+            .getSingle()
+            .then((row) => row.enabled);
         final rows = await _database
             .customSelect(
               '''
@@ -91,7 +96,7 @@ WHERE seen_activities.semester_id = ?
     WHERE notification_history.semester_id = seen_activities.semester_id
       AND notification_history.identity_key = seen_activities.identity_key
       AND (
-        notification_history.kind IN (?, ?)
+        notification_history.kind IN (?, ?, ?)
       )
   )
 ORDER BY seen_activities.first_seen_at_utc, seen_activities.identity_key
@@ -101,12 +106,14 @@ ORDER BY seen_activities.first_seen_at_utc, seen_activities.identity_key
                 Variable.withInt(backgroundTriggered ? 1 : 0),
                 Variable.withString(newAssignmentNotificationKind),
                 Variable.withString(mutedNewAssignmentNotificationKind),
+                Variable.withString(disabledNewAssignmentNotificationKind),
               ],
               readsFrom: {
                 _database.seenActivities,
                 _database.activities,
                 _database.courses,
                 _database.coursePreferences,
+                _database.newAssignmentNotificationPreferences,
                 _database.notificationHistory,
               },
             )
@@ -152,7 +159,9 @@ ORDER BY seen_activities.first_seen_at_utc, seen_activities.identity_key
                 dedupeKey: _idFactory.canonicalOwnerKey(owner),
                 semesterId: semesterId,
                 identityKey: key.identityKey,
-                kind: muted
+                kind: !notificationsEnabled
+                    ? disabledNewAssignmentNotificationKind
+                    : muted
                     ? mutedNewAssignmentNotificationKind
                     : newAssignmentNotificationKind,
                 notificationId: notificationId.value,
@@ -160,7 +169,7 @@ ORDER BY seen_activities.first_seen_at_utc, seen_activities.identity_key
               ),
             );
 
-        if (muted) {
+        if (!notificationsEnabled || muted) {
           return const NewAssignmentNotificationClaim.consumed();
         }
         final deadline = switch (AssignmentDetailTimestamp.fromSource(

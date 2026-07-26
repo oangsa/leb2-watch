@@ -19,8 +19,15 @@ import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_da
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
+import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
+import 'package:leb2_watch/src/features/diagnostics/application/synchronization_diagnostics_service.dart';
+import 'package:leb2_watch/src/features/diagnostics/domain/synchronization_diagnostics.dart';
+import 'package:leb2_watch/src/features/diagnostics/presentation/synchronization_diagnostics_route.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
+import 'package:leb2_watch/src/features/settings/notifications/notification_settings_dependencies.dart';
+
+import '../../features/settings/notifications/support/fake_notification_settings_service.dart';
 
 void main() {
   for (final testCase in <(double, Key, Type, bool)>[
@@ -103,7 +110,7 @@ void main() {
     await tester.tap(find.byKey(const Key('expanded-settings')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('settings-surface')), findsOneWidget);
+    expect(find.byKey(const Key('notification-settings-page')), findsOneWidget);
     expect(
       tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
       AppDestination.settings.index,
@@ -173,6 +180,16 @@ void main() {
             find.byKey(const Key('assignment-dashboard-list')),
             findsOneWidget,
           );
+        } else if (testCase.$2 == AppDestination.diagnostics) {
+          expect(
+            find.byKey(const Key('synchronization-diagnostics-page')),
+            findsOneWidget,
+          );
+        } else if (testCase.$2 == AppDestination.settings) {
+          expect(
+            find.byKey(const Key('notification-settings-page')),
+            findsOneWidget,
+          );
         } else {
           expect(
             find.byKey(Key('${testCase.$2.name}-surface')),
@@ -208,6 +225,16 @@ void main() {
         } else if (testCase.$2 == AppDestination.assignments) {
           expect(
             find.byKey(const Key('assignment-dashboard-list')),
+            findsOneWidget,
+          );
+        } else if (testCase.$2 == AppDestination.diagnostics) {
+          expect(
+            find.byKey(const Key('synchronization-diagnostics-page')),
+            findsOneWidget,
+          );
+        } else if (testCase.$2 == AppDestination.settings) {
+          expect(
+            find.byKey(const Key('notification-settings-page')),
             findsOneWidget,
           );
         } else {
@@ -472,6 +499,12 @@ Future<_ShellSetup> _pumpShell(
         assignmentDashboardServiceProvider.overrideWith(
           (_) => _ShellAssignmentDashboardService(lifecycle: lifecycle),
         ),
+        synchronizationDiagnosticsServiceProvider.overrideWith(
+          (_) => _ShellDiagnosticsService(lifecycle: lifecycle.state),
+        ),
+        notificationSettingsServiceProvider.overrideWith(
+          (_) => const FakeNotificationSettingsService(),
+        ),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
@@ -559,6 +592,38 @@ final class _ShellAssignmentDashboardService
 
   @override
   Stream<AssignmentDashboardCache> watchCached() => Stream.value(_cache);
+}
+
+final class _ShellDiagnosticsService
+    implements SynchronizationDiagnosticsService {
+  const _ShellDiagnosticsService({required this.lifecycle});
+
+  final SessionLifecycleState lifecycle;
+
+  SynchronizationDiagnosticsSnapshot get _snapshot =>
+      SynchronizationDiagnosticsSnapshot(
+        hasActiveSemester: true,
+        hasConfiguredTarget: true,
+        sessionState: lifecycle,
+        cachedAssignmentCount: 0,
+        syncState: DiagnosticsSyncState.idle,
+        lastAttemptedAtUtc: null,
+        lastSuccessfulAtUtc: null,
+        lastFailureAtUtc: null,
+        lastFailureCategory: null,
+        backoff: const DiagnosticsBackoffReady(),
+      );
+
+  @override
+  Stream<SynchronizationDiagnosticsSnapshot> watchLocal() =>
+      Stream.value(_snapshot);
+
+  @override
+  Future<SynchronizationDiagnosticsSnapshot> readLocal() async => _snapshot;
+
+  @override
+  Future<BackgroundScheduleStatus> readSchedulerStatus() async =>
+      const BackgroundScheduleInactive();
 }
 
 Future<void> _resize(
