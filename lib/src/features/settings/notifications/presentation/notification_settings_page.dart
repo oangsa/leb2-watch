@@ -35,6 +35,7 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.deletionService,
     required this.onDeletionCompleted,
     required this.onManageCourses,
+    required this.onOpenPrivacy,
     super.key,
   });
 
@@ -42,6 +43,7 @@ class NotificationSettingsPage extends StatefulWidget {
   final LocalDataDeletionService deletionService;
   final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
   final VoidCallback onManageCourses;
+  final VoidCallback onOpenPrivacy;
 
   @override
   State<NotificationSettingsPage> createState() =>
@@ -648,6 +650,24 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                 title: 'Reliability',
                 description: snapshot.platform.reliabilityMessage,
                 children: const [],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _SettingsSection(
+                title: 'Privacy',
+                description:
+                    'Review what stays on this device, what each backend '
+                    'request receives, and platform limitations.',
+                children: [
+                  ListTile(
+                    key: const Key('open-privacy'),
+                    title: const Text('Privacy and local data'),
+                    subtitle: const Text(
+                      'Open the privacy and third-party disclosures.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: widget.onOpenPrivacy,
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(

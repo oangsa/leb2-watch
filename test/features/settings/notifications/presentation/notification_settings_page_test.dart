@@ -23,11 +23,13 @@ void main() {
       _snapshot(platform: NotificationSettingsPlatform.android),
     );
     var courseCalls = 0;
+    var privacyCalls = 0;
 
     await _pump(
       tester,
       service,
       onManageCourses: () => courseCalls += 1,
+      onOpenPrivacy: () => privacyCalls += 1,
       height: 1400,
     );
 
@@ -78,6 +80,14 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('manage-course-notifications')));
     expect(courseCalls, 1);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('open-privacy')),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.byKey(const Key('open-privacy')));
+    expect(privacyCalls, 1);
   });
 
   testWidgets('keeps persisted switch value until its stream confirms write', (
@@ -184,6 +194,7 @@ Future<void> _pump(
   WidgetTester tester,
   _SettingsService service, {
   VoidCallback? onManageCourses,
+  VoidCallback? onOpenPrivacy,
   double width = 800,
   double height = 900,
   TextScaler textScaler = TextScaler.noScaling,
@@ -203,6 +214,7 @@ Future<void> _pump(
           deletionService: const _DeletionService(),
           onDeletionCompleted: (_) {},
           onManageCourses: onManageCourses ?? () {},
+          onOpenPrivacy: onOpenPrivacy ?? () {},
         ),
       ),
     ),

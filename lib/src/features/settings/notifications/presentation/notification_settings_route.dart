@@ -22,6 +22,7 @@ class NotificationSettingsRoute extends ConsumerWidget {
         deletionService: deletion,
         onDeletionCompleted: (_) {},
         onManageCourses: () => context.go(AppRoute.courses.path),
+        onOpenPrivacy: () => context.push(AppRoute.privacy.path),
       ),
       error: (_, _) => AppStateView.error(
         title: 'Notification settings unavailable',

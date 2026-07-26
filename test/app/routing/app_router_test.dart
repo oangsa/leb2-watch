@@ -129,6 +129,7 @@ void main() {
     for (final stage in AppFlowStage.values) {
       testWidgets('privacy is reachable during ${stage.name}', (tester) async {
         final controller = AppFlowController(initialStage: stage);
+        final originalStage = controller.stage;
         final router = createAppRouter(
           controller,
           initialLocation: AppRoute.privacy.path,
@@ -139,9 +140,59 @@ void main() {
         await tester.pumpWidget(_RouterHarness(router: router));
         await tester.pumpAndSettle();
 
-        expect(find.text('Privacy'), findsOneWidget);
+        expect(find.byKey(const Key('privacy-page')), findsOneWidget);
+        expect(
+          find.text(
+            'LEB2 Watch is an independent third-party application and is not '
+            'affiliated with or endorsed by KMUTT or LEB2.',
+          ),
+          findsOneWidget,
+        );
+        expect(controller.stage, originalStage);
       });
     }
+
+    testWidgets(
+      'settings opens privacy and back returns without changing flow',
+      (tester) async {
+        final controller = AppFlowController(initialStage: AppFlowStage.ready);
+        final router = createAppRouter(
+          controller,
+          initialLocation: AppRoute.settings.path,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(_RouterHarness(router: router));
+        await tester.pumpAndSettle();
+        final settingsScrollable = find
+            .descendant(
+              of: find.byKey(const Key('notification-settings-list')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        final privacyTile = find.byKey(const Key('open-privacy')).hitTestable();
+        await tester.scrollUntilVisible(
+          privacyTile,
+          500,
+          scrollable: settingsScrollable,
+        );
+        await tester.tap(privacyTile);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('privacy-page')), findsOneWidget);
+        expect(controller.stage, AppFlowStage.ready);
+
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('notification-settings-page')),
+          findsOneWidget,
+        );
+        expect(controller.stage, AppFlowStage.ready);
+      },
+    );
 
     testWidgets('live stage changes progress without rebuilding the router', (
       tester,

@@ -13,10 +13,10 @@ import '../../features/assignments/detail/presentation/assignment_detail_route.d
 import '../../features/courses/presentation/course_preferences_route.dart';
 import '../../features/diagnostics/presentation/synchronization_diagnostics_route.dart';
 import '../../features/onboarding/presentation/privacy_onboarding_page.dart';
+import '../../features/privacy/presentation/privacy_page.dart';
 import '../../features/semesters/presentation/semester_selection_route.dart';
 import '../../features/settings/notifications/presentation/notification_settings_route.dart';
 import 'app_flow.dart';
-import 'app_placeholder_page.dart';
 import 'app_route.dart';
 
 GoRouter createAppRouter(
@@ -93,16 +93,12 @@ GoRouter createAppRouter(
             ),
         ],
       ),
-      _placeholderRoute(AppRoute.privacy, 'Privacy'),
+      GoRoute(
+        name: AppRoute.privacy.name,
+        path: AppRoute.privacy.path,
+        builder: (_, _) => const PrivacyPage(),
+      ),
     ],
-  );
-}
-
-GoRoute _placeholderRoute(AppRoute route, String label) {
-  return GoRoute(
-    name: route.name,
-    path: route.path,
-    builder: (_, _) => AppPlaceholderPage(label: label),
   );
 }
 
