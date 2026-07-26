@@ -1,0 +1,80 @@
+{
+  "semesterId": 101,
+  "classes": [
+    {
+      "id": 3001,
+      "name": "Example Course",
+      "activities": [
+        {
+          "id": 1001,
+          "userId": 2001,
+          "classId": 3001,
+          "advStarred": 0,
+          "groupType": "individual",
+          "type": "ASM",
+          "peerAssessment": 0,
+          "isAllowRepeat": 0,
+          "title": "Example assignment",
+          "description": "<p>Example description</p>",
+          "startDate": "2026-07-01T09:00:00",
+          "dueDate": "2026-07-31T23:59:00",
+          "editGroupMode": "",
+          "createdAt": "2026-06-30T12:00:00",
+          "user": 2001,
+          "activitySubmissionId": null,
+          "classUserId": 4001,
+          "activityGroupId": null,
+          "activityGroupName": null,
+          "activitySubmissionSubmittedAt": null,
+          "dueDateExceed": false,
+          "quizSubmissionIsSubmitted": false,
+          "countGroupMember": 1,
+          "activitySubmissionIsLate": false,
+          "fileActivities": [],
+          "questions": [],
+          "submissions": [],
+          "lastDueDateNotificationDate": null,
+          "lastStatusChangeNotificationDate": null,
+          "previousSubmissionStatus": null
+        },
+        {
+          "id": 1002,
+          "userId": 2001,
+          "classId": 3001,
+          "advStarred": 0,
+          "groupType": "individual",
+          "type": "ASM",
+          "peerAssessment": 0,
+          "isAllowRepeat": 0,
+          "title": "New example assignment",
+          "description": "<p>Sanitized new assignment description</p>",
+          "startDate": "2026-07-25T09:00:00",
+          "dueDate": "2026-08-15T23:59:00",
+          "editGroupMode": "",
+          "createdAt": "2026-07-25T08:00:00",
+          "user": 2001,
+          "activitySubmissionId": null,
+          "classUserId": 4002,
+          "activityGroupId": null,
+          "activityGroupName": null,
+          "activitySubmissionSubmittedAt": null,
+          "dueDateExceed": false,
+          "quizSubmissionIsSubmitted": false,
+          "countGroupMember": 1,
+          "activitySubmissionIsLate": false,
+          "fileActivities": [],
+          "questions": [],
+          "submissions": [],
+          "lastDueDateNotificationDate": null,
+          "lastStatusChangeNotificationDate": null,
+          "previousSubmissionStatus": null
+        }
+      ]
+    },
+    {
+      "id": 3002,
+      "name": "Course Without Activities",
+      "activities": []
+    }
+  ]
+}

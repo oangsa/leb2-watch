@@ -3,8 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum AppFlowStage { onboarding, authentication, semesterSelection, ready }
 
+final initialAppFlowStageProvider = Provider<AppFlowStage>((ref) {
+  return AppFlowStage.onboarding;
+});
+
 final appFlowControllerProvider = Provider<AppFlowController>((ref) {
-  final controller = AppFlowController();
+  final controller = AppFlowController(
+    initialStage: ref.watch(initialAppFlowStageProvider),
+  );
   ref.onDispose(controller.dispose);
   return controller;
 });

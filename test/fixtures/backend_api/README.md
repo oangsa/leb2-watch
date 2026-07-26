@@ -9,6 +9,7 @@ Future fake-adapter tests must attach HTTP metadata separately:
 | Fixture | Status | Required response headers |
 | --- | --- | --- |
 | `snapshot_success.json` | 200 | `Content-Type: application/json` |
+| `snapshot_with_new_assignment.json` | 200 | `Content-Type: application/json` |
 | `snapshot_empty.json` | 200 | `Content-Type: application/json` |
 | `semesters_success.json` | 200 | `Content-Type: application/json` |
 | `classes_success.json` | 200 | `Content-Type: application/json` |
@@ -27,3 +28,9 @@ Do not add status codes, content types, `Retry-After`, or
 `WWW-Authenticate` to the JSON payloads. Malformed JSON, HTML, empty bodies, and
 wrong top-level types should be inline fake-adapter cases rather than valid JSON
 fixtures.
+
+The device-based mocked workflow mirrors the sanitized success payloads as
+compiled test constants under `integration_test/support/` because repository
+files are not portable runtime inputs inside Android and iOS application
+sandboxes. `sanitized_backend_fixtures_test.dart` enforces full decoded
+equality between the reviewable JSON and compiled test copy.
