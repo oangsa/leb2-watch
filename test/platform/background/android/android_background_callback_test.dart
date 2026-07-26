@@ -5,125 +5,230 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/platform/background/android/android_background_callback.dart';
+import 'package:leb2_watch/src/platform/background/android/android_workmanager_contract.dart';
 import 'package:leb2_watch/src/platform/background/workmanager/workmanager_task_dispatcher.dart';
 
 void main() {
-  test('Android task maps every durable app result to handled', () async {
-    for (final result in <BackgroundSyncRunResult>[
-      const BackgroundSyncSucceeded(),
-      const BackgroundSyncDeferred(),
-      const BackgroundSyncSessionPaused(),
-      const BackgroundSyncRetryableFailure(),
-      const BackgroundSyncTerminalFailure(),
-      const BackgroundSyncCancelled(),
-      const BackgroundSyncDisabled(),
-      const BackgroundSyncMissingTarget(),
-      const BackgroundSyncNoBackgroundCourses(),
+  test('disabled Android task cancels only its captured generation', () async {
+    final cancelledTags = <String>[];
+    final handler = AndroidBackgroundSyncTaskHandler(
+      execute: ({required reason, cancellation, timeBudget}) async =>
+          const BackgroundSyncDisabled(),
+      cancelByTag: (tag) async => cancelledTags.add(tag),
+    );
+
+    expect(
+      await handler(
+        const WorkmanagerTaskExecutionContext(
+          inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+        ),
+      ),
+      WorkmanagerTaskExecutionResult.handled,
+    );
+    expect(cancelledTags, const [_generationA]);
+  });
+
+  test('Android task cancels only durable stop results', () async {
+    for (final scenario in <({BackgroundSyncRunResult result, bool cancels})>[
+      (result: const BackgroundSyncSucceeded(), cancels: false),
+      (result: const BackgroundSyncDeferred(), cancels: false),
+      (result: const BackgroundSyncSessionPaused(), cancels: true),
+      (result: const BackgroundSyncRetryableFailure(), cancels: false),
+      (result: const BackgroundSyncTerminalFailure(), cancels: false),
+      (result: const BackgroundSyncCancelled(), cancels: false),
+      (result: const BackgroundSyncDisabled(), cancels: true),
+      (result: const BackgroundSyncMissingTarget(), cancels: false),
+      (result: const BackgroundSyncNoBackgroundCourses(), cancels: false),
     ]) {
+      final cancelledTags = <String>[];
       final handler = AndroidBackgroundSyncTaskHandler(
         execute: ({required reason, cancellation, timeBudget}) async {
           expect(reason, SyncReason.backgroundTask);
           expect(timeBudget, const Duration(minutes: 9));
-          return result;
+          return scenario.result;
         },
+        cancelByTag: (tag) async => cancelledTags.add(tag),
       );
 
       expect(
         await handler(
           const WorkmanagerTaskExecutionContext(
+            inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
             timeBudget: Duration(minutes: 9),
           ),
         ),
         WorkmanagerTaskExecutionResult.handled,
       );
+      expect(
+        cancelledTags,
+        scenario.cancels ? const [_generationA] : isEmpty,
+        reason: scenario.result.runtimeType.toString(),
+      );
     }
   });
 
-  test('stale Android stop results cannot cancel recovered work', () async {
-    for (final scenario in <_StaleStopScenario>[
-      _StaleStopScenario(
-        name: 'disabled to enabled and registered',
-        staleResult: const BackgroundSyncDisabled(),
-        initialDesiredMonitoring: false,
-        foregroundStopWasReconciled: true,
-        recovery: _DurableRecovery.enableMonitoring,
-      ),
-      _StaleStopScenario(
-        name: 'missing target to configured with existing chain',
-        staleResult: const BackgroundSyncMissingTarget(),
-        initialDesiredMonitoring: true,
-        foregroundStopWasReconciled: false,
-        recovery: _DurableRecovery.configureTarget,
-      ),
-      _StaleStopScenario(
-        name: 'expired session to active and registered',
-        staleResult: const BackgroundSyncSessionPaused(),
-        initialDesiredMonitoring: true,
-        foregroundStopWasReconciled: true,
-        recovery: _DurableRecovery.activateSession,
-      ),
-    ]) {
-      final executionStarted = Completer<void>();
-      final staleExecution = Completer<BackgroundSyncRunResult>();
-      final schedule = _FakeUniquePeriodicSchedule(initiallyScheduled: true);
-      var desiredMonitoring = scenario.initialDesiredMonitoring;
-      var targetConfigured =
-          scenario.recovery != _DurableRecovery.configureTarget;
-      var sessionActive = scenario.recovery != _DurableRecovery.activateSession;
+  test('malformed or absent generation input cannot cancel work', () async {
+    final invalidInputs = <Map<String, dynamic>?>[
+      null,
+      const {},
+      const {androidPeriodicSyncGenerationInputKey: 42},
+      const {
+        androidPeriodicSyncGenerationInputKey:
+            'wrong-prefix.000102030405060708090a0b0c0d0e0f',
+      },
+      const {
+        androidPeriodicSyncGenerationInputKey:
+            '${androidPeriodicSyncGenerationTagPrefix}000102030405060708090a0b0c0d0e0',
+      },
+      const {
+        androidPeriodicSyncGenerationInputKey:
+            '${androidPeriodicSyncGenerationTagPrefix}000102030405060708090a0b0c0d0e0f0',
+      },
+      const {
+        androidPeriodicSyncGenerationInputKey:
+            '${androidPeriodicSyncGenerationTagPrefix}000102030405060708090a0b0c0d0e0g',
+      },
+      const {
+        androidPeriodicSyncGenerationInputKey:
+            '${androidPeriodicSyncGenerationTagPrefix}000102030405060708090A0B0C0D0E0F',
+      },
+    ];
+
+    for (final inputData in invalidInputs) {
+      final cancelledTags = <String>[];
       final handler = AndroidBackgroundSyncTaskHandler(
-        execute: ({required reason, cancellation, timeBudget}) {
-          executionStarted.complete();
-          return staleExecution.future;
-        },
+        execute: ({required reason, cancellation, timeBudget}) async =>
+            const BackgroundSyncDisabled(),
+        cancelByTag: (tag) async => cancelledTags.add(tag),
       );
 
-      final oldRun = handler(const WorkmanagerTaskExecutionContext());
-      await executionStarted.future;
-
-      if (scenario.foregroundStopWasReconciled) {
-        await schedule.cancel();
-      }
-      switch (scenario.recovery) {
-        case _DurableRecovery.enableMonitoring:
-          desiredMonitoring = true;
-          await schedule.register();
-        case _DurableRecovery.configureTarget:
-          targetConfigured = true;
-        case _DurableRecovery.activateSession:
-          sessionActive = true;
-          await schedule.register();
-      }
-
-      final cancellationRequestsBeforeStaleCompletion =
-          schedule.cancellationRequests;
       expect(
-        cancellationRequestsBeforeStaleCompletion,
-        scenario.foregroundStopWasReconciled ? 1 : 0,
-        reason: scenario.name,
-      );
-      staleExecution.complete(scenario.staleResult);
-
-      expect(
-        await oldRun,
+        await handler(WorkmanagerTaskExecutionContext(inputData: inputData)),
         WorkmanagerTaskExecutionResult.handled,
-        reason: scenario.name,
       );
-      expect(schedule.isScheduled, isTrue, reason: scenario.name);
-      expect(
-        schedule.cancellationRequests,
-        cancellationRequestsBeforeStaleCompletion,
-        reason: '${scenario.name}: stale completion issued a late cancellation',
-      );
-      expect(
-        schedule.registrationRequests,
-        scenario.recovery == _DurableRecovery.configureTarget ? 0 : 1,
-        reason: scenario.name,
-      );
-      expect(desiredMonitoring, isTrue, reason: scenario.name);
-      expect(targetConfigured, isTrue, reason: scenario.name);
-      expect(sessionActive, isTrue, reason: scenario.name);
+      expect(cancelledTags, isEmpty, reason: inputData.toString());
     }
   });
+
+  test('cancel submission failure remains handled and redacted', () async {
+    var cancellationAttempts = 0;
+    final handler = AndroidBackgroundSyncTaskHandler(
+      execute: ({required reason, cancellation, timeBudget}) async =>
+          const BackgroundSyncSessionPaused(),
+      cancelByTag: (_) async {
+        cancellationAttempts += 1;
+        throw StateError('PRIVATE_NATIVE_FAILURE');
+      },
+    );
+
+    expect(
+      await handler(
+        const WorkmanagerTaskExecutionContext(
+          inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+        ),
+      ),
+      WorkmanagerTaskExecutionResult.handled,
+    );
+    expect(cancellationAttempts, 1);
+    expect(handler.toString(), isNot(contains('PRIVATE_NATIVE_FAILURE')));
+  });
+
+  test(
+    'cancel before update preserves the newly registered generation',
+    () async {
+      final schedule = _GenerationScopedPeriodicSchedule()
+        ..register(_generationA);
+      final handler = AndroidBackgroundSyncTaskHandler(
+        execute: ({required reason, cancellation, timeBudget}) async =>
+            const BackgroundSyncDisabled(),
+        cancelByTag: schedule.cancelByTag,
+      );
+
+      expect(
+        await handler(
+          const WorkmanagerTaskExecutionContext(
+            inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+          ),
+        ),
+        WorkmanagerTaskExecutionResult.handled,
+      );
+      expect(schedule.activeTag, isNull);
+
+      schedule.register(_generationB);
+      expect(schedule.activeTag, _generationB);
+      expect(schedule.tagCancellationRequests, const [_generationA]);
+    },
+  );
+
+  test('stale cancel after update preserves the newer generation', () async {
+    final executionStarted = Completer<void>();
+    final staleExecution = Completer<BackgroundSyncRunResult>();
+    final schedule = _GenerationScopedPeriodicSchedule()
+      ..register(_generationA);
+    final handler = AndroidBackgroundSyncTaskHandler(
+      execute: ({required reason, cancellation, timeBudget}) {
+        executionStarted.complete();
+        return staleExecution.future;
+      },
+      cancelByTag: schedule.cancelByTag,
+    );
+
+    final oldRun = handler(
+      const WorkmanagerTaskExecutionContext(
+        inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+      ),
+    );
+    await executionStarted.future;
+    schedule.register(_generationB);
+    staleExecution.complete(const BackgroundSyncSessionPaused());
+
+    expect(await oldRun, WorkmanagerTaskExecutionResult.handled);
+    expect(schedule.activeTag, _generationB);
+    expect(schedule.tagCancellationRequests, const [_generationA]);
+  });
+
+  test(
+    'foreground stop and recovery cannot be cancelled by an old result',
+    () async {
+      for (final staleResult in <BackgroundSyncRunResult>[
+        const BackgroundSyncDisabled(),
+        const BackgroundSyncSessionPaused(),
+      ]) {
+        final executionStarted = Completer<void>();
+        final staleExecution = Completer<BackgroundSyncRunResult>();
+        final schedule = _GenerationScopedPeriodicSchedule()
+          ..register(_generationA);
+        final handler = AndroidBackgroundSyncTaskHandler(
+          execute: ({required reason, cancellation, timeBudget}) {
+            executionStarted.complete();
+            return staleExecution.future;
+          },
+          cancelByTag: schedule.cancelByTag,
+        );
+
+        final oldRun = handler(
+          const WorkmanagerTaskExecutionContext(
+            inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+          ),
+        );
+        await executionStarted.future;
+        schedule.cancelByUniqueName();
+        schedule.register(_generationB);
+        staleExecution.complete(staleResult);
+
+        expect(
+          await oldRun,
+          WorkmanagerTaskExecutionResult.handled,
+          reason: staleResult.runtimeType.toString(),
+        );
+        expect(
+          schedule.activeTag,
+          _generationB,
+          reason: staleResult.runtimeType.toString(),
+        );
+      }
+    },
+  );
 
   test('Android callback remains a top-level retained entrypoint', () {
     final source = File(
@@ -133,57 +238,53 @@ void main() {
     expect(source, contains("@pragma('vm:entry-point')"));
     expect(source, contains('void androidBackgroundCallbackDispatcher()'));
     expect(source, contains('androidPeriodicSyncTaskName'));
+    expect(source, contains('gateway.cancelByTag'));
     expect(source, isNot(contains('cancelByUniqueName')));
     expect(source, isNot(contains('_cancelPending')));
   });
 
   test('unexpected execution errors do not add native retries', () async {
+    final cancelledTags = <String>[];
     final handler = AndroidBackgroundSyncTaskHandler(
       execute: ({required reason, cancellation, timeBudget}) async =>
           throw StateError('PRIVATE_PATH'),
+      cancelByTag: (tag) async => cancelledTags.add(tag),
     );
 
     expect(
-      await handler(const WorkmanagerTaskExecutionContext()),
+      await handler(
+        const WorkmanagerTaskExecutionContext(
+          inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+        ),
+      ),
       WorkmanagerTaskExecutionResult.handled,
     );
+    expect(cancelledTags, isEmpty);
     expect(handler.toString(), isNot(contains('PRIVATE_PATH')));
   });
 }
 
-enum _DurableRecovery { enableMonitoring, configureTarget, activateSession }
+const _generationA =
+    '${androidPeriodicSyncGenerationTagPrefix}000102030405060708090a0b0c0d0e0f';
+const _generationB =
+    '${androidPeriodicSyncGenerationTagPrefix}f0e0d0c0b0a090807060504030201000';
 
-final class _StaleStopScenario {
-  const _StaleStopScenario({
-    required this.name,
-    required this.staleResult,
-    required this.initialDesiredMonitoring,
-    required this.foregroundStopWasReconciled,
-    required this.recovery,
-  });
+final class _GenerationScopedPeriodicSchedule {
+  String? activeTag;
+  final List<String> tagCancellationRequests = [];
 
-  final String name;
-  final BackgroundSyncRunResult staleResult;
-  final bool initialDesiredMonitoring;
-  final bool foregroundStopWasReconciled;
-  final _DurableRecovery recovery;
-}
-
-final class _FakeUniquePeriodicSchedule {
-  _FakeUniquePeriodicSchedule({required bool initiallyScheduled})
-    : isScheduled = initiallyScheduled;
-
-  bool isScheduled;
-  int cancellationRequests = 0;
-  int registrationRequests = 0;
-
-  Future<void> register() async {
-    registrationRequests += 1;
-    isScheduled = true;
+  void register(String generationTag) {
+    activeTag = generationTag;
   }
 
-  Future<void> cancel() async {
-    cancellationRequests += 1;
-    isScheduled = false;
+  void cancelByUniqueName() {
+    activeTag = null;
+  }
+
+  Future<void> cancelByTag(String generationTag) async {
+    tagCancellationRequests.add(generationTag);
+    if (activeTag == generationTag) {
+      activeTag = null;
+    }
   }
 }

@@ -30,7 +30,14 @@ void main() {
 
   test('periodic schedule uses the one stable Android work contract', () async {
     final gateway = _Gateway();
-    final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+    final tokens = <String>[
+      '000102030405060708090a0b0c0d0e0f',
+      'f0e0d0c0b0a090807060504030201000',
+    ].iterator;
+    final platform = AndroidWorkmanagerSchedulerPlatform(gateway, () {
+      tokens.moveNext();
+      return tokens.current;
+    });
     const jitter = Duration(minutes: 4, seconds: 12);
 
     await platform.schedulePeriodicSync(
@@ -43,9 +50,18 @@ void main() {
     );
 
     expect(gateway.requests, hasLength(2));
-    for (final request in gateway.requests) {
+    for (var index = 0; index < gateway.requests.length; index += 1) {
+      final request = gateway.requests[index];
+      final expectedTag =
+          '$androidPeriodicSyncGenerationTagPrefix${['000102030405060708090a0b0c0d0e0f', 'f0e0d0c0b0a090807060504030201000'][index]}';
       expect(request.uniqueName, androidPeriodicSyncUniqueWorkName);
       expect(request.taskName, androidPeriodicSyncTaskName);
+      expect(request.tag, expectedTag);
+      expect(request.inputData, {
+        androidPeriodicSyncGenerationInputKey: expectedTag,
+      });
+      expect(request.inputData, hasLength(1));
+      expect(request.toString(), isNot(contains(expectedTag)));
       expect(request.frequency, const Duration(minutes: 15));
       expect(request.initialDelay, jitter);
       expect(
@@ -54,6 +70,57 @@ void main() {
       );
       expect(request.existingPolicy, WorkmanagerPeriodicWorkPolicy.update);
     }
+    expect(gateway.requests[0].tag, isNot(gateway.requests[1].tag));
+  });
+
+  test(
+    'default source creates a strict opaque 128-bit generation tag',
+    () async {
+      final gateway = _Gateway();
+      final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+
+      await platform.schedulePeriodicSync(
+        cadence: const Duration(minutes: 15),
+        initialDelay: Duration.zero,
+      );
+
+      final request = gateway.requests.single;
+      final generationTag = request.tag;
+      expect(generationTag, isNotNull);
+      expect(
+        generationTag,
+        hasLength(androidPeriodicSyncGenerationTagPrefix.length + 32),
+      );
+      expect(
+        parseAndroidPeriodicSyncGenerationTag(generationTag),
+        generationTag,
+      );
+      expect(request.inputData, {
+        androidPeriodicSyncGenerationInputKey: generationTag,
+      });
+    },
+  );
+
+  test('invalid generated token is rejected before registration', () async {
+    final gateway = _Gateway();
+    final platform = AndroidWorkmanagerSchedulerPlatform(
+      gateway,
+      () => 'USER_OR_SESSION_VALUE',
+    );
+
+    Object? error;
+    try {
+      await platform.schedulePeriodicSync(
+        cadence: const Duration(minutes: 15),
+        initialDelay: Duration.zero,
+      );
+    } on Object catch (caught) {
+      error = caught;
+    }
+
+    expect(error, isA<ArgumentError>());
+    expect(error.toString(), isNot(contains('USER_OR_SESSION_VALUE')));
+    expect(gateway.requests, isEmpty);
   });
 
   test('cadence below WorkManager minimum is rejected before registration', () {
@@ -102,6 +169,9 @@ final class _Gateway implements WorkmanagerGateway {
 
   @override
   void bindTaskHandler(WorkmanagerPluginTaskHandler handler) {}
+
+  @override
+  Future<void> cancelByTag(String tag) async {}
 
   @override
   Future<void> cancelByUniqueName(String uniqueName) async {

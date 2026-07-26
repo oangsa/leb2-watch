@@ -20,6 +20,9 @@ duplicate schedules, credential-bearing task input, or a second retry policy.
   Feature 13.1 platform interface.
 - A retained top-level callback dispatcher.
 - Fresh headless application composition for every task execution.
+- A fresh opaque 128-bit generation tag on each periodic registration.
+- Generation-scoped headless cancellation for disabled and session-paused
+  results.
 - Shared, iOS-neutral WorkManager gateway and exact-name dispatcher seams.
 - Release-inherited Android internet permission and static configuration tests.
 
@@ -42,12 +45,13 @@ or fails.
 Disabling monitoring cancels only LEB2 Watch's unique periodic work. Background
 execution never requests notification permission.
 
-If a headless run observes that monitoring is disabled, its target is missing,
-or its session is paused, the durable local gate prevents HTTP and the callback
-reports the wake handled without mutating native scheduling. The periodic chain
-can therefore remain scheduled and produce later local no-op wakes until policy
-recovers. Explicit foreground disable and foreground session reconciliation
-remain the owners of native cancellation and recovery registration.
+If a headless run observes that monitoring is disabled or its session is
+paused, the durable local gate prevents HTTP and the callback submits
+cancellation for only the opaque generation that invoked it. A stale callback
+cannot cancel work registered after monitoring is enabled or a verified session
+becomes active. Missing-target and no-background-course results remain handled
+local no-ops and deliberately retain the chain because their current recovery
+paths do not reconcile native scheduling.
 
 ## Architecture
 
@@ -69,12 +73,18 @@ cancellation whose request or synchronization does not settle within the
 shared one-second drain remains retained in a close-after-quiescence
 continuation until both settle.
 
-The callback maps every durable `BackgroundSyncRunResult` to handled and has no
-schedule-mutation capability. Unexpected execution errors are also handled
-without native retry, so application synchronization backoff stays
-authoritative. Keeping the headless callback schedule-neutral prevents a stale
-stop result from cancelling a newer valid registration under the same stable
-unique work name.
+Every actual registration generates a fresh 16-byte secure random token,
+formats it as a strict lowercase-hex application tag, and stores that same tag
+as the request tag and as the request's single application input value. The
+dispatcher forwards the captured input map to the exact task handler without
+including it in debug output.
+
+The callback maps every durable `BackgroundSyncRunResult` to handled.
+`BackgroundSyncDisabled` and `BackgroundSyncSessionPaused` validate the
+captured tag and submit `cancelByTag`; all other results keep the chain.
+Unexpected execution and cancellation-submission errors are handled without
+native retry or sensitive logging, so application synchronization backoff stays
+authoritative.
 
 ## Important files
 
@@ -106,11 +116,14 @@ task name:        leb2-periodic-sync-v1
 frequency:        15 minutes
 network:          connected
 existing policy:  update
-input data:       none
+tag:              dev.oangsa.leb2watch.periodic-sync.generation-v1.<32 hex>
+input key:        dev.oangsa.leb2watch.periodic-sync.generation-tag-v1
+input value:      the same opaque generation tag
 ```
 
 `WorkmanagerGateway` exposes initialization, callback binding, periodic
-registration, unique-name cancellation, and an Android scheduled-state query.
+registration, unique-name cancellation, tag cancellation, and an Android
+scheduled-state query.
 `WorkmanagerTaskDispatcher` maps exact task names to handlers. Its explicit
 `retry` result is available for a future proven transient pre-bootstrap failure;
 the Android assignment task does not use it.
@@ -121,14 +134,16 @@ No Android-specific table or credential field was added. Monitoring state and
 stable jitter remain in the Feature 13.1
 `background_schedule_settings` row. Active semester, user identity, session
 state, and course policies are read from local SQLite at execution time.
-Credentials remain in operating-system secure storage and never enter
-WorkManager input data.
+Credentials remain in operating-system secure storage. WorkManager stores only
+the opaque generation tag; no semester ID, user ID, session revision, cookie,
+username, password, backend URL, or response data enters the request.
 
 ## State and control flow
 
 1. The foreground scheduler initializes WorkManager with the retained callback.
-2. Enabling or reconciling monitoring registers the same unique periodic work
-   with `ExistingPeriodicWorkPolicy.update`.
+2. Enabling or reconciling monitoring creates a fresh generation tag and
+   registers the same unique periodic work with
+   `ExistingPeriodicWorkPolicy.update`.
 3. WorkManager waits for Android scheduling and connected-network constraints.
 4. The background isolate dispatches only the exact registered task name.
 5. A fresh owned composition reads current local policy and runs one background
@@ -137,17 +152,24 @@ WorkManager input data.
    applies notification/reminder effects only after commit.
 7. Owned resources close after normal completion/failure or cancellation
    quiescence, never merely because cancellation was requested.
-8. Every durable result is reported handled. Disabled, missing-target, and
-   session-paused runs stop before HTTP but leave the stable unique chain
-   unchanged.
+8. Every durable result is reported handled. Disabled and session-paused runs
+   stop before HTTP and submit cancellation only for their captured generation.
+   Missing-target and no-background-course results stop before HTTP and leave
+   the chain available for later recovery.
 
 Repeated initialization joins one in-flight initialization. Repeated
 registration cannot create a second unique name. Explicit foreground disable
 and foreground session reconciliation use `cancelByUniqueName`; they never call
-`cancelAll`. The pinned plugin completes its Dart method-channel call after
-submitting `cancelUniqueWork`; it does not await Android's returned `Operation`.
-A completed Dart future therefore proves request submission without a
-synchronous/plugin error, not native terminal state.
+`cancelAll`.
+
+With pinned AndroidX WorkManager 2.10.2, `UPDATE` and tag cancellation use
+WorkManager's serial task executor. Updating a periodic WorkSpec replaces its
+old tags and input in the same transaction. If old-tag cancellation runs first,
+the later update re-enqueues the fresh generation; if update runs first, the old
+tag lookup no longer matches. Either ordering preserves the newer registration.
+The pinned Flutter plugin discards Android's returned `Operation`, so a
+completed Dart future proves submission without a synchronous/plugin error,
+not native terminal state.
 
 ## Platform behavior
 
@@ -163,7 +185,8 @@ reuse them with its own top-level entrypoint and task names.
 
 ## Security and privacy
 
-- WorkManager input data is always absent.
+- WorkManager input contains exactly one opaque random generation tag that is
+  also used as the WorkRequest tag.
 - Session cookies, usernames, passwords, semester IDs, user IDs, headers, and
   response bodies are not registered with or logged by WorkManager.
 - Diagnostic `toString` values are redacted.
@@ -175,6 +198,8 @@ reuse them with its own top-level entrypoint and task names.
 
 - Use one stable unique work name with `update` so re-registration changes the
   specification without duplicating jobs.
+- Generate a fresh 128-bit tag for every actual registration and validate the
+  captured prefix, length, lowercase-hex encoding, and type before cancellation.
 - Forward Feature 13.1's persisted jitter as `initialDelay`; the Android layer
   does not generate randomness.
 - Use only a connected-network constraint because charging, idle, unmetered,
@@ -183,9 +208,12 @@ reuse them with its own top-level entrypoint and task names.
   execution limit.
 - Return native success for every durable application outcome. Durable local
   gates and application backoff remain authoritative.
-- Keep the headless callback schedule-neutral. A stop result reflects an
-  earlier local policy snapshot and must not cancel a newer stable-name
-  registration.
+- Cancel only the captured generation for disabled and session-paused results.
+  Fresh per-registration tags prevent an old result from cancelling recovered
+  work under the stable unique name.
+- Keep missing-target and no-background-course results scheduled because
+  semester selection and per-course preference changes do not currently
+  reconcile the native schedule.
 - Let explicit foreground disable and foreground session reconciliation own
   cancellation and recovery registration.
 - Return native success for unknown task names and unexpected handler errors to
@@ -203,9 +231,11 @@ reuse them with its own top-level entrypoint and task names.
 - Returning native retry for every failed synchronization would stack Android
   backoff on the existing durable 1m/2m/5m/15m application policy.
 - Raw headless `cancelByUniqueName` would let a stale stop result cancel a newer
-  valid replacement chain. Race-safe terminal self-cancellation requires a
-  future native-owned, generation-aware scheduling coordinator rather than a
-  Dart read-then-cancel check.
+  valid replacement chain.
+- WorkRequest ID and native integer generation are not exposed to Dart by the
+  pinned plugin, and the WorkSpec ID is retained across `UPDATE`.
+- Unique work names per registration would abandon the one-chain invariant and
+  require durable enumeration across process death and reboot.
 
 ## Failure behavior
 
@@ -213,11 +243,13 @@ Feature 13.1 maps platform initialization, registration, cancellation, status,
 and local-storage errors into redacted scheduler statuses or exceptions.
 Handled synchronization failures preserve valid cached data. Session expiration
 pauses automatic synchronization without deleting cached assignments. Disabled
-monitoring, missing targets, and session pause are handled local no-ops that
-perform no HTTP. When these states are discovered only by a headless isolate,
-the chain can remain scheduled and later wakes repeat the local gates until
-policy recovers. All durable outcomes and unexpected execution exceptions are
-handled without callback cancellation or native retry.
+monitoring, missing targets, no-background-course policy, and session pause are
+handled local no-ops that perform no HTTP. Disabled and session-paused results
+submit scoped cancellation when their captured input is strictly valid.
+Malformed or absent input, every other typed result, and unexpected exceptions
+submit no cancellation. A cancellation submission failure is swallowed and
+redacted; a later wake can resubmit the same tag-scoped request. No outcome asks
+WorkManager for native retry.
 
 Android can stop the process without running Dart cleanup. Durable database
 leases, operation fencing, transactional persistence, notification history, and
@@ -226,14 +258,17 @@ later foreground reconciliation remain the recovery mechanisms.
 ## Tests
 
 - `workmanager_task_dispatcher_test.dart` — exact-name dispatch, explicit retry,
-  fail-closed handled behavior, cancellation, and execution budget.
+  fail-closed handled behavior, captured-input propagation/redaction,
+  cancellation, and execution budget.
 - `android_workmanager_scheduler_platform_test.dart` — joined initialization,
   stable names, 15-minute floor, persisted delay forwarding, connected network,
-  update policy, unique cancellation, and status.
+  update policy, fresh strict generation tags/input, unique cancellation, and
+  status.
 - `android_background_callback_test.dart` — handled mapping for every durable
-  result, background reason/budget, unexpected-error behavior, retained
-  entrypoint wiring without headless cancellation, and deterministic stale
-  disabled/missing-target/session-paused replacement-survival interleavings.
+  result, strict malformed-input rejection, cancellation-submission failure,
+  background reason/budget, unexpected-error behavior, retained entrypoint
+  wiring without unique-name cancellation, and deterministic cancel-before-
+  update/update-before-stale-cancel recovery interleavings.
 - `android_manifest_configuration_test.dart` — internet permission, preserved
   boot/notification/backup configuration, and absence of foreground service,
   custom initializer, or exact-alarm additions.
@@ -243,80 +278,51 @@ later foreground reconciliation remain the recovery mechanisms.
 
 ## Validation evidence
 
-Executed on Flutter 3.44.8 and Dart 3.12.2:
+The generation-scoped pause change was validated on Flutter 3.44.8 and Dart
+3.12.2 with serialized tests:
 
 ```text
 flutter test --concurrency=1 \
-  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/background/workmanager/workmanager_task_dispatcher_test.dart \
   test/platform/background/android/android_workmanager_scheduler_platform_test.dart \
-  test/features/background_sync/application/local_background_scheduler_test.dart \
-  test/features/background_sync/application/background_sync_runner_test.dart \
-  test/platform/background/ios_background_callback_test.dart \
-  test/platform/background/ios_background_configuration_test.dart \
-  test/platform/desktop/desktop_native_configuration_test.dart
-30 tests passed
+  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/background/ios_background_scheduler_platform_test.dart
+24 tests passed
 
-dart analyze --fatal-infos --fatal-warnings \
-  lib/src/platform/background/android/android_background_callback.dart \
-  test/platform/background/android/android_background_callback_test.dart \
+flutter test --concurrency=1 \
+  test/platform/background/workmanager/workmanager_task_dispatcher_test.dart \
   test/platform/background/android/android_workmanager_scheduler_platform_test.dart \
-  test/features/background_sync/application/local_background_scheduler_test.dart \
-  test/features/background_sync/application/background_sync_runner_test.dart \
+  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/background/ios_background_scheduler_platform_test.dart \
   test/platform/background/ios_background_callback_test.dart \
-  test/platform/background/ios_background_configuration_test.dart \
-  test/platform/desktop/desktop_native_configuration_test.dart
+  test/features/background_sync/application/background_sync_runner_test.dart \
+  test/features/background_sync/application/local_background_scheduler_test.dart \
+  test/features/settings/data_deletion/application/local_data_deletion_service_test.dart \
+  test/features/authentication/application/automatic_session_reauthentication_service_test.dart \
+  test/features/authentication/application/reauthenticating_assignment_sync_service_test.dart \
+  test/app/provider_background_sync_composition_test.dart
+78 tests passed
+
+dart format --output=none --set-exit-if-changed .
+Formatted 316 files; 0 changed
+
+dart analyze --fatal-infos --fatal-warnings .
 No issues found
 
-dart format --output=none --set-exit-if-changed \
-  lib/src/platform/background/android/android_background_callback.dart \
-  test/platform/background/android/android_background_callback_test.dart
-2 files formatted; 0 changed
+flutter analyze --fatal-infos --fatal-warnings
+No issues found
+
+flutter test --concurrency=1
+1009 tests passed
 
 git diff --check
 Passed
-
-flutter build apk --release \
-  --dart-define=APP_ENV=production \
-  --dart-define=BACKEND_BASE_URL=https://api.example.org
-[!] No Android SDK found
-
-flutter doctor -v
-Flutter 3.44.8 / Dart 3.12.2
-Android toolchain: ✗ unable to locate SDK
-Linux toolchain: ✓
-Linux device: ✓
-
-flutter test <four focused Android/WorkManager test files>
-15 tests passed
-
-flutter test test/features/background_sync \
-  test/platform/background/workmanager test/platform/background/android
-25 tests passed
-
-dart analyze --fatal-infos \
-  lib/src/platform/background/android \
-  lib/src/platform/background/workmanager \
-  test/platform/background/android \
-  test/platform/background/workmanager
-No issues found
-
-flutter build linux --release
-Built build/linux/x64/release/bundle/leb2-watch
 ```
 
-The replacement-survival test was added before the callback correction and
-failed to compile because `AndroidBackgroundSyncTaskHandler` still required the
-unsafe `cancelPending` capability. After removing that capability and its
-dispatcher wiring, all four callback tests and the 30-test grouped batch passed.
-
-The repository-wide suite reached 766 passing tests with exactly one expected
-failure in the deferred shared platform-factory test, which still asserted that
-Android was unsupported. Repository-wide analysis was also attempted; only
-parallel desktop-worker lints remained. Final shared-test and lint integration
-belongs to the serialized Phase 13 integration pass.
-
-The Linux build is only a host-platform compile check for shared Dart imports;
-it is not evidence of Android runtime behavior.
+The callback test was introduced red: the handler did not accept scoped
+cancellation and the request had no generation tag/input. The focused green
+pass covers both serialized WorkManager operation orderings. These Dart tests
+do not prove Android runtime or native `Operation` completion.
 
 ## Known limitations
 
@@ -330,13 +336,12 @@ it is not evidence of Android runtime behavior.
   ```text
   flutter build apk --release --dart-define=APP_ENV=production --dart-define=BACKEND_BASE_URL=https://api.example.org
   ```
-- Headless-only disabled, missing-target, or paused states can leave the
-  periodic chain scheduled. Those wakes remain local no-ops and perform no
-  HTTP.
-- True terminal headless self-cancellation needs a native-owned,
-  generation-aware coordinator plus Android device validation. The current
-  plugin does not expose native operation completion or a safe generation
-  cancellation boundary.
+- The Flutter plugin confirms cancellation submission but does not await
+  Android's returned WorkManager `Operation`; process death in that narrow
+  window can leave the old generation scheduled until a later local-only wake
+  resubmits cancellation.
+- Missing-target and no-background-course headless states intentionally retain
+  the periodic chain. Those wakes remain local no-ops and perform no HTTP.
 - WorkManager does not expose a cooperative Dart cancellation callback when
   Android stops the worker; the execution-budget hook is the available
   cooperative bound.
@@ -349,11 +354,11 @@ On an Android-capable host, build debug and release APKs, inspect the merged
 manifest and JobScheduler state, then exercise offline constraints, repeated
 registration, permission denial, process death, reboot, force-stop/reopen,
 session expiration, baseline silence, and exactly-once notification behavior.
-For session expiration specifically, verify that foreground reconciliation
-owns cancellation, replace the session, and confirm that the retained desired
-preference causes exactly one fresh unique registration. If terminal
-headless-only cancellation becomes a requirement, implement and validate the
-native coordinator before changing callback ownership.
+For session expiration specifically, exercise both operation orderings: old
+generation cancellation before verified-session `UPDATE`, and verified-session
+`UPDATE` before stale old-generation cancellation. Verify that only the fresh
+generation remains scheduled after each ordering, including after process death
+and reboot.
 
 ## Related contexts
 

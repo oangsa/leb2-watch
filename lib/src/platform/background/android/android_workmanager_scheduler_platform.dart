@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../../features/background_sync/domain/background_scheduler.dart';
 import '../background_scheduler_platform.dart';
 import '../workmanager/workmanager_gateway.dart';
@@ -8,10 +10,14 @@ export 'android_workmanager_contract.dart';
 
 final class AndroidWorkmanagerSchedulerPlatform
     implements BackgroundSchedulerPlatform {
-  AndroidWorkmanagerSchedulerPlatform([WorkmanagerGateway? gateway])
-    : _gateway = gateway ?? PluginWorkmanagerGateway();
+  AndroidWorkmanagerSchedulerPlatform([
+    WorkmanagerGateway? gateway,
+    String Function()? generationTokenSource,
+  ]) : _gateway = gateway ?? PluginWorkmanagerGateway(),
+       _generationTokenSource = generationTokenSource ?? _secureGenerationToken;
 
   final WorkmanagerGateway _gateway;
+  final String Function() _generationTokenSource;
   Future<void>? _initialization;
 
   @override
@@ -62,12 +68,17 @@ final class AndroidWorkmanagerSchedulerPlatform
     required Duration initialDelay,
   }) async {
     await initialize();
+    final generationTag = formatAndroidPeriodicSyncGenerationTag(
+      _generationTokenSource(),
+    );
     await _gateway.registerPeriodicTask(
       WorkmanagerPeriodicTaskRequest(
         uniqueName: androidPeriodicSyncUniqueWorkName,
         taskName: androidPeriodicSyncTaskName,
         frequency: cadence,
         initialDelay: initialDelay,
+        inputData: {androidPeriodicSyncGenerationInputKey: generationTag},
+        tag: generationTag,
         networkRequirement: WorkmanagerNetworkRequirement.connected,
         existingPolicy: WorkmanagerPeriodicWorkPolicy.update,
       ),
@@ -96,4 +107,13 @@ final class AndroidWorkmanagerSchedulerPlatform
 
   @override
   String toString() => 'AndroidWorkmanagerSchedulerPlatform(redacted: true)';
+}
+
+String _secureGenerationToken() {
+  final random = Random.secure();
+  final token = StringBuffer();
+  for (var byte = 0; byte < 16; byte += 1) {
+    token.write(random.nextInt(256).toRadixString(16).padLeft(2, '0'));
+  }
+  return token.toString();
 }

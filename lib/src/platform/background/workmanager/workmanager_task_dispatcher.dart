@@ -4,8 +4,13 @@ import 'workmanager_gateway.dart';
 enum WorkmanagerTaskExecutionResult { handled, retry }
 
 final class WorkmanagerTaskExecutionContext {
-  const WorkmanagerTaskExecutionContext({this.cancellation, this.timeBudget});
+  const WorkmanagerTaskExecutionContext({
+    this.inputData,
+    this.cancellation,
+    this.timeBudget,
+  });
 
+  final Map<String, dynamic>? inputData;
   final BackgroundSyncCancellation? cancellation;
   final Duration? timeBudget;
 
@@ -26,6 +31,7 @@ final class WorkmanagerTaskDispatcher {
 
   Future<bool> dispatch(
     String taskName, {
+    Map<String, dynamic>? inputData,
     BackgroundSyncCancellation? cancellation,
     Duration? timeBudget,
   }) async {
@@ -37,6 +43,7 @@ final class WorkmanagerTaskDispatcher {
     try {
       final result = await handler(
         WorkmanagerTaskExecutionContext(
+          inputData: inputData,
           cancellation: cancellation,
           timeBudget: timeBudget,
         ),
@@ -59,8 +66,9 @@ void installWorkmanagerTaskDispatcher({
 }) {
   final dispatcher = WorkmanagerTaskDispatcher(handlers);
   gateway.bindTaskHandler(
-    (taskName, _) => dispatcher.dispatch(
+    (taskName, inputData) => dispatcher.dispatch(
       taskName,
+      inputData: inputData,
       cancellation: cancellation,
       timeBudget: timeBudget,
     ),

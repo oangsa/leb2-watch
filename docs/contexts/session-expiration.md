@@ -41,7 +41,9 @@ clear path to verify a replacement session.
 ## Non-scope
 
 - Deleting an expired cookie or cached user data.
-- Android WorkManager, iOS BGTaskScheduler, or desktop timer cancellation.
+- iOS BGTaskScheduler or desktop timer implementation details. Android
+  WorkManager generation-scoped pause behavior is documented here only where it
+  consumes the shared expired-session result.
 - Notification scheduling or cancellation.
 - Semester-selection and assignment-dashboard implementation details; this
   feature supplies their durable lifecycle contract and global shell banner.
@@ -254,6 +256,16 @@ reason share the durable expiration gate. Scheduler reconciliation cancels
 effective work while expired and restores saved intent only after verified
 activation.
 
+On Android, a headless `BackgroundSyncSessionPaused` result also submits
+`cancelByTag` for the opaque generation captured in that WorkRequest. Verified
+foreground activation registers a fresh tag with the same unique work name.
+Pinned WorkManager 2.10.2 serializes `UPDATE` and tag cancellation: cancellation
+before recovery is followed by the fresh registration, while recovery before a
+stale cancellation removes the old tag before the lookup. In neither ordering
+can the old callback cancel the recovered generation. The Flutter plugin
+confirms only submission, not terminal completion of Android's native
+`Operation`.
+
 ## Security and privacy
 
 Expiration never moves a cookie, username, or password into SQLite. It never
@@ -404,6 +416,14 @@ identical before, between, and after both passes. The installed builder emitted
 only its documented warning that `--delete-conflicting-outputs` has been
 removed and is ignored.
 
+The Android generation-scoped pause follow-up ran 78 serialized adjacent tests,
+including the background runner/scheduler, deletion coordinator, automatic
+reauthentication, reauthenticating synchronization wrapper, and headless
+composition. The full serialized suite passed 1009 tests, and repository-wide
+strict Dart and Flutter analysis found no issues. The deterministic callback
+model proves both Dart-level old-cancel/new-update orderings; native Android
+runtime remains unverified.
+
 ## Known limitations
 
 - The local-first dashboard now renders populated saved assignments underneath
@@ -414,6 +434,8 @@ removed and is ignored.
 - Revision exhaustion at int32 maximum fails closed and requires future
   maintenance; it cannot occur during practical use.
 - Android, iOS, macOS, and Windows builds are not verified on this Linux host.
+- Android generation-scoped pause is covered by deterministic Dart race-model
+  tests but still requires device verification across process death and reboot.
 
 ## Future considerations
 

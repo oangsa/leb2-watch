@@ -40,6 +40,8 @@ void main() {
       expect(request.taskName, iosAssignmentRefreshTaskIdentifier);
       expect(request.frequency, const Duration(minutes: 15));
       expect(request.initialDelay, const Duration(minutes: 3, seconds: 4));
+      expect(request.inputData, isNull);
+      expect(request.tag, isNull);
       expect(request.networkRequirement, WorkmanagerNetworkRequirement.none);
       expect(request.existingPolicy, WorkmanagerPeriodicWorkPolicy.update);
     }
@@ -89,6 +91,9 @@ final class _Gateway implements WorkmanagerGateway {
 
   @override
   void bindTaskHandler(WorkmanagerPluginTaskHandler handler) {}
+
+  @override
+  Future<void> cancelByTag(String tag) async {}
 
   @override
   Future<void> cancelByUniqueName(String uniqueName) async {

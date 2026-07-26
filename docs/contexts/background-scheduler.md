@@ -26,6 +26,8 @@ service for every trigger.
 - A 15-minute requested cadence with 0–5 minutes of initial jitter.
 - Android WorkManager, iOS Workmanager/BGAppRefresh, and desktop timer family
   adapters behind the shared port.
+- Android generation-scoped cancellation for headless disabled/session-paused
+  results without exposing user data to WorkManager.
 - Desktop tray/window/autostart integration behind application-owned ports.
 - A headless-safe runner with target gates, cancellation, and optional budget.
 - Explicit open/run/close ownership for headless database/provider resources.
@@ -313,6 +315,13 @@ preserve the durable next retry instant when it can be read. Cancellation and
 budget expiry request cancellation but do not claim that a Dart Future or
 native operation was forcibly terminated.
 
+Each Android periodic registration carries a fresh opaque 128-bit tag as both
+its WorkRequest tag and its single application input value. Disabled and
+session-paused headless results submit `cancelByTag` for only that captured
+generation. Missing-target and no-background-course results retain the chain
+because their current recovery paths do not reconcile native work. The pinned
+plugin confirms submission but does not await Android's native `Operation`.
+
 If cancellation request and synchronization do not both quiesce within one
 second, the task returns bounded and retains the owned composition until both
 Futures complete. If either Future never completes, the composition is
@@ -330,6 +339,9 @@ Tests cover:
 - independent WAL connections converging on one jitter;
 - persist-before-register/cancel and joined initialization;
 - 15-minute cadence and stable initial delay;
+- distinct strict Android generation tags, input propagation/redaction, the
+  disabled/session-paused result policy, malformed-input rejection, and both
+  stale-callback/update orderings;
 - local automatic gates before HTTP;
 - tray refresh while monitoring is disabled;
 - cancellation against the exact selected target;
@@ -359,6 +371,13 @@ analysis with no issues. The cancellation/session-gate fix pass added
 deterministic red-to-green regressions; its final focused commands and exact
 counts are recorded in the Phase 13 integration-fix handoff.
 
+The later Android generation-scoped pause pass ran 24 focused gateway,
+dispatcher, Android callback, and iOS compatibility tests, then 78 adjacent
+scheduler, deletion, lifecycle, and reauthentication tests. Both passed
+serially. Repository-wide strict Dart/Flutter analysis passed, formatting
+checked 316 Dart files without changes, and the serialized full suite passed
+1009 tests.
+
 Platform-specific validation evidence is recorded in:
 
 - `docs/contexts/android-background-sync.md`
@@ -372,6 +391,8 @@ iOS/macOS/Windows native-host builds were unavailable.
 
 - Platform build verification on this Linux host is limited to Linux.
 - Android SDK/device and iOS/macOS/Windows native validation remain pending.
+- Android tag cancellation is Dart/static verified only; the plugin does not
+  expose terminal native `Operation` completion.
 - A plugin Future cannot be force-cancelled; cancellation is cooperative
   through the existing sync service.
 - A never-terminal synchronization intentionally retains its owned composition

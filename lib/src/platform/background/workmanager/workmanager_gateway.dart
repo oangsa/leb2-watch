@@ -14,6 +14,8 @@ final class WorkmanagerPeriodicTaskRequest {
     required this.taskName,
     this.frequency,
     this.initialDelay,
+    this.inputData,
+    this.tag,
     this.networkRequirement = WorkmanagerNetworkRequirement.none,
     this.existingPolicy = WorkmanagerPeriodicWorkPolicy.update,
   });
@@ -22,6 +24,8 @@ final class WorkmanagerPeriodicTaskRequest {
   final String taskName;
   final Duration? frequency;
   final Duration? initialDelay;
+  final Map<String, dynamic>? inputData;
+  final String? tag;
   final WorkmanagerNetworkRequirement networkRequirement;
   final WorkmanagerPeriodicWorkPolicy existingPolicy;
 
@@ -37,6 +41,8 @@ abstract interface class WorkmanagerGateway {
   Future<void> registerPeriodicTask(WorkmanagerPeriodicTaskRequest request);
 
   Future<void> cancelByUniqueName(String uniqueName);
+
+  Future<void> cancelByTag(String tag);
 
   Future<bool> isScheduledByUniqueName(String uniqueName);
 }
@@ -61,6 +67,8 @@ final class PluginWorkmanagerGateway implements WorkmanagerGateway {
       request.taskName,
       frequency: request.frequency,
       initialDelay: request.initialDelay,
+      inputData: request.inputData,
+      tag: request.tag,
       constraints: Constraints(
         networkType: switch (request.networkRequirement) {
           WorkmanagerNetworkRequirement.none => NetworkType.notRequired,
@@ -77,6 +85,11 @@ final class PluginWorkmanagerGateway implements WorkmanagerGateway {
   @override
   Future<void> cancelByUniqueName(String uniqueName) {
     return _plugin.cancelByUniqueName(uniqueName);
+  }
+
+  @override
+  Future<void> cancelByTag(String tag) {
+    return _plugin.cancelByTag(tag);
   }
 
   @override

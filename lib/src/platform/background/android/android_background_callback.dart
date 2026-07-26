@@ -13,21 +13,42 @@ typedef AndroidBackgroundSyncExecution =
       Duration? timeBudget,
     });
 
+typedef AndroidBackgroundGenerationCancellation =
+    Future<void> Function(String generationTag);
+
 final class AndroidBackgroundSyncTaskHandler {
-  AndroidBackgroundSyncTaskHandler({AndroidBackgroundSyncExecution? execute})
-    : _execute = execute ?? _executeWithFreshComposition;
+  AndroidBackgroundSyncTaskHandler({
+    AndroidBackgroundSyncExecution? execute,
+    required this.cancelByTag,
+  }) : _execute = execute ?? _executeWithFreshComposition;
 
   final AndroidBackgroundSyncExecution _execute;
+  final AndroidBackgroundGenerationCancellation cancelByTag;
 
   Future<WorkmanagerTaskExecutionResult> call(
     WorkmanagerTaskExecutionContext context,
   ) async {
     try {
-      await _execute(
+      final result = await _execute(
         reason: SyncReason.backgroundTask,
         cancellation: context.cancellation,
         timeBudget: context.timeBudget,
       );
+      if (result is BackgroundSyncDisabled ||
+          result is BackgroundSyncSessionPaused) {
+        final generationTag = parseAndroidPeriodicSyncGenerationTag(
+          context.inputData?[androidPeriodicSyncGenerationInputKey],
+        );
+        if (generationTag != null) {
+          try {
+            await cancelByTag(generationTag);
+          } on Object {
+            // The plugin only confirms submission and does not expose native
+            // Operation completion. A later wake can safely resubmit the same
+            // generation-scoped cancellation.
+          }
+        }
+      }
     } on Object {
       // The shared executor normally maps startup and sync failures into a
       // durable result. An unexpected exception is still treated as handled
@@ -57,10 +78,13 @@ final class AndroidBackgroundSyncTaskHandler {
 
 @pragma('vm:entry-point')
 void androidBackgroundCallbackDispatcher() {
+  final gateway = PluginWorkmanagerGateway();
   installWorkmanagerTaskDispatcher(
-    gateway: PluginWorkmanagerGateway(),
+    gateway: gateway,
     handlers: {
-      androidPeriodicSyncTaskName: AndroidBackgroundSyncTaskHandler().call,
+      androidPeriodicSyncTaskName: AndroidBackgroundSyncTaskHandler(
+        cancelByTag: gateway.cancelByTag,
+      ).call,
     },
     timeBudget: androidBackgroundExecutionBudget,
   );
