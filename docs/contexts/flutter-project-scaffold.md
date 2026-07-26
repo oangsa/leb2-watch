@@ -19,7 +19,8 @@ guessing a backend URL, or mixing later architecture into the scaffold.
 - Display name `LEB2 Watch`.
 - Android application ID and Apple application bundle ID
   `dev.oangsa.leb2watch`.
-- Desktop executable name `leb2-watch`.
+- Desktop executable name `leb2-watch` (with the native `.exe` suffix on
+  Windows) and iOS internal executable name `leb2-watch`.
 - A thin Dart entry point, bootstrap function, minimal application root, and
   empty feature/platform seams.
 - Compile-time development and production configuration.
@@ -82,6 +83,8 @@ The scaffold depends only on the Flutter SDK. `flutter_lints` and
 - `.github/workflows/ci.yml` — bounded Linux formatting, analysis, and test
   validation.
 - `android/app/build.gradle.kts` — Android namespace and application ID.
+- `ios/Flutter/Debug.xcconfig` and `ios/Flutter/Release.xcconfig` — explicit
+  iOS executable-name overrides shared by Debug, Release, and Profile.
 - `ios/Runner.xcodeproj/project.pbxproj` — iOS app and test bundle IDs.
 - `linux/CMakeLists.txt` — Linux executable and GTK application ID.
 - `macos/Runner/Configs/AppInfo.xcconfig` — macOS bundle and executable
@@ -140,7 +143,7 @@ persistence and transport behind lazy application providers.
 | Platform | Configuration | Validation status |
 | --- | --- | --- |
 | Android | Label `LEB2 Watch`; namespace, application ID, and Kotlin package `dev.oangsa.leb2watch` | Static only; Android SDK and Java toolchain are unavailable |
-| iOS | Display/bundle name `LEB2 Watch`; Runner bundle ID `dev.oangsa.leb2watch`; test bundle IDs use `.RunnerTests` | Static only; Xcode requires macOS |
+| iOS | Display/bundle name `LEB2 Watch`; Runner bundle ID `dev.oangsa.leb2watch`; internal executable `leb2-watch`; test bundle IDs use `.RunnerTests` | Static only; Xcode requires macOS |
 | Linux | Title `LEB2 Watch`; GTK application ID `dev.oangsa.leb2watch`; executable `leb2-watch` | `flutter build linux` passed |
 | macOS | Display name `LEB2 Watch`; bundle ID `dev.oangsa.leb2watch`; executable `leb2-watch` | Static only; Xcode requires macOS |
 | Windows | Title/product `LEB2 Watch`; executable `leb2-watch.exe` | Static only; Windows and MSVC are required |
@@ -148,12 +151,15 @@ persistence and transport behind lazy application providers.
 The target inventory contains exactly the five requested platform directories
 and no `web/` project.
 
-The product requirement's `leb2-watch` executable name is interpreted as a
-desktop requirement. The non-user-visible iOS executable, Runner target,
-`Runner.app`, and scheme remain generated names. On macOS,
-`leb2_watch.app` and the Runner scheme remain stable while
-`EXECUTABLE_NAME = leb2-watch`; Runner test-host paths were updated to the new
-internal executable.
+The product requirement's `leb2-watch` executable name applies to the desktop
+binaries and the iOS bundle's internal executable. The iOS Debug and Release
+xcconfig files set `EXECUTABLE_NAME = leb2-watch` after including
+`Generated.xcconfig`; Profile inherits the Release xcconfig. The iOS Runner
+target, Swift module, `Runner.app` wrapper, and Runner scheme retain their
+generated names. All three RunnerTests configurations host tests from
+`Runner.app/leb2-watch`. On macOS, `leb2_watch.app` and the Runner scheme
+similarly remain stable while `EXECUTABLE_NAME = leb2-watch`; Runner test-host
+paths point to that internal executable.
 
 ## Security and privacy
 
@@ -183,8 +189,8 @@ treated as a fully immutable action graph.
   implemented.
 - Track empty feature and platform seams with `.gitkeep` rather than placeholder
   Dart APIs.
-- Interpret the hyphenated executable name as desktop-only and avoid an
-  unverified Xcode target/product rename.
+- Set the iOS executable filename explicitly while preserving the generated
+  Runner target, Swift module, application wrapper, and scheme.
 - Keep the CI workflow to dependency resolution, formatting, analysis, and
   tests; Linux build dependencies are not speculatively installed in CI.
 
@@ -221,6 +227,17 @@ error behavior in the scaffold.
 
 `test/leb2_watch_app_test.dart` verifies that the Material application root and
 the `LEB2 Watch` label render.
+
+`test/platform/background/ios_background_configuration_test.dart` statically
+verifies that:
+
+- Debug and Release each define `EXECUTABLE_NAME = leb2-watch` exactly once
+  after `Generated.xcconfig`;
+- `CFBundleExecutable` remains bound to `$(EXECUTABLE_NAME)`;
+- Debug, Release, and Profile RunnerTests host paths end in `leb2-watch`;
+- the Runner application wrapper and scheme names remain unchanged; and
+- all three application and test bundle identifiers retain their required
+  values.
 
 ## Validation evidence
 
@@ -270,18 +287,27 @@ Static validation confirmed:
 
 GitHub Actions itself was not executed locally.
 
+Later iOS executable-identity hardening used a red-before-green focused static
+test on Linux. The final focused run passed all five tests in
+`ios_background_configuration_test.dart`. Focused Dart formatting was
+unchanged, strict analysis reported no issues, and `git diff --check` passed.
+No iOS build was run or claimed because this host does not provide Xcode.
+
 ## Known limitations
 
 - Android is not build-verified because the host has no Android SDK or Java
   toolchain. Run `flutter build apk` after configuring them.
 - iOS and macOS are not build-verified because Xcode is unavailable on Linux.
-  On a configured macOS host, run `flutter build ios --no-codesign` and
-  `flutter build macos`.
+  On a configured macOS host, run `flutter build ios --debug --simulator`,
+  `flutter build ios --release --no-codesign`, the Runner scheme's
+  `xcodebuild` build and test commands, and verify the resolved
+  `EXECUTABLE_NAME` plus the produced `Runner.app/leb2-watch` file. Run
+  `flutter build macos` separately for the macOS target.
 - Windows is not build-verified because Windows/MSVC are unavailable. On a
   configured Windows host, run `flutter build windows`.
 - Apple native metadata changes are statically checked but require the native
-  builds above, including verification of the macOS executable/test-host
-  relationship.
+  builds above, including verification of the iOS and macOS
+  executable/test-host relationships.
 - The CI workflow has not run, and its composite Flutter action contains the
   transitive mutable-cache reference described under Security and privacy.
 - No production backend URL is selected or verified.

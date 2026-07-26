@@ -20,6 +20,7 @@ installing a service or persisting secrets.
 - A first-close explanation before the window is hidden.
 - Opt-in, OS-backed start-at-login state.
 - Native single-instance behavior and best-effort window restoration.
+- Sandboxed outbound backend access on macOS.
 - Platform-specific tray assets derived from the existing application icon.
 
 ## Non-scope
@@ -101,6 +102,10 @@ channels.
 - `linux/runner/my_application.cc` — unique `GApplication` and window reuse.
 - `macos/Runner/AppDelegate.swift` — tray-preserving close and reopen behavior.
 - `macos/Runner/MainFlutterWindow.swift` — safe start-at-login method channel.
+- `macos/Runner/DebugProfile.entitlements` — sandbox, outbound network,
+  inbound debug network, and JIT permissions.
+- `macos/Runner/Release.entitlements` — least-privilege sandbox and outbound
+  network permissions.
 - `macos/Runner.xcodeproj/project.pbxproj` — pinned
   `LaunchAtLogin-Legacy` 5.0.2 package and helper-copy phase.
 - `windows/runner/main.cpp` — per-user mutex and second-instance restoration.
@@ -156,7 +161,10 @@ is not mirrored as an application source of truth.
   presents the window, and `LSMultipleInstancesProhibited` prevents concurrent
   application instances. Start at login uses `LaunchAtLogin-Legacy` exactly
   version 5.0.2 and its pre-macOS-13 helper copy script while preserving the
-  10.15 deployment target and sandbox entitlements.
+  10.15 deployment target. Both sandbox profiles grant
+  `com.apple.security.network.client` so the app can contact the configured
+  backend. Debug/Profile retains `network.server` and `cs.allow-jit` for
+  Flutter tooling; Release grants neither inbound-network nor JIT permission.
 - **Windows:** a named `Local\dev.oangsa.leb2watch.instance.v1` mutex is acquired
   before Flutter engine creation. A later launch finds the app-specific window
   class, restores the window, and requests foreground focus before exiting.
@@ -169,6 +177,8 @@ is not mirrored as an application source of truth.
 - No session cookie, password, authorization header, assignment data, or
   diagnostic detail is included in tray menus, autostart arguments, native
   identifiers, or logs.
+- The macOS Release sandbox grants outbound client connections only; it does
+  not grant inbound listener or JIT permissions.
 - Native and plugin exceptions are mapped to fixed unavailable states rather
   than displayed verbatim.
 - No daemon, service, analytics, remote storage, or privileged registration is
@@ -189,6 +199,9 @@ is not mirrored as an application source of truth.
   file, or service.
 - Choose `LSMultipleInstancesProhibited` on macOS. This also prevents separate
   application instances across Fast User Switching sessions.
+- Grant macOS outbound network access in both sandbox profiles because backend
+  synchronization is a core client operation, while keeping Release free of
+  debug-only inbound-network and JIT permissions.
 
 ## Alternatives rejected
 
@@ -233,7 +246,9 @@ the final window-destroy attempt.
   text scaling.
 - Native static tests cover Linux uniqueness, the Windows pre-engine mutex and
   restoration path, macOS lifecycle/package/channel configuration, sandbox
-  preservation, and asset headers/dimensions.
+  preservation, outbound client access in both macOS profiles, Debug/Profile
+  server and JIT retention, Release server and JIT exclusion, and asset
+  headers/dimensions.
 
 ## Validation evidence
 
@@ -258,6 +273,24 @@ the final window-destroy attempt.
 - `ldd` checks found AppIndicator, GTK, DBusMenu, Flutter, and SQLite
   dependencies with no missing libraries.
 - `git diff --check` — passed before this context update.
+- `xmllint --noout macos/Runner/DebugProfile.entitlements
+  macos/Runner/Release.entitlements` — passed on Linux after adding the macOS
+  outbound client entitlement.
+- `flutter test
+  test/platform/desktop/desktop_native_configuration_test.dart --reporter
+  compact` — 4 tests passed on Linux after the entitlement change. The same
+  focused test first failed on the missing client entitlement, providing the
+  red test evidence.
+- `dart format --output=none --set-exit-if-changed
+  test/platform/desktop/desktop_native_configuration_test.dart` — passed with
+  no changes.
+- `flutter analyze
+  test/platform/desktop/desktop_native_configuration_test.dart` — passed with
+  no issues.
+- `git diff --check -- macos/Runner/DebugProfile.entitlements
+  macos/Runner/Release.entitlements
+  test/platform/desktop/desktop_native_configuration_test.dart
+  docs/contexts/desktop-tray-monitoring.md` — passed after the context update.
 
 ## Known limitations
 
@@ -269,11 +302,28 @@ the final window-destroy attempt.
 - macOS and Windows changes were not build-verified on this Linux host.
 - macOS helper copying and Windows mutex/focus behavior still require runtime
   validation on their native hosts.
+- The macOS entitlement plist shape is XML- and statically validated on Linux,
+  but a signed Release build and a real sandboxed HTTPS request require macOS.
 
 ## Future considerations
 
 - Run the documented native smoke scenarios on macOS 10.15+, current macOS,
   Windows 10/11, X11, and Wayland.
+- On macOS, run:
+
+  ```bash
+  plutil -lint macos/Runner/DebugProfile.entitlements
+  plutil -lint macos/Runner/Release.entitlements
+  flutter build macos --release \
+    --dart-define=APP_ENV=production \
+    '--dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>'
+  codesign -d --entitlements :- \
+    build/macos/Build/Products/Release/leb2_watch.app
+  ```
+
+  Then use sanitized credentials to verify a session and refresh semesters
+  against a non-production self-hosted HTTPS backend. Confirm there is no
+  sandbox `Operation not permitted` failure, and do not log the session.
 - Add native runner tests if dedicated macOS and Windows CI workers become
   available.
 - Consider surfacing start-at-login controls in settings if they are not already

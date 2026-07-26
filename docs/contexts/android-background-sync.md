@@ -42,6 +42,13 @@ or fails.
 Disabling monitoring cancels only LEB2 Watch's unique periodic work. Background
 execution never requests notification permission.
 
+If a headless run observes that monitoring is disabled, its target is missing,
+or its session is paused, the durable local gate prevents HTTP and the callback
+reports the wake handled without mutating native scheduling. The periodic chain
+can therefore remain scheduled and produce later local no-op wakes until policy
+recovers. Explicit foreground disable and foreground session reconciliation
+remain the owners of native cancellation and recovery registration.
+
 ## Architecture
 
 `LocalBackgroundScheduler` owns the persisted monitoring preference and stable
@@ -61,6 +68,13 @@ close only after that synchronization is terminal; a budget-triggered
 cancellation whose request or synchronization does not settle within the
 shared one-second drain remains retained in a close-after-quiescence
 continuation until both settle.
+
+The callback maps every durable `BackgroundSyncRunResult` to handled and has no
+schedule-mutation capability. Unexpected execution errors are also handled
+without native retry, so application synchronization backoff stays
+authoritative. Keeping the headless callback schedule-neutral prevents a stale
+stop result from cancelling a newer valid registration under the same stable
+unique work name.
 
 ## Important files
 
@@ -123,10 +137,17 @@ WorkManager input data.
    applies notification/reminder effects only after commit.
 7. Owned resources close after normal completion/failure or cancellation
    quiescence, never merely because cancellation was requested.
+8. Every durable result is reported handled. Disabled, missing-target, and
+   session-paused runs stop before HTTP but leave the stable unique chain
+   unchanged.
 
 Repeated initialization joins one in-flight initialization. Repeated
-registration cannot create a second unique name. Cancellation uses
-`cancelByUniqueName`; it never calls `cancelAll`.
+registration cannot create a second unique name. Explicit foreground disable
+and foreground session reconciliation use `cancelByUniqueName`; they never call
+`cancelAll`. The pinned plugin completes its Dart method-channel call after
+submitting `cancelUniqueWork`; it does not await Android's returned `Operation`.
+A completed Dart future therefore proves request submission without a
+synchronous/plugin error, not native terminal state.
 
 ## Platform behavior
 
@@ -160,9 +181,13 @@ reuse them with its own top-level entrypoint and task names.
   and exact-time requirements are not product contracts.
 - Keep the nine-minute Dart budget below WorkManager's ordinary ten-minute
   execution limit.
-- Return native success for success, deferred, paused, failed, and cancelled
-  application outcomes. Durable application backoff and session state remain
-  authoritative.
+- Return native success for every durable application outcome. Durable local
+  gates and application backoff remain authoritative.
+- Keep the headless callback schedule-neutral. A stop result reflects an
+  earlier local policy snapshot and must not cancel a newer stable-name
+  registration.
+- Let explicit foreground disable and foreground session reconciliation own
+  cancellation and recovery registration.
 - Return native success for unknown task names and unexpected handler errors to
   avoid deterministic retry loops or stacked backoff.
 
@@ -177,15 +202,22 @@ reuse them with its own top-level entrypoint and task names.
   costs without being required for periodic synchronization.
 - Returning native retry for every failed synchronization would stack Android
   backoff on the existing durable 1m/2m/5m/15m application policy.
+- Raw headless `cancelByUniqueName` would let a stale stop result cancel a newer
+  valid replacement chain. Race-safe terminal self-cancellation requires a
+  future native-owned, generation-aware scheduling coordinator rather than a
+  Dart read-then-cancel check.
 
 ## Failure behavior
 
 Feature 13.1 maps platform initialization, registration, cancellation, status,
 and local-storage errors into redacted scheduler statuses or exceptions.
 Handled synchronization failures preserve valid cached data. Session expiration
-pauses automatic synchronization without deleting cached assignments. Missing
-targets, disabled monitoring, and no background-enabled courses are successful
-local no-ops.
+pauses automatic synchronization without deleting cached assignments. Disabled
+monitoring, missing targets, and session pause are handled local no-ops that
+perform no HTTP. When these states are discovered only by a headless isolate,
+the chain can remain scheduled and later wakes repeat the local gates until
+policy recovers. All durable outcomes and unexpected execution exceptions are
+handled without callback cancellation or native retry.
 
 Android can stop the process without running Dart cleanup. Durable database
 leases, operation fencing, transactional persistence, notification history, and
@@ -199,17 +231,61 @@ later foreground reconciliation remain the recovery mechanisms.
   stable names, 15-minute floor, persisted delay forwarding, connected network,
   update policy, unique cancellation, and status.
 - `android_background_callback_test.dart` — handled mapping for every durable
-  runner result, unexpected errors, background reason/budget, and retained
-  top-level entrypoint.
+  result, background reason/budget, unexpected-error behavior, retained
+  entrypoint wiring without headless cancellation, and deterministic stale
+  disabled/missing-target/session-paused replacement-survival interleavings.
 - `android_manifest_configuration_test.dart` — internet permission, preserved
   boot/notification/backup configuration, and absence of foreground service,
   custom initializer, or exact-alarm additions.
+- `local_background_scheduler_test.dart` — preserves desired monitoring intent
+  while a session is expired and registers exactly one fresh schedule after
+  verified activation.
 
 ## Validation evidence
 
 Executed on Flutter 3.44.8 and Dart 3.12.2:
 
 ```text
+flutter test --concurrency=1 \
+  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/background/android/android_workmanager_scheduler_platform_test.dart \
+  test/features/background_sync/application/local_background_scheduler_test.dart \
+  test/features/background_sync/application/background_sync_runner_test.dart \
+  test/platform/background/ios_background_callback_test.dart \
+  test/platform/background/ios_background_configuration_test.dart \
+  test/platform/desktop/desktop_native_configuration_test.dart
+30 tests passed
+
+dart analyze --fatal-infos --fatal-warnings \
+  lib/src/platform/background/android/android_background_callback.dart \
+  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/background/android/android_workmanager_scheduler_platform_test.dart \
+  test/features/background_sync/application/local_background_scheduler_test.dart \
+  test/features/background_sync/application/background_sync_runner_test.dart \
+  test/platform/background/ios_background_callback_test.dart \
+  test/platform/background/ios_background_configuration_test.dart \
+  test/platform/desktop/desktop_native_configuration_test.dart
+No issues found
+
+dart format --output=none --set-exit-if-changed \
+  lib/src/platform/background/android/android_background_callback.dart \
+  test/platform/background/android/android_background_callback_test.dart
+2 files formatted; 0 changed
+
+git diff --check
+Passed
+
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://api.example.org
+[!] No Android SDK found
+
+flutter doctor -v
+Flutter 3.44.8 / Dart 3.12.2
+Android toolchain: ✗ unable to locate SDK
+Linux toolchain: ✓
+Linux device: ✓
+
 flutter test <four focused Android/WorkManager test files>
 15 tests passed
 
@@ -228,6 +304,11 @@ flutter build linux --release
 Built build/linux/x64/release/bundle/leb2-watch
 ```
 
+The replacement-survival test was added before the callback correction and
+failed to compile because `AndroidBackgroundSyncTaskHandler` still required the
+unsafe `cancelPending` capability. After removing that capability and its
+dispatcher wiring, all four callback tests and the 30-test grouped batch passed.
+
 The repository-wide suite reached 766 passing tests with exactly one expected
 failure in the deferred shared platform-factory test, which still asserted that
 Android was unsupported. Repository-wide analysis was also attempted; only
@@ -239,9 +320,23 @@ it is not evidence of Android runtime behavior.
 
 ## Known limitations
 
-- The Android SDK is unavailable on this Linux host. Gradle resolution,
-  manifest merging, APK builds, emulator execution, reboot recovery, and actual
-  background plugin access are not verified.
+- The release APK command failed immediately with `[!] No Android SDK found`.
+  `flutter doctor -v` confirmed Flutter 3.44.8/Dart 3.12.2 and an available
+  Linux toolchain/device, but no Android SDK. Gradle resolution, manifest
+  merging, APK compilation, emulator execution, reboot recovery, and actual
+  background plugin access remain unverified. No APK was produced.
+- On a host with an Android SDK, rerun exactly:
+
+  ```text
+  flutter build apk --release --dart-define=APP_ENV=production --dart-define=BACKEND_BASE_URL=https://api.example.org
+  ```
+- Headless-only disabled, missing-target, or paused states can leave the
+  periodic chain scheduled. Those wakes remain local no-ops and perform no
+  HTTP.
+- True terminal headless self-cancellation needs a native-owned,
+  generation-aware coordinator plus Android device validation. The current
+  plugin does not expose native operation completion or a safe generation
+  cancellation boundary.
 - WorkManager does not expose a cooperative Dart cancellation callback when
   Android stops the worker; the execution-budget hook is the available
   cooperative bound.
@@ -254,6 +349,11 @@ On an Android-capable host, build debug and release APKs, inspect the merged
 manifest and JobScheduler state, then exercise offline constraints, repeated
 registration, permission denial, process death, reboot, force-stop/reopen,
 session expiration, baseline silence, and exactly-once notification behavior.
+For session expiration specifically, verify that foreground reconciliation
+owns cancellation, replace the session, and confirm that the retained desired
+preference causes exactly one fresh unique registration. If terminal
+headless-only cancellation becomes a requirement, implement and validate the
+native coordinator before changing callback ownership.
 
 ## Related contexts
 

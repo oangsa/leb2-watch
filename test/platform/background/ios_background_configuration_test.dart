@@ -71,6 +71,71 @@ void main() {
       3,
     );
   });
+
+  test('Debug and Release produce the leb2-watch executable', () {
+    for (final configuration in ['Debug', 'Release']) {
+      final xcconfig = File(
+        'ios/Flutter/$configuration.xcconfig',
+      ).readAsStringSync();
+
+      expect(_occurrences(xcconfig, 'EXECUTABLE_NAME = leb2-watch'), 1);
+      expect(
+        xcconfig,
+        contains(
+          '#include "Generated.xcconfig"\n'
+          'EXECUTABLE_NAME = leb2-watch',
+        ),
+      );
+    }
+  });
+
+  test('Runner metadata hosts tests with the renamed executable', () {
+    final plist = File('ios/Runner/Info.plist').readAsStringSync();
+    final project = File(
+      'ios/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+    final schemeFile = File(
+      'ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme',
+    );
+    final scheme = schemeFile.readAsStringSync();
+
+    expect(
+      _occurrences(
+        plist,
+        '<key>CFBundleExecutable</key>\n'
+        '\t<string>\$(EXECUTABLE_NAME)</string>',
+      ),
+      1,
+    );
+    expect(
+      _occurrences(
+        project,
+        'TEST_HOST = "\$(BUILT_PRODUCTS_DIR)/Runner.app/'
+        '\$(BUNDLE_EXECUTABLE_FOLDER_PATH)/leb2-watch";',
+      ),
+      3,
+    );
+    expect(
+      _occurrences(
+        project,
+        'PRODUCT_BUNDLE_IDENTIFIER = dev.oangsa.leb2watch;',
+      ),
+      3,
+    );
+    expect(
+      _occurrences(
+        project,
+        'PRODUCT_BUNDLE_IDENTIFIER = dev.oangsa.leb2watch.RunnerTests;',
+      ),
+      3,
+    );
+    expect(project, contains('path = Runner.app;'));
+    expect(project, isNot(contains('path = leb2-watch.app;')));
+    expect(schemeFile.existsSync(), isTrue);
+    expect(scheme, contains('BuildableName = "Runner.app"'));
+    expect(scheme, contains('BlueprintName = "Runner"'));
+    expect(scheme, isNot(contains('BuildableName = "leb2-watch.app"')));
+  });
 }
 
 int _occurrences(String source, String pattern) {

@@ -98,12 +98,44 @@ void main() {
         contains('<key>com.apple.security.app-sandbox</key>'),
       );
       expect(
+        debugEntitlements,
+        contains(
+          '<key>com.apple.security.network.client</key>\n'
+          '\t<true/>',
+        ),
+      );
+      expect(
+        debugEntitlements,
+        contains(
+          '<key>com.apple.security.network.server</key>\n'
+          '\t<true/>',
+        ),
+      );
+      expect(
+        debugEntitlements,
+        contains(
+          '<key>com.apple.security.cs.allow-jit</key>\n'
+          '\t<true/>',
+        ),
+      );
+      expect(
         releaseEntitlements,
         contains('<key>com.apple.security.app-sandbox</key>'),
       );
       expect(
         releaseEntitlements,
+        contains(
+          '<key>com.apple.security.network.client</key>\n'
+          '\t<true/>',
+        ),
+      );
+      expect(
+        releaseEntitlements,
         isNot(contains('com.apple.security.network.server')),
+      );
+      expect(
+        releaseEntitlements,
+        isNot(contains('com.apple.security.cs.allow-jit')),
       );
     });
 
