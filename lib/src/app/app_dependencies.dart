@@ -440,11 +440,14 @@ final semesterSelectionServiceProvider =
       final lifecycleStore = await ref.watch(
         sessionLifecycleStoreProvider.future,
       );
-      return LocalSemesterSelectionService(
-        ref.watch(backendApiClientProvider),
-        store,
-        lifecycleStore,
-      );
+      return LocalSemesterSelectionService(store, lifecycleStore, ({
+        cancellation,
+      }) async {
+        final client = ref.read(backendApiClientProvider);
+        return (await client.getSemesters(
+          cancellation: cancellation,
+        )).map((semester) => semester.id).toList(growable: false);
+      });
     });
 
 final newAssignmentNotificationDrainProvider =

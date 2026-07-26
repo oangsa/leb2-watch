@@ -2,11 +2,11 @@
 
 ## Status
 
-Completed for local-first semester loading, protected backend refresh,
-offline selection, initial-flow progression, and ready-user semester changes.
-The shared Dart implementation is covered by focused tests. Linux build
-validation is recorded below; other native targets remain unverified on this
-host.
+Completed for local-first semester loading, configuration-independent cached
+access, protected backend refresh, offline selection, initial-flow
+progression, and ready-user semester changes. The shared Dart implementation
+is covered by focused tests. Linux build validation is recorded below; other
+native targets remain unverified on this host.
 
 ## Purpose
 
@@ -17,6 +17,10 @@ offline, stale, backend-error, and expired-session states.
 ## Scope
 
 - Read cached semester IDs and the active selection from Drift first.
+- Construct the cache and selection service without resolving backend
+  configuration or a transport client.
+- Resolve one narrow semester-ID refresh capability only after cancellation
+  and session-lifecycle checks permit a remote refresh.
 - Refresh through the verified authenticated `GET /Semester` contract.
 - Merge only validated, nonempty backend results into the local catalog.
 - Persist one active semester without changing unrelated settings.
@@ -47,6 +51,12 @@ The page renders saved semester IDs immediately, then refreshes them in the
 background. IDs use the truthful label `Semester <id>` and descending numeric
 order; the UI does not imply that the order is academic chronology.
 
+A missing or malformed self-hosted backend URL does not hide readable cached
+rows. It produces the same bounded inline stale state as another unexpected
+refresh failure, while cached semesters remain selectable offline. A genuine
+local database or provider failure still uses the full-page local-storage
+error and retry surface.
+
 A successful refresh adds newly returned IDs without removing cached IDs.
 Offline, stale, invalid-response, and expired-session banners remain inline
 above the usable saved list. A full-page loading state appears only while
@@ -65,9 +75,10 @@ successful save, retrying navigation does not save the semester a second time.
 
 `DriftSemesterSelectionStore` owns transactional catalog reads, insert-only
 merges, and active-selection persistence. `LocalSemesterSelectionService`
-coordinates the backend, session lifecycle, failure mapping, cancellation,
-and per-instance single-flight refresh. Widgets depend only on the
-application-owned service and redacted result values.
+coordinates a narrow lazy semester-ID refresh invoker, session lifecycle,
+failure mapping, cancellation, and per-instance single-flight refresh.
+Widgets depend only on the application-owned service and redacted result
+values.
 
 `SemesterSelectionPage` performs cached-first loading and starts refresh
 without awaiting it. It owns one route-lifetime cancellation token, presents
@@ -80,8 +91,12 @@ The shared ready-shell content adds one semantically labeled icon action. It
 uses top-level `go('/semesters')` navigation while the initial
 semester-selection gate remains outside the shell.
 
-The provider graph reuses the existing database, authenticated API client, and
-session-lifecycle store. No widget imports Dio or Drift.
+The provider graph constructs the service from only the existing database
+store and session-lifecycle store. Its lazy invoker resolves the authenticated
+API client with `ref.read` only when an allowed refresh reaches the remote
+step. Cache reads, cached selection, and pre-expired refreshes therefore never
+construct Dio or validate backend configuration. No widget imports Dio or
+Drift.
 
 ## Important files
 
@@ -105,6 +120,9 @@ session-lifecycle store. No widget imports Dio or Drift.
   orchestration, failure, cancellation, and concurrency coverage.
 - `test/features/semesters/presentation/semester_selection_page_test.dart` —
   local-first, status, interaction, responsive, and semantics coverage.
+- `test/features/semesters/presentation/semester_selection_route_test.dart` —
+  real-Drift production-provider coverage for missing, malformed, and
+  pre-expired remote configuration paths.
 - `test/app/routing/app_router_test.dart` — route and flow transitions.
 - `test/app/app_dependencies_test.dart` — provider composition and sharing.
 
@@ -121,6 +139,18 @@ abstract interface class SemesterSelectionService {
   Future<SemesterSelectionResult> select(int semesterId);
 }
 ```
+
+Its only remote capability is:
+
+```dart
+typedef SemesterIdRefreshInvoker =
+    Future<List<int>> Function({
+      BackendRequestCancellation? cancellation,
+    });
+```
+
+The invoker deliberately returns only verified numeric IDs. It is not resolved
+by `readCached`, `select`, service construction, or a pre-expired refresh.
 
 The store is:
 
@@ -150,9 +180,10 @@ empty catalog.
 
 ## Data model
 
-This feature originally used schema version 6 unchanged. Feature 10.2 later
-raised the live database to schema version 7 without changing the semester
-selection contracts:
+This feature originally used schema version 6 unchanged. Later features raised
+the live database to schema version 12 without changing the semester-selection
+contracts. The configuration-resilience change also makes no schema,
+migration, or generated-code change:
 
 - `semesters.semester_id` owns each positive numeric identifier.
 - `app_settings.active_semester_id` stores the optional selection and
@@ -184,7 +215,8 @@ Refresh safety:
 1. Join an existing in-flight refresh for the same service instance.
 2. Read and capture the durable session-lifecycle snapshot.
 3. Stop before HTTP if that snapshot is expired.
-4. Execute the authenticated semester request with route cancellation.
+4. Resolve the lazy semester-ID invoker and execute the authenticated semester
+   request with route cancellation.
 5. Map transport evidence before applying cancellation. Exact
    `SESSION_EXPIRED` always revision-fences expiration of the captured
    lifecycle, even if route cancellation raced the response; cancellation may
@@ -235,6 +267,10 @@ both the semester catalog and the active selection.
 
 - Render cache before starting refresh so backend latency never blocks usable
   local state.
+- Compose local cache and selection without the backend client so missing or
+  malformed self-hosting configuration cannot disable readable local data.
+- Inject one lazy ID-only invoker rather than deferring Dio validation
+  globally or exposing the complete backend client to the service.
 - Treat an empty response as invalid rather than authoritative because the
   verified backend evidence is ambiguous.
 - Use insert-only merge because deleting a semester would cascade into
@@ -273,6 +309,15 @@ both the semester catalog and the active selection.
   identifiers are verified.
 - Reading the backend before Drift was rejected because it would violate the
   local-first startup requirement.
+- Watching `backendApiClientProvider` while constructing the service was
+  rejected because configuration validation can fail before the page gets a
+  chance to read Drift.
+- Deferring base-URL validation inside the global Dio client was rejected
+  because it would change authentication, synchronization, diagnostics, and
+  background behavior outside this feature.
+- Opening an ad-hoc store from the route's provider-error branch was rejected
+  because it would duplicate database ownership and misclassify a remote
+  configuration failure as local-storage failure.
 - Persisting a response after only an application-level lifecycle check was
   rejected because the session could change between that check and the
   transaction.
@@ -292,6 +337,13 @@ over a raced route cancellation; all non-expiration failures may still resolve
 as cancellation. Timeouts, offline state, backend unavailability, rate
 limiting, malformed or empty responses, cancellation, storage errors, and
 unexpected transport failures remain bounded domain results.
+
+Backend client or configuration initialization failure occurs inside the
+awaited lazy refresh operation. It maps to a redacted
+`UnknownSyncFailure(unexpectedTransportFailure)` and leaves cached rows
+mounted. Because the lifecycle check precedes the invoker, a pre-expired
+session does not even resolve the backend provider. Genuine store or lifecycle
+provider construction failures remain route-level local-storage errors.
 
 No failed or discarded refresh removes or replaces cached semesters. The
 offline and stale banners permit manual retry. Expiration offers reconnect
@@ -316,6 +368,8 @@ Store coverage verifies:
 Service coverage verifies:
 
 - cached reads make no transport request;
+- cached reads and selection do not invoke a failing backend-configuration
+  capability;
 - valid refresh and exact same-future single flight;
 - empty-response rejection and typed failure mapping;
 - pre-expired, exact-expiration, stale-expiration, and lifecycle-fence cases;
@@ -327,6 +381,10 @@ Service coverage verifies:
 Page and route coverage verifies:
 
 - cached rows appear before a delayed refresh completes;
+- real-Drift production providers keep cached rows mounted for missing and
+  malformed backend URLs and expose only the redacted stale banner;
+- a real-Drift pre-expired route never resolves the backend provider, including
+  after manual refresh;
 - inline refreshing, fresh, stale, offline, expired, invalid-empty, and local
   storage states;
 - manual retry and rapid-action suppression;
@@ -343,6 +401,43 @@ Page and route coverage verifies:
   reach the real semester route.
 
 ## Validation evidence
+
+The 2026-07-27 cached-configuration resilience validation used the initialized
+Flutter SDK after sourcing `~/.zshrc` once in the first terminal. The initial
+production-provider route run failed all 3 new tests because cached rows were
+hidden, establishing red evidence. After the lazy invoker change:
+
+```text
+flutter test --concurrency=1 \
+  test/features/semesters/application/semester_selection_service_test.dart \
+  test/features/semesters/presentation/semester_selection_route_test.dart
+18 tests passed.
+
+flutter test --concurrency=1 \
+  test/features/semesters/data/semester_selection_store_test.dart \
+  test/features/semesters/application/semester_selection_service_test.dart \
+  test/features/semesters/presentation/semester_selection_page_test.dart \
+  test/features/semesters/presentation/semester_selection_route_test.dart \
+  test/app/app_dependencies_test.dart \
+  test/app/startup/app_startup_flow_test.dart \
+  test/app/routing/app_router_test.dart
+93 tests passed.
+
+dart format --output=none --set-exit-if-changed .
+Formatted 316 files with no changes required.
+
+dart analyze --fatal-infos --fatal-warnings
+No issues found.
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues found.
+
+flutter test --concurrency=1
+991 tests passed.
+```
+
+No generator was run because the feature changes neither a generated source
+definition nor the schema.
 
 The first Flutter/Dart invocation used a newly opened zsh and sourced
 `~/.zshrc` once, as requested. Focused validation passed:
@@ -416,6 +511,9 @@ changed.
   The page has no separate cancel action; selecting a cached semester returns
   to assignments.
 - Automatic startup-flow restoration remains outside this feature.
+- Failures before `runApp` and the global configuration/bootstrap recovery
+  surface remain outside this feature; this guarantee begins once the
+  production semester route is mounted.
 - Android, iOS, macOS, and Windows native builds are not verified on this
   Linux host.
 

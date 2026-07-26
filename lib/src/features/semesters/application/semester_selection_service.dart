@@ -15,6 +15,9 @@ abstract interface class SemesterSelectionService {
   Future<SemesterSelectionResult> select(int semesterId);
 }
 
+typedef SemesterIdRefreshInvoker =
+    Future<List<int>> Function({BackendRequestCancellation? cancellation});
+
 final class SemesterRefreshCancellation {
   final BackendRequestCancellation _requestCancellation =
       BackendRequestCancellation();
@@ -78,14 +81,14 @@ final class SemesterSelectionFailure extends SemesterSelectionResult {
 
 final class LocalSemesterSelectionService implements SemesterSelectionService {
   LocalSemesterSelectionService(
-    this._apiClient,
     this._store,
     this._lifecycleStore,
+    this._refreshSemesterIds,
   );
 
-  final BackendApiClient _apiClient;
   final SemesterSelectionStore _store;
   final SessionLifecycleStore _lifecycleStore;
+  final SemesterIdRefreshInvoker _refreshSemesterIds;
 
   Future<SemesterRefreshResult>? _inFlightRefresh;
 
@@ -133,9 +136,9 @@ final class LocalSemesterSelectionService implements SemesterSelectionService {
 
       late final List<int> semesterIds;
       try {
-        semesterIds = (await _apiClient.getSemesters(
+        semesterIds = await _refreshSemesterIds(
           cancellation: cancellation?._requestCancellation,
-        )).map((semester) => semester.id).toList(growable: false);
+        );
       } on BackendTransportException catch (error) {
         final failure = mapBackendTransportException(error);
         if (failure is SessionExpiredFailure) {

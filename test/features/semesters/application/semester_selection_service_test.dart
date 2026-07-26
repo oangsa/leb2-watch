@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
-import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
@@ -28,16 +27,20 @@ const _sessionExpiredTransport = BackendTransportException(
 );
 
 void main() {
-  late _FakeBackendApiClient api;
+  late _FakeSemesterIdRefreshInvoker refreshInvoker;
   late _FakeSemesterSelectionStore store;
   late _FakeSessionLifecycleStore lifecycle;
   late LocalSemesterSelectionService service;
 
   setUp(() {
-    api = _FakeBackendApiClient();
+    refreshInvoker = _FakeSemesterIdRefreshInvoker();
     store = _FakeSemesterSelectionStore();
     lifecycle = _FakeSessionLifecycleStore();
-    service = LocalSemesterSelectionService(api, store, lifecycle);
+    service = LocalSemesterSelectionService(
+      store,
+      lifecycle,
+      refreshInvoker.call,
+    );
   });
 
   test('cached read performs no lifecycle or network request', () async {
@@ -49,18 +52,54 @@ void main() {
     expect(await service.readCached(), store.catalog);
     expect(store.readCalls, 1);
     expect(lifecycle.readCalls, 0);
-    expect(api.semesterCalls, 0);
+    expect(refreshInvoker.calls, 0);
   });
+
+  test(
+    'cache and selection stay local when refresh capability cannot initialize',
+    () async {
+      refreshInvoker.failure = const BackendApiConfigurationException(
+        BackendApiConfigurationFailureReason.emptyBaseUrl,
+      );
+
+      expect(await service.readCached(), store.catalog);
+      expect(refreshInvoker.calls, 0);
+      expect(await service.select(202), isA<SemesterSelectionSuccess>());
+      expect(refreshInvoker.calls, 0);
+
+      final result = await service.refresh();
+
+      expect(
+        result,
+        isA<SemesterRefreshFailure>().having(
+          (value) => value.failure,
+          'failure',
+          const UnknownSyncFailure(
+            UnknownSyncFailureReason.unexpectedTransportFailure,
+          ),
+        ),
+      );
+      expect(refreshInvoker.calls, 1);
+      expect(store.mergeCalls, 0);
+      expect(store.catalog.semesterIds, const [202]);
+      expect(result.toString(), 'SemesterRefreshFailure(redacted: true)');
+      expect(result.toString(), isNot(contains('emptyBaseUrl')));
+      expect(
+        service.toString(),
+        isNot(contains('BackendApiConfigurationException')),
+      );
+    },
+  );
 
   test(
     'successful nonempty refresh persists before returning success',
     () async {
-      api.semesters = const [Semester(id: 101), Semester(id: 202)];
+      refreshInvoker.semesterIds = const [101, 202];
 
       final result = await service.refresh();
 
       expect(result, isA<SemesterRefreshSuccess>());
-      expect(api.semesterCalls, 1);
+      expect(refreshInvoker.calls, 1);
       expect(store.mergeCalls, 1);
       expect(store.expectedSession, _active);
       expect(store.mergedIds, [101, 202]);
@@ -72,22 +111,22 @@ void main() {
   );
 
   test('concurrent refresh calls join one request and operation', () async {
-    final gate = Completer<List<Semester>>();
-    api.gate = gate;
+    final gate = Completer<List<int>>();
+    refreshInvoker.gate = gate;
 
     final first = service.refresh();
     final second = service.refresh();
     await Future<void>.delayed(Duration.zero);
 
     expect(second, same(first));
-    expect(api.semesterCalls, 1);
-    gate.complete(const [Semester(id: 101)]);
+    expect(refreshInvoker.calls, 1);
+    gate.complete(const [101]);
     expect(await first, isA<SemesterRefreshSuccess>());
     expect(store.mergeCalls, 1);
   });
 
   test('empty response is invalid and never reaches persistence', () async {
-    api.semesters = const [];
+    refreshInvoker.semesterIds = const [];
 
     final result = await service.refresh();
 
@@ -157,7 +196,7 @@ void main() {
       ];
 
       for (final testCase in cases) {
-        api.failure = testCase.$1;
+        refreshInvoker.failure = testCase.$1;
         final result = await service.refresh();
         expect(
           result,
@@ -167,7 +206,7 @@ void main() {
             testCase.$2,
           ),
         );
-        api.failure = null;
+        refreshInvoker.failure = null;
       }
       expect(store.mergeCalls, 0);
     },
@@ -186,12 +225,13 @@ void main() {
         const SessionExpiredFailure(),
       ),
     );
-    expect(api.semesterCalls, 0);
+    expect(lifecycle.readCalls, 1);
+    expect(refreshInvoker.calls, 0);
     expect(lifecycle.markExpiredCalls, 0);
   });
 
   test('exact current expiration marks only the captured revision', () async {
-    api.failure = _sessionExpiredTransport;
+    refreshInvoker.failure = _sessionExpiredTransport;
 
     final result = await service.refresh();
 
@@ -206,8 +246,8 @@ void main() {
   });
 
   test('exact expiration wins a pending-request cancellation race', () async {
-    final gate = Completer<List<Semester>>();
-    api.gate = gate;
+    final gate = Completer<List<int>>();
+    refreshInvoker.gate = gate;
     final cancellation = SemesterRefreshCancellation();
 
     final pending = service.refresh(cancellation: cancellation);
@@ -233,7 +273,7 @@ void main() {
   });
 
   test('stale expiration cannot expire replacement session', () async {
-    api.failure = _sessionExpiredTransport;
+    refreshInvoker.failure = _sessionExpiredTransport;
     lifecycle.markExpiredResult = false;
 
     final result = await service.refresh();
@@ -245,7 +285,7 @@ void main() {
   test(
     'revision change discards successful response before persistence',
     () async {
-      api.semesters = const [Semester(id: 101)];
+      refreshInvoker.semesterIds = const [101];
       store.mergeResult = const SemesterCatalogMergeDiscarded();
 
       final result = await service.refresh();
@@ -265,14 +305,14 @@ void main() {
         const UnknownSyncFailure(UnknownSyncFailureReason.cancelled),
       ),
     );
-    expect(api.semesterCalls, 0);
+    expect(refreshInvoker.calls, 0);
 
-    final gate = Completer<List<Semester>>();
-    api.gate = gate;
+    final gate = Completer<List<int>>();
+    refreshInvoker.gate = gate;
     final during = SemesterRefreshCancellation();
     final pending = service.refresh(cancellation: during);
     during.cancel();
-    gate.complete(const [Semester(id: 101)]);
+    gate.complete(const [101]);
 
     expect(
       await pending,
@@ -286,7 +326,7 @@ void main() {
   });
 
   test('persistence failures are bounded and preserve prior cache', () async {
-    api.semesters = const [Semester(id: 101)];
+    refreshInvoker.semesterIds = const [101];
     store.mergeFailure = const SemesterSelectionStoreException(
       SemesterSelectionStoreOperation.merge,
     );
@@ -309,14 +349,14 @@ void main() {
     () async {
       final success = await service.select(202);
       expect(success, isA<SemesterSelectionSuccess>());
-      expect(api.semesterCalls, 0);
+      expect(refreshInvoker.calls, 0);
       expect(store.selectCalls, 1);
 
       store.selectFailure = const SemesterSelectionStoreException(
         SemesterSelectionStoreOperation.select,
       );
       expect(await service.select(101), isA<SemesterSelectionFailure>());
-      expect(api.semesterCalls, 0);
+      expect(refreshInvoker.calls, 0);
     },
   );
 
@@ -337,36 +377,20 @@ void main() {
   });
 }
 
-final class _FakeBackendApiClient implements BackendApiClient {
-  List<Semester> semesters = const [Semester(id: 101)];
-  Completer<List<Semester>>? gate;
-  BackendTransportException? failure;
-  int semesterCalls = 0;
+final class _FakeSemesterIdRefreshInvoker {
+  List<int> semesterIds = const [101];
+  Completer<List<int>>? gate;
+  Object? failure;
+  int calls = 0;
 
-  @override
-  Future<List<Semester>> getSemesters({
-    BackendRequestCancellation? cancellation,
-  }) async {
-    semesterCalls += 1;
+  Future<List<int>> call({BackendRequestCancellation? cancellation}) async {
+    calls += 1;
     final error = failure;
     if (error != null) {
       throw error;
     }
-    return gate?.future ?? semesters;
+    return gate?.future ?? semesterIds;
   }
-
-  @override
-  Future<List<Course>> getCourses({
-    required int semesterId,
-    BackendRequestCancellation? cancellation,
-  }) => throw StateError('Unexpected course request.');
-
-  @override
-  Future<AssignmentSnapshot> getSemesterSnapshot({
-    required int semesterId,
-    required int userId,
-    BackendRequestCancellation? cancellation,
-  }) => throw StateError('Unexpected snapshot request.');
 }
 
 final class _FakeSemesterSelectionStore implements SemesterSelectionStore {
