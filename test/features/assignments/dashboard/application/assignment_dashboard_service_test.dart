@@ -5,11 +5,13 @@ import 'package:leb2_watch/src/features/assignments/dashboard/application/assign
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 
+import '../dashboard_test_support.dart';
+
 void main() {
   test('passes active IDs and both exact foreground reasons', () async {
     final store = _FakeStore(target: _target());
     final sync = _FakeSyncService();
-    final service = LocalAssignmentDashboardService(store, sync);
+    final service = LocalAssignmentDashboardService(store, sync.synchronize);
 
     for (final reason in [SyncReason.appLaunch, SyncReason.manualRefresh]) {
       final result = await service.refresh(reason);
@@ -28,7 +30,10 @@ void main() {
 
   test('missing and expired targets never invoke synchronization', () async {
     final sync = _FakeSyncService();
-    final missing = LocalAssignmentDashboardService(_FakeStore(), sync);
+    final missing = LocalAssignmentDashboardService(
+      _FakeStore(),
+      sync.synchronize,
+    );
     expect(
       await missing.refresh(SyncReason.appLaunch),
       isA<AssignmentDashboardRefreshNoTarget>(),
@@ -43,7 +48,7 @@ void main() {
           ),
         ),
       ),
-      sync,
+      sync.synchronize,
     );
     expect(
       await expired.refresh(SyncReason.manualRefresh),
@@ -52,10 +57,78 @@ void main() {
     expect(sync.calls, isEmpty);
   });
 
+  test(
+    'cache observation is independent and sync initialization failure is bounded',
+    () async {
+      final cache = dashboardCache();
+      final store = _FakeStore(target: _target(), cache: cache);
+      var invocations = 0;
+      Future<SyncOutcome> failToInitialize({
+        required int semesterId,
+        required int userId,
+        required SyncReason reason,
+      }) async {
+        invocations += 1;
+        throw StateError('<PRIVATE_SYNC_INITIALIZATION_ERROR>');
+      }
+
+      final service = LocalAssignmentDashboardService(store, failToInitialize);
+
+      expect(await service.watchCached().first, same(cache));
+      expect(invocations, 0);
+
+      final result = await service.refresh(SyncReason.appLaunch);
+
+      expect(
+        result,
+        isA<AssignmentDashboardRefreshFailure>()
+            .having((value) => value.category, 'category', 'unknown')
+            .having(
+              (value) => value.targetKey,
+              'targetKey',
+              _target().publicKey,
+            ),
+      );
+      expect(result.toString(), contains('redacted: true'));
+      expect(
+        result.toString(),
+        isNot(contains('<PRIVATE_SYNC_INITIALIZATION_ERROR>')),
+      );
+      expect(invocations, 1);
+    },
+  );
+
+  test('local target read failure is bounded without resolving sync', () async {
+    var invocations = 0;
+    Future<SyncOutcome> unexpectedSync({
+      required int semesterId,
+      required int userId,
+      required SyncReason reason,
+    }) async {
+      invocations += 1;
+      throw StateError('Unexpected sync invocation.');
+    }
+
+    final service = LocalAssignmentDashboardService(
+      _FakeStore(readTargetError: true),
+      unexpectedSync,
+    );
+
+    final result = await service.refresh(SyncReason.manualRefresh);
+
+    expect(
+      result,
+      isA<AssignmentDashboardRefreshFailure>()
+          .having((value) => value.category, 'category', 'localStorage')
+          .having((value) => value.targetKey, 'targetKey', isNull),
+    );
+    expect(invocations, 0);
+  });
+
   test('maps every sync outcome without exposing failure details', () async {
     final store = _FakeStore(target: _target());
     final sync = _FakeSyncService();
-    final service = LocalAssignmentDashboardService(store, sync);
+    final service = LocalAssignmentDashboardService(store, sync.synchronize);
     final now = DateTime.utc(2026, 7, 26);
 
     final outcomes = <SyncOutcome>[
@@ -106,7 +179,7 @@ void main() {
   test('rejects non-dashboard reasons', () {
     final service = LocalAssignmentDashboardService(
       _FakeStore(target: _target()),
-      _FakeSyncService(),
+      _FakeSyncService().synchronize,
     );
     expect(() => service.refresh(SyncReason.appResume), throwsArgumentError);
   });
@@ -120,15 +193,27 @@ AssignmentSyncTarget _target({
 }) => AssignmentSyncTarget(semesterId: 101, userId: 2001, session: session);
 
 final class _FakeStore implements AssignmentDashboardStore {
-  _FakeStore({this.target});
+  _FakeStore({this.target, this.cache, this.readTargetError = false});
 
   AssignmentSyncTarget? target;
+  AssignmentDashboardCache? cache;
+  bool readTargetError;
 
   @override
-  Future<AssignmentSyncTarget?> readActiveSyncTarget() async => target;
+  Future<AssignmentSyncTarget?> readActiveSyncTarget() async {
+    if (readTargetError) {
+      throw const AssignmentDashboardStoreException(
+        AssignmentDashboardStoreOperation.readTarget,
+      );
+    }
+    return target;
+  }
 
   @override
-  Stream<AssignmentDashboardCache> watchActiveCache() => const Stream.empty();
+  Stream<AssignmentDashboardCache> watchActiveCache() {
+    final value = cache;
+    return value == null ? const Stream.empty() : Stream.value(value);
+  }
 }
 
 final class _FakeSyncService implements AssignmentSyncService {

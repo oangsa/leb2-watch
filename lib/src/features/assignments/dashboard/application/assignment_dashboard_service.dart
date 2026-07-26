@@ -8,6 +8,13 @@ abstract interface class AssignmentDashboardService {
   Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason);
 }
 
+typedef AssignmentDashboardSyncInvoker =
+    Future<SyncOutcome> Function({
+      required int semesterId,
+      required int userId,
+      required SyncReason reason,
+    });
+
 sealed class AssignmentDashboardRefreshResult {
   const AssignmentDashboardRefreshResult(this.targetKey);
 
@@ -54,10 +61,10 @@ final class AssignmentDashboardRefreshNoTarget
 
 final class LocalAssignmentDashboardService
     implements AssignmentDashboardService {
-  LocalAssignmentDashboardService(this._store, this._syncService);
+  LocalAssignmentDashboardService(this._store, this._synchronize);
 
   final AssignmentDashboardStore _store;
-  final AssignmentSyncService _syncService;
+  final AssignmentDashboardSyncInvoker _synchronize;
 
   @override
   Stream<AssignmentDashboardCache> watchCached() => _store.watchActiveCache();
@@ -90,7 +97,7 @@ final class LocalAssignmentDashboardService
     }
 
     try {
-      final outcome = await _syncService.synchronize(
+      final outcome = await _synchronize(
         semesterId: target.semesterId,
         userId: target.userId,
         reason: reason,

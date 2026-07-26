@@ -380,8 +380,20 @@ final assignmentDashboardStoreProvider =
 final assignmentDashboardServiceProvider =
     FutureProvider<AssignmentDashboardService>((ref) async {
       final store = await ref.watch(assignmentDashboardStoreProvider.future);
-      final syncService = await ref.watch(assignmentSyncServiceProvider.future);
-      return LocalAssignmentDashboardService(store, syncService);
+      return LocalAssignmentDashboardService(store, ({
+        required semesterId,
+        required userId,
+        required reason,
+      }) async {
+        final syncService = await ref.read(
+          assignmentSyncServiceProvider.future,
+        );
+        return syncService.synchronize(
+          semesterId: semesterId,
+          userId: userId,
+          reason: reason,
+        );
+      });
     });
 
 final assignmentDetailStoreProvider = FutureProvider<AssignmentDetailStore>((

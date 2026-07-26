@@ -2,10 +2,10 @@
 
 ## Status
 
-Completed for Feature 11.1 and its Feature 11.2 detail-route activation.
-Unit, Drift, widget, routing, accessibility, virtualization, Linux golden,
-analyzer, full-suite, and Linux release-build validation are recorded below
-and in the related detail context.
+Completed for Feature 11.1, its Feature 11.2 detail-route activation, and
+cached-startup resilience. Unit, Drift, widget, routing, accessibility,
+virtualization, Linux golden, analyzer, full-suite, and Linux release-build
+validation are recorded below and in the related detail context.
 
 ## Purpose
 
@@ -16,8 +16,9 @@ the last usable view.
 ## Scope
 
 - A feature-owned Drift read adapter and bounded dashboard cache model.
-- One dashboard service that delegates `appLaunch` and `manualRefresh` to the
-  existing single-flight synchronization service.
+- One dashboard service that observes local cache independently and delegates
+  `appLaunch` and `manualRefresh` through a lazily resolved single-flight
+  synchronization capability.
 - Upcoming, Recently added, Overdue, and All assignment sections.
 - Search by title/course, one-course filtering, and grouped deadline sorting.
 - Evidence-based last-success, stale, last-offline-failure, refreshing, and
@@ -41,6 +42,12 @@ The active semester's saved assignments render before refresh completion.
 Refresh uses an inline progress bar and leaves cached rows visible. A manual
 refresh action is disabled while a dashboard refresh is pending.
 
+Saved assignments also remain available when the self-hosted backend URL is
+missing or invalid. The attempted refresh becomes a bounded stale state after
+the local cache mounts; raw configuration/provider errors are not displayed.
+An expired cached session never resolves the remote synchronization graph and
+keeps refresh disabled.
+
 The user selects one section at a time:
 
 - Upcoming: a saved deadline exists and the backend did not report it exceeded.
@@ -63,8 +70,15 @@ separate internal method so user ID never enters the presentation cache.
 
 `LocalAssignmentDashboardService` accepts only `appLaunch` and
 `manualRefresh`, reads the current target, short-circuits missing/expired
-targets, and delegates to the shared `AssignmentSyncService`. It maps every
-terminal/deferred outcome to a bounded dashboard result.
+targets, and invokes one narrow `AssignmentDashboardSyncInvoker`. It maps
+resolver failures, invocation failures, and every terminal/deferred sync
+outcome to bounded dashboard results.
+
+`assignmentDashboardServiceProvider` awaits only the Drift-backed dashboard
+store. It returns the service immediately with an invoker closure that resolves
+`assignmentSyncServiceProvider` only when an allowed refresh reaches the
+invocation point. Backend configuration therefore cannot prevent the route
+from subscribing to readable local data.
 
 `projectAssignmentDashboard` owns section predicates, normalized search,
 course reconciliation, and deterministic deadline ordering. The stateful page
@@ -103,6 +117,10 @@ IDs and lifecycle needed by synchronization.
 `manualRefresh`. Missing target and expired session return bounded results
 without calling synchronization.
 
+`AssignmentDashboardSyncInvoker` exposes only the semester ID, internal user
+ID, reason, and `SyncOutcome` needed by a foreground refresh. The dashboard
+does not receive cancellation, backoff, transport, or Riverpod interfaces.
+
 `AssignmentDashboardCache` exposes active semester, lifecycle/revision,
 courses, current assignments, latest terminal attempt, and latest retained
 success. Collections are unmodifiable and debug strings are redacted.
@@ -113,7 +131,8 @@ descriptions, and other content do not enter route values.
 
 ## Data model
 
-No schema change was made; schema remains version 7.
+No schema change was made for cached-startup resilience. The application schema
+is currently version 12.
 
 The read adapter uses:
 
@@ -131,13 +150,13 @@ dashboard cache.
 
 1. Subscribe to the saved cache.
 2. Render the first cache emission.
-3. Fire one unawaited `appLaunch` refresh for the semester/session-revision
-   target.
-4. Let the existing synchronization transaction update Drift.
-5. Render the coherent post-commit cache emission.
-6. Suppress rapid manual activations while the page action is pending.
-7. Fence old results when semester or session revision changes.
-8. Preserve rendered cache if a later watch emission fails.
+3. For an active target, fire one unawaited `appLaunch` refresh.
+4. Resolve the shared synchronization graph only at that refresh boundary.
+5. Let the existing synchronization transaction update Drift.
+6. Render the coherent post-commit cache emission.
+7. Suppress rapid manual activations while the page action is pending.
+8. Fence old results when semester or session revision changes.
+9. Preserve rendered cache if a later watch emission fails.
 
 The page does not call `cancelCurrent` during disposal because the operation
 may be shared by another trigger.
@@ -182,6 +201,8 @@ debug representation is redacted.
   decorative motion, or external fonts.
 - Make each valid compact/expanded row one Material activation surface after
   Feature 11.2 added the destination; invalid legacy identities remain inert.
+- Inject one lazy synchronization operation instead of the complete sync
+  service so local cache construction has no remote dependency.
 
 ## Alternatives rejected
 
@@ -195,6 +216,11 @@ debug representation is redacted.
 - `DataTable`: it eagerly builds rows and conflicts with large-list
   virtualization.
 - Connectivity assertions: no live connectivity contract exists.
+- Catching the combined provider error and opening a second ad-hoc database:
+  this would duplicate ownership and leave the actual local service coupled to
+  remote construction.
+- Deferring global Dio validation: that would change authentication, semester,
+  and transport behavior beyond this feature.
 
 ## Failure behavior
 
@@ -208,6 +234,12 @@ session banner. Invalid responses and sync failures do not replace valid
 cached rows because persistence remains transactional in the existing sync
 service.
 
+Missing, malformed, or unsafe backend configuration can fail when the lazy
+sync capability is resolved, but that exception is caught inside
+`refresh()` and exposed only as a redacted `unknown` refresh category. It does
+not replace the cache or route with a provider error. Genuine initial Drift
+open/watch failures still show the full bounded local-storage error state.
+
 ## Tests
 
 - Store tests cover no-active/empty/populated states, current-only joins,
@@ -216,15 +248,18 @@ service.
 - Projection tests cover all sections, post-baseline ordering, search/filter
   composition, disappearing-course reset, grouped deadline ordering, missing
   values, and no timezone assignment.
-- Service tests cover exact reasons/IDs, missing/expired short-circuit,
-  outcome mapping, redaction, and rejection of unrelated reasons.
+- Service tests cover exact reasons/IDs, cache observation without sync
+  resolution, missing/expired short-circuit, bounded resolver/local-store
+  failures, outcome mapping, redaction, and rejection of unrelated reasons.
 - Widget tests cover a pending 13-second refresh with immediate cache,
   empty/no-active/local-error states, status banners, controls, rapid taps,
   selected-course removal with visible and semantic All-courses reconciliation,
   target race, disposal, semantic row activation, pointer/keyboard detail
   activation, 200-percent text at 320/375/414/768/1200, and 500-row laziness.
 - Provider/router/shell tests cover real route composition, loading/error
-  recovery, global expired banner, keyboard navigation, and branch state.
+  recovery, a seeded real-Drift cache with missing backend configuration,
+  zero remote resolution for an expired cached session, global expired banner,
+  keyboard navigation, and branch state.
 - Golden tests cover deterministic Linux mobile light and desktop dark views.
 
 ## Validation evidence
@@ -279,6 +314,35 @@ test. The TODO-family scan matched only this documentation paragraph. The
 sample-assignment phrases were negative assertions in the adaptive-shell
 regression test, where they verify that production mock copy is absent.
 
+Cached-startup resilience validation:
+
+```text
+flutter test --concurrency=1 \
+  test/features/assignments/dashboard/application/assignment_dashboard_service_test.dart \
+  test/features/assignments/dashboard/presentation/assignment_dashboard_route_test.dart \
+  test/features/assignments/dashboard/presentation/assignment_dashboard_page_test.dart \
+  test/app/app_dependencies_test.dart \
+  test/app/startup/app_startup_flow_test.dart
+  42 passed
+
+flutter test --concurrency=1 \
+  test/features/assignments/dashboard/application/assignment_dashboard_service_test.dart \
+  test/features/assignments/dashboard/presentation/assignment_dashboard_route_test.dart
+  10 passed
+
+dart format --output=none --set-exit-if-changed .
+  315 files checked; 0 changed
+
+dart analyze --fatal-infos --fatal-warnings
+  no issues
+
+flutter analyze --fatal-infos --fatal-warnings
+  no issues
+
+flutter test --concurrency=1
+  987 passed
+```
+
 Golden SHA-256:
 
 ```text
@@ -305,6 +369,8 @@ the Linux release build succeeded.
 - Recently added is durable post-baseline discovery, not a time-windowed or
   unread list.
 - Invalid legacy identity rows remain inert instead of constructing a route.
+- Failures before `runApp`, including an unsupported `APP_ENV`, require a
+  separate startup-recovery shell and are not handled by this route-level fix.
 
 ## Future considerations
 
@@ -314,6 +380,8 @@ the Linux release build succeeded.
   explicitly refresh foreground reads after independent-connection work.
 - A future explicit product decision could introduce time-windowed discovery or
   age-based staleness with an injected clock.
+- The cache-first semester-selection provider has a separate remote
+  construction dependency and should be hardened as its own feature.
 
 ## Related contexts
 
