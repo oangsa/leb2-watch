@@ -29,6 +29,7 @@ final localDataDeletionServiceProvider = Provider<LocalDataDeletionService>((
     ),
     notifications: PlatformLocalDataNotificationCleanup(
       ref.read(localNotificationServiceProvider),
+      ref.read(localNotificationDeletionControlProvider),
       capabilities,
     ),
     credentials: SecureLocalDataCredentialCleanup(

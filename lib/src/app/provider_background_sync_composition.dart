@@ -26,6 +26,7 @@ final class ProviderBackgroundSyncCompositionFactory
       container = ProviderContainer(
         overrides: [
           appConfigurationProvider.overrideWithValue(_configuration),
+          localDatabaseStorageProvider.overrideWithValue(_databaseStorage),
           appDatabaseProvider.overrideWith((_) async => database),
         ],
       );

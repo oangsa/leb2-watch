@@ -5,6 +5,7 @@ enum LocalDataDeletionOperation {
 }
 
 enum LocalDataDeletionStep {
+  activeOperations,
   backgroundWork,
   desktopAutostart,
   notifications,

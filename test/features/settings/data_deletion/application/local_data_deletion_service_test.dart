@@ -13,6 +13,7 @@ void main() {
     final result = await harness.service.deleteAll();
 
     expect(calls, [
+      'beginOperationQuiescence',
       'background',
       'autostart',
       'notifications',
@@ -21,6 +22,7 @@ void main() {
       'deleteFiles',
       'cache',
       'providerReset',
+      'endOperationQuiescence',
     ]);
     expect(result.isComplete, isTrue);
     expect(result.steps.map((step) => step.step), LocalDataDeletionStep.values);
@@ -43,7 +45,13 @@ void main() {
 
     expect(
       calls,
-      containsAll(<String>['scrubAll', 'deleteFiles', 'providerReset']),
+      containsAll(<String>[
+        'beginOperationQuiescence',
+        'scrubAll',
+        'deleteFiles',
+        'providerReset',
+        'endOperationQuiescence',
+      ]),
     );
     expect(result.isComplete, isFalse);
     expect(
@@ -70,8 +78,13 @@ void main() {
     expect(calls, isNot(contains('deleteFiles')));
     expect(
       calls,
-      containsAllInOrder(<String>['scrubAll', 'cache', 'providerReset']),
+      containsAllInOrder(<String>[
+        'scrubAll',
+        'cache',
+        'endOperationQuiescence',
+      ]),
     );
+    expect(calls, isNot(contains('providerReset')));
     expect(
       result.failedSteps,
       containsAll(<LocalDataDeletionStep>[
@@ -91,7 +104,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(identical(first, second), isTrue);
-    expect(calls, ['background']);
+    expect(calls, ['beginOperationQuiescence', 'background']);
     blocker.complete();
     await Future.wait([first, second]);
     expect(calls.where((call) => call == 'background'), hasLength(1));
@@ -106,27 +119,95 @@ void main() {
     final cache = harness.service.deleteCachedAssignments();
     await Future<void>.delayed(Duration.zero);
 
-    expect(calls, ['background']);
+    expect(calls, ['beginOperationQuiescence', 'background']);
     blocker.complete();
     await Future.wait([credentials, cache]);
     expect(calls, [
+      'beginOperationQuiescence',
       'background',
       'credentials',
       'expireSession',
+      'endOperationQuiescence',
+      'beginOperationQuiescence',
       'notifications',
       'deleteCachedAssignments',
+      'endOperationQuiescence',
     ]);
   });
 
   test('each single action invokes only its intended scope', () async {
     final cacheCalls = <String>[];
     await _Harness(cacheCalls).service.deleteCachedAssignments();
-    expect(cacheCalls, ['notifications', 'deleteCachedAssignments']);
+    expect(cacheCalls, [
+      'beginOperationQuiescence',
+      'notifications',
+      'deleteCachedAssignments',
+      'endOperationQuiescence',
+    ]);
 
     final credentialCalls = <String>[];
     await _Harness(credentialCalls).service.deleteSavedCredentials();
-    expect(credentialCalls, ['background', 'credentials', 'expireSession']);
+    expect(credentialCalls, [
+      'beginOperationQuiescence',
+      'background',
+      'credentials',
+      'expireSession',
+      'endOperationQuiescence',
+    ]);
   });
+
+  test(
+    'failed activity drain skips notification cancellation and is retryable',
+    () async {
+      final calls = <String>[];
+      final statuses = <String, LocalDataDeletionStepStatus>{
+        'beginOperationQuiescence': LocalDataDeletionStepStatus.failed,
+        'endOperationQuiescence': LocalDataDeletionStepStatus.failed,
+      };
+      final harness = _Harness(calls, statuses: statuses);
+
+      final first = await harness.service.deleteCachedAssignments();
+      expect(first.isComplete, isFalse);
+      expect(
+        first.failedSteps,
+        contains(LocalDataDeletionStep.activeOperations),
+      );
+      expect(first.failedSteps, contains(LocalDataDeletionStep.notifications));
+      expect(calls, isNot(contains('notifications')));
+
+      statuses['beginOperationQuiescence'] =
+          LocalDataDeletionStepStatus.completed;
+      statuses['endOperationQuiescence'] =
+          LocalDataDeletionStepStatus.completed;
+      final second = await harness.service.deleteCachedAssignments();
+
+      expect(second.isComplete, isTrue);
+      expect(calls.where((call) => call == 'notifications'), hasLength(1));
+    },
+  );
+
+  test(
+    'release failure downgrades the fixed active-operations result',
+    () async {
+      final harness = _Harness(
+        <String>[],
+        statuses: {
+          'endOperationQuiescence': LocalDataDeletionStepStatus.failed,
+        },
+      );
+
+      final result = await harness.service.deleteSavedCredentials();
+
+      expect(result.isComplete, isFalse);
+      expect(
+        result.steps.first,
+        const LocalDataDeletionStepResult(
+          step: LocalDataDeletionStep.activeOperations,
+          status: LocalDataDeletionStepStatus.failed,
+        ),
+      );
+    },
+  );
 
   test('retry after a partial failure runs a fresh operation', () async {
     final calls = <String>[];
@@ -233,6 +314,9 @@ final class _Database implements LocalDataDatabaseCleanup {
   _Database(this.harness);
   final _Harness harness;
   @override
+  Future<LocalDataDeletionStepStatus> beginOperationQuiescence() =>
+      harness.run('beginOperationQuiescence');
+  @override
   Future<LocalDataDeletionStepStatus> deleteCachedAssignments() =>
       harness.run('deleteCachedAssignments');
   @override
@@ -243,6 +327,9 @@ final class _Database implements LocalDataDatabaseCleanup {
       harness.run('expireSession');
   @override
   Future<LocalDataDeletionStepStatus> scrubAll() => harness.run('scrubAll');
+  @override
+  Future<LocalDataDeletionStepStatus> endOperationQuiescence() =>
+      harness.run('endOperationQuiescence');
 }
 
 final class _Cache implements LocalApplicationCacheCleanup {

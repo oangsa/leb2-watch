@@ -46,13 +46,15 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
   Future<LocalDataDeletionResult> deleteCachedAssignments() {
     return _enqueue(
       LocalDataDeletionOperation.cachedAssignments,
-      () async => LocalDataDeletionResult(
-        operation: LocalDataDeletionOperation.cachedAssignments,
-        steps: [
-          await _step(
-            LocalDataDeletionStep.notifications,
-            _notifications.cancelAll,
-          ),
+      () => _runQuiesced(
+        LocalDataDeletionOperation.cachedAssignments,
+        (activityQuiescent) async => [
+          activityQuiescent
+              ? await _step(
+                  LocalDataDeletionStep.notifications,
+                  _notifications.cancelAll,
+                )
+              : _failed(LocalDataDeletionStep.notifications),
           await _step(
             LocalDataDeletionStep.databaseContent,
             _database.deleteCachedAssignments,
@@ -66,9 +68,9 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
   Future<LocalDataDeletionResult> deleteSavedCredentials() {
     return _enqueue(
       LocalDataDeletionOperation.savedCredentials,
-      () async => LocalDataDeletionResult(
-        operation: LocalDataDeletionOperation.savedCredentials,
-        steps: [
+      () => _runQuiesced(
+        LocalDataDeletionOperation.savedCredentials,
+        (_) async => [
           await _step(LocalDataDeletionStep.backgroundWork, _background.cancel),
           await _step(LocalDataDeletionStep.credentials, _credentials.clear),
           await _step(
@@ -82,39 +84,85 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
 
   @override
   Future<LocalDataDeletionResult> deleteAll() {
-    return _enqueue(LocalDataDeletionOperation.allLocalData, () async {
-      final steps = <LocalDataDeletionStepResult>[
-        await _step(LocalDataDeletionStep.backgroundWork, _background.cancel),
-        await _step(LocalDataDeletionStep.desktopAutostart, _autostart.disable),
-        await _step(
-          LocalDataDeletionStep.notifications,
-          _notifications.cancelAll,
-        ),
-        await _step(LocalDataDeletionStep.credentials, _credentials.clear),
-        await _step(LocalDataDeletionStep.databaseContent, _database.scrubAll),
-      ];
+    return _enqueue(
+      LocalDataDeletionOperation.allLocalData,
+      () => _runQuiesced(LocalDataDeletionOperation.allLocalData, (
+        activityQuiescent,
+      ) async {
+        final steps = <LocalDataDeletionStepResult>[
+          await _step(LocalDataDeletionStep.backgroundWork, _background.cancel),
+          await _step(
+            LocalDataDeletionStep.desktopAutostart,
+            _autostart.disable,
+          ),
+          activityQuiescent
+              ? await _step(
+                  LocalDataDeletionStep.notifications,
+                  _notifications.cancelAll,
+                )
+              : _failed(LocalDataDeletionStep.notifications),
+          await _step(LocalDataDeletionStep.credentials, _credentials.clear),
+          await _step(
+            LocalDataDeletionStep.databaseContent,
+            _database.scrubAll,
+          ),
+        ];
 
-      final contentComplete = steps.last.isComplete;
-      steps.add(
-        contentComplete
+        final contentComplete = steps.last.isComplete;
+        final files = activityQuiescent && contentComplete
             ? await _step(
                 LocalDataDeletionStep.databaseFiles,
                 _database.deleteFiles,
               )
-            : const LocalDataDeletionStepResult(
-                step: LocalDataDeletionStep.databaseFiles,
-                status: LocalDataDeletionStepStatus.failed,
-              ),
+            : _failed(LocalDataDeletionStep.databaseFiles);
+        steps.add(files);
+        steps.add(await _step(LocalDataDeletionStep.cacheFiles, _cache.clear));
+        steps.add(
+          files.isComplete
+              ? await _step(
+                  LocalDataDeletionStep.providerReset,
+                  _providerGraph.reset,
+                )
+              : _failed(LocalDataDeletionStep.providerReset),
+        );
+        return steps;
+      }),
+    );
+  }
+
+  Future<LocalDataDeletionResult> _runQuiesced(
+    LocalDataDeletionOperation operation,
+    Future<List<LocalDataDeletionStepResult>> Function(bool activityQuiescent)
+    action,
+  ) async {
+    final begin = await _step(
+      LocalDataDeletionStep.activeOperations,
+      _database.beginOperationQuiescence,
+    );
+    late final List<LocalDataDeletionStepResult> steps;
+    late final LocalDataDeletionStepResult end;
+    try {
+      steps = await action(begin.isComplete);
+    } finally {
+      end = await _step(
+        LocalDataDeletionStep.activeOperations,
+        _database.endOperationQuiescence,
       );
-      steps.add(await _step(LocalDataDeletionStep.cacheFiles, _cache.clear));
-      steps.add(
-        await _step(LocalDataDeletionStep.providerReset, _providerGraph.reset),
-      );
-      return LocalDataDeletionResult(
-        operation: LocalDataDeletionOperation.allLocalData,
-        steps: steps,
-      );
-    });
+    }
+    final activeOperations = begin.isComplete && end.isComplete
+        ? begin
+        : _failed(LocalDataDeletionStep.activeOperations);
+    return LocalDataDeletionResult(
+      operation: operation,
+      steps: [activeOperations, ...steps],
+    );
+  }
+
+  LocalDataDeletionStepResult _failed(LocalDataDeletionStep step) {
+    return LocalDataDeletionStepResult(
+      step: step,
+      status: LocalDataDeletionStepStatus.failed,
+    );
   }
 
   Future<LocalDataDeletionResult> _enqueue(

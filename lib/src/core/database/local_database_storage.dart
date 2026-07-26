@@ -100,6 +100,11 @@ class LocalDatabaseStorage {
     return LocalDatabaseAccessGate(databaseFile.parent).beginDeletion();
   }
 
+  Future<LocalDataActivityLease> acquireActivityLease() async {
+    final databaseFile = await resolveDatabaseFile();
+    return LocalDatabaseAccessGate(databaseFile.parent).acquireActivityLease();
+  }
+
   /// Deletes only LEB2 Watch database files.
   ///
   /// Every connection to this database must be closed before this method runs.

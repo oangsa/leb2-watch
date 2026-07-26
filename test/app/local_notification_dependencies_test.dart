@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/app_dependencies.dart';
-import 'package:leb2_watch/src/features/notifications/application/local_notification_service_impl.dart';
+import 'package:leb2_watch/src/features/notifications/application/quiescence_aware_local_notification_service.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 
@@ -19,8 +19,12 @@ void main() {
       final first = container.read(localNotificationServiceProvider);
       final second = container.read(localNotificationServiceProvider);
 
-      expect(first, isA<LocalNotificationServiceImpl>());
+      expect(first, isA<QuiescenceAwareLocalNotificationService>());
       expect(second, same(first));
+      expect(
+        container.read(localNotificationDeletionControlProvider),
+        same(first),
+      );
       await first.initialize();
       expect(platform.initializeCalls, 1);
 

@@ -81,7 +81,15 @@ void main() {
         ),
       );
 
+      expect(
+        await cleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
       final status = await cleanup.deleteCachedAssignments();
+      expect(
+        await cleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
 
       expect(status, LocalDataDeletionStepStatus.completed);
       expect(await database.select(database.semesters).get(), isEmpty);
@@ -151,7 +159,15 @@ void main() {
       expect(owned, isNotNull);
 
       expect(
+        await cleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
         await cleanup.deleteCachedAssignments(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await cleanup.endOperationQuiescence(),
         LocalDataDeletionStepStatus.completed,
       );
       var reconciled = false;
@@ -189,7 +205,15 @@ void main() {
           ),
         );
 
+    expect(
+      await cleanup.beginOperationQuiescence(),
+      LocalDataDeletionStepStatus.completed,
+    );
     final status = await cleanup.expireSession();
+    expect(
+      await cleanup.endOperationQuiescence(),
+      LocalDataDeletionStepStatus.completed,
+    );
 
     expect(status, LocalDataDeletionStepStatus.completed);
     expect(await database.select(database.activities).get(), hasLength(1));
@@ -216,9 +240,17 @@ void main() {
       final unrelated = File(path.join(supportDirectory.path, 'preserve.txt'));
       await unrelated.writeAsString('keep');
 
+      expect(
+        await cleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
       expect(await cleanup.scrubAll(), LocalDataDeletionStepStatus.completed);
       expect(
         await cleanup.deleteFiles(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await cleanup.endOperationQuiescence(),
         LocalDataDeletionStepStatus.completed,
       );
       expect(await databaseFile.exists(), isFalse);
@@ -266,9 +298,17 @@ void main() {
       );
       await staleLease.create();
 
+      expect(
+        await cleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
       expect(await cleanup.scrubAll(), LocalDataDeletionStepStatus.completed);
       expect(
         await cleanup.deleteFiles(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await cleanup.endOperationQuiescence(),
         LocalDataDeletionStepStatus.completed,
       );
       expect(await staleLease.exists(), isFalse);
@@ -288,6 +328,10 @@ void main() {
       );
 
       expect(
+        await boundedCleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
         await boundedCleanup.scrubAll(),
         LocalDataDeletionStepStatus.completed,
       );
@@ -297,6 +341,10 @@ void main() {
       );
       expect(await headless.select(headless.semesters).get(), isEmpty);
       await headless.close();
+      expect(
+        await boundedCleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
 
       final reopened = await manager.open();
       expect(await reopened.select(reopened.semesters).get(), isEmpty);
@@ -315,6 +363,10 @@ void main() {
       );
 
       expect(
+        await boundedCleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
         await boundedCleanup.scrubAll(),
         LocalDataDeletionStepStatus.completed,
       );
@@ -324,13 +376,17 @@ void main() {
       );
       expect(failingStorage.deleteCalls, 0);
       expect(failingStorage.openCalls, 1);
+      expect(
+        await boundedCleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
 
       expect(
-        await boundedCleanup.scrubAll(),
+        await boundedCleanup.beginOperationQuiescence(),
         LocalDataDeletionStepStatus.failed,
       );
       expect(
-        await boundedCleanup.deleteFiles(),
+        await boundedCleanup.scrubAll(),
         LocalDataDeletionStepStatus.failed,
       );
       expect(failingStorage.openCalls, 1);
@@ -345,6 +401,50 @@ void main() {
         throwsA(isA<LocalDatabaseAccessException>()),
       );
       await gate.release();
+    },
+  );
+
+  test(
+    'activity timeout retains admission gate and a later retry releases it',
+    () async {
+      final activity = await storage.acquireActivityLease();
+      final boundedCleanup = DriftLocalDataDatabaseCleanup(
+        manager,
+        storage,
+        quiescenceTimeout: const Duration(milliseconds: 20),
+      );
+
+      expect(
+        await boundedCleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.failed,
+      );
+      expect(
+        await boundedCleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.failed,
+      );
+      await expectLater(
+        storage.acquireActivityLease(),
+        throwsA(
+          isA<LocalDatabaseAccessException>().having(
+            (error) => error.reason,
+            'reason',
+            LocalDatabaseAccessFailureReason.deletionInProgress,
+          ),
+        ),
+      );
+
+      await activity.release();
+      expect(
+        await boundedCleanup.beginOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+      expect(
+        await boundedCleanup.endOperationQuiescence(),
+        LocalDataDeletionStepStatus.completed,
+      );
+
+      final admitted = await storage.acquireActivityLease();
+      await admitted.release();
     },
   );
 
@@ -393,6 +493,7 @@ void main() {
     final notifications = _Notifications();
     final cleanup = PlatformLocalDataNotificationCleanup(
       notifications,
+      notifications,
       LocalNotificationPlatformCapabilities.forPlatform(
         NotificationRuntimePlatform.windows,
       ),
@@ -409,6 +510,7 @@ void main() {
   test('supported notifications and enabled autostart are cancelled', () async {
     final notifications = _Notifications();
     final notificationCleanup = PlatformLocalDataNotificationCleanup(
+      notifications,
       notifications,
       LocalNotificationPlatformCapabilities.forPlatform(
         NotificationRuntimePlatform.android,
@@ -628,7 +730,8 @@ final class _BackgroundPlatform implements BackgroundSchedulerPlatform {
   }) async {}
 }
 
-final class _Notifications implements LocalNotificationService {
+final class _Notifications
+    implements LocalNotificationService, LocalNotificationDeletionControl {
   int initializeCalls = 0;
   int cancelCalls = 0;
 
@@ -636,6 +739,9 @@ final class _Notifications implements LocalNotificationService {
   Future<void> cancelAll() async {
     cancelCalls += 1;
   }
+
+  @override
+  Future<void> cancelAllAfterQuiescence() => cancelAll();
 
   @override
   Future<void> cancelReminder(LocalNotificationId id) async {}

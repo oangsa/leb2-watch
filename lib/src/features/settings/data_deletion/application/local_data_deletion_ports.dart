@@ -17,6 +17,8 @@ abstract interface class LocalDataCredentialCleanup {
 }
 
 abstract interface class LocalDataDatabaseCleanup {
+  Future<LocalDataDeletionStepStatus> beginOperationQuiescence();
+
   Future<LocalDataDeletionStepStatus> deleteCachedAssignments();
 
   Future<LocalDataDeletionStepStatus> expireSession();
@@ -24,6 +26,8 @@ abstract interface class LocalDataDatabaseCleanup {
   Future<LocalDataDeletionStepStatus> scrubAll();
 
   Future<LocalDataDeletionStepStatus> deleteFiles();
+
+  Future<LocalDataDeletionStepStatus> endOperationQuiescence();
 }
 
 abstract interface class LocalApplicationCacheCleanup {

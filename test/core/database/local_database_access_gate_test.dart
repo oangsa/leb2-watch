@@ -73,6 +73,101 @@ void main() {
     await gate.release();
   });
 
+  test(
+    'activity leases block deletion effects but not connection-only wait',
+    () async {
+      final activity = await storage.acquireActivityLease();
+      final gate = await storage.beginDeletion();
+
+      await expectLater(
+        gate.waitForActivityQuiescence(
+          timeout: const Duration(milliseconds: 20),
+          pollInterval: const Duration(milliseconds: 2),
+        ),
+        throwsA(
+          isA<LocalDatabaseAccessException>().having(
+            (error) => error.reason,
+            'reason',
+            LocalDatabaseAccessFailureReason.quiescenceTimedOut,
+          ),
+        ),
+      );
+      await expectLater(activity.whenDeletionRequested, completes);
+
+      await activity.release();
+      await gate.waitForActivityQuiescence();
+      await gate.waitForQuiescence();
+      await gate.release();
+    },
+  );
+
+  test('deletion gate rejects new activity admission', () async {
+    final gate = await storage.beginDeletion();
+
+    await expectLater(
+      storage.acquireActivityLease(),
+      throwsA(
+        isA<LocalDatabaseAccessException>().having(
+          (error) => error.reason,
+          'reason',
+          LocalDatabaseAccessFailureReason.deletionInProgress,
+        ),
+      ),
+    );
+
+    await gate.release();
+  });
+
+  test(
+    'activity release remains retryable after file deletion fails',
+    () async {
+      var deleteAttempts = 0;
+      final accessGate = LocalDatabaseAccessGate(
+        temporaryDirectory,
+        activityLeaseFileDelete: (file) async {
+          deleteAttempts += 1;
+          if (deleteAttempts == 1) {
+            throw FileSystemException('synthetic activity release failure');
+          }
+          await file.delete();
+        },
+      );
+      final activity = await accessGate.acquireActivityLease();
+
+      await expectLater(
+        activity.release(),
+        throwsA(
+          isA<LocalDatabaseAccessException>().having(
+            (error) => error.reason,
+            'reason',
+            LocalDatabaseAccessFailureReason.gateUnavailable,
+          ),
+        ),
+      );
+
+      final deletion = await accessGate.beginDeletion();
+      await expectLater(activity.whenDeletionRequested, completes);
+      await expectLater(
+        deletion.waitForActivityQuiescence(
+          timeout: const Duration(milliseconds: 20),
+          pollInterval: const Duration(milliseconds: 2),
+        ),
+        throwsA(
+          isA<LocalDatabaseAccessException>().having(
+            (error) => error.reason,
+            'reason',
+            LocalDatabaseAccessFailureReason.quiescenceTimedOut,
+          ),
+        ),
+      );
+
+      await activity.release();
+      expect(deleteAttempts, 2);
+      await deletion.waitForActivityQuiescence();
+      await deletion.release();
+    },
+  );
+
   test('concurrent open and atomic rename never enter while gated', () async {
     for (var attempt = 0; attempt < 20; attempt += 1) {
       final existing = await storage.openDatabase();
@@ -143,6 +238,39 @@ void main() {
       expect(outcome, 'blocked');
     }
     await gate.waitForQuiescence();
+    await gate.release();
+  });
+
+  test('separate isolate activity lease is captured by deletion', () async {
+    final responses = ReceivePort();
+    final responseIterator = StreamIterator<Object?>(responses);
+    final isolate = await Isolate.spawn(_holdActivityLease, (
+      responses.sendPort,
+      temporaryDirectory.path,
+    ));
+    addTearDown(() {
+      isolate.kill(priority: Isolate.immediate);
+      responses.close();
+    });
+
+    expect(await responseIterator.moveNext(), isTrue);
+    final commandPort = responseIterator.current! as SendPort;
+    expect(await responseIterator.moveNext(), isTrue);
+    expect(responseIterator.current, 'acquired');
+
+    final gate = await storage.beginDeletion();
+    await expectLater(
+      gate.waitForActivityQuiescence(
+        timeout: const Duration(milliseconds: 20),
+        pollInterval: const Duration(milliseconds: 2),
+      ),
+      throwsA(isA<LocalDatabaseAccessException>()),
+    );
+
+    commandPort.send('release');
+    expect(await responseIterator.moveNext(), isTrue);
+    expect(responseIterator.current, 'released');
+    await gate.waitForActivityQuiescence();
     await gate.release();
   });
 
@@ -336,4 +464,21 @@ Future<void> _raceDatabaseOpen((SendPort, String) input) async {
     await commandIterator.cancel();
     commands.close();
   }
+}
+
+Future<void> _holdActivityLease((SendPort, String) input) async {
+  final (responses, directoryPath) = input;
+  final commands = ReceivePort();
+  responses.send(commands.sendPort);
+  final storage = LocalDatabaseStorage(
+    applicationSupportDirectoryProvider: () async => Directory(directoryPath),
+  );
+  final lease = await storage.acquireActivityLease();
+  responses.send('acquired');
+  final commandIterator = StreamIterator<Object?>(commands);
+  await commandIterator.moveNext();
+  await lease.release();
+  responses.send('released');
+  await commandIterator.cancel();
+  commands.close();
 }

@@ -31,3 +31,9 @@ abstract interface class LocalNotificationInitializationAttempt {
 abstract interface class LocalNotificationInitializationControl {
   LocalNotificationInitializationAttempt beginInitializationAttempt();
 }
+
+/// Internal deletion-only bypass used after all ordinary notification effects
+/// have released their cross-isolate activity leases.
+abstract interface class LocalNotificationDeletionControl {
+  Future<void> cancelAllAfterQuiescence();
+}

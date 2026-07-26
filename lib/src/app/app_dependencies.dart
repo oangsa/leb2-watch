@@ -12,6 +12,7 @@ import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
+import '../features/assignments/sync/quiescence_aware_assignment_sync_service.dart';
 import '../features/background_sync/application/background_monitoring_lifecycle.dart';
 import '../features/background_sync/application/background_sync_runner.dart';
 import '../features/background_sync/application/local_background_scheduler.dart';
@@ -33,6 +34,7 @@ import '../features/notifications/application/local_notification_service_impl.da
 import '../features/notifications/application/new_assignment_notification_coordinator.dart';
 import '../features/notifications/application/new_assignment_notification_drain.dart';
 import '../features/notifications/application/notification_aware_assignment_sync_service.dart';
+import '../features/notifications/application/quiescence_aware_local_notification_service.dart';
 import '../features/notifications/data/deadline_reminder_store.dart';
 import '../features/notifications/data/flutter_local_notifications_adapter.dart';
 import '../features/notifications/data/local_notifications_platform.dart';
@@ -59,9 +61,19 @@ final localNotificationServiceProvider = Provider<LocalNotificationService>((
   final service = LocalNotificationServiceImpl(
     ref.watch(localNotificationsPlatformProvider),
   );
-  ref.onDispose(service.dispose);
-  return service;
+  final guarded = QuiescenceAwareLocalNotificationService(
+    service,
+    ref.watch(localDatabaseStorageProvider),
+  );
+  ref.onDispose(guarded.dispose);
+  return guarded;
 });
+
+final localNotificationDeletionControlProvider =
+    Provider<LocalNotificationDeletionControl>((ref) {
+      return ref.watch(localNotificationServiceProvider)
+          as LocalNotificationDeletionControl;
+    });
 
 final credentialStoreProvider = Provider<CredentialStore>((ref) {
   return FlutterSecureCredentialStore();
@@ -267,10 +279,13 @@ final assignmentSyncServiceProvider = FutureProvider<AssignmentSyncService>((
   final deadlineReminderCoordinator = await ref.watch(
     deadlineReminderCoordinatorProvider.future,
   );
-  return NotificationAwareAssignmentSyncService(
-    delegate,
-    coordinator,
-    deadlineReminderCoordinator,
+  return QuiescenceAwareAssignmentSyncService(
+    NotificationAwareAssignmentSyncService(
+      delegate,
+      coordinator,
+      deadlineReminderCoordinator,
+    ),
+    ref.watch(localDatabaseStorageProvider),
   );
 });
 

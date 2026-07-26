@@ -25,8 +25,12 @@ anything was deleted from LEB2 or a self-hosted backend.
 - Transactional deletion of the complete semester-owned cache graph.
 - Session expiration and active-sync cancellation fencing for credential-only
   deletion.
-- A cross-isolate database-open gate, awaited foreground close, bounded
-  headless quiescence, logical scrub, and exact SQLite/`-wal`/`-shm` deletion.
+- A cross-isolate database and runtime-activity gate, cooperative active-sync
+  cancellation, and joined foreground/headless operations.
+- Deletion-exclusive notification cancellation after every admitted
+  show/schedule/cancel effect has settled.
+- Awaited foreground close, bounded headless database quiescence, logical
+  scrub, and exact SQLite/`-wal`/`-shm` deletion.
 - Narrow deletion of `<application-cache>/leb2_watch`.
 - Provider invalidation after full cleanup; the next real consumer reopens the
   database on demand.
@@ -97,6 +101,27 @@ connection long enough to perform the logical scrub, closes it explicitly,
 waits up to ten seconds for captured headless leases, and only then deletes
 physical files.
 
+Every synchronization pipeline and notification platform effect obtains a
+distinct `activity-<pid>-<48-hex-token>` lease from that same support-directory
+gate. `QuiescenceAwareAssignmentSyncService` is the outermost foreground and
+headless sync service. If deletion renames the gate while a sync is active, the
+owning isolate requests cancellation through the original service and joins
+the original synchronization Future before releasing its activity lease.
+Activity release becomes terminal only after the exact lease artifact is
+absent from both gate directories; a filesystem deletion failure stays
+visible and the same lease can be released again safely.
+Durable `cancellation_requested` rows remain the cross-isolate persistence
+fence.
+
+`QuiescenceAwareLocalNotificationService` holds a nested activity lease around
+test/new-assignment shows, reminder scheduling, reminder cancellation, and
+ordinary cancel-all calls until the actual plugin Future settles. The deletion
+coordinator can call only
+`LocalNotificationDeletionControl.cancelAllAfterQuiescence`, which bypasses
+ordinary admission after the database cleanup port has proved that no
+activity lease remains. The shared gate stays exclusive through logical and
+physical cleanup, provider invalidation, and final release.
+
 `FlowNavigatingLocalDataDeletionService` decorates the storage-independent
 service in the presentation composition. It updates `AppFlowController` after
 a complete result but before returning to the initiating widget. Navigation
@@ -122,20 +147,32 @@ unmounted. Incomplete results never update the flow.
 - `lib/src/features/settings/data_deletion/presentation/local_data_deletion_flow_service.dart`
   — complete-result flow transitions that survive widget disposal.
 - `lib/src/core/database/local_database_access_gate.dart` — filesystem
-  lease/gate protocol and bounded quiescence.
+  connection/activity lease protocol, deletion signal, and bounded
+  quiescence.
 - `lib/src/core/database/app_database_manager.dart` — foreground database
   owner.
 - `lib/src/core/database/local_database_storage.dart` — gated production
-  opens and independent database-sidecar deletion attempts.
+  opens, activity admission, and independent database-sidecar deletion
+  attempts.
 - `lib/src/core/database/app_database.dart` — idempotent close with owned lease
   release.
 - `lib/src/app/app_dependencies.dart` — manager-backed database provider.
+- `lib/src/app/provider_background_sync_composition.dart` — headless
+  composition that shares the exact injected storage for DB and activity
+  leases.
+- `lib/src/features/assignments/sync/quiescence_aware_assignment_sync_service.dart`
+  — outer synchronization cancellation/join boundary.
+- `lib/src/features/notifications/application/quiescence_aware_local_notification_service.dart`
+  — exact platform-effect lifetime and deletion-only cancellation boundary.
 - `lib/src/features/settings/notifications/presentation/notification_settings_page.dart`
   — Local data section integration.
 - `lib/src/features/settings/notifications/presentation/notification_settings_route.dart`
   — safe flow transitions.
 - `test/core/database/local_database_access_gate_test.dart` — same-isolate and
-  real spawned-isolate gate races.
+  real spawned-isolate connection/activity gate races.
+- `test/features/settings/data_deletion/data/local_data_deletion_quiescence_test.dart`
+  — mounted deletion races against a real file-backed synchronization and
+  blocked notification show/schedule Futures, plus retained-gate retry.
 - `test/features/settings/data_deletion/**` — coordinator, storage, platform,
   UI, and routing behavior.
 
@@ -154,9 +191,9 @@ abstract interface class LocalDataDeletionService {
 Public results contain only:
 
 - operation: `cachedAssignments`, `savedCredentials`, or `allLocalData`;
-- step: `backgroundWork`, `desktopAutostart`, `notifications`,
-  `credentials`, `databaseContent`, `databaseFiles`, `cacheFiles`, or
-  `providerReset`; and
+- step: `activeOperations`, `backgroundWork`, `desktopAutostart`,
+  `notifications`, `credentials`, `databaseContent`, `databaseFiles`,
+  `cacheFiles`, or `providerReset`; and
 - status: `completed`, `alreadyAbsent`, `notApplicable`, or `failed`.
 
 `failed` is the only incomplete status. Representations are fixed and
@@ -182,25 +219,35 @@ Credentials remain exclusively in secure storage.
 
 ## State and control flow
 
-Delete-all runs these categories in order:
+Every operation first begins operation quiescence. This atomically prevents new
+database/activity admission, marks queued and running synchronization rows
+`cancellation_requested`, and waits for activity leases without holding a
+SQLite transaction. The final release runs last and downgrades the fixed
+`activeOperations` result if admission cannot be restored safely.
 
-1. background work;
-2. desktop autostart;
-3. notifications;
-4. credentials;
-5. logical database content;
-6. physical database files;
-7. app-owned cache;
-8. provider invalidation.
+Delete-all runs these categories under that retained gate:
+
+1. active synchronization and notification quiescence;
+2. background work;
+3. desktop autostart;
+4. deletion-owned notification cancellation;
+5. credentials;
+6. logical database content;
+7. physical database files;
+8. app-owned cache;
+9. provider invalidation;
+10. gate release.
 
 Independent later categories continue after an earlier failure. Physical
 database deletion is skipped when logical scrub fails. It is also skipped
-when foreground close or headless quiescence cannot be proved.
+when runtime activity, foreground close, or headless quiescence cannot be
+proved. Provider invalidation is skipped when physical deletion is incomplete.
 
-For cache deletion, the short-lived database gate prevents new headless opens
-during the transaction. Deleting `sync_operations` through the semester
-cascade removes ownership for admitted work; a late response rechecks the
-operation, receives no ownership, and cannot call snapshot reconciliation.
+For cache deletion, notification cancellation occurs only after activity
+quiescence, then the semester graph is removed transactionally. Deleting
+`sync_operations` through the semester cascade removes ownership for admitted
+work; a late response rechecks the operation, receives no ownership, and
+cannot call snapshot reconciliation.
 
 For credential deletion, active and queued operation rows are marked
 `cancellation_requested`, and session lifecycle becomes `expired` without
@@ -244,6 +291,16 @@ removing cached assignments.
 - The deletion gate is a filesystem directory-rename and lease protocol, not
   a POSIX advisory lock. POSIX file locks are process-level and do not prove
   exclusion between isolates in one process.
+- Runtime operations use a second exact lease kind in the existing gate
+  instead of an in-memory coordinator. Foreground and mobile headless isolates
+  therefore share one admission boundary.
+- The public sync decorator wraps the complete notification-aware delegate,
+  while notification effects also hold nested leases. The outer lease joins
+  synchronization-owned work; the nested lease remains authoritative when a
+  reminder coordinator times out before a plugin Future settles.
+- Delete-all uses a deletion-only cancel-all bypass after activity quiescence.
+  Calling the ordinary notification service would attempt a new activity lease
+  under its own exclusive gate and deadlock.
 - Full deletion enters the gate before logical scrub. The foreground owner may
   use its already-admitted connection for that transaction, then must close
   and wait for every captured lease before physical deletion.
@@ -265,6 +322,12 @@ removing cached assignments.
   invalidation does not itself provide an awaited database-close future.
 - A Dart advisory file lock as the sole gate: it is not a portable
   cross-isolate proof.
+- A foreground in-memory mutex: it cannot observe mobile headless isolates or
+  platform Futures owned by another provider container.
+- Calling notification `cancelAll` before or twice around cleanup: a blocked
+  older show/schedule Future could still finish after the final cancellation.
+- Releasing a timed-out activity gate: that would admit new work while an old
+  platform effect remains live.
 - Deleting only `activities`: relationally and privacy incomplete.
 - Recursive removal of application support or the whole cache root: too broad
   and risks unrelated files.
@@ -278,8 +341,19 @@ removing cached assignments.
 - Background scheduler failure triggers a direct native cancellation attempt.
 - Unsupported capabilities return `notApplicable` only when the current
   platform cannot create the relevant scheduled state.
-- A ten-second quiescence timeout produces an incomplete database-files step;
-  it never claims physical deletion.
+- A ten-second activity-quiescence timeout produces fixed failed
+  `activeOperations` and notification results. It skips deletion-owned
+  `cancelAll`, physical database deletion, provider reset, and navigation.
+- A timed-out activity gate remains held fail-closed. Once the old effect
+  settles, retry reuses the retained gate, performs cancellation/cleanup, and
+  can restore normal admission.
+- While that gate remains held, bounded partial cleanup may still remove the
+  logical semester graph, credentials, and the narrow owned cache. It still
+  skips notification `cancelAll`, physical database deletion, provider reset,
+  and navigation until activity quiescence is proven.
+- Notification cancellation itself is awaited without an artificial timeout;
+  releasing the gate while a late `cancelAll` remains live could erase a newly
+  admitted notification.
 - Gate setup/release failure remains fail-closed for later database opens.
 - Executor close failure retains the lease and the manager-held connection;
   physical deletion is skipped and the manager refuses a false reopen.
@@ -294,9 +368,24 @@ removing cached assignments.
   cross-operation serialization, single-action scope, retry, redaction, and
   physical-delete dependency.
 - Gate tests verify blocked opens, bounded quiescence, repeated open/rename
-  races, a real `Isolate.spawn` race, conservative prior-process recovery,
-  stale active-lease pruning, current-process lease/owner preservation, and
-  independent DB/WAL/SHM attempts.
+  races, real `Isolate.spawn` connection and activity races, deletion signals,
+  rejected activity admission, conservative prior-process recovery, stale
+  lease pruning, current-process lease/owner preservation, retryable activity
+  release after deterministic file-deletion failure, and independent
+  DB/WAL/SHM attempts.
+- Synchronization tests include a real file-backed
+  `LocalAssignmentSyncService` inside the production outer decorators. They
+  verify HTTP cancellation, original-operation join, rejection before a
+  second backend request, terminal cancellation, an empty post-deletion
+  semester/activity/effect graph after another event-loop turn, and no
+  surviving activity lease.
+- Notification decorator and mounted coordinator tests verify blocked
+  show/schedule ordering, actual plugin-Future settlement before cancel-all,
+  ordinary admission rejection, timeout partial results, retained-gate retry,
+  empty presented/scheduled platform state after another event-loop turn, and
+  no scheduled-reminder row recreation after completion.
+- Headless composition tests verify that the injected `LocalDatabaseStorage`
+  owns both the database connection and runtime activity admission.
 - Database tests verify graph deletion, global-state preservation, reminder
   reset, late-sync fencing, session expiration/cancellation, logical scrub,
   physical deletion, fresh reopen/defaults, headless incomplete results, and
@@ -315,26 +404,42 @@ removing cached assignments.
 
 ## Validation evidence
 
-- `flutter test` — 846 tests passed.
-- Final blocker-focused tests — 27 tests passed across the access gate,
-  database cleanup adapters, and mounted notification-settings route.
-- Named real-composition regressions — complete delete-all and partial
-  delete-all each passed independently under a 30-second outer bound.
-- `dart run build_runner build --delete-conflicting-outputs` — completed; the
-  installed build runner reports the deprecated option as ignored.
-- Second code-generation pass — wrote 0 outputs.
-- `dart format --output=none --set-exit-if-changed .` — 277 files checked, 0
+- `flutter test` — 904 tests passed after the review corrections.
+- First full run — 901 passed and one existing intermittent Drift background
+  channel-close test failed. A fresh differential investigation reproduced
+  the same failure at clean `bef7991` and the current tree (1/20 each), before
+  any deletion logic executed; no deletion/startup code or assertion was
   changed.
+- Review-correction gate/sync/notification group — 18 tests passed.
+- Complete activity/deletion/provider composition group — 48 tests passed.
 - `dart analyze --fatal-infos --fatal-warnings` — no issues.
 - `flutter analyze --fatal-infos --fatal-warnings` — no issues.
+- `dart format --output=none --set-exit-if-changed .` — 299 files checked,
+  0 changed.
+- `flutter test integration_test/end_to_end_mocked_workflow_test.dart -d
+  linux --reporter expanded` — a first launch stalled before the test callback
+  and was interrupted at 2m40s. A fresh differential investigation then ran
+  the exact current-tree command 6/6 successfully; every test body completed
+  in four seconds. The integration test and Linux runner are unchanged from
+  `bef7991`, so no deletion code was changed for that transient desktop
+  launch/debug-connection condition.
 - `flutter build linux --release` — built
   `build/linux/x64/release/bundle/leb2-watch`.
+- Scoped diff checks passed for tracked and untracked feature files. Secret
+  and sensitive-logging searches found no credential values or added logging.
+- No code generation was required because this feature changes no generated
+  model, Drift table, schema version, or annotated provider.
 
 ## Known limitations
 
 - WorkManager and BGTask cancellation are best effort and cannot forcibly stop
-  already-running native work. The database gate/quiescence protocol prevents
-  that limitation from being represented as successful physical deletion.
+  already-running native work. Owning sync isolates observe the deletion
+  signal and request cooperative cancellation; the shared activity/database
+  gate prevents an unjoined operation from being represented as complete
+  deletion.
+- A native notification plugin call cannot be forcibly cancelled once
+  started. Deletion waits for the returned Future and cancels all supported OS
+  notification state afterward.
 - A same-PID stale gate (for example, an abnormal isolate failure without
   process exit) remains fail-closed because it cannot be distinguished safely
   from a live deletion owner.

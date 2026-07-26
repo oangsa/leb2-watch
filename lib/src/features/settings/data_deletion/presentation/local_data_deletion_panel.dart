@@ -239,6 +239,8 @@ class _DeletionResultView extends StatelessWidget {
   }
 
   static String _stepLabel(LocalDataDeletionStep step) => switch (step) {
+    LocalDataDeletionStep.activeOperations =>
+      'active synchronization and notifications',
     LocalDataDeletionStep.backgroundWork => 'background work',
     LocalDataDeletionStep.desktopAutostart => 'start at login',
     LocalDataDeletionStep.notifications => 'notifications',

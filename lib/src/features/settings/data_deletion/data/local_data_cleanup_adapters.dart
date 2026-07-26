@@ -76,9 +76,14 @@ final class PlatformLocalDataAutostartCleanup
 
 final class PlatformLocalDataNotificationCleanup
     implements LocalDataNotificationCleanup {
-  PlatformLocalDataNotificationCleanup(this._service, this._capabilities);
+  PlatformLocalDataNotificationCleanup(
+    this._service,
+    this._deletionControl,
+    this._capabilities,
+  );
 
   final LocalNotificationService _service;
+  final LocalNotificationDeletionControl _deletionControl;
   final LocalNotificationPlatformCapabilities _capabilities;
 
   @override
@@ -88,7 +93,7 @@ final class PlatformLocalDataNotificationCleanup
     }
     try {
       await _service.initialize();
-      await _service.cancelAll();
+      await _deletionControl.cancelAllAfterQuiescence();
       return LocalDataDeletionStepStatus.completed;
     } on Object {
       return LocalDataDeletionStepStatus.failed;
@@ -123,34 +128,74 @@ final class DriftLocalDataDatabaseCleanup implements LocalDataDatabaseCleanup {
   final AppDatabaseManager _manager;
   final LocalDatabaseStorage _storage;
   final Duration quiescenceTimeout;
-  LocalDatabaseDeletionGate? _fullDeletionGate;
+  LocalDatabaseDeletionGate? _operationGate;
+  bool _syncCancellationRequested = false;
+  bool _activityQuiescent = false;
+
+  @override
+  Future<LocalDataDeletionStepStatus> beginOperationQuiescence() async {
+    try {
+      final database = await _manager.open();
+      _operationGate ??= await _storage.beginDeletion();
+
+      var cancellationSucceeded = _syncCancellationRequested;
+      if (!cancellationSucceeded) {
+        try {
+          await database.transaction(() async {
+            await (database.update(database.syncOperations)
+                  ..where((row) => row.state.isIn(const ['queued', 'running'])))
+                .write(
+                  const SyncOperationsCompanion(
+                    cancellationRequested: Value(true),
+                  ),
+                );
+          });
+          _syncCancellationRequested = true;
+          cancellationSucceeded = true;
+        } on Object {
+          cancellationSucceeded = false;
+        }
+      }
+
+      try {
+        await _operationGate!.waitForActivityQuiescence(
+          timeout: quiescenceTimeout,
+        );
+        _activityQuiescent = true;
+      } on Object {
+        _activityQuiescent = false;
+        return LocalDataDeletionStepStatus.failed;
+      }
+      return cancellationSucceeded
+          ? LocalDataDeletionStepStatus.completed
+          : LocalDataDeletionStepStatus.failed;
+    } on Object {
+      return LocalDataDeletionStepStatus.failed;
+    }
+  }
 
   @override
   Future<LocalDataDeletionStepStatus> deleteCachedAssignments() async {
-    final database = await _manager.open();
-    LocalDatabaseDeletionGate? gate;
-    var status = LocalDataDeletionStepStatus.failed;
+    if (_operationGate == null) {
+      return LocalDataDeletionStepStatus.failed;
+    }
     try {
-      gate = await _storage.beginDeletion();
+      final database = await _manager.open();
       await database.transaction(() async {
         await database.delete(database.semesters).go();
         await _resetReminderReconciliation(database);
       });
-      status = LocalDataDeletionStepStatus.completed;
+      return LocalDataDeletionStepStatus.completed;
     } on Object {
-      status = LocalDataDeletionStepStatus.failed;
-    } finally {
-      try {
-        await gate?.release();
-      } on Object {
-        status = LocalDataDeletionStepStatus.failed;
-      }
+      return LocalDataDeletionStepStatus.failed;
     }
-    return status;
   }
 
   @override
   Future<LocalDataDeletionStepStatus> expireSession() async {
+    if (_operationGate == null) {
+      return LocalDataDeletionStepStatus.failed;
+    }
     try {
       final database = await _manager.open();
       await database.transaction(() async {
@@ -182,10 +227,11 @@ final class DriftLocalDataDatabaseCleanup implements LocalDataDatabaseCleanup {
 
   @override
   Future<LocalDataDeletionStepStatus> scrubAll() async {
-    LocalDatabaseDeletionGate? gate;
+    if (_operationGate == null) {
+      return LocalDataDeletionStepStatus.failed;
+    }
     try {
       final database = await _manager.open();
-      gate = await _storage.beginDeletion();
       await database.transaction(() async {
         await database.delete(database.semesters).go();
         await database.delete(database.appSettings).go();
@@ -197,44 +243,48 @@ final class DriftLocalDataDatabaseCleanup implements LocalDataDatabaseCleanup {
             .go();
         await _seedDefaults(database);
       });
-      _fullDeletionGate = gate;
       return LocalDataDeletionStepStatus.completed;
     } on Object {
-      try {
-        await gate?.release();
-      } on Object {
-        // The fixed failed result is the only safe public detail.
-      }
       return LocalDataDeletionStepStatus.failed;
     }
   }
 
   @override
   Future<LocalDataDeletionStepStatus> deleteFiles() async {
-    final gate = _fullDeletionGate;
-    _fullDeletionGate = null;
-    if (gate == null) {
+    final gate = _operationGate;
+    if (gate == null || !_activityQuiescent) {
       return LocalDataDeletionStepStatus.failed;
     }
 
-    var succeeded = false;
     try {
       await _manager.close();
       await gate.waitForQuiescence(timeout: quiescenceTimeout);
       await _storage.deleteDatabaseFiles();
-      succeeded = true;
+      return LocalDataDeletionStepStatus.completed;
     } on Object {
-      succeeded = false;
-    } finally {
-      try {
-        await gate.release();
-      } on Object {
-        succeeded = false;
-      }
+      return LocalDataDeletionStepStatus.failed;
     }
-    return succeeded
-        ? LocalDataDeletionStepStatus.completed
-        : LocalDataDeletionStepStatus.failed;
+  }
+
+  @override
+  Future<LocalDataDeletionStepStatus> endOperationQuiescence() async {
+    final gate = _operationGate;
+    if (gate == null) {
+      return LocalDataDeletionStepStatus.failed;
+    }
+    try {
+      if (!_activityQuiescent) {
+        await gate.waitForActivityQuiescence(timeout: Duration.zero);
+        _activityQuiescent = true;
+      }
+      await gate.release();
+      _operationGate = null;
+      _syncCancellationRequested = false;
+      _activityQuiescent = false;
+      return LocalDataDeletionStepStatus.completed;
+    } on Object {
+      return LocalDataDeletionStepStatus.failed;
+    }
   }
 
   Future<void> _resetReminderReconciliation(AppDatabase database) async {
