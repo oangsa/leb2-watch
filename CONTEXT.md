@@ -40,3 +40,19 @@ _Avoid_: Old data
 A latest refresh failure categorized as network unavailable. It describes the
 last attempt, not the device's current connectivity.
 _Avoid_: Offline
+
+**Local notification target**:
+A strictly validated assignment detail identity emitted after a user selects a
+local notification. It is not an arbitrary route or display payload.
+_Avoid_: Notification deep link, raw route
+
+**Notification owner**:
+The assignment-scoped effect identity that combines notification kind and,
+for a deadline reminder, its positive offset.
+_Avoid_: Notification payload, notification row
+
+**Notification ID candidate**:
+A deterministic positive int32 proposed for one Notification owner and probe.
+It is not collision-free until later orchestration resolves it against durable
+owner evidence.
+_Avoid_: Collision-free notification ID, notification allocation

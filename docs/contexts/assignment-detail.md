@@ -39,6 +39,9 @@ survives.
 A compact or expanded dashboard row opens
 `/assignments/:semesterId/:identityKey` inside the adaptive shell. Current
 assignments show a factual record and sanitized selectable description.
+The local-notification service uses the same validated key and named route;
+supported notification targets wait through incomplete app-flow gates and
+retain their explicit semester.
 
 A seen-only assignment says that it no longer appears in the latest saved
 snapshot and does not retain a removed title or description. A missing
@@ -56,6 +59,10 @@ as publication time.
 `DriftAssignmentDetailStore` watches the seven owning tables and resolves each
 invalidation inside one read transaction. Raw HTML exists only in the data
 layer's current-state value.
+
+`LocalNotificationPayloadCodec` reconstructs notification targets only through
+`AssignmentDetailKey.tryParse`. `NotificationNavigationCoordinator` holds the
+newest validated target outside `GoRouter` until the app flow is ready.
 
 `LocalAssignmentDetailService` is the security seam: it sanitizes the
 description, classifies timestamps without assigning a timezone, maps raw
@@ -293,15 +300,15 @@ presented as live connectivity.
 - Retained sync history is globally bounded, so a valid cache can lack a
   retained successful timestamp.
 - Cold-start detail intent is not preserved through onboarding,
-  authentication, or semester-selection redirects.
+  authentication, or semester-selection redirects unless it arrived through
+  the validated local-notification target coordinator.
 
 ## Future considerations
 
-Feature 12 can reuse `AssignmentDetailKey` for local notification deep links
-after it defines payload and delivery contracts. A later verified backend
-contract may add typed attachments or external links. Future notification
-features may enrich local evidence without changing the current sanitization
-boundary.
+Features 12.2 and 12.3 can use the established local-notification service
+without changing the detail route identity. A later verified backend contract
+may add typed attachments or external links. Future notification features may
+enrich local evidence without changing the current sanitization boundary.
 
 ## Related contexts
 
@@ -313,3 +320,4 @@ boundary.
 - [Adaptive Application Shell](adaptive-app-shell.md)
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
+- [Local Notification Service](local-notifications.md)

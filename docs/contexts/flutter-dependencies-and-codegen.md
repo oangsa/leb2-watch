@@ -3,8 +3,9 @@
 ## Status
 
 Completed for dependency resolution, generated Dart source, linting, tests,
-and the Linux release build. Android, iOS, macOS, and Windows dependencies are
-resolved but their native builds remain unverified on this Linux host.
+the parser dependency, local-notification dependencies, and the Linux release
+build. Android, iOS, macOS, and Windows dependencies are resolved but their
+native builds remain unverified on this Linux host.
 
 ## Purpose
 
@@ -26,6 +27,8 @@ without prematurely defining an application domain or database schema.
 - Flutter-generated desktop plugin registration changes.
 - The parser-only `html 0.15.6` runtime dependency used by Feature 11.2 to
   convert untrusted assignment description fragments to inert plain text.
+- Exact `flutter_local_notifications 22.2.0` and direct `timezone 0.11.1`
+  dependencies used behind Feature 12.1's application-owned adapter.
 
 ## Non-scope
 
@@ -35,7 +38,7 @@ without prematurely defining an application domain or database schema.
 - A credential-store interface or use of secure storage.
 - Secure-storage native entitlements, backup policy, or deployment-floor
   changes.
-- Design-system, notification, or background-work dependencies.
+- Design-system, notification-settings, or background-work dependencies.
 - Native builds unsupported by the current Linux host.
 
 ## User-visible behavior
@@ -67,6 +70,8 @@ the database feature supplies a real schema.
 - `pubspec.lock` — exact resolved dependency graph.
 - `lib/src/features/assignments/detail/application/assignment_description_sanitizer.dart`
   — the only production consumer of the direct `html` parser dependency.
+- `lib/src/features/notifications/data/flutter_local_notifications_adapter.dart`
+  — the only production consumer of notification/timezone plugin types.
 - `analysis_options.yaml` — Flutter lints plus Riverpod lint plugin.
 - `lib/bootstrap.dart` — root `ProviderScope`.
 - `test/codegen/domain_value.dart` — Freezed smoke source.
@@ -132,10 +137,12 @@ During development or CI:
 
 ## Platform behavior
 
-The Dart dependency graph resolves implementations for all five requested
-platforms. Flutter-generated registrants now include secure storage on Linux,
-macOS, and Windows. Platform resolution also records the federated Android and
-iOS implementations in Flutter's ignored plugin metadata.
+The Dart dependency graph resolves notification implementations for all five
+requested platforms. macOS registration includes
+`flutter_local_notifications`; Windows generated CMake includes its federated
+FFI package. The Linux implementation is pure Dart over DBus and requires no
+native generated registrar. Android and iOS plugin registration is owned by
+their Flutter platform projects.
 
 The Linux release build passed and its bundle contains
 `libflutter_secure_storage_linux_plugin.so` and `libsqlite3.so`. SQLite is
@@ -163,6 +170,13 @@ mutable-cache limitation.
 fragment parsing only; it adds no WebView, HTML renderer, URL launcher,
 networking behavior, or native plugin.
 
+The local-notification graph is local-only. It adds no push token, backend
+request, analytics, arbitrary remote payload, exact-alarm privilege, or
+credential storage. Direct `timezone 0.11.1` is used only with built-in UTC for
+scheduled instants. User-visible deadline copy uses Dart's device-local
+projection and includes its UTC offset; it does not require timezone database
+initialization.
+
 ## Decisions
 
 - Use the user-approved analyzer-12 graph on Flutter 3.44.8 / Dart 3.12.2.
@@ -178,6 +192,8 @@ networking behavior, or native plugin.
 - Commit generator outputs and enforce both tracked and untracked drift in CI.
 - Use one parser dependency for verified HTML descriptions instead of a
   regex-only tag stripper.
+- Pin `flutter_local_notifications 22.2.0` and `timezone 0.11.1` exactly to the
+  researched contracts used by the native configuration and adapter.
 
 ## Alternatives rejected
 
@@ -214,6 +230,10 @@ fallback, or error mapping.
 
 The existing configuration and root-widget tests continue to verify the
 scaffold behavior.
+
+Feature 12.1 adds a static dependency/registration test and adapter tests for
+Darwin initialization flags, Windows identity, and platform capability
+mapping, including Windows teardown ownership.
 
 ## Validation evidence
 
@@ -270,6 +290,8 @@ hand-edited; an ordinary staged `git diff --check` will report that line.
 - `build_runner` retains a removed, ignored option to match the required plan
   command; its warning is expected.
 - Android, iOS, macOS, and Windows builds are unverified on this host.
+- The Android release build was attempted for Feature 12.1 but the host has no
+  Android SDK or `ANDROID_HOME`; native Android success is not claimed.
 - Platform-specific secure-storage setup and minimum deployment-target changes
   are deferred because secure storage is not used yet.
 - GitHub Actions was configured but not executed locally.
@@ -289,3 +311,4 @@ hand-edited; an ordinary staged `git diff --check` will report that line.
 - [Flutter Project Scaffold](flutter-project-scaffold.md)
 - [Backend API Contract](backend-api-contract.md)
 - [Repository Frontend Preflight](repository-preflight.md)
+- [Local Notification Service](local-notifications.md)

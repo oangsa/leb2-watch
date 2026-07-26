@@ -27,6 +27,8 @@ completed.
   courses, settings, and diagnostics branches.
 - A named `/assignments/:semesterId/:identityKey` child route inside the
   assignments branch.
+- A validated local-notification target coordinator that waits outside the
+  router until the flow is ready.
 - Compact bottom navigation, medium navigation rail, and expanded workbench
   sidebar.
 - Pointer selection and platform-appropriate expanded-layout keyboard
@@ -43,8 +45,9 @@ completed.
 
 - Real settings, diagnostics, or privacy behavior.
 - Persisting the temporary application-flow stage.
-- Preserving a blocked deep-link target through the incomplete flow.
-- Credential, notification, or native background services.
+- Preserving arbitrary web or raw-route deep links through the incomplete
+  flow.
+- Credential, notification-policy, or native background services.
 - Production records, mock assignments, counts, deadlines, or timestamps.
 - New dependencies, generated code, native configuration, CI, assets, fonts,
   or design-system token changes.
@@ -87,6 +90,10 @@ ready route mounted and shows one warning that saved data remains available.
 Successful verification returns to assignments; first-time authentication
 still advances to semester selection.
 
+A supported local-notification assignment target never bypasses these guards.
+The newest validated target waits while a gate is active and opens its explicit
+semester-scoped detail route once the flow becomes ready.
+
 ## Architecture
 
 `AppRoute` is the stable product route declaration. `AppDestination` owns the
@@ -107,7 +114,10 @@ location.
 
 `Leb2WatchApp` reads the controller once in `initState`, creates the router
 once, supplies it to `MaterialApp.router`, and disposes the router with the
-widget. The root `ProviderScope` remains in `bootstrap()`. Feature 9.2 replaces
+widget. It also owns `NotificationNavigationCoordinator`, which subscribes
+before local-notification initialization and removes its stream/flow listeners
+before router disposal. The root `ProviderScope` remains in `bootstrap()`.
+Feature 9.2 replaces
 the authentication placeholder with `SessionSetupRoute`; successful verified
 persistence updates an initial flow to `semesterSelection`, so the existing
 router redirects to `/semesters` without reconstruction. Feature 10.1 replaces
@@ -165,6 +175,8 @@ route child rather than replacing it.
 - `lib/src/core/session/session_lifecycle.dart` — durable state watched by the
   shell.
 - `lib/src/app/leb2_watch_app.dart` — root router lifecycle and themes.
+- `lib/src/features/notifications/application/notification_navigation_coordinator.dart`
+  — validates flow readiness before named assignment-detail navigation.
 - `test/app/routing/app_router_test.dart` — controller and routing behavior.
 - `test/app/shell/adaptive_app_shell_test.dart` — responsive navigation,
   input, scaling, and semantics.
@@ -217,6 +229,8 @@ The exact guard contract is:
 - Ready allows authentication for reauthentication, semester changes, the four
   shell routes, validated assignment detail children, and privacy.
 - Unknown ready routes fall through to the application-owned error surface.
+- A validated notification target is retained outside `GoRouter` while any
+  non-ready guard is active; the newest target replaces an older pending one.
 
 ## Data model
 
@@ -241,6 +255,8 @@ At startup:
    assignments.
 9. A ready user's `Change semester` action replaces the shell location with
    the top-level semester route; selection returns to assignments.
+10. A local-notification target received before ready waits outside the router;
+    becoming ready consumes it and opens the named detail route once.
 
 Inside the shell, selecting a destination calls `goBranch(index)`. The indexed
 stack retains branch navigators, and responsive layout changes reuse the same
@@ -463,15 +479,16 @@ passed 96/96 after adding compact and expanded ready-user reachability.
 - The application-flow stage is temporary in-memory state. Later restoration
   must derive the initial flow stage. Session expiration and the active
   semester itself are independently durable.
-- Blocked deep links do not resume after flow completion.
+- Arbitrary blocked deep links do not resume after flow completion. Validated
+  local-notification assignment targets use their own bounded coordinator.
 - The `Change semester` action uses location replacement rather than a pushed
   overlay because the current stateful-branch context cannot push that
   top-level sibling. The selection route has no separate cancel action.
 - Settings and diagnostics remain honest labels only; their real workflows
   belong to later features.
-- The assignments branch now has one nested detail route. Push/back behavior
-  and shell retention are directly covered; intended-detail restoration
-  through incomplete flow gates remains outside the contract.
+- The assignments branch now has one nested detail route. Push/back, shell
+  retention, and local-notification target restoration are directly covered;
+  arbitrary intended-route restoration remains outside the contract.
 
 ## Future considerations
 
@@ -479,10 +496,8 @@ passed 96/96 after adding compact and expanded ready-user reachability.
   without changing route names or shell destination order.
 - Derive the flow stage from completed onboarding, verified session, and active
   semester state.
-- Decide whether safe intended-destination restoration is required after the
-  gated flow.
-- Preserve safe assignment-detail intent through gated flows only if a later
-  deep-link lifecycle defines that policy.
+- Decide whether safe non-notification intended-destination restoration is
+  required after the gated flow.
 - Perform Android, iOS, macOS, and Windows builds and real-device accessibility
   checks on supported hosts.
 
@@ -495,3 +510,4 @@ passed 96/96 after adding compact and expanded ready-user reachability.
 - [Session Setup and Verification](session-setup.md)
 - [Session Expiration Recovery](session-expiration.md)
 - [Semester Selection](semester-selection.md)
+- [Local Notification Service](local-notifications.md)

@@ -19,11 +19,31 @@ import '../features/authentication/application/session_setup_service.dart';
 import '../features/authentication/data/session_identity_store.dart';
 import '../features/courses/application/course_preferences_service.dart';
 import '../features/courses/data/course_preferences_store.dart';
+import '../features/notifications/application/local_notification_service_impl.dart';
+import '../features/notifications/data/flutter_local_notifications_adapter.dart';
+import '../features/notifications/data/local_notifications_platform.dart';
+import '../features/notifications/domain/local_notification_service.dart';
 import '../features/semesters/application/semester_selection_service.dart';
 import '../features/semesters/data/semester_selection_store.dart';
 
 final appConfigurationProvider = Provider<AppConfiguration>((ref) {
   throw StateError('AppConfiguration was not provided.');
+});
+
+final localNotificationsPlatformProvider = Provider<LocalNotificationsPlatform>(
+  (ref) {
+    return FlutterLocalNotificationsAdapter();
+  },
+);
+
+final localNotificationServiceProvider = Provider<LocalNotificationService>((
+  ref,
+) {
+  final service = LocalNotificationServiceImpl(
+    ref.watch(localNotificationsPlatformProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 final credentialStoreProvider = Provider<CredentialStore>((ref) {
