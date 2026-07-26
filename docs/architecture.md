@@ -1,0 +1,182 @@
+# Architecture
+
+LEB2 Watch is local-first: the interface reads durable device state first,
+then synchronization updates that state asynchronously. The self-hosted backend
+is a transport/scraping boundary with no durable per-user store. It can retain
+short-lived process-local cache, throttle, backoff, health, and correlation
+state; none of that is the application's database.
+
+## Data flow
+
+```text
+Flutter UI and Riverpod state
+             |
+             v
+Application services and domain interfaces
+       |                         |
+       v                         v
+Drift / secure storage     platform adapters
+       |                   notifications, background,
+       |                   tray, window, autostart
+       |
+       +---- cached state
+
+Synchronization service -> Dio transport -> self-hosted backend -> LEB2
+                                |
+                                +-- verified transport models
+                                      |
+                                      v
+                                  domain values
+```
+
+Widgets do not depend on Dio, Drift, or native plugin types. Application-owned
+interfaces isolate transport, persistence, secure credentials, notifications,
+background scheduling, and desktop behavior.
+
+## Startup and cached rendering
+
+Production bootstrap resolves the initial application-flow stage from local
+evidence before attaching the first product frame. It reads only the
+app-settings/session lifecycle, active-semester selection, and whether a
+secure session cookie is present. It performs no backend request and reuses the
+same database and credential boundaries when it constructs the Riverpod graph.
+
+A proven prior session and selected semester can therefore open the dashboard
+directly, where Drift emits cached assignments before asynchronous
+synchronization completes. Missing or inconsistent local proof resolves
+conservatively to onboarding, authentication, or semester selection. Exact
+session expiration can still resolve to the dashboard so cached assignments
+remain visible.
+
+The Phase 16 integration test verifies close/reopen persistence by removing one
+widget/provider graph, closing its database manager, reopening the same SQLite
+file, and constructing a new graph while a backend response is gated. This is
+an application-lifetime restart inside one Linux test executable, not a
+separate operating-system process relaunch.
+
+## Main layers
+
+| Area | Responsibility |
+| --- | --- |
+| `lib/src/app` | Bootstrap composition, routing, adaptive shell, lifecycle integration |
+| `lib/src/core` | Configuration, database, network, session, security, and shared domain boundaries |
+| `lib/src/features` | Onboarding, authentication, semesters, assignments, notifications, background sync, settings, and diagnostics |
+| `lib/src/platform` | Android/iOS background adapters and desktop tray/window/autostart adapters |
+
+Riverpod owns application composition and lifecycle. `go_router` owns named
+routes and adaptive navigation. Freezed domain values remain separate from
+JSON transport models.
+
+## Storage ownership
+
+| Data | Owner | Persistence |
+| --- | --- | --- |
+| Session cookie | Credential store | OS secure storage |
+| Optional username/password | Credential store, only after explicit automatic-reauthentication opt-in | OS secure storage |
+| Semesters, courses, activities | Assignment database | Local SQLite |
+| Seen identities and fingerprints | Synchronization/diff engine | Local SQLite |
+| Notification/reminder ownership and history | Notification application layer | Local SQLite |
+| Preferences, session lifecycle, diagnostics, backoff | Feature stores | Local SQLite |
+| Backend request/cache state | Self-hosted backend | Request scope and short-lived process memory only |
+
+Credentials are deliberately absent from SQLite. The application has no cloud
+database, analytics, advertising, push-token registration, or remote crash
+reporting.
+
+## Synchronization flow
+
+Every trigger uses the same `AssignmentSyncService`: setup, launch, resume,
+manual refresh, mobile background work, desktop timer, and tray action.
+
+1. Read session, selected semester, monitoring policy, and backoff state.
+2. Join an existing same-target operation instead of issuing a duplicate HTTP
+   request.
+3. Fetch a verified nested snapshot outside the database transaction.
+4. Validate and map transport data into domain values.
+5. Reconcile the snapshot, identities, change evidence, history, and retry
+   state in a transaction.
+6. Complete the operation only after the transaction commits.
+7. Claim notification and deadline-reminder effects from committed evidence.
+8. Call supported local OS services.
+
+Malformed or failed responses never replace a valid local snapshot. A
+first/baseline synchronization stores historical assignments without producing
+new-assignment notifications. Later snapshots use stable backend IDs and
+versioned deterministic ownership to prevent duplicate effects.
+
+The synchronization lock is durable SQLite coordination with fenced ownership
+and leases, rather than a UI-isolate mutex. The UI and background entry points
+therefore share one local source of truth.
+
+## Notifications
+
+Local notification requests contain bounded display copy and versioned local
+assignment targets. They contain no credentials or raw backend response.
+
+New-assignment and deadline-reminder ownership is persisted before platform
+I/O. A plugin result does not claim that the operating system delivered or
+displayed the notification. Unsupported scheduling/cancellation is represented
+explicitly, especially on Linux and unpackaged Windows.
+
+## Background families
+
+One scheduler contract is implemented by:
+
+- Android WorkManager unique periodic work;
+- iOS BGAppRefresh through Workmanager;
+- a non-overlapping, process-local desktop timer; and
+- an explicit unsupported adapter on other families.
+
+Global monitoring defaults off. Mobile scheduling is system-controlled and
+desktop scheduling requires the application process to remain alive. All
+families run the shared synchronization service and its local target, session,
+course, and backoff gates.
+
+Desktop composition also owns tray actions, close-to-tray explanation,
+single-instance behavior, and opt-in start at login. It does not install a
+service or daemon.
+
+## Session expiration and failures
+
+Only the verified combination of HTTP 401 and `SESSION_EXPIRED` expires the
+saved session. Timeouts, HTML responses, malformed JSON, and unrelated 401
+errors remain distinct failures.
+
+Expiration:
+
+- pauses automatic synchronization;
+- preserves cached assignments and settings;
+- shows reauthentication guidance; and
+- resumes normal monitoring only after a replacement session verifies and
+  persists.
+
+Retry policy distinguishes temporary network/backend failures from
+non-retryable authentication and response failures. `Retry-After` is retained
+where available.
+
+## Local deletion
+
+The deletion coordinator provides three bounded operations:
+
+- delete cached assignments;
+- delete saved credentials; and
+- delete all local data.
+
+Delete-all cancels app-owned background scheduling and supported notifications,
+clears the two secure credential entries, logically scrubs SQLite, proves
+database quiescence before deleting the database and sidecars, removes only the
+app-owned cache directory, resets providers, and returns to onboarding after a
+complete result. It never claims to delete data from LEB2 or a backend.
+
+## Technical references
+
+- [Verified backend contract](contexts/backend-api-contract.md)
+- [Local database](contexts/local-database.md)
+- [Secure credential storage](contexts/secure-credential-storage.md)
+- [Assignment synchronization](contexts/assignment-synchronization.md)
+- [Assignment diffing](contexts/assignment-diffing.md)
+- [Local notifications](contexts/local-notifications.md)
+- [Background scheduler](contexts/background-scheduler.md)
+- [Local data deletion](contexts/local-data-deletion.md)
+- [Frontend integration testing](contexts/frontend-integration-testing.md)
+- [Platform build validation](contexts/platform-build-validation.md)
