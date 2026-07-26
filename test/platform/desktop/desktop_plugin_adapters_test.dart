@@ -111,8 +111,8 @@ void main() {
     expect(closeRequests, 1);
     expect(plugin.log, [
       'ensure',
-      'prevent:true',
       'add',
+      'prevent:true',
       'show',
       'focus',
       'hide',
@@ -122,15 +122,74 @@ void main() {
     ]);
   });
 
-  test('pre-run hook guards close but never blocks app startup', () async {
+  test('window initialization failure restores conventional close', () async {
+    final plugin = _WindowPlugin()
+      ..preventCloseEnableFailure = StateError('native detail');
+    final adapter = WindowManagerDesktopWindowPlatform(plugin: plugin);
+    var closeRequests = 0;
+
+    await expectLater(
+      adapter.initialize(onClose: () => closeRequests += 1),
+      throwsA(isA<StateError>()),
+    );
+    adapter.onWindowClose();
+
+    expect(plugin.preventClose, isFalse);
+    expect(closeRequests, 0);
+    expect(plugin.log, [
+      'ensure',
+      'add',
+      'prevent:true',
+      'prevent:false',
+      'remove',
+    ]);
+  });
+
+  test(
+    'failed prevention rollback retains the guarded close listener',
+    () async {
+      final plugin = _WindowPlugin()
+        ..preventCloseEnableFailure = StateError('enable detail')
+        ..preventCloseDisableFailure = StateError('disable detail');
+      final adapter = WindowManagerDesktopWindowPlatform(plugin: plugin);
+      var closeRequests = 0;
+
+      await expectLater(
+        adapter.initialize(onClose: () => closeRequests += 1),
+        throwsA(isA<StateError>()),
+      );
+      adapter.onWindowClose();
+
+      expect(plugin.preventClose, isTrue);
+      expect(closeRequests, 1);
+      expect(plugin.log, ['ensure', 'add', 'prevent:true', 'prevent:false']);
+    },
+  );
+
+  test('listener setup failure never enables close interception', () async {
+    final plugin = _WindowPlugin()
+      ..addListenerFailure = StateError('native detail');
+    final adapter = WindowManagerDesktopWindowPlatform(plugin: plugin);
+
+    await expectLater(
+      adapter.initialize(onClose: () {}),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(plugin.preventClose, isFalse);
+    expect(plugin.log, ['ensure', 'add', 'prevent:false']);
+  });
+
+  test('pre-run hook initializes without intercepting close', () async {
     final plugin = _WindowPlugin();
     final hook = WindowManagerDesktopPreRunAppHook(plugin: plugin);
 
     await hook.initialize();
-    plugin.preventCloseFailure = StateError('native detail');
+    plugin.ensureFailure = StateError('native detail');
     await hook.initialize();
 
-    expect(plugin.log, ['ensure', 'prevent:true', 'ensure', 'prevent:true']);
+    expect(plugin.preventClose, isFalse);
+    expect(plugin.log, ['ensure', 'ensure']);
   });
 }
 
@@ -178,13 +237,27 @@ final class _TrayPlugin implements DesktopTrayPlugin {
 
 final class _WindowPlugin implements DesktopWindowPlugin {
   final List<String> log = [];
-  Object? preventCloseFailure;
+  Object? addListenerFailure;
+  Object? ensureFailure;
+  Object? preventCloseEnableFailure;
+  Object? preventCloseDisableFailure;
+  bool preventClose = false;
 
   @override
-  Future<void> ensureInitialized() async => log.add('ensure');
+  Future<void> ensureInitialized() async {
+    log.add('ensure');
+    if (ensureFailure case final failure?) {
+      throw failure;
+    }
+  }
 
   @override
-  void addListener(WindowListener listener) => log.add('add');
+  void addListener(WindowListener listener) {
+    log.add('add');
+    if (addListenerFailure case final failure?) {
+      throw failure;
+    }
+  }
 
   @override
   void removeListener(WindowListener listener) => log.add('remove');
@@ -192,9 +265,17 @@ final class _WindowPlugin implements DesktopWindowPlugin {
   @override
   Future<void> setPreventClose(bool preventClose) async {
     log.add('prevent:$preventClose');
-    if (preventCloseFailure case final failure?) {
+    if (preventClose) {
+      this.preventClose = true;
+      if (preventCloseEnableFailure case final failure?) {
+        throw failure;
+      }
+      return;
+    }
+    if (preventCloseDisableFailure case final failure?) {
       throw failure;
     }
+    this.preventClose = false;
   }
 
   @override

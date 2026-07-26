@@ -4,7 +4,8 @@
 
 Completed. Linux is release-build verified on the current host. macOS and
 Windows are implemented and statically validated but require their native hosts
-for build and runtime validation.
+for runtime validation. A Windows Release CI gate is configured but has not
+been claimed as a successful native run in this context.
 
 ## Purpose
 
@@ -20,6 +21,8 @@ installing a service or persisting secrets.
 - A first-close explanation before the window is hidden.
 - Opt-in, OS-backed start-at-login state.
 - Native single-instance behavior and best-effort window restoration.
+- Process-local reveal of a hidden live window before notification navigation.
+- Native Windows quit-on-destroy fallback when close interception is unhealthy.
 - Sandboxed outbound backend access on macOS.
 - Platform-specific tray assets derived from the existing application icon.
 
@@ -87,7 +90,11 @@ channels.
 - `lib/src/platform/desktop/runtime/desktop_runtime_coordinator.dart` — tray,
   close, synchronization, and guarded cleanup state machine.
 - `lib/src/platform/desktop/runtime/desktop_runtime_host.dart` — Riverpod and
-  widget composition plus the close explanation overlay.
+  widget composition, window-reveal subscription, and close explanation
+  overlay.
+- `lib/src/platform/desktop/runtime/desktop_window_reveal_signal.dart` —
+  process-local, payload-free request signal shared by app navigation and the
+  desktop host.
 - `lib/src/platform/desktop/tray/tray_manager_desktop_tray_platform.dart` —
   listener-key-only tray adapter and menu construction.
 - `lib/src/platform/desktop/window/window_manager_desktop_window_platform.dart`
@@ -108,7 +115,9 @@ channels.
   network permissions.
 - `macos/Runner.xcodeproj/project.pbxproj` — pinned
   `LaunchAtLogin-Legacy` 5.0.2 package and helper-copy phase.
-- `windows/runner/main.cpp` — per-user mutex and second-instance restoration.
+- `windows/runner/main.cpp` — per-interactive-session mutex, second-instance
+  restoration, and quit-on-destroy fallback.
+- `.github/workflows/ci.yml` — sanitized unpackaged Windows Release build gate.
 - `assets/desktop/` — Linux PNG, macOS template PNG, and Windows multi-size ICO.
 - `test/platform/desktop/` — timer, coordinator, adapter, widget, autostart, and
   native static tests.
@@ -137,18 +146,22 @@ is not mirrored as an application source of truth.
 
 ## State and control flow
 
-1. The desktop pre-run hook initializes `window_manager` and requests close
-   prevention before `runApp`.
+1. The desktop pre-run hook initializes `window_manager` without intercepting
+   close before `runApp`.
 2. `DesktopRuntimeHost` reads the shared runner, monitoring settings service,
    scheduler platform, and autostart service.
 3. The host binds timer invocations to the shared runner and initializes the
    coordinator.
-4. The coordinator initializes the window, then the tray, reads start-at-login
+4. The window adapter attaches its close listener before enabling close
+   prevention. The coordinator then initializes the tray, reads start-at-login
    state, and watches the monitoring preference.
 5. Monitoring reconciliation schedules one jittered one-shot timer. A tick
    clears that timer, awaits synchronization, and rearms one cadence timer in
    `finally`.
-6. Explicit quit disposes the process timer, cancels subscriptions, removes
+6. A notification response requests the process-local reveal signal before
+   route navigation. The host calls the coordinator's show-then-focus
+   operation; an early request waits until coordinator initialization.
+7. Explicit quit disposes the process timer, cancels subscriptions, removes
    listeners, destroys the tray, permits close, and destroys the window last.
 
 ## Platform behavior
@@ -165,9 +178,14 @@ is not mirrored as an application source of truth.
   `com.apple.security.network.client` so the app can contact the configured
   backend. Debug/Profile retains `network.server` and `cs.allow-jit` for
   Flutter tooling; Release grants neither inbound-network nor JIT permission.
-- **Windows:** a named `Local\dev.oangsa.leb2watch.instance.v1` mutex is acquired
-  before Flutter engine creation. A later launch finds the app-specific window
-  class, restores the window, and requests foreground focus before exiting.
+- **Windows:** a named `Local\dev.oangsa.leb2watch.instance.v1` mutex is
+  acquired before Flutter engine creation, enforcing one instance within one
+  interactive session, not across sessions. A later same-session launch finds
+  the app-specific window class, restores the window, and requests foreground
+  focus before exiting. Healthy plugin interception still owns close-to-tray.
+  Native quit-on-destroy is enabled so an unavailable interception/composition
+  path exits on close rather than leaving an invisible process. A live
+  notification tap uses the same show/focus operation before local navigation.
 
 ## Security and privacy
 
@@ -195,6 +213,12 @@ is not mirrored as an application source of truth.
 - Use listener keys as the only tray action path to prevent duplicate callbacks
   from plugin menu-item handlers.
 - Keep the window visible if tray startup is unhealthy.
+- Use a payload-free process-local reveal signal rather than expose a window
+  plugin to notification code.
+- Leave conventional close enabled during pre-run startup, then attach the
+  close listener before enabling plugin interception.
+- Retain native Windows quit-on-destroy as the safe fallback while letting
+  healthy plugin interception own close-to-tray.
 - Use native per-platform single-instance mechanisms instead of a socket, lock
   file, or service.
 - Choose `LSMultipleInstancesProhibited` on macOS. This also prevents separate
@@ -224,10 +248,15 @@ fixed, non-sensitive status labels. A focus denial still leaves the window
 visible. Tray menu replacement failure marks the tray unhealthy so the window
 will not later be hidden.
 
-Plugin failures make start-at-login unavailable without changing OS state. A
-composition failure restores conventional close behavior where possible.
-Cleanup is guarded and idempotent; tray destruction failure does not prevent
-the final window-destroy attempt.
+Plugin failures make start-at-login unavailable without changing OS state.
+Pre-run initialization never enables close prevention. Runtime initialization
+attaches the close listener before enabling prevention and rolls prevention
+back on failure; the coordinator makes one additional best-effort rollback.
+If rollback itself fails after a partially applied enable, the listener remains
+attached as the guarded quit path. On Windows the native fallback exits when
+the window is destroyed. Cleanup is guarded and idempotent; tray destruction
+failure does not prevent the final window-destroy attempt. A denied focus
+request does not fail reveal after the window has been shown.
 
 ## Tests
 
@@ -235,20 +264,21 @@ the final window-destroy attempt.
   timer, no overlap, completion-based rearming, pause/resume, failures, and
   dispose.
 - Coordinator tests cover stable actions, guarded tray synchronization, pause,
-  open/focus, the first-close explanation, failed tray startup, and cleanup
-  order.
+  show-before-focus, focus denial, the first-close explanation, failed tray
+  startup, and cleanup order.
 - Autostart tests cover default-off initialization, reactive OS truth,
   enable/disable, failure redaction, and executable quoting.
 - Plugin adapter tests cover platform asset selection, listener-key dispatch,
-  callback-free menus, listener cleanup, window forwarding, and safe pre-run
+  callback-free menus, listener cleanup, listener-before-prevention ordering,
+  prevention rollback, guarded rollback failure, and non-intercepting pre-run
   failure.
 - Widget tests cover the close explanation and both explicit actions at 200%
-  text scaling.
+  text scaling, plus reveal forwarding and subscription disposal.
 - Native static tests cover Linux uniqueness, the Windows pre-engine mutex and
-  restoration path, macOS lifecycle/package/channel configuration, sandbox
-  preservation, outbound client access in both macOS profiles, Debug/Profile
-  server and JIT retention, Release server and JIT exclusion, and asset
-  headers/dimensions.
+  per-session restoration path, Windows quit-on-destroy fallback and Release
+  CI gate, macOS lifecycle/package/channel configuration, sandbox preservation,
+  outbound client access in both macOS profiles, Debug/Profile server and JIT
+  retention, Release server and JIT exclusion, and asset headers/dimensions.
 
 ## Validation evidence
 
@@ -291,6 +321,20 @@ the final window-destroy attempt.
   macos/Runner/Release.entitlements
   test/platform/desktop/desktop_native_configuration_test.dart
   docs/contexts/desktop-tray-monitoring.md` — passed after the context update.
+- Windows preview hardening regressions — 31 tests passed; the combined
+  desktop/app/notification group passed 283 tests.
+- `dart analyze --fatal-infos --fatal-warnings` and
+  `flutter analyze --fatal-infos --fatal-warnings` — passed with no issues
+  after Windows preview hardening.
+- Serialized `flutter test` — 979 tests passed after Windows preview
+  hardening.
+- Mocked Linux desktop integration — 2 tests passed against the host's
+  existing display; sanitized Linux Release build passed.
+- Final close-ordering correction focused batch — 14 tests passed, including
+  injected listener setup, prevention enable, and prevention rollback
+  failures.
+- Final correction serialized desktop/app-notification batch — 33 tests
+  passed; strict Dart and Flutter analysis passed with no issues.
 
 ## Known limitations
 
@@ -299,9 +343,12 @@ the final window-destroy attempt.
 - Desktop OS scheduling and window foreground focus remain best effort.
 - The current Linux host is headless, so the release artifact was not exercised
   through a live system tray or second-launch GUI interaction.
-- macOS and Windows changes were not build-verified on this Linux host.
+- macOS and Windows changes were not build-verified on this Linux host. The
+  Windows workflow is configured but its result is not claimed here.
 - macOS helper copying and Windows mutex/focus behavior still require runtime
   validation on their native hosts.
+- The Windows `Local\` mutex does not coordinate the same user across multiple
+  interactive sessions; that topology is unsupported.
 - The macOS entitlement plist shape is XML- and statically validated on Linux,
   but a signed Release build and a real sandboxed HTTPS request require macOS.
 
@@ -324,8 +371,8 @@ the final window-destroy attempt.
   Then use sanitized credentials to verify a session and refresh semesters
   against a non-production self-hosted HTTPS backend. Confirm there is no
   sandbox `Operation not permitted` failure, and do not log the session.
-- Add native runner tests if dedicated macOS and Windows CI workers become
-  available.
+- Inspect the configured Windows Release workflow result after commit/push,
+  then run the native Windows smoke checklist separately.
 - Consider surfacing start-at-login controls in settings if they are not already
   exposed by a later settings feature.
 
@@ -335,3 +382,4 @@ the final window-destroy attempt.
 - [Assignment Synchronization](assignment-synchronization.md)
 - [Synchronization Backoff](synchronization-backoff.md)
 - [Synchronization Diagnostics](synchronization-diagnostics.md)
+- [Windows Preview Hardening](windows-preview-hardening.md)

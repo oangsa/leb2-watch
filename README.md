@@ -65,7 +65,7 @@ process exits.
 | Android | Application and WorkManager integration | Dart/static tests only; Android SDK and device validation unavailable |
 | iOS | Application and BGAppRefresh integration | Dart/static tests only; macOS, Xcode, signing, and device validation required |
 | macOS | Application, tray, timer, and autostart | Dart/static tests only; macOS build, signing, and runtime validation required |
-| Windows | Application, tray, timer, and autostart | Dart/static tests only; Windows build and runtime validation required |
+| Windows | Unpackaged preview with tray, timer, autostart, immediate notifications, and same-process tap reveal | Dart/static tests pass and a Windows Release CI gate is configured; native runtime validation is still required |
 
 This is not a store-readiness statement. Signing and packaging remain the
 operator's responsibility. See [Platform support](docs/platform-support.md).

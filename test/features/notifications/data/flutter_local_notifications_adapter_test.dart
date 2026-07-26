@@ -151,7 +151,7 @@ void main() {
         (NotificationRuntimePlatform.iOS, false, true, true, true),
         (NotificationRuntimePlatform.macOS, false, true, true, true),
         (NotificationRuntimePlatform.linux, false, false, true, false),
-        (NotificationRuntimePlatform.windows, false, false, false, true),
+        (NotificationRuntimePlatform.windows, false, false, false, false),
         (NotificationRuntimePlatform.windows, true, true, true, true),
       ]) {
     test('capabilities are truthful for ${testCase.$1.name}', () {

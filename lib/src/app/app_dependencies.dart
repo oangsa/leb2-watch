@@ -49,6 +49,7 @@ import '../features/semesters/application/semester_selection_service.dart';
 import '../features/semesters/data/semester_selection_store.dart';
 import '../platform/background/background_scheduler_factory.dart';
 import '../platform/background/background_scheduler_platform.dart';
+import '../platform/desktop/runtime/desktop_window_reveal_signal.dart';
 
 final appConfigurationProvider = Provider<AppConfiguration>((ref) {
   throw StateError('AppConfiguration was not provided.');
@@ -148,6 +149,14 @@ final backgroundScheduleStatusRefreshSignalProvider =
       ref.onDispose(signal.dispose);
       return signal;
     });
+
+final desktopWindowRevealSignalProvider = Provider<DesktopWindowRevealSignal>((
+  ref,
+) {
+  final signal = DesktopWindowRevealSignal();
+  ref.onDispose(signal.dispose);
+  return signal;
+});
 
 final backgroundScheduleReconcilerProvider =
     FutureProvider<BackgroundScheduleReconciler>((ref) async {

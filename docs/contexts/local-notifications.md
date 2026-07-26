@@ -90,7 +90,9 @@ permission calls.
 
 `NotificationNavigationCoordinator` subscribes before plugin initialization.
 It holds at most one pending target, listens to `AppFlowController`, and calls
-the named assignment-detail route only when the flow is ready.
+the named assignment-detail route only when the flow is ready. Before routing,
+`Leb2WatchApp` requests the payload-free desktop reveal signal. On a desktop
+target, `DesktopRuntimeHost` shows and then requests focus for the live window.
 `Leb2WatchApp` owns and disposes this coordinator. Riverpod owns and disposes
 the notification service.
 
@@ -117,6 +119,8 @@ the notification service.
 - `lib/src/app/app_dependencies.dart` — Riverpod composition and ownership.
 - `lib/src/app/leb2_watch_app.dart` — startup initialization and router
   coordination.
+- `lib/src/platform/desktop/runtime/desktop_window_reveal_signal.dart` —
+  process-local notification-to-window reveal signal.
 - `android/app/src/main/AndroidManifest.xml` — reboot permission and exactly
   the two scheduling receivers.
 - `android/app/src/main/res/drawable/ic_notification.xml` — monochrome status
@@ -228,9 +232,10 @@ probe for both new-assignment delivery and global-disable suppression.
    successful initialization attempt.
 8. Every distinct live callback is decoded and emitted, including repeated
    callbacks carrying the same valid target.
-9. A ready flow navigates immediately; a gated flow retains the newest target.
-10. Becoming ready consumes the pending target before navigating, preventing
-   reentrant duplicate delivery.
+9. A ready flow requests desktop-window reveal and then navigates immediately;
+   a gated flow retains the newest target.
+10. Becoming ready consumes the pending target before requesting reveal and
+    navigating, preventing reentrant duplicate delivery.
 11. A coordinator timeout may abandon only its captured active initialization
     attempt. A later caller may replace it even if the underlying platform
     Future cannot be cancelled. Every state mutation and launch-payload
@@ -262,10 +267,12 @@ initialization. A failed initialization may be retried.
   current runner is not DBus-activatable. The federated Linux plugin exposes
   no public teardown; the process-lifetime adapter instead guards callbacks
   after disposal.
-- **Windows:** immediate show and launch response. Scheduling and cancellation
-  are enabled only when runtime package identity exists. The current
-  unpackaged executable therefore reports both unsupported. Dart initialization
-  uses app name `LEB2 Watch`, AppUserModelID
+- **Windows:** immediate show and same-process response handling. A live
+  response requests window show/focus before local navigation. The current
+  unpackaged executable reports launch-payload recovery, scheduling, and
+  cancellation unsupported. Package-identity capability remains represented
+  for a future packaged artifact, but no packaged artifact is implemented or
+  claimed. Dart initialization uses app name `LEB2 Watch`, AppUserModelID
   `dev.oangsa.leb2watch.app`, and committed GUID
   `9be8a9ac-9c1d-45c5-a3c0-a8189e5d0d55`; no MSIX was added. Adapter disposal
   invokes the Windows federated plugin's public `dispose()` exactly once.
@@ -297,6 +304,8 @@ and continues to show local cached data.
 - Initialize at startup but defer all permission prompts.
 - Represent taps as validated assignment targets rather than route strings.
 - Preserve the newest target outside `GoRouter` while flow guards are active.
+- Request a process-local desktop reveal before route navigation without
+  placing window-plugin types in notification code.
 - Use UTC one-shot schedules because saved verified deadlines are instants.
 - Render user-visible deadline copy through the device timezone with an
   explicit offset while preserving UTC scheduling instants.
@@ -384,7 +393,8 @@ and continues to show local cached data.
   replacement, explicit semester identity, exactly-once delivery, and
   disposal.
 - Root/provider tests cover service composition, lifecycle ownership, startup
-  initialization, real named-route integration, and post-disposal detachment.
+  initialization, reveal-before-route ordering, real named-route integration,
+  and post-disposal detachment.
 - Static native tests cover dependency pins/registrants, desugaring, boot
   permission/actions/receivers, prohibited Android privileges/components,
   icon retention, inexact mode, and iOS delegate ordering.
@@ -412,6 +422,12 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
   this host has no Android SDK and no `ANDROID_HOME`; no APK success is
   claimed.
 - Static Android/iOS/dependency/registration configuration tests — 4 passed.
+- Windows preview hardening regressions — 31 tests passed; the combined
+  desktop/app/notification group passed 283 tests.
+- Strict Dart and Flutter analyzers passed with no issues; the serialized full
+  Flutter suite passed 979 tests.
+- Mocked Linux desktop integration passed 2 tests and the sanitized Linux
+  Release build completed.
 
 ## Known limitations
 
@@ -430,6 +446,9 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - Linux scheduling and cold-launch notification recovery remain unsupported.
 - Current unpackaged Windows builds cannot reliably schedule-and-cancel
   reminders; MSIX runtime identity is required.
+- Cold or terminated-process notification activation is unsupported for the
+  unpackaged Windows preview. Same-process taps still require native Windows
+  smoke testing.
 - New-assignment history proves a committed app-level show request or muted
   decision, not platform display or delivery. Deadline-reminder ready state
   likewise proves only that the latest app-level scheduling call returned.
@@ -457,3 +476,4 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - [Flutter Dependencies and Code Generation](flutter-dependencies-and-codegen.md)
 - [Course Preferences](course-preferences.md)
 - [Deadline Reminders](deadline-reminders.md)
+- [Windows Preview Hardening](windows-preview-hardening.md)

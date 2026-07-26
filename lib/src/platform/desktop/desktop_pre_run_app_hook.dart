@@ -29,10 +29,9 @@ final class WindowManagerDesktopPreRunAppHook implements DesktopPreRunAppHook {
   Future<void> initialize() async {
     try {
       await _plugin.ensureInitialized();
-      await _plugin.setPreventClose(true);
     } on Object {
-      // The runtime coordinator will keep normal close behavior if a native
-      // window plugin is unavailable.
+      // Startup remains available with conventional native close behavior.
+      // The runtime adapter enables interception only after its listener exists.
     }
   }
 

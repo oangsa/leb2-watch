@@ -22,6 +22,7 @@ import 'package:leb2_watch/src/features/authentication/domain/automatic_session_
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_drain.dart';
+import 'package:leb2_watch/src/platform/desktop/runtime/desktop_window_reveal_signal.dart';
 
 void main() {
   testWidgets(
@@ -30,15 +31,23 @@ void main() {
       final flow = AppFlowController(initialStage: AppFlowStage.ready);
       final notifications = _AppNotificationService();
       final drain = _AppNotificationDrain();
-      final details = _AppAssignmentDetailService();
+      final events = <String>[];
+      final details = _AppAssignmentDetailService(events: events);
+      final windowReveal = DesktopWindowRevealSignal();
+      final revealSubscription = windowReveal.requests.listen((_) {
+        events.add('window.reveal');
+      });
       addTearDown(flow.dispose);
       addTearDown(notifications.dispose);
+      addTearDown(revealSubscription.cancel);
+      addTearDown(windowReveal.dispose);
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             appFlowControllerProvider.overrideWithValue(flow),
             localNotificationServiceProvider.overrideWithValue(notifications),
+            desktopWindowRevealSignalProvider.overrideWithValue(windowReveal),
             newAssignmentNotificationDrainProvider.overrideWith(
               (_) async => drain,
             ),
@@ -70,6 +79,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(details.keys, <AssignmentDetailKey>[target]);
+      expect(events, ['window.reveal', 'route:${target.identityKey}']);
       expect(
         find.text('This assignment is not saved on this device.'),
         findsOneWidget,
@@ -498,11 +508,15 @@ final class _AppAssignmentDashboardService
 }
 
 final class _AppAssignmentDetailService implements AssignmentDetailService {
+  _AppAssignmentDetailService({this.events});
+
+  final List<String>? events;
   final List<AssignmentDetailKey> keys = <AssignmentDetailKey>[];
 
   @override
   Stream<AssignmentDetailState> watch(AssignmentDetailKey key) {
     keys.add(key);
+    events?.add('route:${key.identityKey}');
     return Stream.value(
       MissingAssignmentDetail(
         key: key,

@@ -17,7 +17,7 @@ void main() {
       expect(source, isNot(contains('daemon')));
     });
 
-    test('Windows claims a local mutex before creating Flutter', () {
+    test('Windows uses a safe fallback and one instance per session', () {
       final main = File('windows/runner/main.cpp').readAsStringSync();
       final header = File('windows/runner/win32_window.h').readAsStringSync();
       final implementation = File(
@@ -30,7 +30,8 @@ void main() {
       expect(main, contains('::FindWindowW(Win32Window::GetWindowClassName()'));
       expect(main, contains('::ShowWindow(existing_window, SW_RESTORE)'));
       expect(main, contains('::SetForegroundWindow(existing_window)'));
-      expect(main, contains('window.SetQuitOnClose(false)'));
+      expect(main, contains('window.SetQuitOnClose(true)'));
+      expect(main, isNot(contains('window.SetQuitOnClose(false)')));
       expect(main, contains('::CloseHandle(instance_mutex)'));
       expect(
         main.indexOf('::CreateMutexW'),
@@ -41,6 +42,29 @@ void main() {
       expect(main, isNot(contains('HKEY_LOCAL_MACHINE')));
       expect(main, isNot(contains('CreateService')));
       expect(main, isNot(contains('CreateTimerQueue')));
+    });
+
+    test('Windows CI compiles the complete unpackaged Release directory', () {
+      final workflow = File('.github/workflows/ci.yml').readAsStringSync();
+
+      expect(workflow, contains('windows-build:'));
+      expect(workflow, contains('runs-on: windows-latest'));
+      expect(workflow, contains('flutter-version: \'3.44.8\''));
+      expect(workflow, contains('flutter config --enable-windows-desktop'));
+      expect(workflow, contains('flutter doctor -v'));
+      expect(workflow, contains('Microsoft.VisualStudio.Workload.VCTools'));
+      expect(workflow, contains('Microsoft.VisualStudio.Component.VC.ATL'));
+      expect(workflow, contains('flutter build windows --release'));
+      expect(workflow, contains('--dart-define=APP_ENV=production'));
+      expect(
+        workflow,
+        contains('--dart-define=BACKEND_BASE_URL=https://api.example.org'),
+      );
+      expect(
+        workflow,
+        contains("Test-Path 'build/windows/x64/runner/Release'"),
+      );
+      expect(workflow, isNot(contains('secrets.')));
     });
 
     test('macOS keeps tray lifecycle and pins legacy start-at-login', () {

@@ -51,7 +51,7 @@ final class LocalNotificationPlatformCapabilities {
           supportsImmediate: true,
           supportsScheduling: windowsPackaged,
           supportsCancellation: windowsPackaged,
-          supportsLaunchPayload: true,
+          supportsLaunchPayload: windowsPackaged,
           requiresPermissionRequest: false,
         ),
       NotificationRuntimePlatform.unsupported =>

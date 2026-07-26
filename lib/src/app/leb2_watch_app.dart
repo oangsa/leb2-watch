@@ -42,11 +42,13 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     _lastLifecycleState = WidgetsBinding.instance.lifecycleState;
     final flowController = ref.read(appFlowControllerProvider);
     final notifications = ref.read(localNotificationServiceProvider);
+    final windowReveal = ref.read(desktopWindowRevealSignalProvider);
     _router = createAppRouter(flowController);
     _notificationNavigation = NotificationNavigationCoordinator(
       notifications,
       flowController,
       (key) {
+        windowReveal.requestReveal();
         _router.goNamed(
           assignmentDetailRouteName,
           pathParameters: key.pathParameters,

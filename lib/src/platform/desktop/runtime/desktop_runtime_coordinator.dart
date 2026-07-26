@@ -139,6 +139,11 @@ final class DesktopRuntimeCoordinator {
       _windowHealthy = true;
     } on Object {
       _windowHealthy = false;
+      try {
+        await _window.allowClose();
+      } on Object {
+        // The adapter already rolls back prevention; this is defense in depth.
+      }
     }
     try {
       await _tray.initialize(onAction: _requestTrayAction);
@@ -175,7 +180,7 @@ final class DesktopRuntimeCoordinator {
     }
     switch (key) {
       case desktopTrayOpenKey:
-        await _openWindow();
+        await openWindow();
       case desktopTraySynchronizeNowKey:
         await _synchronizeNow();
       case desktopTrayPauseMonitoringKey:
@@ -187,7 +192,10 @@ final class DesktopRuntimeCoordinator {
     }
   }
 
-  Future<void> _openWindow() async {
+  Future<void> openWindow() async {
+    if (_disposed) {
+      return;
+    }
     try {
       await _window.show();
     } on Object {

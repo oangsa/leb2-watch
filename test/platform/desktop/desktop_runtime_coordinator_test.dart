@@ -115,6 +115,34 @@ void main() {
     expect(runtime.toString(), isNot(contains('PRIVATE_TRAY')));
   });
 
+  test('failed window initialization restores conventional close', () async {
+    final log = <String>[];
+    final window = _Window(log)
+      ..initializeFailure = StateError('PRIVATE_WINDOW');
+    final runtime = DesktopRuntimeCoordinator(
+      tray: _Tray(log),
+      window: window,
+      closePrompt: _ClosePrompt(DesktopCloseDecision.keepRunning),
+      monitoringSettings: _Settings(enabled: true),
+      autostart: _Autostart(),
+      syncInvoker: ({required reason}) async => const BackgroundSyncSucceeded(),
+      disposeProcessScheduler: () => log.add('scheduler.dispose'),
+    );
+    addTearDown(runtime.dispose);
+
+    await runtime.initialize();
+
+    expect(
+      log,
+      containsAllInOrder([
+        'window.initialize',
+        'window.allowClose',
+        'tray.initialize',
+      ]),
+    );
+    expect(runtime.toString(), isNot(contains('PRIVATE_WINDOW')));
+  });
+
   test('guarded quit destroys the window last despite tray failure', () async {
     final log = <String>[];
     final tray = _Tray(log)..destroyFailure = StateError('PRIVATE_DESTROY');
@@ -144,6 +172,28 @@ void main() {
     );
     expect(log.where((event) => event == 'window.destroy'), hasLength(1));
     expect(log.last, 'window.destroy');
+  });
+
+  test('window reveal shows before focus and tolerates focus denial', () async {
+    final log = <String>[];
+    final window = _Window(log)
+      ..focusFailure = StateError('PRIVATE_FOCUS_FAILURE');
+    final runtime = DesktopRuntimeCoordinator(
+      tray: _Tray(log),
+      window: window,
+      closePrompt: _ClosePrompt(DesktopCloseDecision.keepRunning),
+      monitoringSettings: _Settings(enabled: true),
+      autostart: _Autostart(),
+      syncInvoker: ({required reason}) async => const BackgroundSyncSucceeded(),
+      disposeProcessScheduler: () => log.add('scheduler.dispose'),
+    );
+    addTearDown(runtime.dispose);
+    await runtime.initialize();
+
+    await runtime.openWindow();
+
+    expect(log, containsAllInOrder(['window.show', 'window.focus']));
+    expect(runtime.toString(), isNot(contains('PRIVATE_FOCUS_FAILURE')));
   });
 }
 
@@ -191,17 +241,27 @@ final class _Window implements DesktopWindowPlatform {
   _Window(this.log);
 
   final List<String> log;
+  Object? initializeFailure;
+  Object? focusFailure;
 
   @override
   Future<void> initialize({required void Function() onClose}) async {
     log.add('window.initialize');
+    if (initializeFailure case final failure?) {
+      throw failure;
+    }
   }
 
   @override
   Future<void> show() async => log.add('window.show');
 
   @override
-  Future<void> focus() async => log.add('window.focus');
+  Future<void> focus() async {
+    log.add('window.focus');
+    if (focusFailure case final failure?) {
+      throw failure;
+    }
+  }
 
   @override
   Future<void> hide() async => log.add('window.hide');

@@ -10,7 +10,7 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | Android | Flutter app, secure storage policy, local notifications, unique WorkManager task | Dart tests and static native configuration | Android SDK build, release signing, emulator/device background and notification tests |
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/expiration and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
-| Windows | Flutter app, tray, timer, autostart, single-instance behavior, immediate notifications | Dart tests and static native configuration | Windows/MSVC build, runtime tests, package identity, installer/signing |
+| Windows | Unsigned/unpackaged preview, tray, timer, autostart, one instance per interactive session, immediate notifications and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
 | Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications | Linux release build passed | Live X11/Wayland tray, keyring, autostart, and notification smoke tests; distribution packaging |
 
 Only Linux is native-build verified on the current host. Do not represent
@@ -104,16 +104,32 @@ require macOS testing. The start-at-login integration uses
 
 ## Windows
 
-The desktop app implements a timer, tray actions, opt-in start at login, and a
-per-user single-instance mutex.
+The current target is an unsigned, unpackaged Windows 10/11 x64 developer
+preview. It implements a timer, tray actions, opt-in start at login, and one
+instance per interactive Windows session. The `Local\` mutex does not provide
+cross-session uniqueness for the same user.
 
-The current artifact is unpackaged:
+For this preview:
 
-- immediate notifications are supported;
+- healthy `window_manager` close interception owns close-to-tray behavior;
+- if desktop composition or close interception is unavailable, native
+  quit-on-destroy is the fallback, so closing the remaining window exits
+  instead of leaving an invisible process;
+- immediate notifications and taps while the same process is alive are
+  supported; a tap requests window show/focus before local detail navigation;
+- foreground focus remains subject to Windows focus policy;
+- cold or terminated-process notification activation is unsupported;
 - scheduled notifications and cancellation require package identity and are
   reported unsupported without MSIX;
-- no MSIX, installer, update, or signing pipeline is configured; and
-- build/runtime validation requires Windows with Visual Studio C++ tooling.
+- no MSIX, installer, update, signing, or store pipeline is configured; and
+- the complete `build/windows/x64/runner/Release` directory is the preview
+  artifact, not `leb2-watch.exe` by itself.
+
+GitHub Actions now contains a sanitized Windows Release build gate. A
+successful workflow run and live Windows 10/11 tests are still required before
+claiming native build or runtime verification. The native host needs Flutter's
+Windows prerequisites, Visual Studio Desktop development with C++, a Windows
+SDK, and C++ ATL for secure storage.
 
 ## Linux
 

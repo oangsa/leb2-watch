@@ -163,15 +163,37 @@ start-at-login require macOS validation.
 
 ### Windows
 
+Use a Windows 10/11 x64 host with Flutter's Windows desktop prerequisites,
+Visual Studio Desktop development with C++, a Windows SDK, and C++ ATL. Check
+the toolchain before building:
+
+```powershell
+flutter doctor -v
+flutter config --enable-windows-desktop
+```
+
 ```bash
 flutter build windows --release \
   --dart-define=APP_ENV=production \
   --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
 ```
 
-The current Windows output is unpackaged. No MSIX, installer, or signing
-pipeline is configured. Scheduled notification support requires package
-identity.
+The current Windows output is an unsigned, unpackaged developer preview.
+Distribute and test the complete directory:
+
+```text
+build/windows/x64/runner/Release
+```
+
+Do not copy only `leb2-watch.exe`; its sibling libraries and data are required.
+No MSIX, installer, signing, update, or store pipeline is configured.
+Unpackaged Windows supports immediate notifications and taps while the app
+process remains alive. It does not support cold/terminated notification
+activation, scheduled deadline reminders, or reliable reminder cancellation.
+
+CI builds this Release directory with the sanitized placeholder origin
+`https://api.example.org`. That compile gate does not sign, package, install,
+or runtime-test the preview.
 
 ## Validate source
 

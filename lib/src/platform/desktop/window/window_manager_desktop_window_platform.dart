@@ -71,12 +71,27 @@ final class WindowManagerDesktopWindowPlatform
     if (_destroyed) {
       throw StateError('Desktop window has been destroyed.');
     }
-    _onClose = onClose;
     await _plugin.ensureInitialized();
-    await _plugin.setPreventClose(true);
-    if (!_listenerAttached) {
-      _plugin.addListener(this);
-      _listenerAttached = true;
+    _onClose = onClose;
+    try {
+      if (!_listenerAttached) {
+        _plugin.addListener(this);
+        _listenerAttached = true;
+      }
+      await _plugin.setPreventClose(true);
+    } on Object {
+      var conventionalCloseRestored = false;
+      try {
+        await _plugin.setPreventClose(false);
+        conventionalCloseRestored = true;
+      } on Object {
+        // Retain the listener if a failed enable may have changed native state.
+        // Its close callback remains an escape path when rollback is unavailable.
+      }
+      if (conventionalCloseRestored) {
+        removeListener();
+      }
+      rethrow;
     }
   }
 
@@ -98,7 +113,11 @@ final class WindowManagerDesktopWindowPlatform
   @override
   void removeListener() {
     if (_listenerAttached) {
-      _plugin.removeListener(this);
+      try {
+        _plugin.removeListener(this);
+      } on Object {
+        // Dart teardown continues even when the native listener is unavailable.
+      }
       _listenerAttached = false;
     }
     _onClose = null;

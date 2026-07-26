@@ -10,6 +10,7 @@ import '../autostart/desktop_autostart_factory.dart';
 import '../tray/tray_manager_desktop_tray_platform.dart';
 import '../window/window_manager_desktop_window_platform.dart';
 import 'desktop_runtime_coordinator.dart';
+import 'desktop_window_reveal_signal.dart';
 
 bool get isDesktopRuntimeTarget {
   if (kIsWeb) {
@@ -34,18 +35,25 @@ final class DesktopRuntimeHost extends ConsumerStatefulWidget {
 
 final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
   DesktopRuntimeCoordinator? _coordinator;
+  DesktopWindowRevealSubscription? _windowRevealSubscription;
   Completer<DesktopCloseDecision>? _closeDecision;
+  bool _windowRevealPending = false;
 
   @override
   void initState() {
     super.initState();
     if (isDesktopRuntimeTarget) {
+      _windowRevealSubscription = DesktopWindowRevealSubscription(
+        signal: ref.read(desktopWindowRevealSignalProvider),
+        onReveal: _revealWindow,
+      );
       unawaited(_initialize());
     }
   }
 
   Future<void> _initialize() async {
     final window = WindowManagerDesktopWindowPlatform();
+    DesktopRuntimeCoordinator? coordinator;
     try {
       final scheduler = ref.read(backgroundSchedulerPlatformProvider);
       if (scheduler is! DesktopBackgroundSyncBinding) {
@@ -64,7 +72,7 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
       if (!mounted) {
         return;
       }
-      final coordinator = DesktopRuntimeCoordinator(
+      coordinator = DesktopRuntimeCoordinator(
         tray: TrayManagerDesktopTrayPlatform(
           operatingSystem: detectDesktopOperatingSystem(),
         ),
@@ -75,9 +83,18 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
         syncInvoker: runner.run,
         disposeProcessScheduler: scheduler.dispose,
       );
-      _coordinator = coordinator;
       await coordinator.initialize();
+      if (!mounted) {
+        coordinator.dispose();
+        return;
+      }
+      _coordinator = coordinator;
+      if (_windowRevealPending) {
+        _windowRevealPending = false;
+        await coordinator.openWindow();
+      }
     } on Object {
+      coordinator?.dispose();
       // If composition fails, retain conventional window close behavior. The
       // local-first UI itself remains available.
       try {
@@ -86,6 +103,15 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
         // There is no additional safe fallback at this layer.
       }
     }
+  }
+
+  Future<void> _revealWindow() async {
+    final coordinator = _coordinator;
+    if (coordinator == null) {
+      _windowRevealPending = true;
+      return;
+    }
+    await coordinator.openWindow();
   }
 
   Future<DesktopCloseDecision> _showCloseExplanation() {
@@ -142,12 +168,36 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
 
   @override
   void dispose() {
+    _windowRevealSubscription?.dispose();
+    _windowRevealPending = false;
     final pending = _closeDecision;
     if (pending != null && !pending.isCompleted) {
       pending.complete(DesktopCloseDecision.quit);
     }
     _coordinator?.dispose();
     super.dispose();
+  }
+}
+
+final class DesktopWindowRevealSubscription {
+  DesktopWindowRevealSubscription({
+    required DesktopWindowRevealSignal signal,
+    required Future<void> Function() onReveal,
+  }) {
+    _subscription = signal.requests.listen((_) {
+      unawaited(onReveal());
+    });
+  }
+
+  late final StreamSubscription<void> _subscription;
+  bool _disposed = false;
+
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    unawaited(_subscription.cancel());
   }
 }
 

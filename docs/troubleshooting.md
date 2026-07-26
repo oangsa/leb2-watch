@@ -139,6 +139,13 @@ Check:
 Completing a plugin call does not guarantee OS delivery. Baseline assignments
 intentionally do not produce new-assignment notifications.
 
+On the unpackaged Windows preview, notification taps are supported only while
+the same application process is alive. A live tap requests show/focus and then
+opens the local assignment detail. Windows may deny foreground focus, but the
+window should still become visible. Tapping after **Quit** is not a supported
+cold-launch path; no MSIX activator or persistent unpackaged activation
+registration is configured.
+
 ## Deadline reminders are unsupported
 
 - Linux supports immediate notifications but not scheduled reminders because
@@ -156,6 +163,11 @@ Close-to-tray works only after tray initialization and after the app explains
 that behavior. Use **Keep running** to hide the window; **Quit** stops the
 process and timer.
 
+On Windows, if tray/window composition is unavailable, close-to-tray is
+disabled and closing the remaining window is expected to exit the process.
+This native quit-on-destroy fallback prevents an invisible process from
+retaining the single-instance mutex.
+
 Start at login is opt-in and uses the operating system as its source of truth.
 Live tray/autostart behavior still needs validation on each supported desktop
 environment.
@@ -171,7 +183,9 @@ Use a host with the target's official native toolchain:
   debug signing.
 - iOS/macOS: macOS with Xcode; distribution also needs signing/provisioning or
   notarization.
-- Windows: Windows with Visual Studio C++ tooling.
+- Windows: Windows with Visual Studio Desktop development with C++, a Windows
+  SDK, and C++ ATL for the secure-storage plugin. Run `flutter doctor -v`
+  before building and keep the complete Release directory together.
 - Linux: Flutter Linux desktop dependencies, CMake/Ninja/GTK, AppIndicator,
   and libsecret support.
 
