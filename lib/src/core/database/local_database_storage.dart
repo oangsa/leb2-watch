@@ -5,8 +5,10 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_database.dart';
+import 'local_database_access_gate.dart';
 
 typedef ApplicationSupportDirectoryProvider = Future<Directory> Function();
+typedef DatabaseFileDelete = Future<void> Function(File file);
 
 const _sqliteBusyResultCode = 5;
 const _sqliteLockedResultCode = 6;
@@ -15,14 +17,17 @@ const _walSetupAttempts = 8;
 class LocalDatabaseStorage {
   LocalDatabaseStorage({
     ApplicationSupportDirectoryProvider? applicationSupportDirectoryProvider,
+    DatabaseFileDelete? databaseFileDelete,
   }) : _applicationSupportDirectoryProvider =
            applicationSupportDirectoryProvider ??
-           getApplicationSupportDirectory;
+           getApplicationSupportDirectory,
+       _databaseFileDelete = databaseFileDelete ?? ((file) => file.delete());
 
   static const databaseFileName = 'leb2_watch.sqlite';
 
   final ApplicationSupportDirectoryProvider
   _applicationSupportDirectoryProvider;
+  final DatabaseFileDelete _databaseFileDelete;
 
   Future<File> resolveDatabaseFile() async {
     final directory = await _applicationSupportDirectoryProvider();
@@ -32,6 +37,8 @@ class LocalDatabaseStorage {
 
   Future<AppDatabase> openDatabase() async {
     final file = await resolveDatabaseFile();
+    final gate = LocalDatabaseAccessGate(file.parent);
+    final lease = await gate.acquireLease();
     final database = AppDatabase(
       NativeDatabase.createInBackground(
         file,
@@ -77,6 +84,7 @@ class LocalDatabaseStorage {
         },
       ),
       completeOpenTransaction: true,
+      onClose: lease.release,
     );
     try {
       await database.customSelect('SELECT 1').getSingle();
@@ -87,16 +95,44 @@ class LocalDatabaseStorage {
     }
   }
 
+  Future<LocalDatabaseDeletionGate> beginDeletion() async {
+    final databaseFile = await resolveDatabaseFile();
+    return LocalDatabaseAccessGate(databaseFile.parent).beginDeletion();
+  }
+
   /// Deletes only LEB2 Watch database files.
   ///
   /// Every connection to this database must be closed before this method runs.
   Future<void> deleteDatabaseFiles() async {
     final databaseFile = await resolveDatabaseFile();
+    var failed = false;
     for (final suffix in const ['', '-wal', '-shm']) {
       final file = File('${databaseFile.path}$suffix');
-      if (await file.exists()) {
-        await file.delete();
+      try {
+        if (await file.exists()) {
+          await _databaseFileDelete(file);
+        }
+      } on Object {
+        failed = true;
       }
     }
+    if (failed) {
+      throw const LocalDatabaseStorageException(
+        LocalDatabaseStorageOperation.deleteFiles,
+      );
+    }
   }
+}
+
+enum LocalDatabaseStorageOperation { deleteFiles }
+
+final class LocalDatabaseStorageException implements Exception {
+  const LocalDatabaseStorageException(this.operation);
+
+  final LocalDatabaseStorageOperation operation;
+
+  @override
+  String toString() =>
+      'LocalDatabaseStorageException('
+      'operation: ${operation.name}, redacted: true)';
 }

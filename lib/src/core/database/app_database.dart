@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 
 import 'database_tables.dart';
@@ -31,11 +33,29 @@ const sqliteBusyTimeout = Duration(seconds: 5);
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase(super.executor, {this.completeOpenTransaction = false});
+  AppDatabase(
+    super.executor, {
+    this.completeOpenTransaction = false,
+    this._onClose,
+  });
 
-  AppDatabase.forTesting(super.executor) : completeOpenTransaction = false;
+  AppDatabase.forTesting(super.executor)
+    : completeOpenTransaction = false,
+      _onClose = null;
 
   final bool completeOpenTransaction;
+  final Future<void> Function()? _onClose;
+  Future<void>? _closeFuture;
+
+  @override
+  Future<void> close() {
+    return _closeFuture ??= _close();
+  }
+
+  Future<void> _close() async {
+    await super.close();
+    await _onClose?.call();
+  }
 
   @override
   int get schemaVersion => 10;

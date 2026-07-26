@@ -242,6 +242,7 @@ void main() {
       );
 
       final opening = container.read(appDatabaseProvider.future);
+      await storage.started.future;
       expect(storage.openCalls, 1);
       container.dispose();
       storage.opened.complete(database);
@@ -280,11 +281,13 @@ final class _TrackingDatabaseStorage extends LocalDatabaseStorage {
 
 final class _DelayedTrackingDatabaseStorage extends LocalDatabaseStorage {
   final opened = Completer<AppDatabase>();
+  final started = Completer<void>();
   int openCalls = 0;
 
   @override
   Future<AppDatabase> openDatabase() {
     openCalls += 1;
+    started.complete();
     return opened.future;
   }
 }

@@ -8,6 +8,7 @@ import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
 import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_preferences.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
+import 'package:leb2_watch/src/features/settings/data_deletion/domain/local_data_deletion.dart';
 import 'package:leb2_watch/src/features/settings/notifications/application/new_assignment_notification_preferences_service.dart';
 import 'package:leb2_watch/src/features/settings/notifications/application/notification_settings_service.dart';
 import 'package:leb2_watch/src/features/settings/notifications/domain/notification_settings.dart';
@@ -199,12 +200,34 @@ Future<void> _pump(
         data: MediaQueryData(size: Size(width, height), textScaler: textScaler),
         child: NotificationSettingsPage(
           service: service,
+          deletionService: const _DeletionService(),
+          onDeletionCompleted: (_) {},
           onManageCourses: onManageCourses ?? () {},
         ),
       ),
     ),
   );
   await tester.pumpAndSettle();
+}
+
+final class _DeletionService implements LocalDataDeletionService {
+  const _DeletionService();
+
+  @override
+  Future<LocalDataDeletionResult> deleteAll() async =>
+      _result(LocalDataDeletionOperation.allLocalData);
+
+  @override
+  Future<LocalDataDeletionResult> deleteCachedAssignments() async =>
+      _result(LocalDataDeletionOperation.cachedAssignments);
+
+  @override
+  Future<LocalDataDeletionResult> deleteSavedCredentials() async =>
+      _result(LocalDataDeletionOperation.savedCredentials);
+
+  LocalDataDeletionResult _result(LocalDataDeletionOperation operation) {
+    return LocalDataDeletionResult(operation: operation, steps: const []);
+  }
 }
 
 NotificationSettingsSnapshot _snapshot({

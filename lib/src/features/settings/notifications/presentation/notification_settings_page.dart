@@ -10,6 +10,8 @@ import '../../../background_sync/domain/desktop_autostart_service.dart';
 import '../../../notifications/application/deadline_reminder_preferences_service.dart';
 import '../../../notifications/domain/deadline_reminder_preferences.dart';
 import '../../../notifications/domain/local_notification_models.dart';
+import '../../data_deletion/domain/local_data_deletion.dart';
+import '../../data_deletion/presentation/local_data_deletion_panel.dart';
 import '../application/new_assignment_notification_preferences_service.dart';
 import '../application/notification_settings_service.dart';
 import '../domain/notification_settings.dart';
@@ -30,11 +32,15 @@ enum _SettingControl {
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({
     required this.service,
+    required this.deletionService,
+    required this.onDeletionCompleted,
     required this.onManageCourses,
     super.key,
   });
 
   final NotificationSettingsService service;
+  final LocalDataDeletionService deletionService;
+  final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
   final VoidCallback onManageCourses;
 
   @override
@@ -642,6 +648,19 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                 title: 'Reliability',
                 description: snapshot.platform.reliabilityMessage,
                 children: const [],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _SettingsSection(
+                title: 'Local data',
+                description:
+                    'Choose exactly which LEB2 Watch data to remove from this '
+                    'device. Nothing is deleted from LEB2 or the backend.',
+                children: [
+                  LocalDataDeletionPanel(
+                    service: widget.deletionService,
+                    onCompleted: widget.onDeletionCompleted,
+                  ),
+                ],
               ),
             ],
           ),

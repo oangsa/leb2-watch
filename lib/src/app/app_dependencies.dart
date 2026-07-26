@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/app_configuration.dart';
 import '../core/database/app_database.dart';
+import '../core/database/app_database_manager.dart';
 import '../core/database/local_database_storage.dart';
 import '../core/network/backend_api_client.dart';
 import '../core/security/credential_store.dart';
@@ -69,25 +70,26 @@ final localDatabaseStorageProvider = Provider<LocalDatabaseStorage>((ref) {
   return LocalDatabaseStorage();
 });
 
-final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
-  final storage = ref.watch(localDatabaseStorageProvider);
-  AppDatabase? database;
-  var disposed = false;
+final appDatabaseManagerProvider = Provider<AppDatabaseManager>((ref) {
+  final manager = AppDatabaseManager(ref.watch(localDatabaseStorageProvider));
+  ref.onDispose(() {
+    unawaited(_closeDatabaseManager(manager));
+  });
+  return manager;
+});
 
+final appDatabaseProvider = FutureProvider<AppDatabase>((ref) async {
+  final manager = ref.watch(appDatabaseManagerProvider);
+  var disposed = false;
   ref.onDispose(() {
     disposed = true;
-    final openedDatabase = database;
-    if (openedDatabase != null) {
-      unawaited(_closeDatabase(openedDatabase));
-    }
+    unawaited(_closeDatabaseManager(manager));
   });
-
-  final openedDatabase = await storage.openDatabase();
-  database = openedDatabase;
+  final database = await manager.open();
   if (disposed) {
-    await _closeDatabase(openedDatabase);
+    await _closeDatabaseManager(manager);
   }
-  return openedDatabase;
+  return database;
 });
 
 final backgroundSchedulerPlatformProvider =
@@ -145,9 +147,9 @@ final desktopAutostartServiceProvider = Provider<DesktopAutostartService>((
   return const UnsupportedDesktopAutostartService();
 });
 
-Future<void> _closeDatabase(AppDatabase database) async {
+Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
   try {
-    await database.close();
+    await manager.close();
   } on Object {
     // Provider teardown has no safe consumer for a close failure.
   }
