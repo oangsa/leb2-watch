@@ -64,14 +64,33 @@ final class WindowManagerDesktopWindowPlatform
 
   void Function()? _onClose;
   bool _listenerAttached = false;
+  bool _teardownRequested = false;
   bool _destroyed = false;
 
   @override
   Future<void> initialize({required void Function() onClose}) async {
-    if (_destroyed) {
+    if (_destroyed || _teardownRequested) {
       throw StateError('Desktop window has been destroyed.');
     }
-    await _plugin.ensureInitialized();
+    try {
+      await _plugin.ensureInitialized();
+    } on Object {
+      if (_destroyed) {
+        await _reassertDestroyed();
+        return;
+      }
+      if (_teardownRequested) {
+        return;
+      }
+      rethrow;
+    }
+    if (_destroyed) {
+      await _reassertDestroyed();
+      return;
+    }
+    if (_teardownRequested) {
+      return;
+    }
     _onClose = onClose;
     try {
       if (!_listenerAttached) {
@@ -80,6 +99,14 @@ final class WindowManagerDesktopWindowPlatform
       }
       await _plugin.setPreventClose(true);
     } on Object {
+      if (_destroyed) {
+        await _reassertDestroyed();
+        return;
+      }
+      if (_teardownRequested) {
+        await _restoreConventionalClose();
+        return;
+      }
       var conventionalCloseRestored = false;
       try {
         await _plugin.setPreventClose(false);
@@ -92,6 +119,13 @@ final class WindowManagerDesktopWindowPlatform
         removeListener();
       }
       rethrow;
+    }
+    if (_destroyed) {
+      await _reassertDestroyed();
+      return;
+    }
+    if (_teardownRequested) {
+      await _restoreConventionalClose();
     }
   }
 
@@ -108,10 +142,16 @@ final class WindowManagerDesktopWindowPlatform
   Future<void> hide() => _plugin.hide();
 
   @override
-  Future<void> allowClose() => _plugin.setPreventClose(false);
+  Future<void> allowClose() {
+    if (_destroyed) {
+      return Future<void>.value();
+    }
+    return _plugin.setPreventClose(false);
+  }
 
   @override
   void removeListener() {
+    _teardownRequested = true;
     if (_listenerAttached) {
       try {
         _plugin.removeListener(this);
@@ -131,6 +171,29 @@ final class WindowManagerDesktopWindowPlatform
     _destroyed = true;
     removeListener();
     await _plugin.destroy();
+  }
+
+  Future<void> _restoreConventionalClose() async {
+    if (_destroyed) {
+      await _reassertDestroyed();
+      return;
+    }
+    try {
+      await _plugin.setPreventClose(false);
+    } on Object {
+      // Teardown remains best effort when native close release is unavailable.
+    }
+    if (_destroyed) {
+      await _reassertDestroyed();
+    }
+  }
+
+  Future<void> _reassertDestroyed() async {
+    try {
+      await _plugin.destroy();
+    } on Object {
+      // A late native initialization result must not outlive destruction.
+    }
   }
 
   @override

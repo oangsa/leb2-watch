@@ -136,27 +136,45 @@ final class DesktopRuntimeCoordinator {
     }
     try {
       await _window.initialize(onClose: _requestClose);
+      if (_disposed) {
+        return;
+      }
       _windowHealthy = true;
     } on Object {
       _windowHealthy = false;
+      if (_disposed) {
+        return;
+      }
       try {
         await _window.allowClose();
       } on Object {
         // The adapter already rolls back prevention; this is defense in depth.
       }
+      if (_disposed) {
+        return;
+      }
     }
     try {
       await _tray.initialize(onAction: _requestTrayAction);
+      if (_disposed) {
+        return;
+      }
       _trayHealthy = true;
     } on Object {
       _trayHealthy = false;
+      if (_disposed) {
+        return;
+      }
     }
     try {
       await _autostart.initialize();
     } on Object {
       // Start-at-login is optional and never blocks the local-first UI.
     }
-    _settingsSubscription = _monitoringSettings.watchSettings().listen(
+    if (_disposed) {
+      return;
+    }
+    final settingsSubscription = _monitoringSettings.watchSettings().listen(
       (settings) {
         _monitoringEnabled = settings.enabled;
         if (!_synchronizing) {
@@ -171,6 +189,11 @@ final class DesktopRuntimeCoordinator {
         _requestMenuRebuild();
       },
     );
+    _settingsSubscription = settingsSubscription;
+    if (_disposed) {
+      _cancelSettingsSubscriptionOnce();
+      return;
+    }
     await _rebuildMenu();
   }
 
@@ -293,7 +316,7 @@ final class DesktopRuntimeCoordinator {
     }
     _disposed = true;
     _disposeSchedulerOnce();
-    await _settingsSubscription?.cancel();
+    _cancelSettingsSubscriptionOnce();
     _removeListenersOnce();
     try {
       await _tray.destroy();
@@ -365,13 +388,31 @@ final class DesktopRuntimeCoordinator {
     _disposeProcessScheduler();
   }
 
+  void _cancelSettingsSubscriptionOnce() {
+    final subscription = _settingsSubscription;
+    _settingsSubscription = null;
+    if (subscription == null) {
+      return;
+    }
+    try {
+      unawaited(
+        subscription.cancel().then<void>(
+          (_) {},
+          onError: (Object _, StackTrace _) {},
+        ),
+      );
+    } on Object {
+      // Optional observer cleanup cannot block or fail essential teardown.
+    }
+  }
+
   void dispose() {
     if (_disposed) {
       return;
     }
     _disposed = true;
     _disposeSchedulerOnce();
-    unawaited(_settingsSubscription?.cancel());
+    _cancelSettingsSubscriptionOnce();
     _removeListenersOnce();
   }
 

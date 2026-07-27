@@ -114,11 +114,12 @@ final class TrayManagerDesktopTrayPlatform
 
   void Function(String key)? _onAction;
   bool _listenerAttached = false;
+  bool _teardownRequested = false;
   bool _destroyed = false;
 
   @override
   Future<void> initialize({required void Function(String key) onAction}) async {
-    if (_destroyed) {
+    if (_destroyed || _teardownRequested) {
       throw StateError('Desktop tray has been destroyed.');
     }
     _onAction = onAction;
@@ -132,49 +133,81 @@ final class TrayManagerDesktopTrayPlatform
         isTemplate: _asset.isTemplate,
         iconSize: _asset.iconSize,
       );
+      if (_destroyed) {
+        await _reassertDestroyed();
+        return;
+      }
+      if (_teardownRequested) {
+        return;
+      }
       if (_asset.supportsTooltip) {
         await _plugin.setToolTip(desktopTrayTooltip);
+        if (_destroyed) {
+          await _reassertDestroyed();
+          return;
+        }
       }
     } on Object {
+      if (_destroyed) {
+        await _reassertDestroyed();
+        return;
+      }
       removeListener();
       rethrow;
     }
   }
 
   @override
-  Future<void> replaceMenu(DesktopTrayMenuModel menu) {
-    return _plugin.setContextMenu(
-      Menu(
-        items: [
-          MenuItem(key: desktopTrayOpenKey, label: 'Open LEB2 Watch'),
-          MenuItem(
-            key: desktopTrayStatusKey,
-            label: menu.statusLabel,
-            disabled: true,
-          ),
-          MenuItem.separator(),
-          MenuItem(
-            key: desktopTraySynchronizeNowKey,
-            label: menu.synchronizing ? 'Synchronizing…' : 'Synchronize now',
-            disabled: !menu.synchronizeEnabled,
-          ),
-          MenuItem(
-            key: menu.monitoringEnabled
-                ? desktopTrayPauseMonitoringKey
-                : desktopTrayResumeMonitoringKey,
-            label: menu.monitoringEnabled
-                ? 'Pause monitoring'
-                : 'Resume monitoring',
-          ),
-          MenuItem.separator(),
-          MenuItem(key: desktopTrayQuitKey, label: 'Quit'),
-        ],
-      ),
-    );
+  Future<void> replaceMenu(DesktopTrayMenuModel menu) async {
+    if (_destroyed || _teardownRequested) {
+      return;
+    }
+    try {
+      await _plugin.setContextMenu(
+        Menu(
+          items: [
+            MenuItem(key: desktopTrayOpenKey, label: 'Open LEB2 Watch'),
+            MenuItem(
+              key: desktopTrayStatusKey,
+              label: menu.statusLabel,
+              disabled: true,
+            ),
+            MenuItem.separator(),
+            MenuItem(
+              key: desktopTraySynchronizeNowKey,
+              label: menu.synchronizing ? 'Synchronizing…' : 'Synchronize now',
+              disabled: !menu.synchronizeEnabled,
+            ),
+            MenuItem(
+              key: menu.monitoringEnabled
+                  ? desktopTrayPauseMonitoringKey
+                  : desktopTrayResumeMonitoringKey,
+              label: menu.monitoringEnabled
+                  ? 'Pause monitoring'
+                  : 'Resume monitoring',
+            ),
+            MenuItem.separator(),
+            MenuItem(key: desktopTrayQuitKey, label: 'Quit'),
+          ],
+        ),
+      );
+    } on Object {
+      if (_destroyed) {
+        await _reassertDestroyed();
+        return;
+      }
+      rethrow;
+    }
+    if (_destroyed) {
+      await _reassertDestroyed();
+    }
   }
 
   @override
   void onTrayMenuItemClick(MenuItem menuItem) {
+    if (_teardownRequested) {
+      return;
+    }
     final key = menuItem.key;
     if (key != null) {
       _onAction?.call(key);
@@ -183,6 +216,7 @@ final class TrayManagerDesktopTrayPlatform
 
   @override
   void removeListener() {
+    _teardownRequested = true;
     if (_listenerAttached) {
       _plugin.removeListener(this);
       _listenerAttached = false;
@@ -198,6 +232,14 @@ final class TrayManagerDesktopTrayPlatform
     _destroyed = true;
     removeListener();
     await _plugin.destroy();
+  }
+
+  Future<void> _reassertDestroyed() async {
+    try {
+      await _plugin.destroy();
+    } on Object {
+      // A late native create result must not outlive terminal teardown.
+    }
   }
 
   @override

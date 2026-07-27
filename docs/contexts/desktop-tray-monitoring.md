@@ -2,10 +2,11 @@
 
 ## Status
 
-Completed. Linux is release-build verified on the current host. macOS and
-Windows are implemented and statically validated but require their native hosts
-for runtime validation. A Windows Release CI gate is configured but has not
-been claimed as a successful native run in this context.
+Completed. Linux is release-build verified and its exact app-owned tray Quit
+path passed 2/2 isolated KDE Plasma/Wayland runs. macOS and Windows are
+implemented and statically validated but require their native hosts for runtime
+validation. A Windows Release CI gate is configured but has not been claimed
+as a successful native run in this context.
 
 ## Purpose
 
@@ -47,7 +48,8 @@ actions:
 - **Pause monitoring** and **Resume monitoring** update the persisted
   background-monitoring preference.
 - **Quit** removes native listeners, destroys the tray, permits window close,
-  stops both process timers, and destroys the window last.
+  stops both process timers, and destroys the window last. Optional settings
+  observer cleanup is initiated without delaying this essential teardown.
 
 The first normal window close displays:
 
@@ -169,7 +171,10 @@ is not mirrored as an application source of truth.
    previous driver is disposed first.
 4. The window adapter attaches its close listener before enabling close
    prevention. The coordinator then initializes the tray, reads start-at-login
-   state, and watches the monitoring preference.
+   state, and watches the monitoring preference. Every awaited initialization
+   boundary checks whether early Quit or disposal won the race before creating
+   the next resource. A subscription created across synchronous listener
+   re-entry is routed through the same one-time cancellation seam.
 5. Monitoring reconciliation schedules one jittered one-shot timer. A tick
    clears that timer, awaits synchronization, and rearms one cadence timer in
    `finally`.
@@ -177,18 +182,25 @@ is not mirrored as an application source of truth.
    route navigation. The host calls the coordinator's show-then-focus
    operation; an early request waits until coordinator initialization.
 7. Explicit quit closes the reactive deadline binding and disposes the
-   synchronization timer through one idempotent closure, cancels subscriptions,
-   removes listeners, destroys the tray, permits close, and destroys the
-   window last. Closing the binding prevents a later database-provider value
-   from restarting delivery.
+   synchronization timer through one idempotent closure. The coordinator
+   detaches its monitoring-settings subscription exactly once and observes its
+   cancellation without awaiting it, then removes listeners, destroys the
+   tray, permits close, and destroys the window last. Closing the binding
+   prevents a later database-provider value from restarting delivery. The menu
+   lifecycle fence rejects rebuild requests from any deliberately late settings
+   callback.
 
 ## Platform behavior
 
 - **Linux:** a unique `GApplication` ID forwards later launches to the primary
   process, which presents its existing `GtkWindow`. The release bundle was
   built on Linux and links to AppIndicator 3. Linux tray tooltips are not
-  requested because the plugin does not support them. Future saved deadline
-  events may be submitted while that process remains alive.
+  requested because the plugin does not support them. In two isolated KDE
+  Plasma/Wayland runs, a second launch reused the same process, owner, and tray
+  item; exact app-owned D-BusMenu Quit item `17` then removed the process,
+  `GApplication` owner, and StatusNotifier item without a fallback signal.
+  Future saved deadline events may be submitted while that process remains
+  alive.
 - **macOS:** closing the last window does not terminate the process, reopen
   presents the window, and `LSMultipleInstancesProhibited` prevents concurrent
   application instances. Start at login uses `LaunchAtLogin-Legacy` exactly
@@ -250,6 +262,13 @@ is not mirrored as an application source of truth.
 - Grant macOS outbound network access in both sandbox profiles because backend
   synchronization is a core client operation, while keeping Release free of
   debug-only inbound-network and JIT permissions.
+- Treat monitoring-settings observation as optional cleanup: detach and observe
+  cancellation errors, but never let a non-settling cancellation prevent an
+  explicit desktop Quit.
+- Make native destruction dominant over in-flight adapter initialization.
+  Initialization never starts a later tooltip, menu, listener, or close-
+  prevention operation after teardown; a create-like operation that settles
+  late is followed by a contained terminal-destroy reassertion.
 
 ## Alternatives rejected
 
@@ -289,6 +308,24 @@ the window is destroyed. Cleanup is guarded and idempotent; tray destruction
 failure does not prevent the final window-destroy attempt. A denied focus
 request does not fail reveal after the window has been shown.
 
+Monitoring-settings subscription cancellation is also guarded and idempotent.
+Quit and synchronous disposal detach the same subscription reference once.
+Cancellation is initiated and its asynchronous error is contained, but
+essential tray and window teardown does not wait for it to settle. A
+non-conforming subscription may still invoke a retained callback, but the
+disposed menu lifecycle rejects its rebuild request. Initialization cannot
+resume after early Quit and install a new observer; lifecycle fences stop after
+each window, tray, and autostart initialization await.
+
+The tray and window adapters enforce the same terminal lifecycle inside native
+awaits. Tray initialization checks after icon and tooltip calls, and menu
+replacement checks after its native call. Window initialization checks after
+manager initialization and close-prevention calls. When destroy wins while an
+older create-like call is pending, its eventual completion triggers a
+best-effort destroy reassertion rather than new initialization work. A direct
+coordinator disposal during window-manager initialization prevents later
+listener attachment and close prevention.
+
 ## Tests
 
 - Desktop scheduler tests cover persisted initial-delay consumption, a single
@@ -296,13 +333,24 @@ request does not fail reveal after the window has been shown.
   dispose.
 - Coordinator tests cover stable actions, guarded tray synchronization, pause,
   show-before-focus, focus denial, the first-close explanation, failed tray
-  startup, and cleanup order.
+  startup, cleanup order, a non-settling settings cancellation, cancellation
+  error containment, repeated/concurrent Quit, one-time resource teardown, and
+  no post-disposal menu rebuild from deliberately late data/error callbacks. A
+  blocked-autostart regression drives the production-reachable early
+  window-close callback and proves initialization cannot install a settings
+  observer afterward. A blocked tray-icon regression uses the same callback
+  and proves no tooltip/menu work follows destroy, native destroy is terminal,
+  and autostart/settings never begin. A controllable test subscription also
+  proves synchronous `cancel()` throws do not interrupt either Quit or
+  disposal.
 - Autostart tests cover default-off initialization, reactive OS truth,
   enable/disable, failure redaction, and executable quoting.
 - Plugin adapter tests cover platform asset selection, listener-key dispatch,
   callback-free menus, listener cleanup, listener-before-prevention ordering,
-  prevention rollback, guarded rollback failure, and non-intercepting pre-run
-  failure.
+  prevention rollback, guarded rollback failure, non-intercepting pre-run
+  failure, and terminal window destroy when manager initialization settles
+  late. Coordinator coverage separately proves direct disposal during that
+  blocked initialization cannot attach a listener or enable close prevention.
 - Widget tests cover the close explanation and both explicit actions at 200%
   text scaling, plus reveal forwarding and subscription disposal.
 - Provider/runtime tests cover database invalidation and reopen, old-before-new
@@ -373,6 +421,72 @@ request does not fail reveal after the window has been shown.
   runtime/composition/deletion tests passed serially; the complete serial suite
   passed 1,058/1,058; strict Dart and Flutter analysis passed with no issues;
   and the sanitized Linux Release build succeeded.
+- Desktop Quit liveness regression:
+  `flutter test test/platform/desktop/desktop_runtime_coordinator_test.dart
+  --concurrency=1 --reporter=expanded` first reproduced the non-settling
+  cancellation timeout and uncaught cancellation error. Independent review
+  then identified an initialization race; its new early-close regression first
+  failed with one observer installed after Quit, then passed. The corrected
+  focused suite passed 13/13 after adding native adapter lifecycle races.
+- `flutter analyze
+  lib/src/platform/desktop/runtime/desktop_runtime_coordinator.dart
+  test/platform/desktop/desktop_runtime_coordinator_test.dart` — passed with no
+  issues.
+- `flutter test test/platform/desktop --concurrency=1 --reporter=compact` —
+  35/35 tests passed.
+- Full memory-safe suite:
+  `dart run tool/run_flutter_tests.dart` discovered 132 test files, completed
+  all 14 sequential shards at child `--concurrency=1`, and passed
+  1,095/1,095 tests.
+- Repository formatting covered 330 files with 0 changes. `flutter analyze`
+  passed with no issues. Code generation exited 0 with 36 outputs and no
+  repository drift.
+- Fresh sanitized Linux Release:
+  `flutter build linux --release --dart-define=APP_ENV=production
+  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid` — passed.
+  Build identity before this evidence-only context update:
+
+  ```text
+  HEAD=d44c63f9e73e3ba0268ef3b322d96c7f1aa77087
+  DIFF_SHA256=63472fbaee687fc5c174b1f59f548a92b989155cc75828869fa7a90a33f30cc2
+  EXECUTABLE_SHA256=71dd2a30cd29a7abee7b24723886c73dc3bffd6bea7de5f932a0b7a4274aaf75
+  AOT_LIBAPP_SHA256=d98570c0584b7f27c2fe67c556cc8f3963974ff6590a2fa1082e3e490b7c9db8
+  ```
+
+  The native executable is an x86-64 dynamically linked PIE ELF and `ldd`
+  reported no missing library. The documentation-only update does not alter
+  the validated Dart/native sources or AOT payload.
+- Exact isolated KDE Plasma/Wayland validation passed 2/2. Each run mapped
+  `Quit` exactly once to app-owned D-BusMenu item `17`; that event was the
+  termination method, with no fallback or `SIGTERM`. After each event the exact
+  process, `GApplication` owner, and StatusNotifier item were absent.
+- Both live runs created schema 13 in disposable storage, opened onboarding
+  without a network socket, and passed same-session single-instance behavior:
+  a second launch exited 0 while the primary PID, application owner, and one
+  tray item remained unchanged.
+- Both live runs left production data, secure-storage-related data paths, and
+  autostart paths unchanged and removed their disposable roots. They did not
+  access credentials, send notifications, mutate autostart, or contact a
+  backend. Before/after metadata was unchanged for:
+
+  ```text
+  <HOME>/.local/share/dev.oangsa.leb2watch
+  <HOME>/.local/share/leb2-watch
+  <HOME>/.config/autostart/LEB2 Watch.desktop
+  <XDG_RUNTIME_DIR>/leb2-watch
+  ```
+
+  Sanitized live evidence:
+
+  ```text
+  RUN1_SHA256=da692c038558e480c88b945a07b7b4d448f1c4293a9ec28a2ea9f44dea4220f0
+  RUN1_PATH=/tmp/leb2-watch-linux-wayland-smoke-run1-evidence.txt
+  RUN2_SHA256=1fbbfae8fbe68813c7b0d01e9904a8ad49f541da7edeec0f6b2c591227f9050f
+  RUN2_PATH=/tmp/leb2-watch-linux-wayland-smoke-run2-evidence.txt
+  ```
+- One synchronization-backoff joiner test with a separately investigated
+  admission race passed in the final suite. That green rerun does not claim the
+  unrelated flaky test was fixed by this desktop feature.
 
 ## Known limitations
 
@@ -381,8 +495,13 @@ request does not fail reveal after the window has been shown.
 - Process-lifetime deadline reminders also stop on explicit Quit and may be
   delayed by suspension or operating-system timer throttling.
 - Desktop OS scheduling and window foreground focus remain best effort.
-- The current Linux host is headless, so the release artifact was not exercised
-  through a live system tray or second-launch GUI interaction.
+- The unattended D-Bus validation did not assert human-visible panel icon
+  rendering, first-frame appearance, the close explanation, Keep-running hide,
+  or tray Open/focus behavior.
+- X11 and GNOME runtime behavior remain unverified; the live Linux proof is
+  specifically KDE Plasma on Wayland.
+- KWallet/libsecret behavior, notification display/history, and autostart
+  mutation were deliberately excluded from the live smoke.
 - macOS and Windows changes were not build-verified on this Linux host. The
   Windows workflow is configured but its result is not claimed here.
 - macOS helper copying and Windows mutex/focus behavior still require runtime

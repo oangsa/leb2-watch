@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -122,6 +124,26 @@ void main() {
     ]);
   });
 
+  test(
+    'window destroy remains terminal when initialization settles late',
+    () async {
+      final initializationGate = Completer<void>();
+      final plugin = _WindowPlugin(
+        ensureInitialization: initializationGate.future,
+      );
+      final adapter = WindowManagerDesktopWindowPlatform(plugin: plugin);
+
+      final initialization = adapter.initialize(onClose: () {});
+      await plugin.ensureStarted.future;
+      await adapter.destroy();
+      initializationGate.complete();
+      await initialization;
+
+      expect(plugin.log, ['ensure', 'destroy', 'ensure.complete', 'destroy']);
+      expect(plugin.preventClose, isFalse);
+    },
+  );
+
   test('window initialization failure restores conventional close', () async {
     final plugin = _WindowPlugin()
       ..preventCloseEnableFailure = StateError('native detail');
@@ -236,7 +258,11 @@ final class _TrayPlugin implements DesktopTrayPlugin {
 }
 
 final class _WindowPlugin implements DesktopWindowPlugin {
+  _WindowPlugin({this.ensureInitialization});
+
+  final Future<void>? ensureInitialization;
   final List<String> log = [];
+  final Completer<void> ensureStarted = Completer<void>();
   Object? addListenerFailure;
   Object? ensureFailure;
   Object? preventCloseEnableFailure;
@@ -246,6 +272,13 @@ final class _WindowPlugin implements DesktopWindowPlugin {
   @override
   Future<void> ensureInitialized() async {
     log.add('ensure');
+    if (!ensureStarted.isCompleted) {
+      ensureStarted.complete();
+    }
+    await ensureInitialization;
+    if (ensureInitialization != null) {
+      log.add('ensure.complete');
+    }
     if (ensureFailure case final failure?) {
       throw failure;
     }
