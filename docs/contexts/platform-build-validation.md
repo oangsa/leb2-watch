@@ -17,6 +17,11 @@ background, secure-storage, notification, and deletion paths remain partial;
 iOS, macOS, and Windows remain native-build unverified because their required
 host toolchains are unavailable.
 
+The debug-only Android WorkManager runtime inspector compiles successfully
+against public AndroidX APIs. Its guarded emulator test remains unrun because
+`adb devices` reported no attached emulator; no native registration or
+cancellation outcome is claimed from this static evidence.
+
 A separate sanitized Android App Bundle artifact gate is also complete: one
 externally test-signed Release AAB passed ZIP integrity and non-strict JAR
 archive-signature verification. Its strict default-JDK trust check returned

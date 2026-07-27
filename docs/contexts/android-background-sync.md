@@ -5,7 +5,9 @@
 Partially completed. The Dart implementation and static Android configuration
 are complete, and a sanitized signed Release APK now builds and cold-launches
 on an API 36 x86_64 emulator. Periodic WorkManager execution remains
-fixture-dependent and is not yet end-to-end validated.
+fixture-dependent and is not yet end-to-end validated. A debug-only native
+registration/cancellation validation seam is present, but its guarded API 36
+runtime test is pending because no emulator was attached during implementation.
 
 ## Purpose
 
@@ -106,6 +108,9 @@ authoritative.
   release builds.
 - `android/app/proguard-rules.pro` — keeps Room database implementation
   constructors that Room loads reflectively after Release shrinking.
+- `android/app/src/debug/kotlin/dev/oangsa/leb2watch/DebugWorkmanagerRuntimeInspector.kt`
+  — debug-only, fixed-name public WorkManager snapshot used solely by the
+  guarded integration test; release/profile variants are no-ops.
 - `test/platform/background/android/` — Android scheduling, callback, and
   manifest coverage.
 - `test/platform/android/android_release_signing_configuration_test.dart` —
@@ -208,6 +213,8 @@ manifest has no foreground-service component at all.
 - No app-owned foreground service, custom worker, analytics, crash reporting,
   or remote persistence was introduced. AndroidX WorkManager's transitive
   foreground-service declaration is documented under Platform behavior.
+- The debug-only runtime inspector exposes no WorkRequest input, credentials,
+  backend data, or native error detail and is absent from release/profile.
 
 ## Decisions
 
