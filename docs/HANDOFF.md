@@ -9,7 +9,7 @@ conversation history or temporary evidence files.
 Path examples use `<REPO_ROOT>`, `<HOME>`, and `<XDG_RUNTIME_DIR>` rather than
 developer-specific paths.
 
-The handoff was prepared from this verified parent state:
+The handoff was originally prepared from this historical parent state:
 
 ```text
 Branch: dev
@@ -20,15 +20,22 @@ Parent index: empty
 Configured upstream for dev: none
 ```
 
-The handoff itself is expected to be the next commit:
+That handoff was committed as:
 
 ```text
-chore: add repository continuation handoff
+e1da0948a4c3348cf4cdd49cfede8fa1418fc4ee chore: add repository continuation handoff
 ```
 
-Its hash cannot be recorded inside its own commit. On resumption, verify that
-the branch tip has that message, the parent is `69564afd...`, and the working
-tree is clean:
+Android Release validation subsequently committed as:
+
+```text
+7f6ae9f79432236578b0c09348309583ec3f3ade fix: preserve room constructors in android release builds
+```
+
+It has `e1da094...` as its parent. The working tree was clean when this
+correction began. On resumption, verify the live branch tip, this committed
+relationship, and the working tree rather than assuming either commit remains
+`HEAD`:
 
 ```bash
 cd <REPO_ROOT>
@@ -61,26 +68,16 @@ terminal.
 ## Current Android validation checkpoint — 2026-07-27
 
 This checkpoint supersedes older Android-native-status statements below. The
-current Android Release R8-repair validation gate is complete, but broader
-fixture/session-dependent Android coverage remains partial. It is still
-uncommitted and does not replace the historical ledgers.
+Android Release R8-repair validation gate committed in `7f6ae9f...`, but
+broader fixture/session-dependent Android coverage remains partial. It does
+not replace the historical ledgers.
 
-### Current diff and no-commit status
+### Committed status
 
-The current working tree has five relevant paths:
-
-```text
- M docs/HANDOFF.md
- M docs/contexts/android-background-sync.md
- M docs/contexts/platform-build-validation.md
- M test/platform/android/android_release_signing_configuration_test.dart
-?? android/app/proguard-rules.pro
-```
-
-The lower four paths are the Android feature implementation/context diff. This
-handoff file is its continuation-documentation correction; review and stage it
-deliberately with the four paths only if the owner decides it belongs in the
-same commit.
+Commit `7f6ae9f...` contains the Room/R8 rule, its Android configuration test,
+this handoff, and the two Android validation contexts. The tree was clean at
+the start of this documentation correction. Use `git show --stat 7f6ae9f` for
+the durable path list.
 
 `android/app/proguard-rules.pro` preserves zero-argument constructors of
 `RoomDatabase` implementations. The Release shrinker had removed
@@ -88,9 +85,8 @@ same commit.
 crash before Flutter rendered. The accompanying Android configuration test
 requires that narrow rule and rejects the documented broad alternatives.
 
-Nothing in this checkpoint is staged or committed. The validation gate is now
-complete; the next actions are final independent review, deliberate staging of
-the chosen paths, and commit. Do not start another feature first.
+The validation gate was independently reviewed and committed. Do not reopen it
+as the next feature; select the next feature through the mandatory lifecycle.
 
 ### Proven Android evidence
 
@@ -106,8 +102,7 @@ prompt.
 The independent review approved the narrow R8/Room repair, its regression
 guard, native-artifact evidence, privacy boundary, and the documented
 transitive WorkManager foreground-service provenance. The fresh validation
-gate described below now satisfies its full-suite condition; final independent
-review remains the next release-control action.
+gate described below satisfies its full-suite condition and is committed.
 
 Do not infer fixture-dependent behavior from this foreground evidence. Native
 WorkManager registration/execution, notification permission or delivery,
@@ -136,11 +131,9 @@ git diff --check
 exit 0
 ```
 
-The prior sandbox SDK-cache denial is resolved for this validation pass. The
-next actions are final independent review and deliberate staging/commit of the
-chosen paths; do not rerun these checks merely to replace the persisted
-evidence. Never add signing material, a real backend origin, credentials, or
-user data.
+The prior sandbox SDK-cache denial is resolved for this validation pass. Do
+not rerun these checks merely to replace the persisted evidence. Never add
+signing material, a real backend origin, credentials, or user data.
 
 ## Outcome at this pause
 
@@ -173,9 +166,10 @@ missing features:
    narrow live proof. Windows/macOS native proof is absent, and Windows
    uniqueness is intentionally scoped to one interactive session.
 
-The MVP source is implemented. The public beta is **not ready** because its
-Android build criterion is not yet proven. Native Windows and Apple results
-are also absent, and several Linux integrations still need live validation.
+The MVP source is implemented. The public beta is **not ready** because
+fixture/session-dependent Android behavior and other required native evidence
+remain unproven. Native Windows and Apple results are also absent, and several
+Linux integrations still need live validation.
 
 ## Latest corrections
 
@@ -225,20 +219,20 @@ Use the checked-in memory-safe runner:
 dart run tool/run_flutter_tests.dart
 ```
 
-Its latest exact result is:
+Its current persisted evidence is:
 
 ```text
 Discovered test/**/*_test.dart files: 132
 Sequential fresh-process shards:       14
 Maximum files per shard:               10
-Aggregate result:                       1,096/1,096 passed
-Exit status:                            0
+Aggregate result:                       1,097 passed (14/14 shard markers)
+Wrapper exit status:                    not captured
 ```
 
 The per-shard totals were:
 
 ```text
-107, 68, 103, 67, 93, 119, 65, 106, 91, 82, 74, 56, 55, 10
+107, 68, 103, 67, 93, 119, 65, 106, 91, 82, 74, 57, 55, 10
 ```
 
 Do not replace this with one monolithic `flutter test` process on the
@@ -313,7 +307,7 @@ all Linux integrations.
 | Platform | Source/static | Native build | Live runtime |
 | --- | --- | --- | --- |
 | Linux | Passed | Release passed | Narrow KDE/Wayland proof |
-| Android | Passed | Not verified | Not verified |
+| Android | Passed | Sanitized Release APK | API 36 foreground smoke |
 | Windows | Passed | Not verified | Not verified |
 | iOS | Passed on Linux | Not verified | Not verified |
 | macOS | Passed on Linux | Not verified | Not verified |
@@ -325,10 +319,12 @@ The exact evidence boundaries are:
   notification/tap/history, autostart mutation, close explanation,
   Keep-running/Open-focus, process reminders, session-expiration cache
   retention, delete-all, X11/GNOME, and packaging remain unverified.
-- **Android:** Dart/application/static manifest, signing, and WorkManager tests
-  are included in 1,096/1,096. SDK/JDK/Gradle build, APK/AAB, merged manifest,
-  signer, emulator/device, reboot, process death, background scheduling, and
-  notification behavior remain unverified.
+- **Android:** 1,097 host-test shard markers, sanitized unsigned and
+  validation-signed Release APK builds, merged-manifest and signature
+  inspection, and API 36 emulator install/cold/relaunch are proven. WorkManager
+  execution, notification delivery/permission, credential-store CRUD,
+  fixture/session behavior, reboot/worker recovery, and physical-device
+  behavior remain unverified.
 - **Windows:** unpackaged-preview source/static tests pass and a Release CI job
   is configured. An observed CI result, MSVC build, install/runtime smoke,
   DPAPI, tray, autostart, and notifications remain unverified; there is no
@@ -341,8 +337,8 @@ The exact evidence boundaries are:
   HTTPS remain unverified.
 
 Android has no native `androidTest` or instrumentation sources. Its host-side
-Dart/static tests are complete and green, but the prior APK attempt stopped
-before Gradle with `No Android SDK found`. No APK is validated.
+Dart/static tests, sanitized Release APK, and narrow API 36 foreground evidence
+are recorded above; they do not validate background or fixture-dependent flows.
 
 The Windows workflow uses `windows-latest`, Flutter 3.44.8, sanitized defines,
 Visual Studio C++/ATL checks, and validates the complete Release directory. It
@@ -459,11 +455,12 @@ compatible backend, not to depend on an author-funded shared service.
 
 ## Remaining work, ranked
 
-### 1. Android native build and device validation
+### 1. Android fixture and device-validation gaps
 
-This is the highest public-beta priority. It needs an Android-capable host,
-compatible JDK and Android SDK, an emulator or physical device, and an
-operator-owned signing decision or test key kept outside Git.
+The committed Release build and API 36 foreground smoke are recorded above.
+The remaining public-beta evidence needs a sanitized compatible fixture/session
+and a physical device; an operator-owned signing decision or test key must stay
+outside Git.
 
 Required evidence:
 
@@ -550,51 +547,19 @@ Only begin these with explicit owner approval:
 - a Workmanager fork/upstream hook to remove the small iOS
   expiration-handler-takeover interval.
 
-## Exact next feature
+## Completed Android validation
 
-```text
-Feature:
-Android native release build and device validation
+`7f6ae9f... fix: preserve room constructors in android release builds` records
+the sanitized Android Release build, signer/manifest inspection, narrow API 36
+emulator foreground proof, and Room/R8 startup repair. It does not prove
+fixture/session-dependent WorkManager, notification, secure-storage, deletion,
+reboot, or physical-device behavior; retain those limitations.
 
-Outcome:
-Produce authoritative Android build and runtime evidence for the implemented
-WorkManager, secure-storage, notification, session, and deletion flows.
+## Next feature selection
 
-Included:
-SDK/JDK preflight, sanitized Release APK build, merged manifest/signature
-inspection, emulator/device smoke, WorkManager uniqueness and generation
-behavior, notification/baseline/dedupe, expiration/recovery, reboot/process
-death/force-stop, and delete-all.
-
-Excluded:
-Production credentials/backend, Play publishing, production signing-key
-creation or disclosure, foreground service, exact alarms, architecture
-redesign, and unrelated platform changes.
-
-Dependencies:
-Android SDK, compatible JDK, emulator or device, sanitized backend/fixtures,
-and owner direction for any signing identity.
-
-Acceptance criteria:
-Build succeeds; artifact/signature state is explicit; merged native
-configuration is correct; device matrix is recorded; no duplicate jobs or
-notifications occur; cache survives session expiration; delete-all cleans
-app-owned state; documentation remains honest.
-
-Required tests:
-Existing 1,096 host tests stay green if source changes; focused Android
-Dart/static tests; native build; appropriate device/manual/instrumented
-evidence for every changed behavior.
-
-Expected commit action:
-chore: validate android release build
-```
-
-On the same Linux host used for this handoff, the Android feature is externally
-blocked because the JDK, Android SDK, Gradle tooling, emulator, and device are
-absent. Do not claim completion. The next locally executable bounded feature
-is the remaining Linux native integration smoke, subject to explicit consent
-for keyring, notifications, and autostart changes.
+Choose the next single feature through the mandatory research, worker,
+validation, context, review, and commit lifecycle. Do not imply that any
+platform feature has already started.
 
 ## Safe continuation commands
 
@@ -722,8 +687,9 @@ Treat this handoff as the current evidence summary while preserving historical
 feature records:
 
 - [`platform-build-validation.md`](contexts/platform-build-validation.md)
-  records 1,087 tests at the memory-safe-runner feature boundary; current
-  HEAD has 1,096.
+  records 1,087 tests at its original memory-safe-runner feature boundary and
+  the committed Android-validation update with 1,097 shard-marker tests and
+  no captured wrapper exit status.
 - Older notification contexts contain historical suite totals and a previous
   parallel-run flake. The checked-in memory-safe runner and deterministic
   joiner correction are current authority.
@@ -802,11 +768,11 @@ fce85cd5b3ddb8d3c0cf9b1371d1a2b4981acb98 feat: add desktop deadline reminder del
 d44c63f9e73e3ba0268ef3b322d96c7f1aa77087 chore: add memory safe flutter test shards
 b803d9c4d49b62dd8464b3f658e2b23ec473fd8c fix: prevent desktop tray quit from hanging
 69564afd1ea5234909fb0bea806ee61f2a9c6048 fix: make synchronization joiner test deterministic
+7f6ae9f79432236578b0c09348309583ec3f3ade fix: preserve room constructors in android release builds
 ```
 
 Use `git show <commit>` and the linked context documents for implementation
-details. The upcoming handoff commit is documentation-only and follows
-`69564af...`.
+details. Android validation follows `e1da094...` and is already committed.
 
 ## Honest remaining-time estimate
 
@@ -825,20 +791,20 @@ The listed Android + Windows + Linux + release-documentation work totals
 prepared hosts if no defects appear, with Android timing able to extend it.
 These are effort estimates, not elapsed-time promises.
 
-On the current host, Android, Windows, and Apple have no responsible fixed
-completion estimate until the required native toolchains/hosts are available.
-Legal and security work also depends on owner decisions. Do not claim that the
-remaining release evidence can be completed and verified in two hours.
+On the current host, Windows and Apple have no responsible fixed completion
+estimate until the required native toolchains/hosts are available. Android
+still needs a sanitized compatible fixture/session and physical-device work
+for its remaining evidence. Legal and security work also depends on owner
+decisions. Do not claim that the remaining release evidence can be completed
+and verified in two hours.
 
 ## Resume checklist
 
-- [ ] Verify `dev`, the handoff commit message, its `69564af...` parent, and a
-      clean tree.
-- [ ] Read [`AGENTS.md`](../AGENTS.md), this file, and the next feature context.
-- [ ] Decide whether an Android-capable host/device is available.
-- [ ] If yes, define and research the Android native-validation feature above.
-- [ ] If no, record that external blocker and request consent for the bounded
-      remaining Linux native smoke.
+- [ ] Verify `dev` and a clean tree.
+- [ ] Read [`AGENTS.md`](../AGENTS.md), this file, and the newly selected
+      feature context.
+- [ ] Preserve the committed Android evidence and its fixture/device limits.
+- [ ] Define and research one next feature before any implementation.
 - [ ] Preserve the local-first, credential, transport, and persistence
       invariants.
 - [ ] Use the memory-safe 132-file/14-shard runner.

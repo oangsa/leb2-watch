@@ -2,9 +2,9 @@
 
 ## Status
 
-Completed for the current Android Release R8-repair validation gate, while
-broader platform coverage remains partial. The current diff has persisted
-evidence of 132 discovered test files across 14/14 successful serial shards
+Completed for the committed Android Release R8-repair validation gate, while
+broader platform coverage remains partial. The committed validation records
+persisted evidence of 132 discovered test files across 14/14 successful serial shards
 and 1,097 passed test cases; the wrapper's explicit shell exit code was not
 captured. Repository formatting and strict Dart/Flutter analysis passed with
 exit code 0, as did `git diff --check`.
