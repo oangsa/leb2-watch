@@ -5,14 +5,8 @@ evidence-backed, local-first, and honest about platform validation.
 
 ## Before contributing
 
-This frontend and its backend repository are publicly visible but do not yet
-include licenses or contribution terms. Public visibility does not grant
-general permission to use, modify, or redistribute the code. The owner must
-choose licenses for both repositories and decide whether ordinary license
-terms, a DCO, or a CLA applies.
-
-Do not include a license, copyright identity, security contact, or contribution
-agreement on the owner's behalf.
+This frontend is licensed under [Apache-2.0](LICENSE). Project-specific
+contributor agreements are not established by this document.
 
 ## Choose a scope
 
@@ -122,8 +116,8 @@ Before submitting:
 
 ## Sensitive reports
 
-There is not yet a documented private vulnerability-reporting channel. Do not
-paste session cookies, credentials, assignment data, authorization headers,
-private certificates, or raw sensitive logs into a public issue or pull
-request. A private reporting mechanism remains an owner decision and release
-blocker.
+Report non-confidential security problems only through the public process in
+[SECURITY.md](SECURITY.md). Do not paste session cookies, credentials,
+assignment data, authorization headers, passwords, private keys, private
+certificates, raw sensitive logs, or exploit details requiring confidentiality
+into a public issue or pull request.

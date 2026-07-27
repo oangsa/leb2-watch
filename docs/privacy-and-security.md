@@ -133,18 +133,18 @@ logs, or transient backend memory.
 
 ## Reporting security problems
 
-The project does not yet designate a private security-reporting address or
-enable a documented private vulnerability-reporting mechanism. That is a
-release blocker.
-
-Until one is published, do not put session cookies, passwords, assignment data,
-personal identifiers, authorization headers, private certificates, or raw
-sensitive logs in a public issue or pull request. Repository visibility is not
-permission to disclose another user's data.
+Report non-confidential security problems through the public
+[GitHub Issues page](https://github.com/oangsa/leb2-watch/issues/new). GitHub
+Issues are public, and this project offers no private security-reporting
+channel. Do not put session cookies, passwords, assignment data, personal
+identifiers, authorization headers, private keys, private certificates, raw
+sensitive logs, or exploit details requiring confidentiality in an issue or
+pull request. Redact and minimize proof-of-concept information. See
+[SECURITY.md](../SECURITY.md) for the complete reporting policy.
 
 ## Licensing boundary
 
-Both the frontend and backend are publicly visible but currently have no
-license. They are source-available, not legally open source, until the owner
-chooses and commits licenses. Do not infer permission to deploy, modify, or
-redistribute from public visibility alone.
+The frontend is licensed under [Apache-2.0](../LICENSE). The backend has its
+own [Apache-2.0 license](https://github.com/oangsa/LEB2SCRAPPER-API/blob/dev/LICENSE).
+This document does not audit third-party dependency licenses or attribution
+requirements.

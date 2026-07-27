@@ -1,8 +1,8 @@
 # Self-hosting the backend
 
-> **License notice:** No license is currently committed. These instructions are
-> documentation only; deployment or reuse requires separate permission from the
-> repository owner.
+> **License notice:** LEB2 Watch is licensed under [Apache-2.0](../LICENSE).
+> The compatible backend has its own
+> [Apache-2.0 license](https://github.com/oangsa/LEB2SCRAPPER-API/blob/dev/LICENSE).
 
 LEB2 Watch has no official or author-hosted API endpoint. Each operator must
 deploy a compatible LEB2SCRAPPER API instance, pay any hosting charges, and

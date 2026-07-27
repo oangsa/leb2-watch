@@ -8,10 +8,6 @@ notifications. It targets Android, iOS, Windows, macOS, and Linux.
 
 ## Bring your own backend
 
-> **License notice:** No license is currently committed. These instructions are
-> documentation only; deployment or reuse requires separate permission from the
-> repository owner.
-
 LEB2 Watch does not include access to an author-operated backend. To use it,
 deploy a compatible
 [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API) instance and
@@ -132,10 +128,8 @@ The mocked Linux device workflow remains a separate integration command.
 - [Troubleshooting](docs/troubleshooting.md)
 - [Technical feature contexts](docs/contexts/)
 
-## Source availability and licensing
+## License and security reporting
 
-The frontend and backend repositories are publicly visible but do not
-currently include a license. Until the owner chooses and commits licenses,
-they are source-available, not legally open source, and no general permission
-to use, modify, or redistribute should be assumed. License selection for both
-repositories is a release blocker.
+LEB2 Watch is licensed under [Apache-2.0](LICENSE). See
+[SECURITY.md](SECURITY.md) before reporting a security problem: GitHub Issues
+are public and are not a channel for confidential information.
