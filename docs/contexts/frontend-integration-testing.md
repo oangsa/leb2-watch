@@ -348,9 +348,13 @@ flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 - Current recorded validation at the audited HEAD:
   `flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux`
   built the Linux debug application and passed 2/2 device workflows.
-- Current serialized full-suite evidence is 1001/1001
-  unit/widget/database/golden/static-platform tests. `integration_test/` is
-  intentionally executed by its separate device command.
+- The current host-side unit/widget suite is invoked with
+  `dart run tool/run_flutter_tests.dart`. Its deterministic sequential shards
+  intentionally exclude `integration_test/`.
+- Current memory-safe full-suite evidence is 1,087/1,087
+  unit/widget/database/golden/static-platform tests across 132 files and 14
+  sequential process-reset shards. `integration_test/` is intentionally
+  executed by its separate device command.
 - Historical Phase-16 evidence before automatic reauthentication and its race
   workflow landed was 1/1 integration and 859/859 host-side tests.
 

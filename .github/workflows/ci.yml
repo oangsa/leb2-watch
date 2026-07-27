@@ -29,7 +29,8 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze
       - run: flutter analyze
-      - run: flutter test
+      - name: Run memory-safe unit and widget tests
+        run: dart run tool/run_flutter_tests.dart
 
   linux-integration:
     runs-on: ubuntu-latest

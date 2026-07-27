@@ -85,8 +85,15 @@ dart run build_runner build --delete-conflicting-outputs
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos --fatal-warnings
 flutter analyze --fatal-infos --fatal-warnings
-flutter test
+dart run tool/run_flutter_tests.dart
 ```
+
+The checked-in runner discovers every `test/**/*_test.dart` file in sorted
+order. It runs batches of at most 10 files as fresh, sequential
+`flutter test --concurrency=1` processes and stops at the first failure. This
+keeps the complete unit/widget/database/golden/static-platform suite bounded
+on memory-constrained hosts without skipping tests. `integration_test/` is
+intentionally separate.
 
 On a supported Linux host:
 
@@ -160,7 +167,7 @@ CI configures three jobs. The Ubuntu validation job:
 3. checks tracked and untracked generated-code drift;
 4. checks formatting;
 5. runs Dart and Flutter analysis; and
-6. runs `flutter test`.
+6. runs `dart run tool/run_flutter_tests.dart`.
 
 It also defines a separate Linux/Xvfb integration job:
 

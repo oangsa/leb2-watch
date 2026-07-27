@@ -215,9 +215,13 @@ dart run build_runner build --delete-conflicting-outputs
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos --fatal-warnings
 flutter analyze --fatal-infos --fatal-warnings
-flutter test
+dart run tool/run_flutter_tests.dart
 flutter build linux --release
 ```
+
+The test runner covers all sorted `test/**/*_test.dart` files exactly once in
+fresh sequential batches of at most 10 files. The Linux device workflow under
+`integration_test/` remains a separate command.
 
 The final command without production definitions is a source/build smoke
 check, not a runnable production configuration. Use the production command

@@ -112,6 +112,15 @@ Read [Development](docs/development.md) and
 [Contributing](CONTRIBUTING.md). Never use production credentials or submit
 session cookies, passwords, assignment data, or raw sensitive logs.
 
+Run the complete host-side unit and widget suite with the checked-in,
+memory-safe command:
+
+```bash
+dart run tool/run_flutter_tests.dart
+```
+
+The mocked Linux device workflow remains a separate integration command.
+
 ## Documentation
 
 - [Self-hosting the backend](docs/self-hosting-backend.md)

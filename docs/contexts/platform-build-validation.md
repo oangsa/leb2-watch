@@ -3,8 +3,9 @@
 ## Status
 
 Completed for the narrow privacy-route and Android release-signing hardening
-slice. Focused and full Flutter tests, strict analysis, code generation, and
-the Linux release build pass on the current host.
+slice and the memory-safe host test-suite runner. Focused and complete
+host-side Flutter tests, strict analysis, code generation, and the Linux
+release build pass on the current host.
 
 Android, iOS, macOS, and Windows remain native-build unverified because their
 required host toolchains are unavailable.
@@ -17,7 +18,9 @@ validation:
 - replace the label-only `/privacy` placeholder with accurate, accessible
   privacy disclosures; and
 - prevent an Android release build from silently using the insecure debug
-  signing identity.
+  signing identity; and
+- make the complete host-side Flutter test gate reproducible on
+  memory-constrained developer and CI hosts without omitting tests.
 
 ## Scope
 
@@ -33,6 +36,10 @@ validation:
 - Explicit unsigned/non-distributable behavior when local signing is absent.
 - Redacted failure when a present signing file is incomplete.
 - Host-runnable widget, routing, and native-configuration tests.
+- Deterministic discovery of every `test/**/*_test.dart` file.
+- Stable batches of at most 10 test files, each executed in a fresh
+  `flutter test --concurrency=1` process.
+- Sequential, fail-fast child execution shared by developers and CI.
 - Honest host/platform validation records and deferred native commands.
 
 ## Non-scope
@@ -46,8 +53,11 @@ validation:
 - Backend changes.
 - Android device, Play signing, Apple signing/notarization, Windows signing,
   or store-release validation.
-- Phase 16 integration-test and CI ownership.
-- Phase 17.2 public documentation ownership.
+- Phase 16 integration-test behavior or its separate Linux device CI job.
+- Parallel Flutter child processes, skipped tests, or assertion changes.
+- Native build-pipeline redesign.
+- Broad Phase 17.2 public-documentation or self-hosting changes beyond the
+  exact validation command.
 
 ## User-visible behavior
 
@@ -80,6 +90,16 @@ ignored local configuration exists. Without it, Gradle warns that release
 output is unsigned and not distributable; it never substitutes the debug
 identity.
 
+Contributors and the validation CI job now use one checked-in command:
+
+```bash
+dart run tool/run_flutter_tests.dart
+```
+
+The command covers the full host-side test inventory while bounding each
+Flutter process to 10 sorted files and one test at a time. It does not change
+application behavior.
+
 ## Architecture
 
 `PrivacyPage` is a dependency-free presentation component. It uses a
@@ -102,6 +122,18 @@ exists. `FileInputStream.use` closes the stream. All four required values are
 validated as nonblank before `signingConfigs.release` is created. The release
 build type selects that config only under the same condition.
 
+The memory-safe runner has two small layers:
+
+- `tool/src/memory_safe_flutter_test_runner.dart` discovers, normalizes,
+  sorts, partitions, and sequentially awaits injected shard launchers.
+- `tool/run_flutter_tests.dart` supplies the real process launcher, using
+  `flutter` on Unix-like hosts and `flutter.bat` on Windows.
+
+Each child inherits standard input/output, receives
+`test --concurrency=1 <sorted files>`, and is awaited before the next process
+starts. Process exit releases per-shard Flutter and test-isolate memory before
+the following shard.
+
 ## Important files
 
 - `lib/src/features/privacy/presentation/privacy_page.dart` — static adaptive
@@ -123,6 +155,15 @@ build type selects that config only under the same condition.
   — exact callback behavior.
 - `test/platform/android/android_release_signing_configuration_test.dart` —
   host-runnable Android signing-policy assertions.
+- `tool/run_flutter_tests.dart` — checked-in developer and CI entry point.
+- `tool/src/memory_safe_flutter_test_runner.dart` — portable discovery,
+  partitioning, argument, and sequential execution logic.
+- `test/tool/memory_safe_flutter_test_runner_test.dart` — inventory,
+  partition, sequencing, and failure-propagation tests.
+- `.github/workflows/ci.yml` — invokes the runner in the validation job while
+  retaining the separate Linux integration job.
+- `docs/development.md` and `CONTRIBUTING.md` — contributor validation
+  contract.
 
 ## Contracts and interfaces
 
@@ -161,6 +202,19 @@ The file and `*.jks`/`*.keystore` material are ignored. No signing value is a
 Dart define, application credential, database field, or checked-in Gradle
 literal.
 
+The host test contract is:
+
+```text
+discovery root: test/
+included path: every regular file ending in _test.dart
+ordering: normalized repository-relative paths, ascending
+default batch bound: 10 files
+child command: flutter test --concurrency=1 <batch paths>
+execution: one awaited child at a time
+failure: return the first nonzero child exit code and stop
+excluded inventory: integration_test/
+```
+
 ## Data model
 
 This feature adds no application, persistence, transport, credential, or
@@ -169,6 +223,9 @@ domain data model.
 Gradle holds signing properties only while evaluating the local Android build.
 Those values do not enter the Flutter process or a generated application
 artifact as application data.
+
+The runner creates no persistent data, manifest, inventory cache, or generated
+file. Discovery always derives the inventory from the current filesystem.
 
 ## State and control flow
 
@@ -194,10 +251,26 @@ Android configuration:
 6. Debug builds keep ordinary generated debug signing; release builds never
    select it.
 
+Host test validation:
+
+1. Resolve the repository's `test/` directory.
+2. Recursively enumerate regular `_test.dart` files without following links.
+3. Convert paths to repository-relative forward-slash form and sort them.
+4. Partition the complete list into batches of at most 10 files.
+5. Start one `flutter test --concurrency=1` child for the next batch.
+6. Await its exit before proceeding.
+7. Stop and propagate its exact nonzero exit code, or continue until every
+   batch succeeds.
+
 ## Platform behavior
 
 The Dart privacy page is shared across Android, iOS, Linux, macOS, and Windows.
 Its adaptive and text-scale behavior is host-widget tested.
+
+The test runner uses only `dart:io` and the repository's existing `path`
+dependency. Its path normalization and `flutter.bat` selection make the same
+entry point usable on Linux, macOS, and Windows. This is source-level
+portability; only the Linux execution is recorded here.
 
 | Platform | Current validation |
 | --- | --- |
@@ -257,6 +330,10 @@ runtime validation on their respective platforms.
   or stored with LEB2 credentials.
 - A missing signing file cannot degrade to debug signing.
 - Unsigned output is explicitly classified as non-distributable.
+- Test discovery reads names under `test/` only; it does not read application
+  credentials, databases, backend responses, or user files.
+- Child output is unchanged and no environment variable or argument is logged
+  by the runner.
 
 ## Decisions
 
@@ -271,6 +348,12 @@ runtime validation on their respective platforms.
   closed for an incomplete present file.
 - Test the native policy from the Linux host without pretending that static
   source assertions prove an Android build or certificate.
+- Use file-count batches rather than adding a test dependency or maintaining a
+  manual shard manifest that can become stale.
+- Use fresh sequential processes because `--concurrency=1` alone retains the
+  complete suite in one long-lived Flutter process.
+- Keep the integration device workflow separate because it requires a Linux
+  desktop device and Xvfb, not the host unit/widget runner.
 
 ## Alternatives rejected
 
@@ -288,6 +371,11 @@ runtime validation on their respective platforms.
   their exposure.
 - Generating a signing key automatically would take ownership away from the
   distributor and create unsafe key lifecycle expectations.
+- A monolithic `flutter test`, even with `--concurrency=1`, does not reset
+  process memory between bounded groups.
+- CI-only matrix shards would not give developers the same reproducible
+  command and would require a separately maintained inventory split.
+- Parallel child processes would defeat the memory bound.
 
 ## Failure behavior
 
@@ -306,6 +394,11 @@ configuration with a bounded message that lists required property names but
 no supplied values. Android compilation under the current AGP/Flutter version
 remains unverified until an Android toolchain is available.
 
+The test runner returns 64 when no host test file is found. A failing shard
+prints its index and exact child exit code, stops without launching later
+shards, and returns that same code. Process-start failures remain visible
+uncaught command failures rather than being converted into a false pass.
+
 ## Tests
 
 - Exact independent-third-party disclaimer.
@@ -323,8 +416,38 @@ remains unverified until an Android toolchain is available.
 - Conditional local property loading, closing stream, four exact keys,
   conditional release config, redacted errors, unsigned warning, and ignore
   rules.
+- Sorted discovery includes nested `test/` files while excluding helpers and
+  `integration_test/`.
+- Partitioning covers the complete live repository inventory exactly once,
+  without overlap or omission, and respects the 10-file bound.
+- An injected gated launcher proves the next shard is not started before the
+  prior shard completes.
+- An injected failing launcher proves later shards are not launched and the
+  exact first nonzero exit code is returned.
+- Child arguments always include `--concurrency=1`.
 
 ## Validation evidence
+
+Memory-safe host test runner:
+
+- Red: `flutter test
+  test/tool/memory_safe_flutter_test_runner_test.dart --concurrency=1` failed
+  because the runner source and all requested seams did not exist.
+- Green: the same focused command passed 6/6 discovery, inventory,
+  partitioning, sequencing, failure, and argument tests.
+- `dart run tool/run_flutter_tests.dart` discovered 132 files and ran 14
+  sequential shards: thirteen 10-file shards and one 2-file shard.
+- Every shard passed. The per-shard test counts were 107, 68, 103, 67, 93,
+  118, 65, 106, 91, 82, 74, 56, 47, and 10, totaling 1,087/1,087.
+- `dart format --output=none --set-exit-if-changed .` checked 330 files with
+  0 changes.
+- `dart analyze --fatal-infos --fatal-warnings` found no issues.
+- `flutter analyze --fatal-infos --fatal-warnings` found no issues.
+- `dart run build_runner build --delete-conflicting-outputs` completed in 5
+  seconds. The installed version reported that the named flag is ignored,
+  wrote six synchronized outputs, and left no generated-source diff.
+- `.github/workflows/ci.yml` changes only the validation test step; the
+  separate Linux/Xvfb integration job is unchanged.
 
 The focused command ran after sourcing `~/.zshrc` in its terminal:
 
@@ -391,6 +514,13 @@ strings are negative assertions in the signing configuration test.
   legal decision.
 - Phase 16's Linux desktop integration workflow is separate evidence and is
   not claimed by this context.
+- Shards are bounded by file count, not historical duration or test count, so
+  individual shard runtimes can differ.
+- Discovery, partitioning, sequencing, and failure orchestration are
+  unit-tested, and the real CLI/`Process.start` path was executed on Linux.
+  Windows `flutter.bat` selection, `runInShell`, working-directory, and
+  inherited-stdio behavior is source-reviewed but was not executed or
+  unit-tested; the configured Windows CI result remains unobserved.
 
 ## Future considerations
 

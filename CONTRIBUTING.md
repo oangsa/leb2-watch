@@ -69,8 +69,12 @@ dart run build_runner build --delete-conflicting-outputs
 dart format --output=none --set-exit-if-changed .
 dart analyze --fatal-infos --fatal-warnings
 flutter analyze --fatal-infos --fatal-warnings
-flutter test
+dart run tool/run_flutter_tests.dart
 ```
+
+The final command discovers every `test/**/*_test.dart` file and runs stable
+batches in fresh sequential `flutter test --concurrency=1` processes. It does
+not run `integration_test/`; device workflows remain separate.
 
 Run only native builds supported by the current host. State exactly which
 builds and device tests were not run.
