@@ -138,6 +138,27 @@ WorkManager execution, session synchronization, secure-storage CRUD,
 delete-all, visible delivery or notification taps, cold activation, or
 physical-device/OEM behavior.
 
+To create an Android App Bundle (AAB) for an operator-controlled distribution
+pipeline, use the same definitions:
+
+```bash
+flutter build appbundle --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+The output is normally
+`build/app/outputs/bundle/release/app-release.aab`. A sanitized AAB built with
+the external validation-only key passed ZIP integrity and non-strict
+`jarsigner -verify` archive-signature verification. Its default-JDK strict
+trust check intentionally returned exit `4`: the self-signed test identity is
+not trusted by that JDK trust store. This is not production-key or
+distribution-service evidence. No standalone Bundletool validation, generated
+APK installation, device runtime, Google Play upload, or Play App Signing was
+performed. See
+[Android App Bundle validation](contexts/android-app-bundle-validation.md)
+for the reproducible artifact-only record.
+
 ### iOS
 
 ```bash
@@ -240,7 +261,8 @@ not equivalent to a native build or device smoke test.
 This repository does not currently provide:
 
 - signed store artifacts;
-- an Android signing identity, key material, or certificate verification;
+- an Android signing identity, key material, or a publicly trusted certificate
+  chain;
 - Apple signing, provisioning, or notarization;
 - Windows MSIX/installer/signing;
 - Linux distribution packaging; or

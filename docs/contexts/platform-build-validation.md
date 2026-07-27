@@ -17,6 +17,13 @@ background, secure-storage, notification, and deletion paths remain partial;
 iOS, macOS, and Windows remain native-build unverified because their required
 host toolchains are unavailable.
 
+A separate sanitized Android App Bundle artifact gate is also complete: one
+externally test-signed Release AAB passed ZIP integrity and non-strict JAR
+archive-signature verification. Its strict default-JDK trust check returned
+exit `4` for the expected self-signed/untrusted validation identity, so this
+is not strict-chain, APK-installation, runtime, Bundletool, Play, or
+production-signing evidence.
+
 The Linux local-notification submission/same-process-action gate is also
 proven only for the interactive KDE Plasma/Wayland session used to run it. It
 is not a generic Linux, visible-pixel, physical-click, cold-activation, or CI
@@ -55,6 +62,8 @@ validation:
 - Honest host/platform validation records and deferred native commands.
 - Sanitized Android Release build, signer inspection, emulator installation,
   and foreground-startup validation without production credentials or keys.
+- Sanitized Android App Bundle archive build, structure/integrity inspection,
+  non-strict JAR-signature verification, and bounded secret-entry checks.
 
 ## Non-scope
 
@@ -67,6 +76,9 @@ validation:
 - Backend changes.
 - Physical Android-device, Play signing, Apple signing/notarization, Windows
   signing, or store-release validation.
+- Bundletool acquisition or validation, AAB-derived APK generation or
+  installation, Play upload, Play App Signing, distribution, or runtime
+  validation from an AAB.
 - Phase 16 integration-test behavior or its separate Linux device CI job.
 - Parallel Flutter child processes, skipped tests, or assertion changes.
 - Native build-pipeline redesign.
@@ -633,6 +645,41 @@ treated as notification-manager or visible-delivery proof. The run also did
 not automate a dialog response, tap a notification, or validate cold
 activation. See `docs/contexts/android-local-notification-runtime-validation.md`.
 
+### Android App Bundle artifact validation — 2026-07-27
+
+One sanitized App Bundle was built with the external validation-only signing
+identity and the invalid placeholder production origin:
+
+```text
+flutter build appbundle --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+
+build/app/outputs/bundle/release/app-release.aab
+SHA-256 e5e1d775cd6437cb9d4bb24ebc2e49ccfb5c463f0752a9811857e9edcf32b084
+```
+
+`unzip -t` exited `0` with no compressed-data errors. The bounded archive
+inventory contains `BundleConfig.pb`, `base/manifest/AndroidManifest.xml`,
+and `base/dex/classes.dex` plus `base/dex/classes2.dex`; it contains no
+`key.properties`, keystore, PEM, or private-key entry. `jarsigner -verify`
+exited `0` and reported `jar verified.` Its non-strict output still included
+self-signed/untrusted-chain, missing-timestamp, POSIX-attribute, and
+JarFile/JarInputStream consistency warnings.
+
+The stricter diagnostic `jarsigner -verify -strict -certs` returned exit `4`,
+with `jar verified, with signer errors.` The local JDK reported its default
+trust store could not validate the self-signed external test signer. This
+does not invalidate the ZIP or archive-signature result, but it is not a
+successful trusted-chain verification and is not hidden or normalized.
+
+No standalone Bundletool CLI is installed; Gradle's cached module JAR is not a
+CLI substitute. No AAB-derived APK generation or install, emulator/device
+runtime, Google Play upload, Play App Signing, distribution, production
+signing, real backend request, or credential use occurred. Existing APK
+emulator evidence remains separate. See
+`docs/contexts/android-app-bundle-validation.md`.
+
 ## Known limitations
 
 - Android Release compilation and test-key signer verification are now proven
@@ -647,6 +694,9 @@ activation. See `docs/contexts/android-local-notification-runtime-validation.md`
   recovery validation. The optional host `android-udev` package remains
   unavailable because installing it needs separate administrator approval.
 - No operator signing identity or store enrollment is part of the repository.
+- The AAB's validation-only self-signed signer is not trusted by the default
+  JDK trust store. Bundletool validation, generated APK/device verification,
+  Play acceptance, and production signing remain unproven.
 - Apple and Windows native builds require their platform hosts.
 - The repository has no selected `LICENSE`; this feature does not make that
   legal decision.
@@ -662,8 +712,9 @@ activation. See `docs/contexts/android-local-notification-runtime-validation.md`
 
 ## Future considerations
 
-- Build and inspect an Android App Bundle with an operator-owned release
-  identity.
+- If distribution is needed, separately acquire and verify a standalone
+  Bundletool release, validate/build device-targeted APK sets, and use an
+  operator-owned production signing/distribution process.
 - Provide a verified sanitized fixture/session, then run notification,
   WorkManager, secure-storage, background, and delete-all smoke tests on an
   Android emulator and a physical device.
