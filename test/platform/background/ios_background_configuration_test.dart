@@ -20,14 +20,12 @@ void main() {
     expect(backgroundModes, isNot(contains('<string>processing</string>')));
   });
 
-  test('AppDelegate registers headless plugins, task, and status bridge', () {
+  test('AppDelegate owns one task registration and delegates to Workmanager', () {
     final source = File('ios/Runner/AppDelegate.swift').readAsStringSync();
     final callback = source.indexOf(
       'WorkmanagerPlugin.setPluginRegistrantCallback',
     );
-    final registration = source.indexOf(
-      'WorkmanagerPlugin.registerPeriodicTask',
-    );
+    final registration = source.indexOf('BGTaskScheduler.shared.register');
     final launchReturn = source.indexOf(
       'return super.application(application, '
       'didFinishLaunchingWithOptions: launchOptions)',
@@ -38,7 +36,13 @@ void main() {
       _occurrences(source, 'WorkmanagerPlugin.setPluginRegistrantCallback'),
       1,
     );
-    expect(_occurrences(source, 'WorkmanagerPlugin.registerPeriodicTask'), 1);
+    expect(_occurrences(source, 'BGTaskScheduler.shared.register'), 1);
+    expect(source, isNot(contains('WorkmanagerPlugin.registerPeriodicTask')));
+    expect(_occurrences(source, 'WorkmanagerPlugin.handlePeriodicTask'), 1);
+    expect(
+      source,
+      contains('Double(BackgroundRefreshConstants.earliestBeginSeconds)'),
+    );
     expect(callback, greaterThanOrEqualTo(0));
     expect(registration, greaterThan(callback));
     expect(launchReturn, greaterThan(registration));
@@ -51,6 +55,53 @@ void main() {
     );
     expect(source, contains('BackgroundRefreshStatusBridge.register'));
     expect(source, contains('dev.oangsa.leb2watch/background_refresh'));
+    expect(
+      source,
+      contains('dev.oangsa.leb2watch/background_refresh_expiration'),
+    );
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final lockfile = File('pubspec.lock').readAsStringSync();
+    final applePackage = RegExp(
+      r'workmanager_apple:\s+dependency: transitive.*?'
+      r'version: "([^"]+)"',
+      dotAll: true,
+    ).firstMatch(lockfile);
+    expect(pubspec, contains('workmanager: 0.9.0+3'));
+    expect(applePackage?.group(1), '0.9.1+2');
+  });
+
+  test('AppDelegate chains native expiration only into headless bridge', () {
+    final source = File('ios/Runner/AppDelegate.swift').readAsStringSync();
+    final registrant = source.indexOf(
+      'WorkmanagerPlugin.setPluginRegistrantCallback',
+    );
+    final headlessBridge = source.indexOf(
+      'BackgroundRefreshExpirationBridge.register',
+    );
+    final foregroundEngine = source.indexOf(
+      'func didInitializeImplicitFlutterEngine',
+    );
+
+    expect(source, contains('let workmanagerExpirationHandler'));
+    expect(source, contains('original: workmanagerExpirationHandler'));
+    expect(source, contains('original()'));
+    expect(source, contains('coordinator.expire(generation: generation)'));
+    expect(source, contains('refreshTask.setTaskCompleted(success: false)'));
+    expect(headlessBridge, greaterThan(registrant));
+    expect(headlessBridge, lessThan(foregroundEngine));
+    expect(
+      source.substring(foregroundEngine),
+      isNot(contains('BackgroundRefreshExpirationBridge.register')),
+    );
+    expect(
+      source,
+      isNot(
+        anyOf(
+          contains('_simulateLaunchForTaskWithIdentifier'),
+          contains('_simulateExpirationForTaskWithIdentifier'),
+        ),
+      ),
+    );
   });
 
   test('every Runner build configuration targets iOS 14', () {

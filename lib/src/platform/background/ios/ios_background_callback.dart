@@ -5,6 +5,7 @@ import '../../../features/background_sync/application/background_sync_task_execu
 import '../workmanager/workmanager_gateway.dart';
 import '../workmanager/workmanager_task_dispatcher.dart';
 import 'ios_background_contract.dart';
+import 'ios_background_expiration_bridge.dart';
 
 typedef IosBackgroundSyncExecution =
     Future<BackgroundSyncRunResult> Function({
@@ -88,17 +89,132 @@ final class IosBackgroundSyncTaskHandler {
   String toString() => 'IosBackgroundSyncTaskHandler(redacted: true)';
 }
 
+final class IosBackgroundExpirationTaskDispatcher {
+  const IosBackgroundExpirationTaskDispatcher({
+    required this.expirationBridge,
+    required this.handler,
+    this.timeBudget = iosBackgroundExecutionBudget,
+  });
+
+  final IosBackgroundExpirationBridge expirationBridge;
+  final WorkmanagerTaskHandler handler;
+  final Duration timeBudget;
+
+  Future<bool> dispatch(
+    String taskName, {
+    Map<String, dynamic>? inputData,
+  }) async {
+    if (taskName != iosAssignmentRefreshTaskIdentifier) {
+      return true;
+    }
+
+    final IosBackgroundExpirationLease lease;
+    try {
+      lease = await expirationBridge.attach();
+    } on Object {
+      return false;
+    }
+
+    var appHandled = false;
+    try {
+      if (!lease.isCancelled) {
+        // Map every terminal outcome so a native-expiration win can return
+        // while the handler retains and safely settles its own late ownership.
+        final handlerOutcome =
+            Future<WorkmanagerTaskExecutionResult>.sync(
+              () => handler(
+                WorkmanagerTaskExecutionContext(
+                  inputData: inputData,
+                  cancellation: lease,
+                  timeBudget: timeBudget,
+                ),
+              ),
+            ).then<_IosBackgroundInvocationOutcome>(
+              _IosBackgroundInvocationCompleted.new,
+              onError: (Object _, StackTrace _) =>
+                  const _IosBackgroundInvocationFailed(),
+            );
+        final cancellationOutcome = lease.whenCancelled
+            .then<_IosBackgroundInvocationOutcome>(
+              (_) => const _IosBackgroundInvocationCancelled(),
+              onError: (Object _, StackTrace _) =>
+                  const _IosBackgroundInvocationFailed(),
+            );
+        final winner = await Future.any<_IosBackgroundInvocationOutcome>([
+          handlerOutcome,
+          cancellationOutcome,
+        ]);
+        appHandled =
+            winner is _IosBackgroundInvocationCompleted &&
+            winner.result == WorkmanagerTaskExecutionResult.handled &&
+            !lease.isCancelled;
+      }
+    } on Object {
+      appHandled = false;
+    } finally {
+      try {
+        await lease.close();
+      } on Object {
+        appHandled = false;
+      }
+    }
+    // Pinned iOS Workmanager uses this only for fetch/debug reporting. Native
+    // BGTask success is based on whether its Operation was Apple-expired.
+    return appHandled;
+  }
+
+  @override
+  String toString() => 'IosBackgroundExpirationTaskDispatcher(redacted: true)';
+}
+
+sealed class _IosBackgroundInvocationOutcome {
+  const _IosBackgroundInvocationOutcome();
+}
+
+final class _IosBackgroundInvocationCompleted
+    extends _IosBackgroundInvocationOutcome {
+  const _IosBackgroundInvocationCompleted(this.result);
+
+  final WorkmanagerTaskExecutionResult result;
+}
+
+final class _IosBackgroundInvocationCancelled
+    extends _IosBackgroundInvocationOutcome {
+  const _IosBackgroundInvocationCancelled();
+}
+
+final class _IosBackgroundInvocationFailed
+    extends _IosBackgroundInvocationOutcome {
+  const _IosBackgroundInvocationFailed();
+}
+
+void installIosBackgroundExpirationTaskDispatcher({
+  required WorkmanagerGateway gateway,
+  required IosBackgroundExpirationBridge expirationBridge,
+  required WorkmanagerTaskHandler handler,
+  Duration timeBudget = iosBackgroundExecutionBudget,
+}) {
+  final dispatcher = IosBackgroundExpirationTaskDispatcher(
+    expirationBridge: expirationBridge,
+    handler: handler,
+    timeBudget: timeBudget,
+  );
+  gateway.bindTaskHandler(
+    (taskName, inputData) =>
+        dispatcher.dispatch(taskName, inputData: inputData),
+  );
+}
+
 @pragma('vm:entry-point')
 void iosBackgroundCallbackDispatcher() {
   final gateway = PluginWorkmanagerGateway();
-  installWorkmanagerTaskDispatcher(
+  installIosBackgroundExpirationTaskDispatcher(
     gateway: gateway,
-    handlers: {
-      iosAssignmentRefreshTaskIdentifier: IosBackgroundSyncTaskHandler(
-        cancelPending: () =>
-            gateway.cancelByUniqueName(iosAssignmentRefreshTaskIdentifier),
-      ).call,
-    },
+    expirationBridge: const MethodChannelIosBackgroundExpirationBridge(),
+    handler: IosBackgroundSyncTaskHandler(
+      cancelPending: () =>
+          gateway.cancelByUniqueName(iosAssignmentRefreshTaskIdentifier),
+    ).call,
     timeBudget: iosBackgroundExecutionBudget,
   );
 }

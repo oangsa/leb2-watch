@@ -241,7 +241,10 @@ stored in either column set.
 - iOS combines native Background App Refresh availability with exact pending
   request status. Denied/restricted/status-read failures are unavailable;
   available+pending is active, available+not-pending is inactive, and next
-  execution is always null.
+  execution is always null. Its app-owned launch registration delegates to
+  Workmanager and forwards exact-generation native expiration into the shared
+  cancellation path. The iOS dispatcher races that lease outside composition
+  and policy startup while retaining the late handler ownership.
 - Linux, macOS, and Windows use one desktop timer adapter. Active status may
   expose its approximate next timer check while the process is alive.
 - Web, Fuchsia, and unknown families use the unsupported adapter.
@@ -314,6 +317,14 @@ terminal result. Session expiration maps to paused. Retry-eligible outcomes
 preserve the durable next retry instant when it can be read. Cancellation and
 budget expiry request cancellation but do not claim that a Dart Future or
 native operation was forcibly terminated.
+
+On iOS, actual native expiration can win the outer callback race while an
+owned startup Future remains observed. If that Future resumes, the same
+cancelled lease prevents HTTP and its composition closes only after use.
+Pinned Workmanager ignores ordinary Dart `false` when computing BGTask native
+success; only its captured Apple-expiration closure cancels the Operation and
+therefore makes native completion unsuccessful. The 25-second runner budget
+starts after composition and local-policy startup, not at callback entry.
 
 Each Android periodic registration carries a fresh opaque 128-bit tag as both
 its WorkRequest tag and its single application input value. Disabled and
@@ -397,8 +408,13 @@ iOS/macOS/Windows native-host builds were unavailable.
   through the existing sync service.
 - A never-terminal synchronization intentionally retains its owned composition
   after the one-second drain bound.
-- Stock iOS Workmanager expiration does not propagate native expiration into
-  Dart/Dio cancellation.
+- iOS cooperative expiration is Dart/static verified only. It depends on the
+  pinned Workmanager Apple handler being installed synchronously, retains a
+  very small handler-takeover interval, and needs Xcode/device validation.
+- iOS late startup cleanup is retained and fenced in Dart, but Workmanager may
+  destroy the headless engine after callback return before that continuation
+  runs; composition open/policy read also have no deadline without native
+  expiration.
 - The desktop timer runs only while the application process is alive.
 - The operating system may delay or omit background execution.
 
@@ -406,8 +422,8 @@ iOS/macOS/Windows native-host builds were unavailable.
 
 - Complete Android device, iOS device/Xcode, macOS, and Windows native
   validation.
-- Adopt a proven platform cancellation signal if Workmanager later exposes
-  native expiration to Dart.
+- Prefer an upstream Workmanager expiration hook if one becomes available, and
+  re-audit the pinned native integration before any dependency upgrade.
 
 ## Related contexts
 

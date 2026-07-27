@@ -8,7 +8,7 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | Platform | Implemented behavior | Current validation | Still required |
 | --- | --- | --- | --- |
 | Android | Flutter app, secure storage policy, local notifications, unique WorkManager task | Dart tests and static native configuration | Android SDK build, release signing, emulator/device background and notification tests |
-| iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/expiration and notification tests |
+| iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status, cooperative exact-generation expiration bridge | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/forced-expiration cancellation and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
 | Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
 | Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build passed | Live X11/Wayland tray, keyring, autostart, and notification smoke tests; distribution packaging |
@@ -71,8 +71,16 @@ with the `fetch` background mode.
 - Background App Refresh may be denied or restricted.
 - The next execution time is not knowable.
 - Low Power Mode and usage patterns may reduce opportunities.
-- The Dart watchdog reduces overrun risk but does not receive Apple's actual
-  native expiration signal.
+- AppDelegate forwards the exact native task generation into the existing
+  Dart/service/Dio cancellation path. Live native expiration can release the
+  outer callback while late startup remains observed.
+- The 25-second budget applies only to active synchronization after local
+  startup; it is not a whole-callback deadline.
+- Pinned Workmanager ignores ordinary Dart `false` for native BGTask
+  completion. Actual Apple expiration still cancels its native Operation and
+  completes the task unsuccessfully.
+- This bridge depends on pinned Workmanager Apple native behavior and retains
+  a very small handler-takeover interval; it is not device-verified.
 - Local notification limits and OS suppression still apply.
 
 Keychain access, Drift, notification delivery, actual background launch and
