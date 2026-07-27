@@ -65,6 +65,67 @@ source ~/.zshrc
 Do not repeat that command before every Flutter invocation in the same
 terminal.
 
+## Current account-switch checkpoint — 2026-07-27
+
+The live repository state at this pause is:
+
+```text
+Branch:       dev
+HEAD:         08f5106 chore: validate android workmanager runtime
+Working tree: clean
+```
+
+Recent committed validation and reliability work, newest first:
+
+```text
+08f5106 chore: validate android workmanager runtime
+f340a12 chore: validate android native local data deletion
+08622f1 fix: isolate drift lifecycle stress diagnostic
+e08c196 fix: stabilize startup database lease test
+c1c44a1 chore: add drift startup executor diagnostics
+```
+
+The normal host runner has a complete green validation at the current
+application/test content: 134 discovered files, 14 sequential shards, all
+shards passed. The durable full-suite rerun attempted during the Android
+deletion review lost its output channel partway through; do not use that
+attempt as a second aggregate result. Focused Android deletion checks passed
+25 tests, and the guarded API 36 native delete-all smoke passed once on the
+disposable emulator.
+
+### Android WorkManager runtime-validation status
+
+`08f5106` contains a debug-only, fixed-name WorkManager inspector, an explicit
+opt-in Android integration test, host guard/source-boundary tests, and
+release/profile no-op variants. Static analysis, focused tests, Kotlin
+compilation, and a release APK build/package inspection passed. The API 36
+native registration/replacement/cancellation command was **not run** because
+no emulator or device was attached and no AVD is installed in the current
+environment. Criterion 7 therefore remains **Partial**. Do not claim native
+unique-work, network-constraint, or terminal-cancellation evidence until this
+command succeeds:
+
+```bash
+source ~/.zshrc
+flutter test -d emulator-5554 \
+  integration_test/android_workmanager_runtime_test.dart \
+  --dart-define=LEB2_WATCH_ANDROID_WORKMANAGER_RUNTIME_TEST=true \
+  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+```
+
+### Linux and deferred platform status
+
+The next researched feature is Linux autostart enable/disable validation under
+a disposable `HOME`, using the production adapter. Its fresh worker was
+stopped before editing any file, so Linux autostart remains **unstarted**. The
+research handoff is `/tmp/leb2-watch-linux-validation-gaps.md`; use it only as
+working notes if still available and repeat the required research handoff if
+implementation resumes.
+
+Per owner direction, Windows and iOS runtime/build validation are deferred.
+Their source/static status and exact host commands remain documented below,
+but neither platform may be reported as build-verified or runtime-tested.
+
 ## Current Android validation checkpoint — 2026-07-27
 
 This checkpoint supersedes older Android-native-status statements below. The
@@ -319,12 +380,14 @@ The exact evidence boundaries are:
   notification/tap/history, autostart mutation, close explanation,
   Keep-running/Open-focus, process reminders, session-expiration cache
   retention, delete-all, X11/GNOME, and packaging remain unverified.
-- **Android:** 1,097 host-test shard markers, sanitized unsigned and
-  validation-signed Release APK builds, merged-manifest and signature
-  inspection, and API 36 emulator install/cold/relaunch are proven. WorkManager
-  execution, notification delivery/permission, credential-store CRUD,
-  fixture/session behavior, reboot/worker recovery, and physical-device
-  behavior remain unverified.
+- **Android:** 134 host-test files across 14 green serial shards, sanitized
+  Release APK/build and signature inspection, API 36 emulator
+  install/cold/relaunch, and one guarded API 36 native delete-all smoke are
+  proven. WorkManager has a committed debug/static inspector and guarded test,
+  but native registration/replacement/cancellation was not run because no
+  emulator/device is currently available. Notification delivery/permission,
+  credential-store CRUD, fixture/session behavior, reboot/worker recovery, and
+  physical-device behavior remain unverified.
 - **Windows:** unpackaged-preview source/static tests pass and a Release CI job
   is configured. An observed CI result, MSVC build, install/runtime smoke,
   DPAPI, tray, autostart, and notifications remain unverified; there is no
@@ -502,7 +565,8 @@ sanitized/disposable data, and a restore plan, still test:
 - close explanation, Keep-running hide, and tray Open/focus;
 - Secret Service/libsecret CRUD;
 - notification status, visible test notification, and live tap;
-- opt-in autostart enable/disable;
+- opt-in autostart enable/disable (researched as the next feature, but not
+  started; the worker was stopped before editing);
 - process-lifetime deadline delivery;
 - session-expiration cache retention;
 - delete-all;
@@ -514,12 +578,13 @@ autostart state without explicit scope and consent.
 
 ### 4. Open-source governance and security route
 
-Owner decisions are required for frontend/backend licenses, copyright
-identity/year, ordinary contribution terms versus DCO/CLA, a private
-vulnerability-reporting route, and any code-of-conduct choice.
-
-Only after those decisions should an agent add legal/security files and
-reconcile the README and [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+The owner selected Apache-2.0 for both frontend and backend. The frontend
+license/security files are committed in `38f57c3`; the compatible backend
+repository has the corresponding legal/security commit `222e74f`. The owner
+selected GitHub Issues as the security-reporting route. GitHub Issues are
+public, not confidential; do not submit credentials, private user data, or
+unpatched vulnerability details there. A private advisory/email route remains
+unconfigured and is a release-governance follow-up.
 
 ### 5. Compatible backend release
 
@@ -665,21 +730,18 @@ Never use production credentials for validation.
 
 ## Legal and release blockers
 
-The frontend and backend currently have:
+The owner decisions are now recorded:
 
-- no `LICENSE` or `COPYING`;
-- no `SECURITY.md`;
-- no owner-selected private vulnerability-reporting route;
-- no locally evidenced compatible backend tag/release;
-- no locally evidenced frontend tag/release;
-- no signing, package, or update policy; and
-- no observed remote CI run for the current local `dev` history.
+- frontend and backend license: Apache-2.0;
+- security-reporting route: GitHub Issues, explicitly public/non-confidential;
+- private vulnerability reporting: not configured; and
+- copyright identity/year, DCO/CLA, code of conduct, signing, package, update,
+  and release policy: not selected or verified here.
 
-Current remote branch, tag/release, and CI state is unverified.
-
-Until the owner selects licenses, both repositories are source-available, not
-legally open source. Agents must not choose licenses, legal identities,
-DCO/CLA terms, or security contacts on the owner's behalf.
+The frontend legal/security commit is `38f57c3`; the backend sibling repository
+has `222e74f`. Do not describe GitHub Issues as a private security channel, and
+do not place sensitive vulnerability details, credentials, or user data in an
+Issue. Compatible backend release/tag and remote CI state remain unverified.
 
 ## Documentation drift
 
@@ -752,6 +814,11 @@ also has
 These commits followed the planned feature sequence:
 
 ```text
+08f5106 chore: validate android workmanager runtime (partial; native emulator run pending)
+f340a12 chore: validate android native local data deletion
+08622f1 fix: isolate drift lifecycle stress diagnostic
+e08c196 fix: stabilize startup database lease test
+c1c44a1 chore: add drift startup executor diagnostics
 bef799150d3b7cd27c6429bb1b7f6e9b25258c6b fix: retry undelivered assignment notifications
 a9f5f5707be9f09e8f347309c0e83a551bce3b9c fix: quiesce active work before local data deletion
 89f5cc93994bedddd624bcb6aa314a1b784dbd2b feat: add automatic session reauthentication
