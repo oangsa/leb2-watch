@@ -58,6 +58,90 @@ source ~/.zshrc
 Do not repeat that command before every Flutter invocation in the same
 terminal.
 
+## Current Android validation checkpoint — 2026-07-27
+
+This checkpoint supersedes older Android-native-status statements below. The
+current Android Release R8-repair validation gate is complete, but broader
+fixture/session-dependent Android coverage remains partial. It is still
+uncommitted and does not replace the historical ledgers.
+
+### Current diff and no-commit status
+
+The current working tree has five relevant paths:
+
+```text
+ M docs/HANDOFF.md
+ M docs/contexts/android-background-sync.md
+ M docs/contexts/platform-build-validation.md
+ M test/platform/android/android_release_signing_configuration_test.dart
+?? android/app/proguard-rules.pro
+```
+
+The lower four paths are the Android feature implementation/context diff. This
+handoff file is its continuation-documentation correction; review and stage it
+deliberately with the four paths only if the owner decides it belongs in the
+same commit.
+
+`android/app/proguard-rules.pro` preserves zero-argument constructors of
+`RoomDatabase` implementations. The Release shrinker had removed
+`WorkDatabase_Impl.<init>()`, causing AndroidX WorkManager initialization to
+crash before Flutter rendered. The accompanying Android configuration test
+requires that narrow rule and rejects the documented broad alternatives.
+
+Nothing in this checkpoint is staged or committed. The validation gate is now
+complete; the next actions are final independent review, deliberate staging of
+the chosen paths, and commit. Do not start another feature first.
+
+### Proven Android evidence
+
+A sanitized Release APK was built both unsigned and with an external
+validation-only signing identity. The unsigned artifact correctly failed
+signature verification; the signed artifact verified with a v2 signature,
+installed on an API 36 emulator, and cold-launched after the Room repair. A
+force-stop/relaunch reached the local session-setup screen without the former
+constructor exception. The API 36 onboarding walk-through also showed the
+third-party/privacy disclosures before credentials or a notification permission
+prompt.
+
+The independent review approved the narrow R8/Room repair, its regression
+guard, native-artifact evidence, privacy boundary, and the documented
+transitive WorkManager foreground-service provenance. The fresh validation
+gate described below now satisfies its full-suite condition; final independent
+review remains the next release-control action.
+
+Do not infer fixture-dependent behavior from this foreground evidence. Native
+WorkManager registration/execution, notification permission or delivery,
+secure-storage CRUD, session-expiration recovery, local-data deletion,
+reboot/worker recovery, and physical-device behavior remain unproven because
+no verified sanitized fixture/session was used.
+
+### Completed validation evidence and next actions
+
+Persisted serial-run output proves 132 discovered test files and 14/14 passed
+serial shards, totaling 1,097 passed test cases. The wrapper command's
+explicit shell exit code was not captured in that log, so do not claim it.
+Separate final-validation logs prove:
+
+```text
+dart format --output=none --set-exit-if-changed .
+330 files, 0 changed, exit 0
+
+dart analyze --fatal-infos --fatal-warnings
+No issues, exit 0
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues, exit 0
+
+git diff --check
+exit 0
+```
+
+The prior sandbox SDK-cache denial is resolved for this validation pass. The
+next actions are final independent review and deliberate staging/commit of the
+chosen paths; do not rerun these checks merely to replace the persisted
+evidence. Never add signing material, a real backend origin, credentials, or
+user data.
+
 ## Outcome at this pause
 
 The complete 33-area implementation plan is present in committed source and

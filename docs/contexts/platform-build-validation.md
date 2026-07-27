@@ -2,13 +2,20 @@
 
 ## Status
 
-Completed for the narrow privacy-route and Android release-signing hardening
-slice and the memory-safe host test-suite runner. Focused and complete
-host-side Flutter tests, strict analysis, code generation, and the Linux
-release build pass on the current host.
+Completed for the current Android Release R8-repair validation gate, while
+broader platform coverage remains partial. The current diff has persisted
+evidence of 132 discovered test files across 14/14 successful serial shards
+and 1,097 passed test cases; the wrapper's explicit shell exit code was not
+captured. Repository formatting and strict Dart/Flutter analysis passed with
+exit code 0, as did `git diff --check`.
 
-Android, iOS, macOS, and Windows remain native-build unverified because their
-required host toolchains are unavailable.
+The Android repair has proven sanitized Release build, test-only v2 signature,
+API 36 emulator installation, and foreground launch evidence. Earlier
+privacy-route, host-test, code-generation, and Linux Release evidence remains
+historical evidence for its committed boundaries. Android's session-dependent
+background, secure-storage, notification, and deletion paths remain partial;
+iOS, macOS, and Windows remain native-build unverified because their required
+host toolchains are unavailable.
 
 ## Purpose
 
@@ -41,6 +48,8 @@ validation:
   `flutter test --concurrency=1` process.
 - Sequential, fail-fast child execution shared by developers and CI.
 - Honest host/platform validation records and deferred native commands.
+- Sanitized Android Release build, signer inspection, emulator installation,
+  and foreground-startup validation without production credentials or keys.
 
 ## Non-scope
 
@@ -51,8 +60,8 @@ validation:
 - Changing onboarding, authentication, synchronization, persistence,
   notifications, or background scheduling behavior.
 - Backend changes.
-- Android device, Play signing, Apple signing/notarization, Windows signing,
-  or store-release validation.
+- Physical Android-device, Play signing, Apple signing/notarization, Windows
+  signing, or store-release validation.
 - Phase 16 integration-test behavior or its separate Linux device CI job.
 - Parallel Flutter child processes, skipped tests, or assertion changes.
 - Native build-pipeline redesign.
@@ -146,6 +155,8 @@ the following shard.
   — push navigation from Settings.
 - `android/app/build.gradle.kts` — conditional operator-local release
   signing, redacted validation, and unsigned warning.
+- `android/app/proguard-rules.pro` — preserves Room constructors required by
+  AndroidX WorkManager's reflective Room startup path after Release shrinking.
 - `android/.gitignore` — ignored local signing properties and keystores.
 - `test/features/privacy/presentation/privacy_page_test.dart` — disclosure,
   theme, responsive, text-scale, scrolling, and semantics coverage.
@@ -275,7 +286,7 @@ portability; only the Linux execution is recorded here.
 | Platform | Current validation |
 | --- | --- |
 | Linux | Strict analysis, all unit/widget tests, code generation, and the release build pass |
-| Android | Signing policy statically tested; SDK, JDK, signed build, certificate, emulator, and device checks unavailable |
+| Android | Sanitized unsigned and external-test-key Release builds, v2 signer verification, API 36 emulator install, and cold foreground launch pass. Work scheduling, notifications, secure-storage CRUD, deletion, reboot/force-stop worker recovery, and physical-device behavior remain unverified without a verified fixture/session. |
 | iOS | Shared Dart code only; Xcode build and device behavior require macOS |
 | macOS | Shared Dart code only; build, signing, notarization, Keychain, tray, and autostart require macOS |
 | Windows | Shared Dart code only; build, signing, tray, secure storage, and autostart require Windows/MSVC |
@@ -391,8 +402,8 @@ and is not distributable.
 
 When the file exists but any required value is blank or absent, Gradle stops
 configuration with a bounded message that lists required property names but
-no supplied values. Android compilation under the current AGP/Flutter version
-remains unverified until an Android toolchain is available.
+no supplied values. The current AGP/Flutter Release APK does compile with a
+sanitized backend origin; missing local signing remains deliberately unsigned.
 
 The test runner returns 64 when no host test file is found. A failing shard
 prints its index and exact child exit code, stops without launching later
@@ -425,6 +436,8 @@ uncaught command failures rather than being converted into a false pass.
 - An injected failing launcher proves later shards are not launched and the
   exact first nonzero exit code is returned.
 - Child arguments always include `--concurrency=1`.
+- The Android Release shrinker test rejects broad no-shrink/keep-all rules and
+  retains only the `RoomDatabase` constructor contract that Room reflects.
 
 ## Validation evidence
 
@@ -502,12 +515,89 @@ found no remaining debug release-signing assignment, signing TODO, generic
 privacy placeholder class, or placeholder-route helper. The only matching
 strings are negative assertions in the signing configuration test.
 
+### Native Android release validation — 2026-07-27
+
+After installing a user-owned JDK 17, Android SDK/emulator packages, and an
+API 36 Google APIs x86_64 AVD outside the repository, `flutter doctor`
+reported a working Android toolchain and KVM acceleration was available.
+
+The exact sanitized build shape was:
+
+```text
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<SANITIZED_BACKEND_ORIGIN>
+```
+
+An unsigned build was verified to fail `apksigner verify` as expected. A
+complete ignored local signing configuration referencing an external
+validation-only identity produced a v2-signed APK; its repaired artifact
+SHA-256 was
+`527b5d28dd3a525e005d7c83b6cbcaf545e28e14ebcbc793a6e679589b054103`.
+No signing material, password, local path, backend credential, or production
+identity was added to the repository.
+
+This validation also found and fixed a genuine Release-only native defect.
+Before the repair, AndroidX WorkManager's initialization provider crashed
+before Flutter startup because R8 had removed the reflective
+`WorkDatabase_Impl` constructor. `android/app/proguard-rules.pro` now keeps
+zero-argument constructors of Room database implementations; R8 output and
+the final dex confirmed the constructor remains. The repaired APK verified,
+installed with `adb install -r --no-streaming`, and cold-started to
+`MainActivity` in 723 ms. A force-stop/relaunch reached `Connect LEB2` in
+709 ms, with no recurrence of the startup crash.
+
+The API 36 native onboarding walk-through showed the third-party disclaimer,
+local secure-storage and SQLite explanations, temporary backend-request
+explanation, and notification purpose before any permission prompt. No
+credential was entered, no permission was granted, and clean startup logs
+contained no authorization, cookie, or password value.
+
+Post-repair validation:
+
+```text
+Focused Android configuration/native-policy suites: 32 passed
+dart format --output=none --set-exit-if-changed .: 330 files, 0 changed
+dart analyze --fatal-infos --fatal-warnings: no issues
+flutter analyze --fatal-infos --fatal-warnings: no issues
+```
+
+Persisted serial-run output now proves the current full host gate: it
+discovered 132 test files, ran all 14 sequential shards, and each shard emitted
+its Flutter success marker, totaling 1,097 passed test cases. The persisted
+output did not capture the wrapper command's explicit shell exit code, so this
+record does not claim one. Separate final-validation logs prove:
+
+```text
+dart format --output=none --set-exit-if-changed .
+Formatted 330 files (0 changed); exit 0
+
+dart analyze --fatal-infos --fatal-warnings
+No issues found; exit 0
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues found; exit 0
+
+git diff --check
+No output; exit 0
+```
+
+The prior sandbox SDK-cache blocker is resolved for this validation pass. It
+does not expand native foreground evidence into fixture/session-dependent
+runtime claims.
+
 ## Known limitations
 
-- Android Gradle evaluation, release compilation, and signer verification
-  cannot run without an Android SDK and JDK.
-- Whether the current AGP emits an unsigned release artifact is not claimed;
-  any such output remains non-distributable.
+- Android Release compilation and test-key signer verification are now proven
+  on this Linux host. An unsigned release artifact was also verified as
+  unsigned and non-distributable.
+- No verified sanitized backend fixture/session was available, so this is not
+  evidence of WorkManager execution, notification delivery/permission,
+  secure-storage CRUD, session expiry/recovery, local-data deletion, or
+  physical-device behavior.
+- The AVD result does not replace USB-device, reboot, or force-stop worker
+  recovery validation. The optional host `android-udev` package remains
+  unavailable because installing it needs separate administrator approval.
 - No operator signing identity or store enrollment is part of the repository.
 - Apple and Windows native builds require their platform hosts.
 - The repository has no selected `LICENSE`; this feature does not make that
@@ -524,10 +614,11 @@ strings are negative assertions in the signing configuration test.
 
 ## Future considerations
 
-- On an Android host, configure an operator-owned key, build APK/AAB outputs,
-  and verify their certificates with `apksigner`.
-- Run notification, WorkManager, secure-storage, background, and delete-all
-  smoke tests on an Android emulator or device.
+- Build and inspect an Android App Bundle with an operator-owned release
+  identity.
+- Provide a verified sanitized fixture/session, then run notification,
+  WorkManager, secure-storage, background, and delete-all smoke tests on an
+  Android emulator and a physical device.
 - Run iOS/macOS builds and native behavior checks on macOS/Xcode.
 - Run the Windows release build and native integrations on Windows/MSVC.
 - Select a repository license before describing the source as legally open

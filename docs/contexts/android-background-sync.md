@@ -2,9 +2,10 @@
 
 ## Status
 
-Completed at the Dart and static Android configuration level. An Android SDK,
-emulator, or device was not available, so APK and runtime behavior remain
-unverified.
+Partially completed. The Dart implementation and static Android configuration
+are complete, and a sanitized signed Release APK now builds and cold-launches
+on an API 36 x86_64 emulator. Periodic WorkManager execution remains
+fixture-dependent and is not yet end-to-end validated.
 
 ## Purpose
 
@@ -32,7 +33,8 @@ duplicate schedules, credential-bearing task input, or a second retry policy.
 - Foreground services, custom Android workers, daemons, or permission prompts.
 - iOS background task registration.
 - Changes to synchronization, notification, credential, or database contracts.
-- Native Android instrumentation or device validation on this host.
+- End-to-end WorkManager execution, notification delivery, or physical-device
+  validation using a real or invented LEB2 session.
 
 ## User-visible behavior
 
@@ -102,8 +104,12 @@ authoritative.
   — Android family selection.
 - `android/app/src/main/AndroidManifest.xml` — internet permission inherited by
   release builds.
+- `android/app/proguard-rules.pro` — keeps Room database implementation
+  constructors that Room loads reflectively after Release shrinking.
 - `test/platform/background/android/` — Android scheduling, callback, and
   manifest coverage.
+- `test/platform/android/android_release_signing_configuration_test.dart` —
+  release-signing and narrow Room shrinker-rule regression coverage.
 - `test/platform/background/workmanager/` — shared dispatcher coverage.
 
 ## Contracts and interfaces
@@ -183,6 +189,14 @@ Other platform adapters remain owned by their respective features. The shared
 gateway and dispatcher are platform-neutral so the iOS implementation can
 reuse them with its own top-level entrypoint and task names.
 
+The final merged Release manifest also contains AndroidX WorkManager 2.10.2's
+transitive `android.permission.FOREGROUND_SERVICE` declaration and
+`androidx.work.impl.foreground.SystemForegroundService`. LEB2 Watch adds no
+app-owned foreground-service declaration, custom worker, foreground request,
+or continuously running service: it registers ordinary non-expedited periodic
+work only. This provenance is an artifact fact, not a claim that the final
+manifest has no foreground-service component at all.
+
 ## Security and privacy
 
 - WorkManager input contains exactly one opaque random generation tag that is
@@ -191,8 +205,9 @@ reuse them with its own top-level entrypoint and task names.
   response bodies are not registered with or logged by WorkManager.
 - Diagnostic `toString` values are redacted.
 - The background callback never requests notification permission.
-- No foreground service, custom worker, analytics, crash reporting, or remote
-  persistence was introduced.
+- No app-owned foreground service, custom worker, analytics, crash reporting,
+  or remote persistence was introduced. AndroidX WorkManager's transitive
+  foreground-service declaration is documented under Platform behavior.
 
 ## Decisions
 
@@ -218,6 +233,10 @@ reuse them with its own top-level entrypoint and task names.
   cancellation and recovery registration.
 - Return native success for unknown task names and unexpected handler errors to
   avoid deterministic retry loops or stacked backoff.
+- Preserve `RoomDatabase` zero-argument constructors in Release shrinking.
+  Room 2.6.1 creates generated database implementations reflectively; without
+  this narrow rule, R8 removed `WorkDatabase_Impl.<init>()` and the AndroidX
+  WorkManager startup provider crashed before Flutter could render.
 
 ## Alternatives rejected
 
@@ -236,6 +255,9 @@ reuse them with its own top-level entrypoint and task names.
   pinned plugin, and the WorkSpec ID is retained across `UPDATE`.
 - Unique work names per registration would abandon the one-chain invariant and
   require durable enumeration across process death and reboot.
+- A WorkDatabase-specific keep rule, a global no-shrink rule, or a broad
+  keep-all-members rule would hide the actual Room reflection contract and
+  retain more code than necessary.
 
 ## Failure behavior
 
@@ -275,6 +297,9 @@ later foreground reconciliation remain the recovery mechanisms.
 - `local_background_scheduler_test.dart` — preserves desired monitoring intent
   while a session is expired and registers exactly one fresh schedule after
   verified activation.
+- `android_release_signing_configuration_test.dart` — confirms the narrow
+  `RoomDatabase` constructor keep rule exists and rejects a
+  `WorkDatabase_Impl`-specific, no-shrink, or broad keep-all workaround.
 
 ## Validation evidence
 
@@ -319,6 +344,80 @@ git diff --check
 Passed
 ```
 
+### Native Android release validation — 2026-07-27
+
+This host now has a user-owned Android SDK, a user-owned JDK 17, hardware
+accelerated emulator support, and an API 36 Google APIs x86_64 AVD. `flutter
+doctor` reported a working Android toolchain. The emulator, SDK, and the
+external test-only signing identity remain outside the repository.
+
+The build gate was deliberately exercised in both modes with sanitized
+production configuration:
+
+```text
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<SANITIZED_BACKEND_ORIGIN>
+```
+
+- With no local signing configuration, the generated APK was intentionally
+  unsigned; `apksigner verify` failed as expected because it had no manifest
+  signature.
+- With a complete ignored `android/key.properties` that referenced an external
+  test-only identity, the Release APK verified with a v2 signature. The final
+  repaired artifact was SHA-256
+  `527b5d28dd3a525e005d7c83b6cbcaf545e28e14ebcbc793a6e679589b054103`.
+  That identity is validation-only, not a production or distribution key.
+- The initial signed build exposed a real Release-only startup defect:
+  WorkManager's startup provider failed with
+  `NoSuchMethodException: androidx.work.impl.WorkDatabase_Impl.<init>[]`.
+  R8's usage output and the final dex confirmed that the reflective Room
+  constructor had been removed. Adding the narrow `RoomDatabase` constructor
+  rule above retained it in the final dex.
+- The repaired signed APK installed with `adb install -r --no-streaming` on
+  the API 36 AVD. A cold launch reached `MainActivity` in 723 ms without the
+  WorkDatabase crash. A force-stop and second launch reached the local
+  `Connect LEB2` screen in 709 ms.
+
+The native walk-through rendered onboarding through session setup without
+entering credentials or granting a permission. It visually and semantically
+confirmed the independent-third-party disclaimer, local SQLite/secure-storage
+explanation, temporary backend-request explanation, and notification purpose
+explanation before any notification prompt. Clean startup logs contained no
+authorization header, bearer token, session cookie, or password value.
+
+Focused host validation after the repair passed:
+
+```text
+flutter test --concurrency=1 \
+  test/platform/android/android_release_signing_configuration_test.dart \
+  test/platform/background/android/android_manifest_configuration_test.dart \
+  test/platform/background/android/android_workmanager_scheduler_platform_test.dart \
+  test/platform/background/android/android_background_callback_test.dart \
+  test/platform/local_notifications_native_config_test.dart \
+  test/core/security/secure_storage_platform_configuration_test.dart
+32 tests passed
+
+dart format --output=none --set-exit-if-changed .
+Formatted 330 files; 0 changed
+
+dart analyze --fatal-infos --fatal-warnings
+No issues found
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues found
+```
+
+Persisted current-suite output proves the memory-safe host runner discovered
+132 test files and completed all 14 sequential shards. Every shard emitted its
+Flutter success marker, totaling 1,097 passed test cases. The wrapper command's
+explicit shell exit code was not captured in the persisted output and is not
+claimed. Separate final-validation logs also prove repository formatting
+(`330` files, `0` changed, exit `0`), strict Dart analysis (no issues, exit
+`0`), strict Flutter analysis (no issues, exit `0`), and `git diff --check`
+(exit `0`). The earlier SDK-cache sandbox blocker is resolved for this
+validation pass; fixture/session-dependent native behavior remains unproven.
+
 The callback test was introduced red: the handler did not accept scoped
 cancellation and the request had no generation tag/input. The focused green
 pass covers both serialized WorkManager operation orderings. These Dart tests
@@ -326,16 +425,21 @@ do not prove Android runtime or native `Operation` completion.
 
 ## Known limitations
 
-- The release APK command failed immediately with `[!] No Android SDK found`.
-  `flutter doctor -v` confirmed Flutter 3.44.8/Dart 3.12.2 and an available
-  Linux toolchain/device, but no Android SDK. Gradle resolution, manifest
-  merging, APK compilation, emulator execution, reboot recovery, and actual
-  background plugin access remain unverified. No APK was produced.
-- On a host with an Android SDK, rerun exactly:
+- A verified sanitized backend fixture, session, semester, and course have not
+  been supplied. Therefore this validation does not prove native unique-work
+  registration/execution, network constraints, baseline/diff notification
+  behavior, session expiry/recovery, visible notification delivery, reminder
+  rescheduling, secure-storage CRUD, or delete-all behavior.
+- No notification permission was granted and no test notification was sent.
+  The absence of a prompt during onboarding is proven; the OS permission state
+  and delivery path are not.
+- The AVD is an emulator-only result. USB device validation remains unrun; the
+  host does not have the optional `android-udev` package installed.
+- Reboot and force-stop recovery of a scheduled worker are untested. The
+  observed force-stop/relaunch proves foreground startup only.
 
-  ```text
-  flutter build apk --release --dart-define=APP_ENV=production --dart-define=BACKEND_BASE_URL=https://api.example.org
-  ```
+- A prior no-SDK host result is superseded by the 2026-07-27 Release build and
+  emulator evidence above; it is not a current limitation.
 - The Flutter plugin confirms cancellation submission but does not await
   Android's returned WorkManager `Operation`; process death in that narrow
   window can leave the old generation scheduled until a later local-only wake
@@ -350,15 +454,14 @@ do not prove Android runtime or native `Operation` completion.
 
 ## Future considerations
 
-On an Android-capable host, build debug and release APKs, inspect the merged
-manifest and JobScheduler state, then exercise offline constraints, repeated
-registration, permission denial, process death, reboot, force-stop/reopen,
-session expiration, baseline silence, and exactly-once notification behavior.
-For session expiration specifically, exercise both operation orderings: old
-generation cancellation before verified-session `UPDATE`, and verified-session
-`UPDATE` before stale old-generation cancellation. Verify that only the fresh
-generation remains scheduled after each ordering, including after process death
-and reboot.
+With a verified sanitized fixture/session, inspect JobScheduler state and then
+exercise offline constraints, repeated registration, permission denial,
+process death, reboot, force-stop/reopen, session expiration, baseline silence,
+and exactly-once notification behavior. For session expiration specifically,
+exercise both operation orderings: old generation cancellation before
+verified-session `UPDATE`, and verified-session `UPDATE` before stale
+old-generation cancellation. Verify that only the fresh generation remains
+scheduled after each ordering, including after process death and reboot.
 
 ## Related contexts
 

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final gradleFile = File('android/app/build.gradle.kts');
   final androidIgnoreFile = File('android/.gitignore');
+  final proguardRulesFile = File('android/app/proguard-rules.pro');
 
   test('release signing never falls back to the debug identity', () {
     final source = gradleFile.readAsStringSync();
@@ -71,4 +72,24 @@ void main() {
     expect(ignoreRules, contains('**/*.jks'));
     expect(ignoreRules, contains('**/*.keystore'));
   });
+
+  test(
+    'release shrinking retains Room database constructors for reflection',
+    () {
+      expect(proguardRulesFile.existsSync(), isTrue);
+
+      final rules = proguardRulesFile.readAsStringSync();
+      expect(
+        rules,
+        contains(
+          '-keepclassmembers class * extends androidx.room.RoomDatabase {\n'
+          '    <init>();\n'
+          '}',
+        ),
+      );
+      expect(rules, isNot(contains('WorkDatabase_Impl')));
+      expect(rules, isNot(contains('-dontshrink')));
+      expect(rules, isNot(contains('{ *; }')));
+    },
+  );
 }
