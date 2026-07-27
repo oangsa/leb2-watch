@@ -421,6 +421,12 @@ and continues to show local cached data.
 - Static native tests cover dependency pins/registrants, desugaring, boot
   permission/actions/receivers, prohibited Android privileges/components,
   icon retention, inexact mode, and iOS delegate ordering.
+- `integration_test/linux_local_notification_runtime_test.dart` is an opt-in
+  KDE Plasma/Wayland smoke. It uses the production adapter and service to
+  submit one synthetic immediate assignment notification, maps its app ID to
+  the live server ID, asks KDE to invoke `default`, and verifies the decoded
+  same-process assignment target. Its `finally` cancels only its known ID;
+  it never calls `cancelAll` or removes the plugin's XDG runtime cache.
 
 ## Validation evidence
 
@@ -478,6 +484,10 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 - New-assignment history proves a committed app-level show request or muted
   decision, not platform display or delivery. Deadline-reminder ready state
   likewise proves only that the latest app-level scheduling call returned.
+- The KDE runtime smoke proves server acceptance and a synthetic server-side
+  action callback only. It does not prove pixels were visible, a person
+  clicked a notification, cold/terminated-process activation, DBus activation,
+  retained scheduling, or behavior on non-KDE Linux notification servers.
 
 ## Future considerations
 
@@ -485,6 +495,13 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
   desktop work.
 - Run `flutter build apk --release`, `flutter build ios --no-codesign`,
   `flutter build macos`, and `flutter build windows` on supported hosts.
+- Repeat the Linux notification smoke only from an interactive KDE/Wayland
+  desktop session, outside Xvfb and generic CI:
+
+  ```bash
+  flutter test integration_test/linux_local_notification_runtime_test.dart \
+    -d linux --reporter=expanded
+  ```
 
 ## Related contexts
 

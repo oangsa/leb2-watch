@@ -379,6 +379,10 @@ There is no atomic transaction spanning SQLite and the OS:
 - Preference and deletion tests verify atomic disable consumption, no replay,
   credential/session preservation rules, cache/full deletion, and outbox
   cascade.
+- The opt-in Linux KDE runtime smoke exercises the production immediate
+  `showNewAssignment` service path with synthetic local values. It is separate
+  from outbox persistence and deliberately does not use a backend, credentials,
+  SQLite data, or a real assignment.
 
 ## Validation evidence
 
@@ -425,6 +429,9 @@ There is no atomic transaction spanning SQLite and the OS:
   background-isolate channel in an unchanged startup test. Serialized
   execution passes the complete suite; root-cause instrumentation belongs to
   separate database-test reliability work.
+- The KDE smoke's server-side `InvokeAction(default)` validates a running
+  process callback, not physical interaction, visible notification delivery,
+  or cold activation. It must not be interpreted as exact-once user delivery.
 
 ## Future considerations
 

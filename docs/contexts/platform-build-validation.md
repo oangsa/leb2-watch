@@ -17,6 +17,11 @@ background, secure-storage, notification, and deletion paths remain partial;
 iOS, macOS, and Windows remain native-build unverified because their required
 host toolchains are unavailable.
 
+The Linux local-notification submission/same-process-action gate is also
+proven only for the interactive KDE Plasma/Wayland session used to run it. It
+is not a generic Linux, visible-pixel, physical-click, cold-activation, or CI
+claim.
+
 ## Purpose
 
 Remove the two remaining release-hardening hazards before final platform
@@ -585,6 +590,30 @@ No output; exit 0
 The prior sandbox SDK-cache blocker is resolved for this validation pass. It
 does not expand native foreground evidence into fixture/session-dependent
 runtime claims.
+
+### KDE Linux local-notification runtime validation — 2026-07-27
+
+The opt-in command below built a Linux debug integration executable and passed
+one native test against the current interactive KDE Plasma/Wayland session:
+
+```text
+flutter test integration_test/linux_local_notification_runtime_test.dart \
+  -d linux --reporter=expanded
+1 passed
+```
+
+The test used the production `FlutterLocalNotificationsAdapter` and
+`LocalNotificationServiceImpl`, with a synthetic bounded assignment and one
+non-reserved app-owned ID. It verified the live freedesktop notification server
+accepted submission, the Linux plugin mapped that ID to KDE's returned system
+ID, and KDE `InvokeAction(default)` produced exactly the validated local
+assignment target in the same process. A `finally` cancelled only that exact
+ID; it did not remove the shared XDG plugin runtime cache.
+
+This is deliberately excluded from Xvfb CI. Server acceptance plus synthetic
+KDE action does not demonstrate a rendered toast, a physical click,
+cold/terminated-process activation, notification scheduling, or portability
+beyond this KDE session.
 
 ## Known limitations
 
