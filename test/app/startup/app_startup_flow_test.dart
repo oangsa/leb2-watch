@@ -158,17 +158,19 @@ void main() {
   );
 
   test('resolution is read-only and releases its database lease', () async {
-    await _seedSettings(storage, activeSemesterId: 101);
-    final before = await _readSettings(storage);
+    await _seedFixtureSettings(storage, activeSemesterId: 101);
+    final before = await _readFixtureSettings(storage);
     final credentials = _CredentialStore(cookie: '<SESSION_COOKIE>');
 
+    // The resolver deliberately uses its unchanged production background
+    // executor. Fixture reads stay in-process to avoid unrelated worker churn.
     final stage = await resolveInitialAppFlowStage(
       databaseStorage: storage,
       credentialStore: credentials,
     );
 
     expect(stage, AppFlowStage.ready);
-    expect(await _readSettings(storage), before);
+    expect(await _readFixtureSettings(storage), before);
     expect(credentials.readCount, 1);
     expect(credentials.mutationCount, 0);
 
@@ -257,13 +259,52 @@ Future<void> _seedSettings(
   }
 }
 
-Future<AppSetting> _readSettings(LocalDatabaseStorage storage) async {
-  final database = await storage.openDatabase();
+Future<void> _seedFixtureSettings(
+  LocalDatabaseStorage storage, {
+  int? activeSemesterId,
+}) async {
+  final database = await _openFixtureDatabase(storage);
+  try {
+    if (activeSemesterId != null) {
+      await database
+          .into(database.semesters)
+          .insert(
+            SemestersCompanion.insert(
+              semesterId: drift.Value(activeSemesterId),
+            ),
+          );
+    }
+    await database
+        .into(database.appSettings)
+        .insert(
+          AppSettingsCompanion.insert(
+            singletonId: const drift.Value(1),
+            activeSemesterId: drift.Value(activeSemesterId),
+            leb2UserId: const drift.Value(2001),
+            sessionLifecycle: const drift.Value('active'),
+            sessionRevision: const drift.Value(1),
+          ),
+        );
+  } finally {
+    await database.close();
+  }
+}
+
+Future<AppSetting> _readFixtureSettings(LocalDatabaseStorage storage) async {
+  final database = await _openFixtureDatabase(storage);
   try {
     return database.select(database.appSettings).getSingle();
   } finally {
     await database.close();
   }
+}
+
+Future<AppDatabase> _openFixtureDatabase(LocalDatabaseStorage storage) {
+  return storage.openDatabaseWithExecutor(_inProcessFixtureExecutor);
+}
+
+drift.QueryExecutor _inProcessFixtureExecutor(File file, DatabaseSetup setup) {
+  return NativeDatabase(file, logStatements: false, setup: setup);
 }
 
 final class _DatabaseStorage extends LocalDatabaseStorage {
