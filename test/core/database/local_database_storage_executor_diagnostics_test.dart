@@ -75,6 +75,10 @@ Future<void> _expectStorageLifecycle(
     }
   }
 
+  await _expectDeletionGateQuiescence(storage);
+}
+
+Future<void> _expectDeletionGateQuiescence(LocalDatabaseStorage storage) async {
   final deletionGate = await storage.beginDeletion();
   try {
     await deletionGate.waitForQuiescence(

@@ -2,7 +2,9 @@
 
 ## Status
 
-Completed pending repository-level validation and commit.
+Completed pending repository-level validation and commit. The separate
+lifecycle-churn reproducer is now an opt-in diagnostic rather than a normal
+test-suite case.
 
 ## Purpose
 
@@ -42,7 +44,9 @@ gate lease.
 - `lib/src/core/database/local_database_storage.dart` — unchanged shared
   open/lease implementation and test-visible executor seam.
 - `test/core/database/local_database_storage_executor_diagnostics_test.dart`
-  — separate diagnostic coverage for the production executor lifecycle.
+  — deterministic diagnostic coverage for the production executor lifecycle.
+- `tool/drift_startup_lifecycle_stress.dart` — paired opt-in lifecycle-churn
+  reproducer and manager-scope control.
 
 ## Contracts and interfaces
 
@@ -111,13 +115,15 @@ The startup file passed 12 tests and the diagnostics file passed 5 tests when
 run individually. The target lease test then passed 50 of 50 sequential fresh
 Flutter processes, with no retries and no failures.
 
-`dart run tool/run_flutter_tests.dart` discovered 134 files, but stopped in
-shard 2 because the separate, intentionally churn-heavy diagnostic test
-`independent production-executor opens preserve the startup data shape` hit
-the known raw Drift channel closure. The target startup file passed earlier in
-the run. This full-suite failure is an existing diagnostic-experiment failure,
-not a failure of the target lease test; it remains unresolved and prevents a
-clean full-suite claim.
+Before diagnostic isolation, `dart run tool/run_flutter_tests.dart` discovered
+134 files but stopped in shard 2 because the separate, intentionally
+churn-heavy diagnostic test `independent production-executor opens preserve
+the startup data shape` hit the known raw Drift channel closure. The target
+startup file passed earlier in that run. The paired churn/control experiment is
+now outside `test/` at `tool/drift_startup_lifecycle_stress.dart`, so normal
+discovery excludes it by path without a skip, retry, tag exclusion, or runner
+change. The fresh normal `dart run tool/run_flutter_tests.dart` validation
+discovered 134 files and passed all 14 sequential shards after isolation.
 
 ## Known limitations
 
@@ -131,6 +137,17 @@ root-cause fix.
 If the failure recurs with only the resolver's production open, prepare a
 sanitized minimal upstream reproduction rather than adding retries or changing
 production ownership without evidence.
+
+The opt-in control can be run directly:
+
+```text
+source ~/.zshrc
+flutter test tool/drift_startup_lifecycle_stress.dart --plain-name 'one AppDatabaseManager scope preserves the startup data shape'
+```
+
+Use the bounded independent-open command documented in
+`drift-startup-executor-diagnostics.md` only for lower-level diagnosis; it is
+not normal-suite coverage or CI validation.
 
 ## Related contexts
 
