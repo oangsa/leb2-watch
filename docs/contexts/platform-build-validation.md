@@ -307,7 +307,7 @@ portability; only the Linux execution is recorded here.
 
 | Platform | Current validation |
 | --- | --- |
-| Linux | Strict analysis, all unit/widget tests, code generation, and the release build pass |
+| Linux | Strict analysis, all unit/widget tests, code generation, and the release build pass. A guarded production-adapter smoke also passed under a disposable `HOME`, proving exact autostart entry enable/readback/content/disable only. |
 | Android | Sanitized unsigned and external-test-key Release builds, v2 signer verification, API 36 emulator install, and cold foreground launch pass. A guarded API 36 smoke also proves app-owned secure-store/SQLite/cache delete-all postconditions and successful notification/WorkManager cancellation invocations. Work execution, visible notification removal, durable/in-flight cancellation, reboot/force-stop recovery, and physical-device behavior remain unverified. |
 | iOS | Shared Dart code only; Xcode build and device behavior require macOS |
 | macOS | Shared Dart code only; build, signing, notarization, Keychain, tray, and autostart require macOS |

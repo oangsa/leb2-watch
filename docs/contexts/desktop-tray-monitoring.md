@@ -500,8 +500,10 @@ listener attachment and close prevention.
   or tray Open/focus behavior.
 - X11 and GNOME runtime behavior remain unverified; the live Linux proof is
   specifically KDE Plasma on Wayland.
-- KWallet/libsecret behavior, notification display/history, and autostart
-  mutation were deliberately excluded from the live smoke.
+- KWallet/libsecret behavior and notification display/history were deliberately
+  excluded from the live tray smoke. A separate guarded production-adapter
+  smoke now proves Linux autostart entry enable/disable under a disposable
+  `HOME`; it does not prove login/reboot launch behavior.
 - macOS and Windows changes were not build-verified on this Linux host. The
   Windows workflow is configured but its result is not claimed here.
 - macOS helper copying and Windows mutex/focus behavior still require runtime
@@ -514,7 +516,8 @@ listener attachment and close prevention.
 ## Future considerations
 
 - Run the documented native smoke scenarios on macOS 10.15+, current macOS,
-  Windows 10/11, X11, and Wayland.
+  Windows 10/11, X11, and Wayland. Linux autostart login/reboot behavior still
+  needs a separately scoped native run.
 - On macOS, run:
 
   ```bash

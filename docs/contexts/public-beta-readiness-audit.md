@@ -79,7 +79,7 @@ The overall readiness state is **not ready**. Criteria 5, 7, and 9 are partial a
 ## Platform behavior
 
 - **Android:** sanitized Release artifacts and API 36 foreground evidence exist. A guarded local-only smoke proves bounded delete-all postconditions for app-owned secure-store/SQLite/cache data and cancellation invocation. Native WorkManager execution, exact visible-notification delivery, durable/in-flight cancellation, reboot/force-stop behavior, full delete-all flow, and physical-device/OEM behavior do not.
-- **Linux:** a sanitized desktop Release build and limited native evidence are retained. This does not prove Windows or macOS behavior.
+- **Linux:** a sanitized desktop Release build, limited native evidence, and a guarded disposable-HOME production-adapter autostart entry smoke are retained. This does not prove login/reboot launch, other Linux environments, Windows, or macOS behavior.
 - **Windows:** source support exists, but no host build or native runtime proof is retained.
 - **macOS and iOS:** documentation accurately states their limits; no macOS/Xcode host validation is retained.
 

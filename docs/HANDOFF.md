@@ -115,12 +115,11 @@ flutter test -d emulator-5554 \
 
 ### Linux and deferred platform status
 
-The next researched feature is Linux autostart enable/disable validation under
-a disposable `HOME`, using the production adapter. Its fresh worker was
-stopped before editing any file, so Linux autostart remains **unstarted**. The
-research handoff is `/tmp/leb2-watch-linux-validation-gaps.md`; use it only as
-working notes if still available and repeat the required research handoff if
-implementation resumes.
+Linux autostart enable/disable validation passed on the Linux target using the
+production adapter and a prefix-checked disposable `HOME`. It proved initial
+disabled state, enable/readback, exact desktop-entry content, disable/readback,
+and entry absence. It did not prove login/reboot launch, X11/GNOME, or packaged
+behavior; see `docs/contexts/linux-autostart-runtime-validation.md`.
 
 Per owner direction, Windows and iOS runtime/build validation are deferred.
 Their source/static status and exact host commands remain documented below,
@@ -223,9 +222,10 @@ missing features:
 3. New-assignment delivery has durable app-level submission, stable IDs,
    retry, dedupe, and mute behavior, but cannot claim exact-once visible OS
    delivery after an ambiguous native submit.
-4. Desktop tray/autostart source is complete and Linux Quit/same-instance has
-   narrow live proof. Windows/macOS native proof is absent, and Windows
-   uniqueness is intentionally scoped to one interactive session.
+4. Desktop tray/autostart source is complete. Linux Quit/same-instance and
+   disposable-HOME autostart entry mutation have narrow live proof. Windows/
+   macOS native proof is absent, and Windows uniqueness is intentionally
+   scoped to one interactive session.
 
 The MVP source is implemented. The public beta is **not ready** because
 fixture/session-dependent Android behavior and other required native evidence
@@ -375,11 +375,12 @@ all Linux integrations.
 
 The exact evidence boundaries are:
 
-- **Linux:** host suite, 2/2 mocked workflows, a sanitized Release build, and
-  2/2 KDE/Wayland Quit/same-instance smokes are proven. Keyring CRUD, visible
-  notification/tap/history, autostart mutation, close explanation,
-  Keep-running/Open-focus, process reminders, session-expiration cache
-  retention, delete-all, X11/GNOME, and packaging remain unverified.
+- **Linux:** host suite, 2/2 mocked workflows, a sanitized Release build,
+  2/2 KDE/Wayland Quit/same-instance smokes, and production-adapter autostart
+  entry enable/disable under a disposable `HOME` are proven. Keyring CRUD,
+  visible notification/tap/history, autostart login/reboot launch, close
+  explanation, Keep-running/Open-focus, process reminders, session-expiration
+  cache retention, delete-all, X11/GNOME, and packaging remain unverified.
 - **Android:** 134 host-test files across 14 green serial shards, sanitized
   Release APK/build and signature inspection, API 36 emulator
   install/cold/relaunch, and one guarded API 36 native delete-all smoke are
@@ -565,8 +566,8 @@ sanitized/disposable data, and a restore plan, still test:
 - close explanation, Keep-running hide, and tray Open/focus;
 - Secret Service/libsecret CRUD;
 - notification status, visible test notification, and live tap;
-- opt-in autostart enable/disable (researched as the next feature, but not
-  started; the worker was stopped before editing);
+- opt-in autostart login/reboot launch (the disposable-HOME entry
+  enable/disable smoke is now proven);
 - process-lifetime deadline delivery;
 - session-expiration cache retention;
 - delete-all;
