@@ -460,10 +460,19 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
 
 ## Known limitations
 
+Android has an opt-in production-adapter/service integration smoke at
+`integration_test/android_local_notification_runtime_test.dart`. It validates
+an explicit permission request, permission-status readback, and submission of
+the fixed local test notification on an Android device after the caller grants
+permission. Its dedicated context records the exact native evidence and does
+not treat plugin submission as visible delivery, a human tap, or cold
+activation.
+
 - Actual notification display, OS permission prompts, foreground/terminated
   taps, reboot rescheduling, OEM delay, and OS suppression need device testing.
-- Android was statically validated but not built because the Android SDK is
-  unavailable on this host.
+- The current API 36 emulator smoke proves only the explicit production
+  permission/submission path; it does not establish an Android system-dialog
+  interaction, visible display, retained history, tap, or OEM behavior.
 - iOS, macOS, and Windows were not build-verified on their native toolchains.
 - iOS retains at most 64 pending local notifications; Feature 12.3 enforces a
   deterministic global app-owned deadline-reminder cap, but other pending

@@ -615,13 +615,32 @@ KDE action does not demonstrate a rendered toast, a physical click,
 cold/terminated-process activation, notification scheduling, or portability
 beyond this KDE session.
 
+### Android local-notification runtime validation — 2026-07-27
+
+The sanitized test-signed Release APK was inspected and installed on the
+disposable API 36 emulator. Its merged manifest contains
+`android.permission.POST_NOTIFICATIONS`, and the Release app launched to
+`MainActivity`. The separate opt-in Android integration smoke passed after
+Flutter installed its debug test app and the emulator's disposable app profile
+received `POST_NOTIFICATIONS`. It constructs the production
+`FlutterLocalNotificationsAdapter` and `LocalNotificationServiceImpl`, invokes
+the explicit permission API, reads its allowed delivery state, submits the
+fixed payload-free test notification, and cancels only the reserved test ID.
+
+The short-lived exact-ID notification could not be observed through a stable,
+unambiguous bounded `dumpsys notification` record before cleanup. This is not
+treated as notification-manager or visible-delivery proof. The run also did
+not automate a dialog response, tap a notification, or validate cold
+activation. See `docs/contexts/android-local-notification-runtime-validation.md`.
+
 ## Known limitations
 
 - Android Release compilation and test-key signer verification are now proven
   on this Linux host. An unsigned release artifact was also verified as
   unsigned and non-distributable.
 - No verified sanitized backend fixture/session was available, so this is not
-  evidence of WorkManager execution, notification delivery/permission,
+  evidence of WorkManager execution, notification delivery beyond the bounded
+  explicit permission/submission path,
   secure-storage CRUD, session expiry/recovery, local-data deletion, or
   physical-device behavior.
 - The AVD result does not replace USB-device, reboot, or force-stop worker
