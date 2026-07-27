@@ -66,7 +66,7 @@ process exits.
 | Platform | Implementation | Validation on the current Linux host |
 | --- | --- | --- |
 | Linux | Application, tray, timers, autostart adapter, secure storage, immediate notifications, process-lifetime deadline reminders | Release build passed; live desktop integrations still need environment-specific smoke tests |
-| Android | Application and WorkManager integration | Dart/static tests only; Android SDK and device validation unavailable |
+| Android | Application and WorkManager integration | Sanitized, externally test-signed Release APK built, inspected, installed, and foreground-launched on an API 36 emulator; the explained notification-permission and fixed test-notification submission smoke passed. WorkManager/session/device behavior remains unverified. |
 | iOS | Application and BGAppRefresh integration | Dart/static tests only; macOS, Xcode, signing, and device validation required |
 | macOS | Application, tray, timer, and autostart | Dart/static tests only; macOS build, signing, and runtime validation required |
 | Windows | Unpackaged preview with tray, timers, autostart, immediate and process-lifetime deadline notifications, and same-process tap reveal | Dart/static tests pass and a Windows Release CI gate is configured; native runtime validation is still required |

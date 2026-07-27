@@ -5,8 +5,9 @@
 Completed. The public bring-your-own-backend documentation is reconciled with
 post-Phase-17 hardening: bootstrap recovery, lazy backend configuration,
 automatic session reauthentication, durable notification delivery, current
-schema and integration evidence, and the configured Windows CI gate. It is
-cross-linked for users, operators, and contributors.
+schema and integration evidence, the configured Windows CI gate, and the
+bounded Android Release/emulator validation recorded after the original
+documentation pass. It is cross-linked for users, operators, and contributors.
 
 This documentation feature is complete; it does not resolve the separate
 release blockers: both repositories lack licenses, no private security
@@ -41,7 +42,8 @@ hosted service or that unverified platforms are release-ready.
 - Publishing a backend or frontend release.
 - Adding an in-app server selector, proxy support, packaging, signing, or
   deployment automation.
-- Claiming native build or runtime results unavailable on the current host.
+- Claiming native build or runtime results beyond the recorded bounded Android
+  Release/emulator validation.
 
 ## User-visible behavior
 
@@ -176,12 +178,16 @@ deduplication/submission state, not exact operating-system delivery.
 
 ## Platform behavior
 
-The public matrix reports Linux as release-build verified. Android, iOS,
-macOS, and Windows are described as implemented and statically/focused-test
-validated but not native-build verified on the Linux host. CI currently
-configures Ubuntu validation, Ubuntu/Xvfb Linux integration, and an unsigned,
-unpackaged Windows release-directory build; the Windows job was not observed
-executing in this environment.
+The public matrix reports Linux as release-build verified. Android has a
+sanitized externally test-signed Release APK build, manifest/signer
+inspection, API 36 emulator foreground launch, and fixed test-notification
+permission/submission smoke. It is not represented as proof of WorkManager,
+session, secure-storage, delete-all, visible delivery/taps/cold activation, or
+physical-device/OEM behavior. iOS, macOS, and Windows remain implemented and
+statically/focused-test validated but not native-build verified on the Linux
+host. CI currently configures Ubuntu validation, Ubuntu/Xvfb Linux
+integration, and an unsigned, unpackaged Windows release-directory build; the
+Windows job was not observed executing in this environment.
 
 The guides document:
 
@@ -293,9 +299,15 @@ flutter build linux --release:
 Android signing-material inventory found no tracked or local
 `key.properties`, `.jks`, `.keystore`, `.p12`, `.pem`, or `.key` file.
 Product-source scans found no debug release-signing fallback, unfinished
-template signing marker, or generic privacy placeholder. Android native build
-and certificate validation remain unavailable. See
-[Platform build validation](platform-build-validation.md).
+template signing marker, or generic privacy placeholder. Later bounded Android
+validation used an external test-only signing identity without recording its
+location or material: the sanitized Release build, manifest/signer inspection,
+API 36 emulator foreground launch, and fixed test-notification
+permission/submission smoke passed. It did not validate WorkManager/session
+flow, secure-storage CRUD, delete-all, visible delivery/taps/cold activation,
+or physical-device/OEM behavior. See [Android local-notification runtime
+validation](android-local-notification-runtime-validation.md) and [Platform
+build validation](platform-build-validation.md).
 
 The documentation-only consistency pass rechecks all 36 context templates,
 local Markdown links, tracked and intentional path references, stale
@@ -320,6 +332,13 @@ lack of durable per-user storage from its process-local state, and the README
 and self-hosting guide place the no-license/use-permission boundary before any
 deployment command.
 
+The later Android-status correction changed only `README.md`,
+`docs/configuration-and-builds.md`, `docs/platform-support.md`, and this
+context. It used the committed Android Release and local-notification runtime
+contexts as evidence; it did not rerun Flutter, Dart, Android, backend, or
+device commands. `git diff --check` and a targeted added-line secret scan
+passed for that correction.
+
 ## Known limitations
 
 - Both repositories lack licenses. This is a release blocker; the owner must
@@ -334,9 +353,10 @@ deployment command.
   time.
 - No fresh backend build, Docker build, server run, or Cloud Run deployment was
   performed by this frontend documentation feature.
-- Android, Apple, and Windows native builds were not available on this Linux
-  host. Android APK validation is blocked by the missing Android SDK; Windows
-  CI is configured but was not observed; Apple validation remains static.
+- Android has bounded sanitized Release/API 36 emulator evidence, but
+  WorkManager/session/secure-storage/delete-all, visible-delivery/tap/cold-
+  activation, and physical-device/OEM behavior remain unverified. Windows CI
+  is configured but was not observed; Apple validation remains static.
 - Signing and distribution packaging remain operator-owned and unverified.
 
 ## Future considerations

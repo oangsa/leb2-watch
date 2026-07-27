@@ -7,14 +7,17 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 
 | Platform | Implemented behavior | Current validation | Still required |
 | --- | --- | --- | --- |
-| Android | Flutter app, secure storage policy, local notifications, unique WorkManager task | Dart tests and static native configuration | Android SDK build, release signing, emulator/device background and notification tests |
+| Android | Flutter app, secure storage policy, local notifications, unique WorkManager task | Dart/static tests; sanitized externally test-signed Release APK build, manifest/signer inspection, API 36 emulator foreground launch, and fixed test-notification permission/submission smoke | WorkManager/session/secure-storage/delete-all behavior, visible delivery/taps/cold activation, and physical-device/OEM tests |
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status, cooperative exact-generation expiration bridge | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/forced-expiration cancellation and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
 | Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
 | Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build passed | Live X11/Wayland tray, keyring, autostart, and notification smoke tests; distribution packaging |
 
-Only Linux is native-build verified on the current host. Do not represent
-static tests as successful Android, Apple, or Windows builds.
+Linux is release-build verified on the current host. Android has a bounded
+sanitized Release build and API 36 emulator foreground-launch validation; it
+is not a full device, background, or delivery validation. Do not represent
+static tests or this bounded emulator evidence as successful Apple or Windows
+native builds, or as complete Android runtime validation.
 
 ## Shared limitations
 
@@ -50,9 +53,13 @@ Release signing uses only a complete operator-local, ignored
 `android/key.properties`; it never falls back to the debug identity. With no
 file, Gradle warns and leaves release output unsigned and non-distributable. A
 present but incomplete file fails with a redacted configuration error. This
-policy is statically tested, but Android Gradle evaluation, APK/AAB output,
-certificate identity, and device behavior remain unverified on the current
-host.
+policy is statically tested. A sanitized externally test-signed Release APK
+was built, manifest/signer-inspected, installed, and foreground-launched on
+an API 36 emulator. A separate fixed test-notification smoke exercised the
+explained permission request/status readback, local submission, and exact-ID
+cleanup. It did not establish WorkManager execution, session flow,
+secure-storage CRUD, delete-all, notification pixels/alerting/taps/cold
+activation, or physical-device/OEM behavior.
 
 Build shape:
 

@@ -130,8 +130,13 @@ storeFile=<KEYSTORE_PATH>
 
 When the file is absent, Gradle warns and leaves any release output unsigned
 and non-distributable. A present but incomplete file stops configuration with
-a redacted error. The Android build, certificate, and device behavior remain
-unverified because the current host has no Android SDK/JDK.
+a redacted error. A sanitized externally test-signed Release APK has been
+built, manifest/signer-inspected, installed, and foreground-launched on an
+API 36 emulator. The explained notification-permission and fixed local test
+notification submission smoke also passed there. This does not verify
+WorkManager execution, session synchronization, secure-storage CRUD,
+delete-all, visible delivery or notification taps, cold activation, or
+physical-device/OEM behavior.
 
 ### iOS
 
