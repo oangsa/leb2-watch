@@ -739,24 +739,57 @@ void main() {
         await directory.delete(recursive: true);
       });
       await _insertSemester(firstDatabase);
+      final ownerStarted = Completer<void>();
+      final releaseFailure = Completer<void>();
       final client = _FakeBackendApiClient()
-        ..failure = const BackendTransportException(
-          kind: BackendTransportFailureKind.connectionError,
-        );
+        ..handler = (semesterId, userId, cancellation) async {
+          ownerStarted.complete();
+          await releaseFailure.future;
+          throw const BackendTransportException(
+            kind: BackendTransportFailureKind.connectionError,
+          );
+        };
       final now = DateTime.utc(2026, 7, 25, 12);
 
-      final outcomes = await Future.wait([
-        _service(client, firstDatabase, () => now).synchronize(
-          semesterId: 101,
-          userId: 2001,
-          reason: SyncReason.manualRefresh,
-        ),
-        _service(client, secondDatabase, () => now).synchronize(
-          semesterId: 101,
-          userId: 2001,
-          reason: SyncReason.appLaunch,
-        ),
-      ]);
+      final first = _service(client, firstDatabase, () => now).synchronize(
+        semesterId: 101,
+        userId: 2001,
+        reason: SyncReason.manualRefresh,
+      );
+      Future<SyncOutcome>? joined;
+      addTearDown(() async {
+        if (!releaseFailure.isCompleted) {
+          releaseFailure.complete();
+        }
+        final joinedOperation = joined;
+        await Future.wait([first, ?joinedOperation]);
+      });
+      await ownerStarted.future.timeout(const Duration(seconds: 1));
+
+      final joinerPolled = Completer<void>();
+      final joinedOperation =
+          _service(
+            client,
+            secondDatabase,
+            () => now,
+            delay: (duration) async {
+              if (duration == const Duration(milliseconds: 1) &&
+                  !joinerPolled.isCompleted) {
+                joinerPolled.complete();
+              }
+              await Future<void>.delayed(duration);
+            },
+          ).synchronize(
+            semesterId: 101,
+            userId: 2001,
+            reason: SyncReason.appLaunch,
+          );
+      joined = joinedOperation;
+
+      await joinerPolled.future.timeout(const Duration(seconds: 1));
+      expect(client.requestCount, 1);
+      releaseFailure.complete();
+      final outcomes = await Future.wait([first, joinedOperation]);
 
       expect(outcomes[0], isA<SyncFailed>());
       expect(outcomes[1], outcomes[0]);
@@ -769,6 +802,57 @@ void main() {
       expect(status.consecutiveFailureCount, 1);
     },
   );
+
+  test('failed joiner cleanup settles owner before database close', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'leb2-watch-backoff-cleanup-',
+    );
+    final database = _fileDatabase(File('${directory.path}/shared.sqlite'));
+    var ownerSettled = false;
+    addTearDown(() async {
+      await database.close();
+      await directory.delete(recursive: true);
+    });
+    addTearDown(() {
+      expect(ownerSettled, isTrue);
+    });
+    await _insertSemester(database);
+
+    final ownerStarted = Completer<void>();
+    final handlerEntered = Completer<void>();
+    final releaseFailure = Completer<void>();
+    final client = _FakeBackendApiClient()
+      ..handler = (semesterId, userId, cancellation) async {
+        handlerEntered.complete();
+        await releaseFailure.future;
+        ownerStarted.complete();
+        throw const BackendTransportException(
+          kind: BackendTransportFailureKind.connectionError,
+        );
+      };
+    final now = DateTime.utc(2026, 7, 25, 12);
+    final first = _service(client, database, () => now).synchronize(
+      semesterId: 101,
+      userId: 2001,
+      reason: SyncReason.manualRefresh,
+    );
+    Future<SyncOutcome>? joined;
+    addTearDown(() async {
+      if (!releaseFailure.isCompleted) {
+        releaseFailure.complete();
+      }
+      final joinedOperation = joined;
+      await Future.wait([first, ?joinedOperation]);
+      ownerSettled = true;
+    });
+
+    await handlerEntered.future.timeout(const Duration(seconds: 1));
+    await expectLater(
+      ownerStarted.future.timeout(const Duration(milliseconds: 10)),
+      throwsA(isA<TimeoutException>()),
+    );
+    expect(client.requestCount, 1);
+  });
 
   test(
     'independent joined success clears blocked state exactly once',
@@ -853,8 +937,9 @@ void main() {
 LocalAssignmentSyncService _service(
   _FakeBackendApiClient client,
   AppDatabase database,
-  DateTime Function() clock,
-) {
+  DateTime Function() clock, {
+  Future<void> Function(Duration)? delay,
+}) {
   return LocalAssignmentSyncService(
     apiClient: client,
     database: database,
@@ -862,6 +947,7 @@ LocalAssignmentSyncService _service(
     pollInterval: const Duration(milliseconds: 1),
     heartbeatInterval: const Duration(milliseconds: 5),
     leaseDuration: const Duration(seconds: 1),
+    delay: delay,
   );
 }
 

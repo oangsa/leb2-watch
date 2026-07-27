@@ -204,8 +204,10 @@ Tests cover:
 - success reset, manual advance/block/recovery, explicit cancellation, and
   transport cancellation;
 - active-join-before-gate and status-read purity;
-- independent failure joiners incrementing once and independent success
-  joiners deleting once;
+- independent failure joiners incrementing once after the owner is held and
+  the second database connection reaches its joiner poll before failure
+  release, early owner-start timeout cleanup settling before database close,
+  plus independent success joiners deleting once;
 - history fallback, backoff-write rollback, reset rollback, automatic and
   user-driven admission failure before HTTP, and stale-owner fencing;
 - fresh schema constraints/index/cascade/security ownership;
@@ -248,6 +250,90 @@ scan evidence is recorded in the Feature 8.3 worker handoff.
 Feature 9.3 verified the combined synchronization directory at 84/84,
 including selective expiration-gate recovery; final broad evidence is recorded
 in `session-expiration.md`.
+
+Deterministic failed-joiner regression evidence (2026-07-27):
+
+```text
+Temporary mutation: release the backend failure before the joiner poll signal
+Failed as expected: TimeoutException after 1 second (exit 1).
+
+flutter test --concurrency=1 \
+  test/features/assignments/sync/synchronization_backoff_test.dart \
+  --plain-name \
+  'independent joiners mutate one failed operation exactly once' \
+  --reporter expanded
+Passed: 1 test.
+
+The same named command in 25 fresh Flutter processes
+Passed: 25/25 processes in 80 seconds.
+
+flutter test --concurrency=1 \
+  test/features/assignments/sync/synchronization_backoff_test.dart
+Passed: 21 tests.
+
+The former failing ten-file synchronization/authentication shard in five
+fresh Flutter processes
+Passed: 5/5 processes, 118 tests per process, in 63 seconds.
+
+dart format --output=none --set-exit-if-changed \
+  test/features/assignments/sync/synchronization_backoff_test.dart
+Passed: 1 file, 0 changed.
+
+dart analyze
+Passed: no issues found.
+
+flutter analyze
+Passed: no issues found.
+```
+
+After the lifecycle review correction:
+
+```text
+flutter test --concurrency=1 \
+  test/features/assignments/sync/synchronization_backoff_test.dart \
+  --plain-name \
+  'failed joiner cleanup settles owner before database close' \
+  --reporter expanded
+Passed: 1 test.
+
+flutter test --concurrency=1 \
+  test/features/assignments/sync/synchronization_backoff_test.dart \
+  --plain-name \
+  'independent joiners mutate one failed operation exactly once' \
+  --reporter expanded
+Passed: 1 test.
+
+flutter test --concurrency=1 \
+  test/features/assignments/sync/synchronization_backoff_test.dart \
+  --reporter expanded
+Passed: 22 tests.
+```
+
+Final repository-wide validation:
+
+```text
+dart format --set-exit-if-changed .
+Passed: 330 files, 0 changed; exit 0.
+
+flutter analyze
+Passed: no issues found; exit 0.
+
+dart run tool/run_flutter_tests.dart
+Discovered 132 test files and ran 14 sequential shards, each in a fresh
+flutter test --concurrency=1 process.
+Passed: 1,096/1,096 tests; runner exit 0.
+
+The changed synchronization_backoff_test.dart ran in shard 6.
+Passed: 119/119 shard tests, including:
+- independent joiners mutate one failed operation exactly once
+- failed joiner cleanup settles owner before database close
+```
+
+Code generation was not run because the final diff contains zero production
+source definitions, generated files, or generator inputs. No platform build
+was run because it contains zero Android, iOS, Linux, macOS, Windows, or other
+production inputs. This test-and-context-only validation adds no platform
+runtime evidence.
 
 ## Known limitations
 
