@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -9,6 +11,8 @@ import 'local_database_access_gate.dart';
 
 typedef ApplicationSupportDirectoryProvider = Future<Directory> Function();
 typedef DatabaseFileDelete = Future<void> Function(File file);
+typedef LocalDatabaseExecutorFactory =
+    QueryExecutor Function(File file, DatabaseSetup setup);
 
 const _sqliteBusyResultCode = 5;
 const _sqliteLockedResultCode = 6;
@@ -45,53 +49,61 @@ class LocalDatabaseStorage {
   }
 
   Future<AppDatabase> openDatabase() async {
+    return _openDatabase(_openProductionExecutor);
+  }
+
+  @visibleForTesting
+  Future<AppDatabase> openDatabaseWithExecutor(
+    LocalDatabaseExecutorFactory executorFactory,
+  ) {
+    return _openDatabase(executorFactory);
+  }
+
+  Future<AppDatabase> _openDatabase(
+    LocalDatabaseExecutorFactory executorFactory,
+  ) async {
     final file = await resolveDatabaseFile();
     final gate = LocalDatabaseAccessGate(file.parent);
     final lease = await gate.acquireLease();
     final database = AppDatabase(
-      NativeDatabase.createInBackground(
-        file,
-        logStatements: false,
-        readPool: 0,
-        setup: (database) {
-          database.execute(
-            'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
-          );
-          for (var attempt = 0; attempt < _walSetupAttempts; attempt += 1) {
-            try {
-              final journalMode = database
-                  .select('PRAGMA journal_mode')
-                  .single
-                  .values
-                  .single;
-              if (journalMode is String && journalMode.toLowerCase() == 'wal') {
-                break;
-              }
-              database.execute('PRAGMA journal_mode = WAL');
+      executorFactory(file, (database) {
+        database.execute(
+          'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
+        );
+        for (var attempt = 0; attempt < _walSetupAttempts; attempt += 1) {
+          try {
+            final journalMode = database
+                .select('PRAGMA journal_mode')
+                .single
+                .values
+                .single;
+            if (journalMode is String && journalMode.toLowerCase() == 'wal') {
               break;
-            } on SqliteException catch (error) {
-              final isContention =
-                  error.resultCode == _sqliteBusyResultCode ||
-                  error.resultCode == _sqliteLockedResultCode;
-              if (!isContention || attempt == _walSetupAttempts - 1) {
-                rethrow;
-              }
-              sleep(Duration(milliseconds: 10 * (attempt + 1)));
             }
+            database.execute('PRAGMA journal_mode = WAL');
+            break;
+          } on SqliteException catch (error) {
+            final isContention =
+                error.resultCode == _sqliteBusyResultCode ||
+                error.resultCode == _sqliteLockedResultCode;
+            if (!isContention || attempt == _walSetupAttempts - 1) {
+              rethrow;
+            }
+            sleep(Duration(milliseconds: 10 * (attempt + 1)));
           }
-          final userVersion = database
-              .select('PRAGMA user_version')
-              .single
-              .values
-              .single;
-          if (userVersion == 0) {
-            database.execute(
-              'CREATE TEMP TABLE leb2_watch_open_transaction (value INTEGER)',
-            );
-            database.execute('BEGIN IMMEDIATE');
-          }
-        },
-      ),
+        }
+        final userVersion = database
+            .select('PRAGMA user_version')
+            .single
+            .values
+            .single;
+        if (userVersion == 0) {
+          database.execute(
+            'CREATE TEMP TABLE leb2_watch_open_transaction (value INTEGER)',
+          );
+          database.execute('BEGIN IMMEDIATE');
+        }
+      }),
       completeOpenTransaction: true,
       onClose: lease.release,
     );
@@ -102,6 +114,15 @@ class LocalDatabaseStorage {
       await database.close();
       rethrow;
     }
+  }
+
+  static QueryExecutor _openProductionExecutor(File file, DatabaseSetup setup) {
+    return NativeDatabase.createInBackground(
+      file,
+      logStatements: false,
+      readPool: 0,
+      setup: setup,
+    );
   }
 
   Future<LocalDatabaseDeletionGate> beginDeletion() async {
