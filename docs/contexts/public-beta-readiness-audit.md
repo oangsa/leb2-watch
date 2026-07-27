@@ -41,7 +41,7 @@ Recorded host evidence is not a fresh validation run by this audit. The retained
 | 6 | Session expiration does not remove cached data | `session_expiration_sync_test.dart` retains every snapshot row; the end-to-end workflow simulates exact `SESSION_EXPIRED` and retains the baseline card. | **Pass (bounded)** | No real backend session or Android headless-expiration proof. |
 | 7 | Background scheduling does not create duplicate jobs | Scheduler and Android static tests cover shared intent and unique WorkManager configuration. [Android background synchronization](android-background-sync.md) explicitly records that native registration and execution are unvalidated. | **Partial** | Prove actual unique WorkManager behavior across launch, resume, reboot, and force-stop paths, including constraints and backoff, on API 36 or a physical device. |
 | 8 | No credentials appear in the database or logs | `database_tables.dart` has no authentication columns; `app_database_test.dart` rejects password/session/authorization columns. Credential and network-redaction tests cover fixed redacted debug representations and removed authorization/password output. | **Pass (source/test bounded)** | Inspect sanitized release-host logs for native and third-party crash/log paths, particularly Android and Windows. |
-| 9 | Delete all local data works completely | Service tests cover ordering, failure, and join behavior. The end-to-end workflow verifies credential clearing, a fresh database without the baseline card, and return to onboarding. | **Partial** | Native WorkManager/notification cancellation, secure-store and cache deletion, and Android runtime behavior are unproven; native calls cannot be forcibly stopped. |
+| 9 | Delete all local data works completely | Service tests cover ordering, failure, and join behavior. The end-to-end workflow verifies credential clearing, a fresh database without the baseline card, and return to onboarding. A guarded API 36 smoke additionally proves app-owned secure-store/SQLite/cache postconditions and successful notification/WorkManager cancellation invocation. | **Partial** | The smoke does not prove visible notification removal, durable or in-flight WorkManager cancellation, Keystore forensics, reboot/force-stop, full navigation flow, or physical/OEM behavior. |
 | 10 | Static analysis passes | [Repository handoff](../HANDOFF.md) and [platform build validation](platform-build-validation.md) record strict Dart and Flutter analysis exits of zero; CI defines both checks. | **Pass (recorded)** | No observed remote CI run or fresh audit run. |
 | 11 | Automated tests pass | The retained host suite records 132 files, 14 shards, and 1,097 cases; CI runs generation, formatting, analysis, and the bounded runner. | **Pass (recorded, qualified)** | The outer wrapper exit was not retained; no current remote CI or device-test evidence exists. |
 | 12 | No production placeholders remain | Production requires an operator-supplied HTTPS `BACKEND_BASE_URL`; targeted product-code searches found no TODO/FIXME/placeholder. Generated Flutter CMake TODOs and deliberate sanitized documentation/CI placeholders are excluded. | **Pass (source bounded)** | The backend pin is an untagged commit: a release-governance gap, not a product placeholder. |
@@ -78,7 +78,7 @@ The overall readiness state is **not ready**. Criteria 5, 7, and 9 are partial a
 
 ## Platform behavior
 
-- **Android:** sanitized Release artifacts and API 36 foreground evidence exist. Native WorkManager execution, exact visible-notification delivery, delete-all behavior, reboot/force-stop behavior, and physical-device/OEM behavior do not.
+- **Android:** sanitized Release artifacts and API 36 foreground evidence exist. A guarded local-only smoke proves bounded delete-all postconditions for app-owned secure-store/SQLite/cache data and cancellation invocation. Native WorkManager execution, exact visible-notification delivery, durable/in-flight cancellation, reboot/force-stop behavior, full delete-all flow, and physical-device/OEM behavior do not.
 - **Linux:** a sanitized desktop Release build and limited native evidence are retained. This does not prove Windows or macOS behavior.
 - **Windows:** source support exists, but no host build or native runtime proof is retained.
 - **macOS and iOS:** documentation accurately states their limits; no macOS/Xcode host validation is retained.
@@ -123,7 +123,9 @@ No Flutter/Dart command is required solely for this documentation record.
 ## Known limitations
 
 - Visible OS notification delivery is best effort; exact-once app submission does not prove exact-once user-visible delivery.
-- Native Android background scheduling and deletion flows have not been demonstrated against a sanitized compatible backend fixture.
+- Native Android background scheduling has not been demonstrated against a
+  sanitized compatible backend fixture. The local-only deletion smoke does not
+  replace that fixture-dependent proof or prove durable native cancellation.
 - Windows, macOS, and iOS native validation remains unavailable locally.
 - The historic backend pin is not a current-backend, deployment, or release guarantee.
 

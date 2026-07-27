@@ -303,7 +303,7 @@ portability; only the Linux execution is recorded here.
 | Platform | Current validation |
 | --- | --- |
 | Linux | Strict analysis, all unit/widget tests, code generation, and the release build pass |
-| Android | Sanitized unsigned and external-test-key Release builds, v2 signer verification, API 36 emulator install, and cold foreground launch pass. Work scheduling, notifications, secure-storage CRUD, deletion, reboot/force-stop worker recovery, and physical-device behavior remain unverified without a verified fixture/session. |
+| Android | Sanitized unsigned and external-test-key Release builds, v2 signer verification, API 36 emulator install, and cold foreground launch pass. A guarded API 36 smoke also proves app-owned secure-store/SQLite/cache delete-all postconditions and successful notification/WorkManager cancellation invocations. Work execution, visible notification removal, durable/in-flight cancellation, reboot/force-stop recovery, and physical-device behavior remain unverified. |
 | iOS | Shared Dart code only; Xcode build and device behavior require macOS |
 | macOS | Shared Dart code only; build, signing, notarization, Keychain, tray, and autostart require macOS |
 | Windows | Shared Dart code only; build, signing, tray, secure storage, and autostart require Windows/MSVC |
@@ -680,6 +680,30 @@ signing, real backend request, or credential use occurred. Existing APK
 emulator evidence remains separate. See
 `docs/contexts/android-app-bundle-validation.md`.
 
+### Android native local-data deletion validation — 2026-07-27
+
+On the disposable API 36 emulator, the explicitly opt-in command below passed
+against a debug test app with a non-routable backend origin:
+
+```text
+flutter test -d emulator-5554 \
+  integration_test/android_local_data_deletion_runtime_test.dart \
+  --dart-define=LEB2_WATCH_DESTRUCTIVE_LOCAL_DATA_TEST=true \
+  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+1 passed
+```
+
+The smoke uses only deterministic inert sentinels and production deletion
+adapters. It observed a complete delete-all result, null post-clear reads for
+the two app-owned secure-storage values, absent exact SQLite main/WAL/SHM
+files before a fresh reopen, an absent owned cache directory, an empty fresh
+application-settings table, and successful notification/WorkManager
+cancellation invocations. It did not request notification permission, call a
+backend, inspect Keystore/package data, or claim OS-visible notification
+removal, durable/in-flight WorkManager cancellation, reboot/force-stop, or
+physical-device/OEM behavior. See
+`docs/contexts/android-native-local-data-deletion-validation.md`.
+
 ## Known limitations
 
 - Android Release compilation and test-key signer verification are now proven
@@ -687,9 +711,10 @@ emulator evidence remains separate. See
   unsigned and non-distributable.
 - No verified sanitized backend fixture/session was available, so this is not
   evidence of WorkManager execution, notification delivery beyond the bounded
-  explicit permission/submission path,
-  secure-storage CRUD, session expiry/recovery, local-data deletion, or
-  physical-device behavior.
+  explicit permission/submission path, session expiry/recovery,
+  durable/in-flight cancellation, or physical-device behavior. The separate
+  guarded deletion smoke proves only its bounded local secure-store/SQLite/
+  cache and cancellation-invocation postconditions.
 - The AVD result does not replace USB-device, reboot, or force-stop worker
   recovery validation. The optional host `android-udev` package remains
   unavailable because installing it needs separate administrator approval.

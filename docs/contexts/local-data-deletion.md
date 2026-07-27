@@ -279,9 +279,13 @@ removing cached assignments.
   a successful OS removal.
 - Desktop autostart is disabled only when the platform reports it available
   and enabled. Mobile reports it not applicable.
-- Linux is build-verified. Android, iOS, macOS, and Windows behavior is
-  covered by Dart/static adapter contracts but is not runtime-verified on this
-  Linux host.
+- Linux is build-verified. An opt-in Android API 36 emulator smoke proves a
+  successful production `deleteAll()` call clears inert values from the two
+  app-owned secure-store keys, exact SQLite files, and the owned cache child;
+  it also proves notification and WorkManager cancellation calls return.
+  This does not prove visible notification removal, durable or in-flight work
+  cancellation, Keystore forensics, reboot/force-stop behavior, or physical
+  device/OEM behavior. iOS, macOS, and Windows remain Dart/static-only here.
 
 ## Security and privacy
 
@@ -415,6 +419,13 @@ removing cached assignments.
   text scaling. A mounted real Riverpod composition exercises the real
   coordinator, database reset, settings-subtree invalidation, and proves that
   complete delete-all reaches onboarding while a partial result stays put.
+- `integration_test/android_local_data_deletion_runtime_test.dart` is excluded
+  from the host suite and refuses to write unless both Android and the
+  compile-time `LEB2_WATCH_DESTRUCTIVE_LOCAL_DATA_TEST=true` opt-in are
+  present. On a disposable API 36 emulator it uses only inert sentinels and
+  production adapters to prove bounded native delete-all postconditions.
+- `test/platform/android/android_native_local_data_deletion_guard_test.dart`
+  verifies the guard's Android-and-opt-in truth table.
 
 ## Validation evidence
 
@@ -443,6 +454,15 @@ removing cached assignments.
   and sensitive-logging searches found no credential values or added logging.
 - No code generation was required because this feature changes no generated
   model, Drift table, schema version, or annotated provider.
+- `flutter test -d emulator-5554
+  integration_test/android_local_data_deletion_runtime_test.dart
+  --dart-define=LEB2_WATCH_DESTRUCTIVE_LOCAL_DATA_TEST=true
+  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid` — passed on
+  the disposable API 36 emulator. The smoke created no network client or
+  backend-derived data. It observed only successful completion, null direct
+  secure-store reads, absent exact SQLite main/WAL/SHM files before a fresh
+  reopen, an absent owned cache directory, and an empty fresh `app_settings`
+  table. It did not inspect Android Keystore or package-wide data.
 
 ## Known limitations
 
@@ -465,15 +485,20 @@ removing cached assignments.
   database composition; mobile background work uses the app process.
 - Unpackaged Windows cannot remove already presented notifications through the
   current notification adapter.
-- Only the Linux native build was available on this host.
+- The Android smoke proves plugin-call completion only. It cannot prove that
+  Android visibly removed already-rendered notifications, that WorkManager
+  durably cancelled or stopped an in-flight worker, or that all Keystore bytes
+  are forensically erased.
+- Only the Linux native build and the bounded Android emulator smoke were
+  available on this host.
 
 ## Future considerations
 
 - The complete mocked application workflow covers user-visible delete-all,
   fresh database defaults, and return to onboarding.
-- Native device/runtime validation should exercise Android background work,
-  Apple background tasks, packaged Windows notifications, and desktop
-  autostart.
+- Native device/runtime validation should still exercise Android WorkManager
+  uniqueness/execution, Apple background tasks, packaged Windows
+  notifications, and desktop autostart.
 - If a future platform uses a separate long-lived database process, it must
   join the lease/gate protocol or provide a stronger native process barrier.
 
@@ -488,3 +513,4 @@ removing cached assignments.
 - [Desktop tray monitoring](desktop-tray-monitoring.md)
 - [Notification settings](notification-settings.md)
 - [Automatic Session Reauthentication](automatic-session-reauthentication.md)
+- [Android native local-data deletion validation](android-native-local-data-deletion-validation.md)

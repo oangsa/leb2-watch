@@ -300,6 +300,10 @@ later foreground reconciliation remain the recovery mechanisms.
 - `android_release_signing_configuration_test.dart` — confirms the narrow
   `RoomDatabase` constructor keep rule exists and rejects a
   `WorkDatabase_Impl`-specific, no-shrink, or broad keep-all workaround.
+- `integration_test/android_local_data_deletion_runtime_test.dart` — guarded
+  API 36 emulator deletion smoke that submits the production unique-name
+  WorkManager cancellation path; it does not claim durable cancellation or
+  worker execution.
 
 ## Validation evidence
 
@@ -423,13 +427,24 @@ cancellation and the request had no generation tag/input. The focused green
 pass covers both serialized WorkManager operation orderings. These Dart tests
 do not prove Android runtime or native `Operation` completion.
 
+### Android deletion cancellation invocation — 2026-07-27
+
+The opt-in local-data deletion smoke passed on the disposable API 36 emulator
+using only inert application-local sentinels. `deleteAll()` completed through
+`PlatformLocalDataBackgroundCleanup`, whose production local scheduler submits
+the exact unique-name WorkManager cancellation call. This proves that the
+plugin call returned successfully in that profile. It does not prove Android
+persisted the cancellation, stopped a running worker, executed any work, or
+preserved behavior across reboot, force-stop, or a physical/OEM device.
+
 ## Known limitations
 
 - A verified sanitized backend fixture, session, semester, and course have not
   been supplied. Therefore this validation does not prove native unique-work
   registration/execution, network constraints, baseline/diff notification
   behavior, session expiry/recovery, visible notification delivery, reminder
-  rescheduling, secure-storage CRUD, or delete-all behavior.
+  rescheduling, secure-storage CRUD, durable cancellation, or end-to-end
+  delete-all behavior.
 - No notification permission was granted and no test notification was sent.
   The absence of a prompt during onboarding is proven; the OS permission state
   and delivery path are not.
