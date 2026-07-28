@@ -122,7 +122,7 @@ Linux autostart enable/disable validation passed on the Linux target using the
 production adapter and a prefix-checked disposable `HOME`. It proved initial
 disabled state, enable/readback, exact desktop-entry content, disable/readback,
 and entry absence. It did not prove login/reboot launch, X11/GNOME, or packaged
-behavior; see `docs/contexts/linux-autostart-runtime-validation.md`.
+behavior; see the [platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence).
 
 Per owner direction, Windows and iOS runtime/build validation are deferred.
 Their source/static status and exact host commands remain documented below,
@@ -717,8 +717,8 @@ xcodebuild test -workspace ios/Runner.xcworkspace \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-Use the exact device matrix in
-[`ios-background-refresh.md`](contexts/ios-background-refresh.md).
+Use the exact device matrix in the
+[platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence).
 
 ### Compatible backend
 
@@ -760,7 +760,7 @@ Issue. Compatible backend release/tag and remote CI state remain unverified.
 Treat this handoff as the current evidence summary while preserving historical
 feature records:
 
-- [`platform-build-validation.md`](contexts/platform-build-validation.md)
+- [platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence)
   records 1,087 tests at its original memory-safe-runner feature boundary and
   the committed Android-validation update with 1,097 shard-marker tests and
   no captured wrapper exit status.
@@ -784,42 +784,42 @@ manufacture one commit per subfeature.
 
 | Feature | Commit | Context |
 | --- | --- | --- |
-| 0.1 | `71270c1` preflight | [`repository-preflight.md`](contexts/repository-preflight.md) |
-| 1.1 | `d670fa7` backend contract | [`backend-api-contract.md`](contexts/backend-api-contract.md) |
-| 2.1 | `6584df1` Flutter scaffold | [`flutter-project-scaffold.md`](contexts/flutter-project-scaffold.md) |
-| 3.1 | `0d713dc` dependencies/codegen | [context](contexts/flutter-dependencies-and-codegen.md) |
-| 4.1 | `32bbe31` design system | [`design-system.md`](contexts/design-system.md) |
-| 4.2 | `4c530aa` adaptive shell | [`adaptive-app-shell.md`](contexts/adaptive-app-shell.md) |
-| 5.1 | `fdf53e5` secure credentials | [`secure-credential-storage.md`](contexts/secure-credential-storage.md) |
-| 6.1 | `6bd69d0` local database | [`local-database.md`](contexts/local-database.md) |
-| 7.1 | `656c33c` API client | [`backend-api-client.md`](contexts/backend-api-client.md) |
-| 7.2 | `8b0d2ae` API errors | [`api-error-mapping.md`](contexts/api-error-mapping.md) |
-| 8.1 | `300cce8` single-flight sync | [`assignment-synchronization.md`](contexts/assignment-synchronization.md) |
-| 8.2 | `b7cfcde` assignment diffing | [`assignment-diffing.md`](contexts/assignment-diffing.md) |
-| 8.3 | `70ae2cb` retry/backoff | [`synchronization-backoff.md`](contexts/synchronization-backoff.md) |
-| 9.1 | `bba2f0e` onboarding | [`privacy-onboarding.md`](contexts/privacy-onboarding.md) |
-| 9.2 | `90fc8fa` session setup | [`session-setup.md`](contexts/session-setup.md) |
-| 9.3 | `74b7830` expiration recovery | [`session-expiration.md`](contexts/session-expiration.md) |
-| 10.1 | `e59be9d` semesters | [`semester-selection.md`](contexts/semester-selection.md) |
-| 10.2 | `ac56d91` course preferences | [`course-preferences.md`](contexts/course-preferences.md) |
-| 11.1 | `2e550f0` dashboard | [`assignment-dashboard.md`](contexts/assignment-dashboard.md) |
-| 11.2 | `2692f7f` assignment detail | [`assignment-detail.md`](contexts/assignment-detail.md) |
-| 12.1 | `d632944` notification service | [`local-notifications.md`](contexts/local-notifications.md) |
-| 12.2 | `0c3aeb4` new-assignment notifications | [context](contexts/new-assignment-notifications.md) |
-| 12.3 | `51bc7bf` deadline reminders | [`deadline-reminders.md`](contexts/deadline-reminders.md) |
-| 13.1-13.4 | `a2154e6` platform scheduling | [`background-scheduler.md`](contexts/background-scheduler.md) |
-| 14.1-14.2 | `744c1a9` settings/diagnostics | [`notification-settings.md`](contexts/notification-settings.md) |
-| 15.1 | `71517ae` local-data deletion | [`local-data-deletion.md`](contexts/local-data-deletion.md) |
-| 16.1 | `463d4fb` mocked workflow | [`frontend-integration-testing.md`](contexts/frontend-integration-testing.md) |
-| 17.1 | `4b35e75` platform validation | [`platform-build-validation.md`](contexts/platform-build-validation.md) |
-| 17.2 | `331c3b9` public documentation | [`frontend-documentation.md`](contexts/frontend-documentation.md) |
+| 0.1 | `71270c1` preflight | [repository compact](contexts/repository/COMPACT.md#contracts-and-interfaces) |
+| 1.1 | `d670fa7` backend contract | [backend compact](contexts/backend/COMPACT.md#contracts-and-interfaces) |
+| 2.1 | `6584df1` Flutter scaffold | [infrastructure compact](contexts/infrastructure/COMPACT.md#architecture) |
+| 3.1 | `0d713dc` dependencies/codegen | [infrastructure compact](contexts/infrastructure/COMPACT.md#architecture) |
+| 4.1 | `32bbe31` design system | [infrastructure compact](contexts/infrastructure/COMPACT.md#architecture) |
+| 4.2 | `4c530aa` adaptive shell | [infrastructure compact](contexts/infrastructure/COMPACT.md#architecture) |
+| 5.1 | `fdf53e5` secure credentials | [session compact](contexts/session/COMPACT.md#contracts-and-interfaces) |
+| 6.1 | `6bd69d0` local database | [database compact](contexts/database/COMPACT.md#data-model) |
+| 7.1 | `656c33c` API client | [backend compact](contexts/backend/COMPACT.md#architecture) |
+| 7.2 | `8b0d2ae` API errors | [backend compact](contexts/backend/COMPACT.md#contracts-and-interfaces) |
+| 8.1 | `300cce8` single-flight sync | [assignments compact](contexts/assignments/COMPACT.md#architecture) |
+| 8.2 | `b7cfcde` assignment diffing | [assignments compact](contexts/assignments/COMPACT.md#contracts-and-interfaces) |
+| 8.3 | `70ae2cb` retry/backoff | [synchronization compact](contexts/synchronization/COMPACT.md#architecture) |
+| 9.1 | `bba2f0e` onboarding | [onboarding compact](contexts/onboarding/COMPACT.md#architecture) |
+| 9.2 | `90fc8fa` session setup | [session compact](contexts/session/COMPACT.md#architecture) |
+| 9.3 | `74b7830` expiration recovery | [session compact](contexts/session/COMPACT.md#contracts-and-interfaces) |
+| 10.1 | `e59be9d` semesters | [onboarding compact](contexts/onboarding/COMPACT.md#architecture) |
+| 10.2 | `ac56d91` course preferences | [onboarding compact](contexts/onboarding/COMPACT.md#contracts-and-interfaces) |
+| 11.1 | `2e550f0` dashboard | [assignments compact](contexts/assignments/COMPACT.md#architecture) |
+| 11.2 | `2692f7f` assignment detail | [assignments compact](contexts/assignments/COMPACT.md#architecture) |
+| 12.1 | `d632944` notification service | [notifications compact](contexts/notifications/COMPACT.md#architecture) |
+| 12.2 | `0c3aeb4` new-assignment notifications | [notifications compact](contexts/notifications/COMPACT.md#contracts-and-interfaces) |
+| 12.3 | `51bc7bf` deadline reminders | [notifications compact](contexts/notifications/COMPACT.md#architecture) |
+| 13.1-13.4 | `a2154e6` platform scheduling | [infrastructure compact](contexts/infrastructure/COMPACT.md#architecture) |
+| 14.1-14.2 | `744c1a9` settings/diagnostics | [notifications compact](contexts/notifications/COMPACT.md#contracts-and-interfaces) |
+| 15.1 | `71517ae` local-data deletion | [deletion compact](contexts/deletion/COMPACT.md#state-and-control-flow) |
+| 16.1 | `463d4fb` mocked workflow | [repository compact](contexts/repository/COMPACT.md#validation-evidence) |
+| 17.1 | `4b35e75` platform validation | [platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence) |
+| 17.2 | `331c3b9` public documentation | [repository compact](contexts/repository/COMPACT.md#context-document-compaction) |
 
 Phase 13 also has
-[`android-background-sync.md`](contexts/android-background-sync.md),
-[`ios-background-refresh.md`](contexts/ios-background-refresh.md), and
-[`desktop-tray-monitoring.md`](contexts/desktop-tray-monitoring.md). Phase 14
+[Android background synchronization](contexts/platform-validation/COMPACT.md#architecture),
+[iOS background refresh](contexts/platform-validation/COMPACT.md#architecture), and
+[desktop tray monitoring](contexts/notifications/COMPACT.md#architecture). Phase 14
 also has
-[`synchronization-diagnostics.md`](contexts/synchronization-diagnostics.md).
+[synchronization diagnostics](contexts/synchronization/COMPACT.md#validation-evidence).
 
 ## Recent hardening ledger
 

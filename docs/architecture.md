@@ -189,13 +189,13 @@ complete result. It never claims to delete data from LEB2 or a backend.
 
 ## Technical references
 
-- [Verified backend contract](contexts/backend-api-contract.md)
-- [Local database](contexts/local-database.md)
-- [Secure credential storage](contexts/secure-credential-storage.md)
-- [Assignment synchronization](contexts/assignment-synchronization.md)
-- [Assignment diffing](contexts/assignment-diffing.md)
-- [Local notifications](contexts/local-notifications.md)
-- [Background scheduler](contexts/background-scheduler.md)
-- [Local data deletion](contexts/local-data-deletion.md)
-- [Frontend integration testing](contexts/frontend-integration-testing.md)
-- [Platform build validation](contexts/platform-build-validation.md)
+- [Verified backend contract](contexts/backend/COMPACT.md#contracts-and-interfaces)
+- [Local database](contexts/database/COMPACT.md#data-model)
+- [Secure credential storage](contexts/session/COMPACT.md#contracts-and-interfaces)
+- [Assignment synchronization](contexts/assignments/COMPACT.md#architecture)
+- [Assignment diffing](contexts/assignments/COMPACT.md#contracts-and-interfaces)
+- [Local notifications](contexts/notifications/COMPACT.md#architecture)
+- [Background scheduler](contexts/infrastructure/COMPACT.md#architecture)
+- [Local data deletion](contexts/deletion/COMPACT.md#state-and-control-flow)
+- [Frontend integration testing](contexts/repository/COMPACT.md#validation-evidence)
+- [Platform build validation](contexts/platform-validation/COMPACT.md#validation-evidence)

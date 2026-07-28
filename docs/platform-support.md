@@ -93,7 +93,7 @@ with the `fetch` background mode.
 Keychain access, Drift, notification delivery, actual background launch and
 expiration, signing, and provisioning require a macOS/device validation pass.
 The exact implementation identifiers and native validation notes are in
-[iOS background refresh](contexts/ios-background-refresh.md).
+[iOS background refresh](contexts/platform-validation/COMPACT.md#architecture).
 
 Unsigned build shape on a macOS host:
 
@@ -192,9 +192,9 @@ On each release host:
 
 More exact implementation-level checks live in:
 
-- [Android background synchronization](contexts/android-background-sync.md)
-- [iOS background refresh](contexts/ios-background-refresh.md)
-- [Desktop tray monitoring](contexts/desktop-tray-monitoring.md)
-- [Local notifications](contexts/local-notifications.md)
-- [Desktop deadline reminder delivery](contexts/desktop-deadline-reminder-delivery.md)
-- [Platform build validation](contexts/platform-build-validation.md)
+- [Android background synchronization](contexts/platform-validation/COMPACT.md#architecture)
+- [iOS background refresh](contexts/platform-validation/COMPACT.md#architecture)
+- [Desktop tray monitoring](contexts/notifications/COMPACT.md#architecture)
+- [Local notifications](contexts/notifications/COMPACT.md#architecture)
+- [Desktop deadline reminder delivery](contexts/notifications/COMPACT.md#architecture)
+- [Platform build validation](contexts/platform-validation/COMPACT.md#validation-evidence)

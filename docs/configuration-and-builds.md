@@ -156,7 +156,7 @@ not trusted by that JDK trust store. This is not production-key or
 distribution-service evidence. No standalone Bundletool validation, generated
 APK installation, device runtime, Google Play upload, or Play App Signing was
 performed. See
-[Android App Bundle validation](contexts/android-app-bundle-validation.md)
+[Android App Bundle validation](contexts/platform-validation/COMPACT.md#validation-evidence)
 for the reproducible artifact-only record.
 
 ### iOS

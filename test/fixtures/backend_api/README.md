@@ -1,7 +1,7 @@
 # Backend API fixtures
 
 These files are sanitized response bodies copied from the verified contract
-documented in `docs/contexts/backend-api-contract.md`. They contain no real
+documented in [`docs/contexts/backend/COMPACT.md`](../../../docs/contexts/backend/COMPACT.md#contracts-and-interfaces). They contain no real
 credentials, user data, or production response content.
 
 Future fake-adapter tests must attach HTTP metadata separately:

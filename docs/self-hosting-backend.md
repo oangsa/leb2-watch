@@ -84,7 +84,7 @@ The cookie is not a JWT. Do not put an `/api` path in the frontend's backend
 URL. See the pinned
 [backend API reference](https://github.com/oangsa/LEB2SCRAPPER-API/blob/d6e3261537c53507873f36de166f6245bc82fcc4/docs/api-reference.md)
 and this repository's
-[verified contract](contexts/backend-api-contract.md) for response and error
+[verified contract](contexts/backend/COMPACT.md#contracts-and-interfaces) for response and error
 details.
 
 ## Run locally with .NET
