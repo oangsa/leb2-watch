@@ -65,19 +65,22 @@ source ~/.zshrc
 Do not repeat that command before every Flutter invocation in the same
 terminal.
 
-## Current account-switch checkpoint — 2026-07-27
+## Current account-switch checkpoint — 2026-07-28
 
 The live repository state at this pause is:
 
 ```text
 Branch:       dev
-HEAD:         08f5106 chore: validate android workmanager runtime
+HEAD:         b7ad4c4 feat: validate Linux desktop tray runtime
 Working tree: clean
 ```
 
 Recent committed validation and reliability work, newest first:
 
 ```text
+b7ad4c4 feat: validate Linux desktop tray runtime
+644b01a feat: validate Linux autostart runtime under disposable HOME
+d74173c chore: update continuation handoff
 08f5106 chore: validate android workmanager runtime
 f340a12 chore: validate android native local data deletion
 08622f1 fix: isolate drift lifecycle stress diagnostic
@@ -202,14 +205,19 @@ technical contexts.
 
 ```text
 Planned feature areas:                         33
-Proven at available source/host boundary:      29
-Partial:                                        4
+Proven at available source/host boundary:      30
+Partial:                                        3
 Wholly blocked feature areas:                   0
 Not-started feature areas:                      0
 Known missing host-side test files:             0
 ```
 
-All four partials are evidence or specification-boundary gaps, not wholly
+The Linux desktop tray runtime coordinator lifecycle is now proven with
+injected platform adapters (menu construction, close explanation, pause/resume
+menu rebuild, show-before-focus ordering, quit termination). The partials
+below reflect remaining evidence gaps.
+
+All three partials are evidence or specification-boundary gaps, not wholly
 missing features:
 
 1. The requested `sqlite3_flutter_libs` package is intentionally absent.
@@ -376,11 +384,14 @@ all Linux integrations.
 The exact evidence boundaries are:
 
 - **Linux:** host suite, 2/2 mocked workflows, a sanitized Release build,
-  2/2 KDE/Wayland Quit/same-instance smokes, and production-adapter autostart
-  entry enable/disable under a disposable `HOME` are proven. Keyring CRUD,
-  visible notification/tap/history, autostart login/reboot launch, close
-  explanation, Keep-running/Open-focus, process reminders, session-expiration
-  cache retention, delete-all, X11/GNOME, and packaging remain unverified.
+  2/2 KDE/Wayland Quit/same-instance smokes, production-adapter autostart
+  entry enable/disable under a disposable `HOME`, and Linux desktop tray
+  coordinator lifecycle (menu construction, close explanation, pause/resume
+  menu rebuild, show-before-focus ordering, quit termination) via injected
+  platform adapters are proven. Keyring CRUD, visible notification/tap/history,
+  autostart login/reboot launch, close explanation (live), Keep-running/Open-focus
+  (live), process reminders, session-expiration cache retention, delete-all,
+  X11/GNOME, and packaging remain unverified.
 - **Android:** 134 host-test files across 14 green serial shards, sanitized
   Release APK/build and signature inspection, API 36 emulator
   install/cold/relaunch, and one guarded API 36 native delete-all smoke are
