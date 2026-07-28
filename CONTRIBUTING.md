@@ -5,8 +5,16 @@ evidence-backed, local-first, and honest about platform validation.
 
 ## Before contributing
 
-This frontend is licensed under [Apache-2.0](LICENSE). Project-specific
-contributor agreements are not established by this document.
+LEB2 Watch is licensed under [Apache-2.0](LICENSE).
+
+Copyright © 2026 Oangsa.
+
+This is a public open-source, self-hosted application. Users are expected to
+clone the repository and build or deploy both the frontend and backend
+themselves.
+
+Project-specific contributor agreements are not established by this document.
+DCO sign-offs and commit signing are not required initially.
 
 ## Choose a scope
 
@@ -104,6 +112,8 @@ Repository commit prefixes are:
 - `refactor:` structure without behavior changes; and
 - `chore:` tooling, configuration, maintenance, or documentation.
 
+Commit signing is not required.
+
 Before submitting:
 
 - review every changed file;
@@ -121,3 +131,8 @@ Report non-confidential security problems only through the public process in
 assignment data, authorization headers, passwords, private keys, private
 certificates, raw sensitive logs, or exploit details requiring confidentiality
 into a public issue or pull request.
+
+## Code of conduct
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you are expected to uphold this code.
