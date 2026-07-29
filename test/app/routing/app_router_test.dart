@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
@@ -647,11 +648,16 @@ void main() {
             find.byKey(const Key('assignment-dashboard-list')),
             findsOneWidget,
           );
+          await tester.dragUntilVisible(
+            find.text('Router assignment'),
+            find.byKey(const Key('assignment-dashboard-list')),
+            const Offset(0, -100),
+          );
           expect(find.text('Router assignment'), findsOneWidget);
           expect(find.byKey(const Key('assignments-surface')), findsNothing);
         } else if (destination == AppDestination.courses) {
           expect(find.text('Course controls'), findsOneWidget);
-          expect(find.text('Router course'), findsOneWidget);
+          expect(find.text('Router course'), findsNWidgets(2));
           expect(find.byKey(const Key('courses-surface')), findsNothing);
         } else if (destination == AppDestination.diagnostics) {
           expect(find.text('Synchronization diagnostics'), findsOneWidget);
@@ -702,6 +708,11 @@ void main() {
 
       expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
       expect(find.text('Router course'), findsOneWidget);
+      await tester.drag(
+        find.byKey(const Key('course-preferences-list')),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('course-mute-3001')));
       await tester.pump();
       expect(courseService.muteCalls, 1);
@@ -807,7 +818,11 @@ void main() {
         );
         await tester.pumpAndSettle();
         final card = find.byKey(const Key('assignment-card-101-backend:1001'));
-        await tester.ensureVisible(card);
+        await tester.dragUntilVisible(
+          card,
+          find.byKey(const Key('assignment-dashboard-list')),
+          const Offset(0, -100),
+        );
         tester
             .widget<InkWell>(
               find.descendant(of: card, matching: find.byType(InkWell)),
@@ -1132,6 +1147,15 @@ final class _RouteAssignmentDashboardService
   _RouteAssignmentDashboardService({required this.lifecycle});
 
   final SessionLifecycleSnapshot lifecycle;
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async =>
+      const AssignmentDashboardPreferences();
+
+  @override
+  Future<void> savePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {}
 
   AssignmentDashboardCache get _cache {
     final success = AssignmentDashboardSyncRun(

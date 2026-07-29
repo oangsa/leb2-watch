@@ -33,6 +33,7 @@ const sqliteBusyTimeout = Duration(seconds: 5);
     NewAssignmentNotificationPreferences,
     AutomaticSessionReauthenticationAttempts,
     AppSettings,
+    AssignmentDashboardPreferencesRecords,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -61,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -71,7 +72,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 12 || to != 13) {
+        if (from < 1 || from > 13 || to != 14) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -117,13 +118,16 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 11) {
           await migrator.createTable(automaticSessionReauthenticationAttempts);
         }
-        await customStatement(
-          'CREATE UNIQUE INDEX IF NOT EXISTS '
-          'scheduled_reminders_event_version ON scheduled_reminders '
-          '(notification_id, semester_id, identity_key, offset_minutes, '
-          'deadline_at_utc, scheduled_for_utc)',
-        );
-        await migrator.createTable(deadlineReminderDeliveryOutbox);
+        if (from <= 12) {
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'scheduled_reminders_event_version ON scheduled_reminders '
+            '(notification_id, semester_id, identity_key, offset_minutes, '
+            'deadline_at_utc, scheduled_for_utc)',
+          );
+          await migrator.createTable(deadlineReminderDeliveryOutbox);
+        }
+        await migrator.createTable(assignmentDashboardPreferencesRecords);
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -163,6 +167,10 @@ class AppDatabase extends _$AppDatabase {
     );
     await customStatement(
       'INSERT OR IGNORE INTO new_assignment_notification_preferences '
+      '(singleton_id) VALUES (1)',
+    );
+    await customStatement(
+      'INSERT OR IGNORE INTO assignment_dashboard_preferences '
       '(singleton_id) VALUES (1)',
     );
   }

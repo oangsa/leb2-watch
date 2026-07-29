@@ -24,7 +24,9 @@ void main() {
       find.textContaining('viewing this page does not clear them'),
       findsOneWidget,
     );
-    expect(find.text('Distributed Systems'), findsOneWidget);
+    expect(find.text('Distributed Systems'), findsNWidgets(2));
+    expect(find.text('Mute all notifications'), findsOneWidget);
+    expect(find.text('Disable all background monitoring'), findsOneWidget);
     expect(find.text('New activities: 2'), findsOneWidget);
     expect(find.text('Upcoming deadlines: 3'), findsOneWidget);
     expect(find.textContaining('does not skip that download'), findsOneWidget);
@@ -189,7 +191,7 @@ void main() {
     expect(service.watchCalls, 2);
     service.emit(_catalog());
     await tester.pump();
-    expect(find.text('Distributed Systems'), findsOneWidget);
+    expect(find.text('Distributed Systems'), findsNWidgets(2));
   });
 
   testWidgets('semantic activation invokes a course control', (tester) async {
@@ -208,6 +210,167 @@ void main() {
 
     expect(service.muteCalls, 1);
   });
+
+  testWidgets('selects a course before showing its settings', (tester) async {
+    final service = _FakeCoursePreferencesService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    service.emit(
+      ActiveCourseCatalog(
+        activeSemesterId: 101,
+        courses: [
+          _summary(id: 3001, name: 'Distributed Systems'),
+          _summary(id: 3002, name: 'Computer Networks'),
+        ],
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('course-preference-row-3001')), findsOneWidget);
+    expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
+
+    await _chooseCourse(tester, 'Computer Networks');
+
+    expect(find.byKey(const Key('course-preference-row-3001')), findsNothing);
+    expect(find.byKey(const Key('course-preference-row-3002')), findsOneWidget);
+  });
+
+  testWidgets('removed selected course reconciles to the first saved course', (
+    tester,
+  ) async {
+    final service = _FakeCoursePreferencesService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    service.emit(
+      ActiveCourseCatalog(
+        activeSemesterId: 101,
+        courses: [
+          _summary(id: 3001, name: 'Distributed Systems'),
+          _summary(id: 3002, name: 'Computer Networks'),
+        ],
+      ),
+    );
+    await tester.pump();
+    await _chooseCourse(tester, 'Computer Networks');
+
+    service.emit(
+      ActiveCourseCatalog(
+        activeSemesterId: 101,
+        courses: [_summary(id: 3001, name: 'Distributed Systems')],
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester
+          .widget<DropdownButtonFormField<int>>(
+            find.byType(DropdownButtonFormField<int>),
+          )
+          .initialValue,
+      3001,
+    );
+    expect(find.byKey(const Key('course-preference-row-3001')), findsOneWidget);
+    expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
+  });
+
+  testWidgets('global controls update every saved course', (tester) async {
+    final service = _FakeCoursePreferencesService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    final courses = [
+      _summary(id: 3001, name: 'Distributed Systems'),
+      _summary(id: 3002, name: 'Computer Networks'),
+    ];
+    service.emit(ActiveCourseCatalog(activeSemesterId: 101, courses: courses));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('course-mute-all')));
+    await tester.pump();
+    await tester.pump();
+    expect(service.muteKeys, [
+      const CourseKey(semesterId: 101, courseId: 3001),
+      const CourseKey(semesterId: 101, courseId: 3002),
+    ]);
+
+    service.emit(
+      ActiveCourseCatalog(
+        activeSemesterId: 101,
+        courses: [
+          for (final course in courses)
+            _summary(
+              id: course.key.courseId,
+              name: course.name,
+              preference: const CoursePreference(notificationsMuted: true),
+            ),
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('course-background-disable-all')));
+    await tester.pump();
+    await tester.pump();
+    expect(service.backgroundKeys, [
+      const CourseKey(semesterId: 101, courseId: 3001),
+      const CourseKey(semesterId: 101, courseId: 3002),
+    ]);
+  });
+
+  for (final scenario
+      in <
+        ({
+          String name,
+          Key button,
+          bool mute,
+          CoursePreferenceUpdateResult result,
+        })
+      >[
+        (
+          name: 'mute all stops after first failure',
+          button: const Key('course-mute-all'),
+          mute: true,
+          result: const CoursePreferenceUpdateFailure(),
+        ),
+        (
+          name: 'disable all background stops after first stale write',
+          button: const Key('course-background-disable-all'),
+          mute: false,
+          result: const CoursePreferenceUpdateStale(),
+        ),
+      ]) {
+    testWidgets(scenario.name, (tester) async {
+      final service = _FakeCoursePreferencesService();
+      addTearDown(service.close);
+      if (scenario.mute) {
+        service.muteResults.add(scenario.result);
+      } else {
+        service.backgroundResults.add(scenario.result);
+      }
+      await _pumpPage(tester, service);
+      service.emit(
+        ActiveCourseCatalog(
+          activeSemesterId: 101,
+          courses: [
+            _summary(id: 3001, name: 'Distributed Systems'),
+            _summary(id: 3002, name: 'Computer Networks'),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(scenario.button));
+      await tester.pump();
+      await tester.pump();
+
+      expect(scenario.mute ? service.muteKeys : service.backgroundKeys, [
+        const CourseKey(semesterId: 101, courseId: 3001),
+      ]);
+      expect(
+        find.byKey(const Key('course-preference-write-error')),
+        findsOneWidget,
+      );
+    });
+  }
 
   for (final testCase in <({double width, Brightness brightness})>[
     (width: 320, brightness: Brightness.light),
@@ -234,17 +397,22 @@ void main() {
 
         expect(tester.takeException(), isNull);
         await tester.scrollUntilVisible(
-          find.text('Distributed Systems'),
+          find.byKey(const Key('course-preference-row-3001')),
           200,
           scrollable: find.byType(Scrollable).first,
         );
-        expect(find.text('Distributed Systems'), findsOneWidget);
+        expect(
+          find.byKey(const Key('course-preference-row-3001')),
+          findsOneWidget,
+        );
         expect(find.byType(ListView), findsOneWidget);
       },
     );
   }
 
-  testWidgets('large cached catalogs remain lazily built', (tester) async {
+  testWidgets('large catalogs render settings for only the selected course', (
+    tester,
+  ) async {
     final service = _FakeCoursePreferencesService();
     addTearDown(service.close);
     await _pumpPage(tester, service, size: const Size(375, 700));
@@ -259,9 +427,16 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Course 0'), findsOneWidget);
-    expect(find.text('Course 99'), findsNothing);
+    expect(find.byKey(const Key('course-preference-row-3000')), findsOneWidget);
+    expect(find.byKey(const Key('course-preference-row-3099')), findsNothing);
   });
+}
+
+Future<void> _chooseCourse(WidgetTester tester, String name) async {
+  await tester.tap(find.byType(DropdownButtonFormField<int>));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(name).last);
+  await tester.pumpAndSettle();
 }
 
 SwitchListTile _switchTile(WidgetTester tester, Key key) {
@@ -345,6 +520,10 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
   int watchCalls = 0;
   int muteCalls = 0;
   int backgroundCalls = 0;
+  final List<CourseKey> muteKeys = [];
+  final List<CourseKey> backgroundKeys = [];
+  final List<CoursePreferenceUpdateResult> muteResults = [];
+  final List<CoursePreferenceUpdateResult> backgroundResults = [];
   CourseKey? lastKey;
   bool? lastValue;
 
@@ -369,8 +548,12 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
     required bool enabled,
   }) {
     backgroundCalls += 1;
+    backgroundKeys.add(key);
     lastKey = key;
     lastValue = enabled;
+    if (backgroundResults.isNotEmpty) {
+      return Future.value(backgroundResults.removeAt(0));
+    }
     return nextBackgroundResult;
   }
 
@@ -380,8 +563,12 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
     required bool muted,
   }) {
     muteCalls += 1;
+    muteKeys.add(key);
     lastKey = key;
     lastValue = muted;
+    if (muteResults.isNotEmpty) {
+      return Future.value(muteResults.removeAt(0));
+    }
     return nextMuteResult;
   }
 }

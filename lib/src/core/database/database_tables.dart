@@ -713,3 +713,27 @@ class AppSettings extends Table {
         'ON DELETE SET NULL',
   ];
 }
+
+class AssignmentDashboardPreferencesRecords extends Table {
+  IntColumn get singletonId => integer()();
+  TextColumn get section => text().withDefault(const Constant('all'))();
+  TextColumn get searchQuery => text().withDefault(const Constant(''))();
+  IntColumn get selectedCourseId => integer().nullable()();
+  TextColumn get submissionFilter =>
+      text().withDefault(const Constant('all'))();
+  TextColumn get deadlineAtOrBeforeBangkok => text().nullable()();
+
+  @override
+  String get tableName => 'assignment_dashboard_preferences';
+
+  @override
+  Set<Column<Object>> get primaryKey => {singletonId};
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (singleton_id = 1)',
+    "CHECK (section IN ('recent', 'overdue', 'all'))",
+    'CHECK (selected_course_id IS NULL OR selected_course_id > 0)',
+    "CHECK (submission_filter IN ('all', 'unsubmitted'))",
+  ];
+}

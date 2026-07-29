@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 
 void main() {
@@ -17,6 +18,48 @@ void main() {
   });
 
   tearDown(() => database.close());
+
+  test('reads defaults and round-trips every dashboard preference', () async {
+    expect(
+      await store.readPreferences(),
+      const AssignmentDashboardPreferences(),
+    );
+
+    final preferences = AssignmentDashboardPreferences(
+      section: AssignmentDashboardSection.overdue,
+      searchQuery: 'graph traversal',
+      selectedCourseId: 3001,
+      submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+      deadlineAtOrBeforeBangkok: DateTime(2026, 8, 1, 10, 30),
+    );
+    await store.writePreferences(preferences);
+
+    expect(await store.readPreferences(), preferences);
+    expect(
+      preferences.toString(),
+      'AssignmentDashboardPreferences(redacted: true)',
+    );
+  });
+
+  test(
+    'rejects malformed persisted deadline with a redacted failure',
+    () async {
+      await database.customStatement(
+        "UPDATE assignment_dashboard_preferences "
+        "SET deadline_at_or_before_bangkok = '2026-02-31T10:30' "
+        'WHERE singleton_id = 1',
+      );
+
+      await expectLater(
+        store.readPreferences(),
+        throwsA(
+          const AssignmentDashboardStoreException(
+            AssignmentDashboardStoreOperation.readPreferences,
+          ),
+        ),
+      );
+    },
+  );
 
   test('emits no-active and active-empty cache states', () async {
     var cache = await store.watchActiveCache().first;

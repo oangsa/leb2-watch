@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 
@@ -90,17 +91,47 @@ final class FakeAssignmentDashboardService
     implements AssignmentDashboardService {
   FakeAssignmentDashboardService({
     AssignmentDashboardCache? initialCache,
+    this.initialPreferences = const AssignmentDashboardPreferences(),
     this.refreshResult,
     this.refreshGate,
   }) : initialCache = initialCache ?? dashboardCache();
 
   AssignmentDashboardCache initialCache;
+  AssignmentDashboardPreferences initialPreferences;
   AssignmentDashboardRefreshResult? refreshResult;
   Completer<AssignmentDashboardRefreshResult>? refreshGate;
   final controller = StreamController<AssignmentDashboardCache>.broadcast();
   final List<SyncReason> reasons = [];
+  final List<AssignmentDashboardPreferences> preferenceSaveAttempts = [];
+  final List<AssignmentDashboardPreferences> savedPreferences = [];
+  final List<Completer<void>> preferenceSaveGates = [];
+  bool failPreferenceRead = false;
+  bool failPreferenceWrite = false;
 
   int get refreshCalls => reasons.length;
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async {
+    if (failPreferenceRead) {
+      throw StateError('<PRIVATE_PREFERENCE_READ_ERROR>');
+    }
+    return initialPreferences;
+  }
+
+  @override
+  Future<void> savePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {
+    preferenceSaveAttempts.add(preferences);
+    if (preferenceSaveGates.isNotEmpty) {
+      await preferenceSaveGates.removeAt(0).future;
+    }
+    if (failPreferenceWrite) {
+      throw StateError('<PRIVATE_PREFERENCE_WRITE_ERROR>');
+    }
+    savedPreferences.add(preferences);
+    initialPreferences = preferences;
+  }
 
   @override
   Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason) async {

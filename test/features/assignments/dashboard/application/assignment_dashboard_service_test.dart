@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
@@ -8,6 +9,29 @@ import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service
 import '../dashboard_test_support.dart';
 
 void main() {
+  test(
+    'reads and saves dashboard preferences through the local store',
+    () async {
+      final store = _FakeStore();
+      final service = LocalAssignmentDashboardService(
+        store,
+        _FakeSyncService().synchronize,
+      );
+      final preferences = AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.overdue,
+        searchQuery: 'quiz',
+        selectedCourseId: 3001,
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        deadlineAtOrBeforeBangkok: DateTime(2026, 8, 1, 10, 30),
+      );
+      store.preferences = preferences;
+
+      expect(await service.readPreferences(), preferences);
+      await service.savePreferences(const AssignmentDashboardPreferences());
+      expect(store.writtenPreferences, const AssignmentDashboardPreferences());
+    },
+  );
+
   test('passes active IDs and both exact foreground reasons', () async {
     final store = _FakeStore(target: _target());
     final sync = _FakeSyncService();
@@ -198,6 +222,19 @@ final class _FakeStore implements AssignmentDashboardStore {
   AssignmentSyncTarget? target;
   AssignmentDashboardCache? cache;
   bool readTargetError;
+  AssignmentDashboardPreferences preferences =
+      const AssignmentDashboardPreferences();
+  AssignmentDashboardPreferences? writtenPreferences;
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async => preferences;
+
+  @override
+  Future<void> writePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {
+    writtenPreferences = preferences;
+  }
 
   @override
   Future<AssignmentSyncTarget?> readActiveSyncTarget() async {

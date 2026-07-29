@@ -8,6 +8,7 @@ import 'package:leb2_watch/src/app/leb2_watch_app.dart';
 import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/core/config/app_configuration.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
@@ -568,6 +569,15 @@ final class _AppAssignmentDashboardService
     latestAttempt: null,
     latestSuccess: null,
   );
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async =>
+      const AssignmentDashboardPreferences();
+
+  @override
+  Future<void> savePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {}
 
   @override
   Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason) async =>

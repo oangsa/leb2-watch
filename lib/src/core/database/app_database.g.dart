@@ -10987,6 +10987,467 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $AssignmentDashboardPreferencesRecordsTable
+    extends AssignmentDashboardPreferencesRecords
+    with
+        TableInfo<
+          $AssignmentDashboardPreferencesRecordsTable,
+          AssignmentDashboardPreferencesRecord
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AssignmentDashboardPreferencesRecordsTable(
+    this.attachedDatabase, [
+    this._alias,
+  ]);
+  static const VerificationMeta _singletonIdMeta = const VerificationMeta(
+    'singletonId',
+  );
+  @override
+  late final GeneratedColumn<int> singletonId = GeneratedColumn<int>(
+    'singleton_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sectionMeta = const VerificationMeta(
+    'section',
+  );
+  @override
+  late final GeneratedColumn<String> section = GeneratedColumn<String>(
+    'section',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('all'),
+  );
+  static const VerificationMeta _searchQueryMeta = const VerificationMeta(
+    'searchQuery',
+  );
+  @override
+  late final GeneratedColumn<String> searchQuery = GeneratedColumn<String>(
+    'search_query',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _selectedCourseIdMeta = const VerificationMeta(
+    'selectedCourseId',
+  );
+  @override
+  late final GeneratedColumn<int> selectedCourseId = GeneratedColumn<int>(
+    'selected_course_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _submissionFilterMeta = const VerificationMeta(
+    'submissionFilter',
+  );
+  @override
+  late final GeneratedColumn<String> submissionFilter = GeneratedColumn<String>(
+    'submission_filter',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('all'),
+  );
+  static const VerificationMeta _deadlineAtOrBeforeBangkokMeta =
+      const VerificationMeta('deadlineAtOrBeforeBangkok');
+  @override
+  late final GeneratedColumn<String> deadlineAtOrBeforeBangkok =
+      GeneratedColumn<String>(
+        'deadline_at_or_before_bangkok',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singletonId,
+    section,
+    searchQuery,
+    selectedCourseId,
+    submissionFilter,
+    deadlineAtOrBeforeBangkok,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'assignment_dashboard_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AssignmentDashboardPreferencesRecord> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton_id')) {
+      context.handle(
+        _singletonIdMeta,
+        singletonId.isAcceptableOrUnknown(
+          data['singleton_id']!,
+          _singletonIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('section')) {
+      context.handle(
+        _sectionMeta,
+        section.isAcceptableOrUnknown(data['section']!, _sectionMeta),
+      );
+    }
+    if (data.containsKey('search_query')) {
+      context.handle(
+        _searchQueryMeta,
+        searchQuery.isAcceptableOrUnknown(
+          data['search_query']!,
+          _searchQueryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('selected_course_id')) {
+      context.handle(
+        _selectedCourseIdMeta,
+        selectedCourseId.isAcceptableOrUnknown(
+          data['selected_course_id']!,
+          _selectedCourseIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('submission_filter')) {
+      context.handle(
+        _submissionFilterMeta,
+        submissionFilter.isAcceptableOrUnknown(
+          data['submission_filter']!,
+          _submissionFilterMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deadline_at_or_before_bangkok')) {
+      context.handle(
+        _deadlineAtOrBeforeBangkokMeta,
+        deadlineAtOrBeforeBangkok.isAcceptableOrUnknown(
+          data['deadline_at_or_before_bangkok']!,
+          _deadlineAtOrBeforeBangkokMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singletonId};
+  @override
+  AssignmentDashboardPreferencesRecord map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AssignmentDashboardPreferencesRecord(
+      singletonId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton_id'],
+      )!,
+      section: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}section'],
+      )!,
+      searchQuery: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}search_query'],
+      )!,
+      selectedCourseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}selected_course_id'],
+      ),
+      submissionFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}submission_filter'],
+      )!,
+      deadlineAtOrBeforeBangkok: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deadline_at_or_before_bangkok'],
+      ),
+    );
+  }
+
+  @override
+  $AssignmentDashboardPreferencesRecordsTable createAlias(String alias) {
+    return $AssignmentDashboardPreferencesRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class AssignmentDashboardPreferencesRecord extends DataClass
+    implements Insertable<AssignmentDashboardPreferencesRecord> {
+  final int singletonId;
+  final String section;
+  final String searchQuery;
+  final int? selectedCourseId;
+  final String submissionFilter;
+  final String? deadlineAtOrBeforeBangkok;
+  const AssignmentDashboardPreferencesRecord({
+    required this.singletonId,
+    required this.section,
+    required this.searchQuery,
+    this.selectedCourseId,
+    required this.submissionFilter,
+    this.deadlineAtOrBeforeBangkok,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton_id'] = Variable<int>(singletonId);
+    map['section'] = Variable<String>(section);
+    map['search_query'] = Variable<String>(searchQuery);
+    if (!nullToAbsent || selectedCourseId != null) {
+      map['selected_course_id'] = Variable<int>(selectedCourseId);
+    }
+    map['submission_filter'] = Variable<String>(submissionFilter);
+    if (!nullToAbsent || deadlineAtOrBeforeBangkok != null) {
+      map['deadline_at_or_before_bangkok'] = Variable<String>(
+        deadlineAtOrBeforeBangkok,
+      );
+    }
+    return map;
+  }
+
+  AssignmentDashboardPreferencesRecordsCompanion toCompanion(
+    bool nullToAbsent,
+  ) {
+    return AssignmentDashboardPreferencesRecordsCompanion(
+      singletonId: Value(singletonId),
+      section: Value(section),
+      searchQuery: Value(searchQuery),
+      selectedCourseId: selectedCourseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(selectedCourseId),
+      submissionFilter: Value(submissionFilter),
+      deadlineAtOrBeforeBangkok:
+          deadlineAtOrBeforeBangkok == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deadlineAtOrBeforeBangkok),
+    );
+  }
+
+  factory AssignmentDashboardPreferencesRecord.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AssignmentDashboardPreferencesRecord(
+      singletonId: serializer.fromJson<int>(json['singletonId']),
+      section: serializer.fromJson<String>(json['section']),
+      searchQuery: serializer.fromJson<String>(json['searchQuery']),
+      selectedCourseId: serializer.fromJson<int?>(json['selectedCourseId']),
+      submissionFilter: serializer.fromJson<String>(json['submissionFilter']),
+      deadlineAtOrBeforeBangkok: serializer.fromJson<String?>(
+        json['deadlineAtOrBeforeBangkok'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singletonId': serializer.toJson<int>(singletonId),
+      'section': serializer.toJson<String>(section),
+      'searchQuery': serializer.toJson<String>(searchQuery),
+      'selectedCourseId': serializer.toJson<int?>(selectedCourseId),
+      'submissionFilter': serializer.toJson<String>(submissionFilter),
+      'deadlineAtOrBeforeBangkok': serializer.toJson<String?>(
+        deadlineAtOrBeforeBangkok,
+      ),
+    };
+  }
+
+  AssignmentDashboardPreferencesRecord copyWith({
+    int? singletonId,
+    String? section,
+    String? searchQuery,
+    Value<int?> selectedCourseId = const Value.absent(),
+    String? submissionFilter,
+    Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
+  }) => AssignmentDashboardPreferencesRecord(
+    singletonId: singletonId ?? this.singletonId,
+    section: section ?? this.section,
+    searchQuery: searchQuery ?? this.searchQuery,
+    selectedCourseId: selectedCourseId.present
+        ? selectedCourseId.value
+        : this.selectedCourseId,
+    submissionFilter: submissionFilter ?? this.submissionFilter,
+    deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok.present
+        ? deadlineAtOrBeforeBangkok.value
+        : this.deadlineAtOrBeforeBangkok,
+  );
+  AssignmentDashboardPreferencesRecord copyWithCompanion(
+    AssignmentDashboardPreferencesRecordsCompanion data,
+  ) {
+    return AssignmentDashboardPreferencesRecord(
+      singletonId: data.singletonId.present
+          ? data.singletonId.value
+          : this.singletonId,
+      section: data.section.present ? data.section.value : this.section,
+      searchQuery: data.searchQuery.present
+          ? data.searchQuery.value
+          : this.searchQuery,
+      selectedCourseId: data.selectedCourseId.present
+          ? data.selectedCourseId.value
+          : this.selectedCourseId,
+      submissionFilter: data.submissionFilter.present
+          ? data.submissionFilter.value
+          : this.submissionFilter,
+      deadlineAtOrBeforeBangkok: data.deadlineAtOrBeforeBangkok.present
+          ? data.deadlineAtOrBeforeBangkok.value
+          : this.deadlineAtOrBeforeBangkok,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssignmentDashboardPreferencesRecord(')
+          ..write('singletonId: $singletonId, ')
+          ..write('section: $section, ')
+          ..write('searchQuery: $searchQuery, ')
+          ..write('selectedCourseId: $selectedCourseId, ')
+          ..write('submissionFilter: $submissionFilter, ')
+          ..write('deadlineAtOrBeforeBangkok: $deadlineAtOrBeforeBangkok')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    singletonId,
+    section,
+    searchQuery,
+    selectedCourseId,
+    submissionFilter,
+    deadlineAtOrBeforeBangkok,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AssignmentDashboardPreferencesRecord &&
+          other.singletonId == this.singletonId &&
+          other.section == this.section &&
+          other.searchQuery == this.searchQuery &&
+          other.selectedCourseId == this.selectedCourseId &&
+          other.submissionFilter == this.submissionFilter &&
+          other.deadlineAtOrBeforeBangkok == this.deadlineAtOrBeforeBangkok);
+}
+
+class AssignmentDashboardPreferencesRecordsCompanion
+    extends UpdateCompanion<AssignmentDashboardPreferencesRecord> {
+  final Value<int> singletonId;
+  final Value<String> section;
+  final Value<String> searchQuery;
+  final Value<int?> selectedCourseId;
+  final Value<String> submissionFilter;
+  final Value<String?> deadlineAtOrBeforeBangkok;
+  const AssignmentDashboardPreferencesRecordsCompanion({
+    this.singletonId = const Value.absent(),
+    this.section = const Value.absent(),
+    this.searchQuery = const Value.absent(),
+    this.selectedCourseId = const Value.absent(),
+    this.submissionFilter = const Value.absent(),
+    this.deadlineAtOrBeforeBangkok = const Value.absent(),
+  });
+  AssignmentDashboardPreferencesRecordsCompanion.insert({
+    this.singletonId = const Value.absent(),
+    this.section = const Value.absent(),
+    this.searchQuery = const Value.absent(),
+    this.selectedCourseId = const Value.absent(),
+    this.submissionFilter = const Value.absent(),
+    this.deadlineAtOrBeforeBangkok = const Value.absent(),
+  });
+  static Insertable<AssignmentDashboardPreferencesRecord> custom({
+    Expression<int>? singletonId,
+    Expression<String>? section,
+    Expression<String>? searchQuery,
+    Expression<int>? selectedCourseId,
+    Expression<String>? submissionFilter,
+    Expression<String>? deadlineAtOrBeforeBangkok,
+  }) {
+    return RawValuesInsertable({
+      if (singletonId != null) 'singleton_id': singletonId,
+      if (section != null) 'section': section,
+      if (searchQuery != null) 'search_query': searchQuery,
+      if (selectedCourseId != null) 'selected_course_id': selectedCourseId,
+      if (submissionFilter != null) 'submission_filter': submissionFilter,
+      if (deadlineAtOrBeforeBangkok != null)
+        'deadline_at_or_before_bangkok': deadlineAtOrBeforeBangkok,
+    });
+  }
+
+  AssignmentDashboardPreferencesRecordsCompanion copyWith({
+    Value<int>? singletonId,
+    Value<String>? section,
+    Value<String>? searchQuery,
+    Value<int?>? selectedCourseId,
+    Value<String>? submissionFilter,
+    Value<String?>? deadlineAtOrBeforeBangkok,
+  }) {
+    return AssignmentDashboardPreferencesRecordsCompanion(
+      singletonId: singletonId ?? this.singletonId,
+      section: section ?? this.section,
+      searchQuery: searchQuery ?? this.searchQuery,
+      selectedCourseId: selectedCourseId ?? this.selectedCourseId,
+      submissionFilter: submissionFilter ?? this.submissionFilter,
+      deadlineAtOrBeforeBangkok:
+          deadlineAtOrBeforeBangkok ?? this.deadlineAtOrBeforeBangkok,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singletonId.present) {
+      map['singleton_id'] = Variable<int>(singletonId.value);
+    }
+    if (section.present) {
+      map['section'] = Variable<String>(section.value);
+    }
+    if (searchQuery.present) {
+      map['search_query'] = Variable<String>(searchQuery.value);
+    }
+    if (selectedCourseId.present) {
+      map['selected_course_id'] = Variable<int>(selectedCourseId.value);
+    }
+    if (submissionFilter.present) {
+      map['submission_filter'] = Variable<String>(submissionFilter.value);
+    }
+    if (deadlineAtOrBeforeBangkok.present) {
+      map['deadline_at_or_before_bangkok'] = Variable<String>(
+        deadlineAtOrBeforeBangkok.value,
+      );
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AssignmentDashboardPreferencesRecordsCompanion(')
+          ..write('singletonId: $singletonId, ')
+          ..write('section: $section, ')
+          ..write('searchQuery: $searchQuery, ')
+          ..write('selectedCourseId: $selectedCourseId, ')
+          ..write('submissionFilter: $submissionFilter, ')
+          ..write('deadlineAtOrBeforeBangkok: $deadlineAtOrBeforeBangkok')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -11027,6 +11488,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   automaticSessionReauthenticationAttempts =
       $AutomaticSessionReauthenticationAttemptsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $AssignmentDashboardPreferencesRecordsTable
+  assignmentDashboardPreferencesRecords =
+      $AssignmentDashboardPreferencesRecordsTable(this);
   late final Index activitiesBackendIdentity = Index(
     'activities_backend_identity',
     'CREATE UNIQUE INDEX activities_backend_identity ON activities (semester_id, backend_activity_id) WHERE backend_activity_id IS NOT NULL',
@@ -11137,6 +11601,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     newAssignmentNotificationPreferences,
     automaticSessionReauthenticationAttempts,
     appSettings,
+    assignmentDashboardPreferencesRecords,
     activitiesBackendIdentity,
     activitiesByCourse,
     seenActivitiesByCourseAndLastSeen,
@@ -16757,6 +17222,251 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$AssignmentDashboardPreferencesRecordsTableCreateCompanionBuilder =
+    AssignmentDashboardPreferencesRecordsCompanion Function({
+      Value<int> singletonId,
+      Value<String> section,
+      Value<String> searchQuery,
+      Value<int?> selectedCourseId,
+      Value<String> submissionFilter,
+      Value<String?> deadlineAtOrBeforeBangkok,
+    });
+typedef $$AssignmentDashboardPreferencesRecordsTableUpdateCompanionBuilder =
+    AssignmentDashboardPreferencesRecordsCompanion Function({
+      Value<int> singletonId,
+      Value<String> section,
+      Value<String> searchQuery,
+      Value<int?> selectedCourseId,
+      Value<String> submissionFilter,
+      Value<String?> deadlineAtOrBeforeBangkok,
+    });
+
+class $$AssignmentDashboardPreferencesRecordsTableFilterComposer
+    extends
+        Composer<_$AppDatabase, $AssignmentDashboardPreferencesRecordsTable> {
+  $$AssignmentDashboardPreferencesRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get searchQuery => $composableBuilder(
+    column: $table.searchQuery,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get selectedCourseId => $composableBuilder(
+    column: $table.selectedCourseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get submissionFilter => $composableBuilder(
+    column: $table.submissionFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deadlineAtOrBeforeBangkok => $composableBuilder(
+    column: $table.deadlineAtOrBeforeBangkok,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AssignmentDashboardPreferencesRecordsTableOrderingComposer
+    extends
+        Composer<_$AppDatabase, $AssignmentDashboardPreferencesRecordsTable> {
+  $$AssignmentDashboardPreferencesRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get searchQuery => $composableBuilder(
+    column: $table.searchQuery,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get selectedCourseId => $composableBuilder(
+    column: $table.selectedCourseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get submissionFilter => $composableBuilder(
+    column: $table.submissionFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deadlineAtOrBeforeBangkok => $composableBuilder(
+    column: $table.deadlineAtOrBeforeBangkok,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer
+    extends
+        Composer<_$AppDatabase, $AssignmentDashboardPreferencesRecordsTable> {
+  $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get singletonId => $composableBuilder(
+    column: $table.singletonId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get section =>
+      $composableBuilder(column: $table.section, builder: (column) => column);
+
+  GeneratedColumn<String> get searchQuery => $composableBuilder(
+    column: $table.searchQuery,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get selectedCourseId => $composableBuilder(
+    column: $table.selectedCourseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get submissionFilter => $composableBuilder(
+    column: $table.submissionFilter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deadlineAtOrBeforeBangkok => $composableBuilder(
+    column: $table.deadlineAtOrBeforeBangkok,
+    builder: (column) => column,
+  );
+}
+
+class $$AssignmentDashboardPreferencesRecordsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AssignmentDashboardPreferencesRecordsTable,
+          AssignmentDashboardPreferencesRecord,
+          $$AssignmentDashboardPreferencesRecordsTableFilterComposer,
+          $$AssignmentDashboardPreferencesRecordsTableOrderingComposer,
+          $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer,
+          $$AssignmentDashboardPreferencesRecordsTableCreateCompanionBuilder,
+          $$AssignmentDashboardPreferencesRecordsTableUpdateCompanionBuilder,
+          (
+            AssignmentDashboardPreferencesRecord,
+            BaseReferences<
+              _$AppDatabase,
+              $AssignmentDashboardPreferencesRecordsTable,
+              AssignmentDashboardPreferencesRecord
+            >,
+          ),
+          AssignmentDashboardPreferencesRecord,
+          PrefetchHooks Function()
+        > {
+  $$AssignmentDashboardPreferencesRecordsTableTableManager(
+    _$AppDatabase db,
+    $AssignmentDashboardPreferencesRecordsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AssignmentDashboardPreferencesRecordsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$AssignmentDashboardPreferencesRecordsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<String> section = const Value.absent(),
+                Value<String> searchQuery = const Value.absent(),
+                Value<int?> selectedCourseId = const Value.absent(),
+                Value<String> submissionFilter = const Value.absent(),
+                Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
+              }) => AssignmentDashboardPreferencesRecordsCompanion(
+                singletonId: singletonId,
+                section: section,
+                searchQuery: searchQuery,
+                selectedCourseId: selectedCourseId,
+                submissionFilter: submissionFilter,
+                deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> singletonId = const Value.absent(),
+                Value<String> section = const Value.absent(),
+                Value<String> searchQuery = const Value.absent(),
+                Value<int?> selectedCourseId = const Value.absent(),
+                Value<String> submissionFilter = const Value.absent(),
+                Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
+              }) => AssignmentDashboardPreferencesRecordsCompanion.insert(
+                singletonId: singletonId,
+                section: section,
+                searchQuery: searchQuery,
+                selectedCourseId: selectedCourseId,
+                submissionFilter: submissionFilter,
+                deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AssignmentDashboardPreferencesRecordsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AssignmentDashboardPreferencesRecordsTable,
+      AssignmentDashboardPreferencesRecord,
+      $$AssignmentDashboardPreferencesRecordsTableFilterComposer,
+      $$AssignmentDashboardPreferencesRecordsTableOrderingComposer,
+      $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer,
+      $$AssignmentDashboardPreferencesRecordsTableCreateCompanionBuilder,
+      $$AssignmentDashboardPreferencesRecordsTableUpdateCompanionBuilder,
+      (
+        AssignmentDashboardPreferencesRecord,
+        BaseReferences<
+          _$AppDatabase,
+          $AssignmentDashboardPreferencesRecordsTable,
+          AssignmentDashboardPreferencesRecord
+        >,
+      ),
+      AssignmentDashboardPreferencesRecord,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16831,4 +17541,10 @@ class $AppDatabaseManager {
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$AssignmentDashboardPreferencesRecordsTableTableManager
+  get assignmentDashboardPreferencesRecords =>
+      $$AssignmentDashboardPreferencesRecordsTableTableManager(
+        _db,
+        _db.assignmentDashboardPreferencesRecords,
+      );
 }

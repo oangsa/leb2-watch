@@ -67,10 +67,10 @@ resolver lease leak.
 
 ### Architecture
 
-`AppDatabase` — schema v13, migration, connection pragmas, bounded sync history.
+`AppDatabase` — schema v14, migration, connection pragmas, bounded sync history.
 `LocalDatabaseStorage` — production file lifecycle, eager `NativeDatabase.createInBackground`. Busy timeout installed before WAL transition. BUSY/LOCKED WAL races receive short bounded retry.
 
-**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version. First connection creates v13 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v13, no duplicate `createAll`.
+**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version. First connection creates v14 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v14, no duplicate `createAll`.
 
 **Existing/legacy databases**: No outer transaction, so ordered Drift table-rebuild migrations remain valid.
 
@@ -82,22 +82,26 @@ resolver lease leak.
 
 **Feature-owned adapters**:
 - `DriftSemesterSelectionStore` — reads catalog + selection transactionally, merges verified IDs insert-only, compares session lifecycle in same transaction before persisting network result.
-- `DriftAssignmentDashboardStore` — observes app settings, courses/activities, first-seen ledger, bounded sync history; resolves each emission in one read transaction. No new tables/columns/indexes.
+- `DriftAssignmentDashboardStore` — observes app settings,
+  courses/activities, first-seen ledger, and bounded sync history; it also
+  reads and replaces the singleton dashboard-preference record.
 - `DriftAssignmentDetailStore` — watches current/seen assignment state, course name/preference, reminder/history aggregates, retained sync evidence; resolves each invalidation in one explicit-semester/identity read transaction.
 
 Deadline reminders consume durable reconciliation state through guarded generation/lease finalization with bounded cancelled owner tombstones.
 
 ## Data Model
 
-`AppDatabase` is schema version 13. Its ordered migrations preserve supported
-upgrades, including the frozen physical v12 fixture used to verify the v12→v13
-path. Drift owns schema declarations and generated query code; application
+`AppDatabase` is schema version 14. Its ordered migrations preserve supported
+upgrades, including frozen physical v12 and v13 fixtures. The v13→v14 path
+adds and seeds the singleton `assignment_dashboard_preferences` table. Drift
+owns schema declarations and generated query code; application
 features own row semantics.
 
 The database owns the local-first semester graph (semesters, courses,
 preferences, activities, identities, fingerprints, reminders, notification
 history, outbox, sync runs/operations/changes, backoff, and baselines), global
-settings, and non-secret automatic-reauthentication metadata. Credentials are
+settings, assignment-dashboard filter preferences, and non-secret
+automatic-reauthentication metadata. Credentials are
 owned exclusively by secure storage, not by Drift. Foreign-key ownership keeps
 the semester graph deletable as one transaction; `sync_operations` provides
 durable cross-isolate single-flight coordination.
@@ -126,8 +130,8 @@ durable cross-isolate single-flight coordination.
 
 ### Important files
 
-- `lib/src/core/database/database_tables.dart` — 21 table definitions, constraints, indices
-- `lib/src/core/database/app_database.dart` — schema v13, migration, connection pragmas
+- `lib/src/core/database/database_tables.dart` — 22 table definitions, constraints, indices
+- `lib/src/core/database/app_database.dart` — schema v14, migration, connection pragmas
 - `lib/src/core/database/app_database.g.dart` — generated Drift source
 - `lib/src/core/database/local_database_storage.dart` — file lifecycle, eager background open
 - `lib/src/core/database/utc_date_time_converter.dart` — UTC epoch-millisecond conversion
@@ -221,6 +225,14 @@ control. Keeping both together makes the intermittent failure interpretable
 without treating it as deterministic product coverage.
 
 ### Validation evidence
+
+Schema v14 dashboard-preference validation passed: the focused database,
+dashboard, course-control, router, shell, and app group completed 204 tests;
+the real frozen-v13 migration tests prove creation and default seeding while
+retaining representative prior settings. Code generation completed with exit
+0. Repository formatting checked 351 files with zero changes, both analyzers
+reported no issues, and the final memory-safe runner passed all 14 sequential
+shards across 139 discovered test files with exit 0.
 
 Before isolation, the focused five-case file passed, but a bounded
 fresh-process run of the independent-open comparison reproduced the raw

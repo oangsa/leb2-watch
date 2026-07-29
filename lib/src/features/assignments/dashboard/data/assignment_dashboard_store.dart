@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/session/session_lifecycle.dart';
+import '../application/assignment_dashboard_preferences.dart';
 
 enum AssignmentDashboardSyncOutcome { success, failure, cancelled }
 
@@ -150,7 +151,12 @@ final class AssignmentSyncTarget {
   String toString() => 'AssignmentSyncTarget(redacted: true)';
 }
 
-enum AssignmentDashboardStoreOperation { watchCache, readTarget }
+enum AssignmentDashboardStoreOperation {
+  watchCache,
+  readTarget,
+  readPreferences,
+  writePreferences,
+}
 
 final class AssignmentDashboardStoreException implements Exception {
   const AssignmentDashboardStoreException(this.operation);
@@ -167,12 +173,76 @@ abstract interface class AssignmentDashboardStore {
   Stream<AssignmentDashboardCache> watchActiveCache();
 
   Future<AssignmentSyncTarget?> readActiveSyncTarget();
+
+  Future<AssignmentDashboardPreferences> readPreferences();
+
+  Future<void> writePreferences(AssignmentDashboardPreferences preferences);
 }
 
 final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
   DriftAssignmentDashboardStore(this._database);
 
   final AppDatabase _database;
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async {
+    try {
+      final row = await _database
+          .select(_database.assignmentDashboardPreferencesRecords)
+          .getSingle();
+      return AssignmentDashboardPreferences(
+        section: switch (row.section) {
+          'recent' => AssignmentDashboardSection.recent,
+          'overdue' => AssignmentDashboardSection.overdue,
+          'all' => AssignmentDashboardSection.all,
+          _ => throw const FormatException(),
+        },
+        searchQuery: row.searchQuery,
+        selectedCourseId: row.selectedCourseId,
+        submissionFilter: switch (row.submissionFilter) {
+          'all' => AssignmentSubmissionFilter.all,
+          'unsubmitted' => AssignmentSubmissionFilter.unsubmitted,
+          _ => throw const FormatException(),
+        },
+        deadlineAtOrBeforeBangkok: _decodeBangkokMinute(
+          row.deadlineAtOrBeforeBangkok,
+        ),
+      );
+    } on Object {
+      throw const AssignmentDashboardStoreException(
+        AssignmentDashboardStoreOperation.readPreferences,
+      );
+    }
+  }
+
+  @override
+  Future<void> writePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {
+    try {
+      final updated =
+          await (_database.update(
+            _database.assignmentDashboardPreferencesRecords,
+          )..where((row) => row.singletonId.equals(1))).write(
+            AssignmentDashboardPreferencesRecordsCompanion(
+              section: Value(preferences.section.name),
+              searchQuery: Value(preferences.searchQuery),
+              selectedCourseId: Value(preferences.selectedCourseId),
+              submissionFilter: Value(preferences.submissionFilter.name),
+              deadlineAtOrBeforeBangkok: Value(
+                _encodeBangkokMinute(preferences.deadlineAtOrBeforeBangkok),
+              ),
+            ),
+          );
+      if (updated != 1) {
+        throw StateError('Dashboard preferences are unavailable.');
+      }
+    } on Object {
+      throw const AssignmentDashboardStoreException(
+        AssignmentDashboardStoreOperation.writePreferences,
+      );
+    }
+  }
 
   @override
   Stream<AssignmentDashboardCache> watchActiveCache() {
@@ -349,6 +419,42 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
 
   @override
   String toString() => 'DriftAssignmentDashboardStore(redacted: true)';
+}
+
+final _bangkokMinutePattern = RegExp(
+  r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$',
+);
+
+String? _encodeBangkokMinute(DateTime? value) {
+  if (value == null) {
+    return null;
+  }
+  String twoDigits(int part) => part.toString().padLeft(2, '0');
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${twoDigits(value.month)}-${twoDigits(value.day)}T'
+      '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+}
+
+DateTime? _decodeBangkokMinute(String? source) {
+  if (source == null) {
+    return null;
+  }
+  final match = _bangkokMinutePattern.firstMatch(source);
+  if (match == null) {
+    throw const FormatException();
+  }
+  final parts = [
+    for (var index = 1; index <= 5; index += 1) int.parse(match.group(index)!),
+  ];
+  final value = DateTime(parts[0], parts[1], parts[2], parts[3], parts[4]);
+  if (value.year != parts[0] ||
+      value.month != parts[1] ||
+      value.day != parts[2] ||
+      value.hour != parts[3] ||
+      value.minute != parts[4]) {
+    throw const FormatException();
+  }
+  return value;
 }
 
 AssignmentSubmissionStatus _submissionStatus({

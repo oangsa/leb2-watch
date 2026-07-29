@@ -1,9 +1,14 @@
 import '../../../../core/network/domain/sync_failure.dart';
 import '../../sync/assignment_sync_service.dart';
+import 'assignment_dashboard_preferences.dart';
 import '../data/assignment_dashboard_store.dart';
 
 abstract interface class AssignmentDashboardService {
   Stream<AssignmentDashboardCache> watchCached();
+
+  Future<AssignmentDashboardPreferences> readPreferences();
+
+  Future<void> savePreferences(AssignmentDashboardPreferences preferences);
 
   Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason);
 }
@@ -68,6 +73,14 @@ final class LocalAssignmentDashboardService
 
   @override
   Stream<AssignmentDashboardCache> watchCached() => _store.watchActiveCache();
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() =>
+      _store.readPreferences();
+
+  @override
+  Future<void> savePreferences(AssignmentDashboardPreferences preferences) =>
+      _store.writePreferences(preferences);
 
   @override
   Future<AssignmentDashboardRefreshResult> refresh(SyncReason reason) async {

@@ -15,6 +15,7 @@ import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/app/shell/adaptive_app_shell.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
@@ -663,6 +664,15 @@ final class _ShellAssignmentDashboardService
   _ShellAssignmentDashboardService({required this.lifecycle});
 
   final SessionLifecycleSnapshot lifecycle;
+
+  @override
+  Future<AssignmentDashboardPreferences> readPreferences() async =>
+      const AssignmentDashboardPreferences();
+
+  @override
+  Future<void> savePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {}
 
   AssignmentDashboardCache get _cache {
     final success = AssignmentDashboardSyncRun(

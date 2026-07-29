@@ -47,9 +47,9 @@ void main() {
   tearDown(() => database.close());
 
   test(
-    'fresh v13 schema exposes bounded event-version metadata and indices',
+    'fresh v14 schema exposes bounded event-version metadata and indices',
     () async {
-      expect(database.schemaVersion, 13);
+      expect(database.schemaVersion, 14);
       final columns = await database
           .customSelect(
             "SELECT name FROM pragma_table_info("

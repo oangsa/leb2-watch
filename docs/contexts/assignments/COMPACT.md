@@ -29,10 +29,33 @@ without exposing raw submission payloads. It mirrors the compatible backend:
 `QUZ` uses `quizSubmissionIsSubmitted`. For other activity, a saved
 `activitySubmissionSubmittedAt` means submitted regardless of due-date
 presence; only without that timestamp does a due date mean unsubmitted and no
-due date mean no submission is required. Upcoming and Overdue therefore
-contain only unsubmitted work and retain the backend `dueDateExceed` flag as
-overdue authority. Recently added and All retain every status unless the
-explicit Unsubmitted-only filter is selected.
+due date mean no submission is required. Overdue contains only unsubmitted
+work and retains the backend `dueDateExceed` flag as authority. The dashboard
+no longer exposes an Upcoming section. It defaults to All assignments;
+Recently added and All retain every status unless the explicit
+Unsubmitted-only filter is selected.
+
+The dashboard keeps these saved statuses visible in a read-only summary card.
+Search remains directly available. Section, course, unsubmitted-only, and the
+optional `Due by` cutoff use one compact filter dialog with draft-only Reset,
+Cancel, and Apply actions. Applied non-default filters appear as individually
+removable chips; search is neither counted nor duplicated as a chip. The due
+control uses the platform date and time pickers. Zoned instants are displayed
+and filtered in fixed GMT+7 Bangkok wall time; by explicit product decision,
+backend deadlines without a zone use their stored wall-clock components as
+Bangkok time for this presentation filter. Raw saved deadline sources are not
+rewritten.
+
+Every dashboard control is saved locally: search text, section, course,
+submission filter, and the minute-precision Bangkok deadline cutoff. Modal
+Reset and Cancel do not persist draft state; Apply commits all four advanced
+filters as one complete snapshot, while removing an applied chip commits that
+single applied change. The page loads preferences before subscribing to the
+cache and serializes complete preference snapshots so rapid edits cannot
+persist out of order. A selected course missing from the active catalog falls
+back to All courses and persists that correction. Read failures use defaults;
+write failures retain the live filter state. Both paths expose only fixed,
+redacted copy.
 
 Notification targets reuse assignment-detail key without changing dashboard projection. Platform launch/resume, background, desktop timer, tray triggers call same sync service; cached data remains first.
 
@@ -119,6 +142,7 @@ Error handling: absent semester = composition error. Lifecycle storage failure =
 
 - `lib/src/features/assignments/dashboard/data/assignment_dashboard_store.dart` — display-safe cache and Drift adapter
 - `lib/src/features/assignments/dashboard/application/assignment_dashboard_service.dart` — foreground sync seam and bounded outcomes
+- `lib/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart` — typed local filter state
 - `lib/src/features/assignments/dashboard/application/assignment_dashboard_projection.dart` — section/filter/search/deadline value logic
 - `lib/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart` — local-first controller and view
 - `test/features/assignments/dashboard/` — unit, Drift, widget, routing, accessibility, virtualization tests
@@ -248,6 +272,8 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
   current submission evidence.
 - Present `Submitted`, `Not submitted`, and `No submission required` as
   accessible saved-status badges in compact and expanded dashboard layouts.
+- Use an inclusive, minute-precision Bangkok `Due by` filter and keep missing
+  or invalid deadlines visible only when no deadline cutoff is active.
 
 ## Known Limitations
 
@@ -304,7 +330,7 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Full suite: 987 tests
 - Submission-status correction: 15 store/projection tests and 19 widget tests
   passed, including six exact backend-predicate cases, submitted exclusion
-  from Upcoming/Overdue, filter composition, responsive layouts, 200-percent
+  from Overdue, filter composition, responsive layouts, 200-percent
   text, row semantics, and list laziness.
 - Final dashboard/app-router suite: 81 tests passed, including two reviewed and
   intentionally updated dashboard goldens.
@@ -318,6 +344,17 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
   `BACKEND_BASE_URL=http://localhost:5015`: exit 0; origin present in
   `lib/libapp.so`; no missing dynamic libraries. Production must use the
   operator's actual HTTPS backend.
+- Saved-dashboard-filter and compact course-control focused gate: 204 tests
+  passed with exit 0.
+- Independent review found one medium deadline-classification defect. Exact
+  wall-clock and numeric-offset validation now rejects normalized invalid
+  timestamps; the 10-test projection file and the affected dashboard suite
+  passed after the correction.
+- Schema generation completed with exit 0. Repository formatting checked 351
+  files with zero changes; Dart and Flutter analyzers reported no issues; and
+  `git diff --check` passed.
+- Final memory-safe aggregate discovered 139 files; all 14 sequential shards
+  passed and the runner exited 0.
 
 ### Validation evidence
 

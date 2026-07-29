@@ -34,6 +34,8 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
   final Map<CourseKey, _PendingPreference> _pending = {};
   bool _loading = true;
   bool _streamFailed = false;
+  bool _globalWriting = false;
+  int? _selectedCourseId;
   String? _writeFailureMessage;
   int _subscriptionGeneration = 0;
 
@@ -71,6 +73,9 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
           return;
         }
         final currentKeys = catalog.courses.map((course) => course.key).toSet();
+        final selectedCourseStillExists = catalog.courses.any(
+          (course) => course.key.courseId == _selectedCourseId,
+        );
         _pending.removeWhere((key, pending) {
           if (!currentKeys.contains(key)) {
             return true;
@@ -84,6 +89,11 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
           _catalog = catalog;
           _loading = false;
           _streamFailed = false;
+          if (!selectedCourseStillExists) {
+            _selectedCourseId = catalog.courses.isEmpty
+                ? null
+                : catalog.courses.first.key.courseId;
+          }
         });
       },
       onError: (Object _, StackTrace _) {
@@ -121,13 +131,62 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     );
   }
 
-  Future<void> _write(
+  Future<void> _muteAll(ActiveCourseCatalog catalog) async {
+    await _writeAll(
+      catalog.courses.where((course) => !course.preference.notificationsMuted),
+      pending: (course) => const _PendingPreference.notificationsMuted(true),
+      action: (course) =>
+          widget.service.setNotificationsMuted(course.key, muted: true),
+    );
+  }
+
+  Future<void> _disableAllBackgroundMonitoring(
+    ActiveCourseCatalog catalog,
+  ) async {
+    await _writeAll(
+      catalog.courses.where(
+        (course) => course.preference.backgroundMonitoringEnabled,
+      ),
+      pending: (course) => const _PendingPreference.backgroundMonitoring(false),
+      action: (course) => widget.service.setBackgroundMonitoringEnabled(
+        course.key,
+        enabled: false,
+      ),
+    );
+  }
+
+  Future<void> _writeAll(
+    Iterable<CourseSummary> courses, {
+    required _PendingPreference Function(CourseSummary course) pending,
+    required Future<CoursePreferenceUpdateResult> Function(CourseSummary course)
+    action,
+  }) async {
+    if (_globalWriting || _pending.isNotEmpty) {
+      return;
+    }
+    setState(() => _globalWriting = true);
+    for (final course in courses) {
+      final saved = await _write(
+        course.key,
+        pending: pending(course),
+        action: () => action(course),
+      );
+      if (!saved || !mounted) {
+        break;
+      }
+    }
+    if (mounted) {
+      setState(() => _globalWriting = false);
+    }
+  }
+
+  Future<bool> _write(
     CourseKey key, {
     required _PendingPreference pending,
     required Future<CoursePreferenceUpdateResult> Function() action,
   }) async {
     if (_pending.containsKey(key)) {
-      return;
+      return false;
     }
     setState(() {
       _pending[key] = pending;
@@ -136,11 +195,11 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
 
     final result = await action();
     if (!mounted) {
-      return;
+      return false;
     }
     switch (result) {
       case CoursePreferenceUpdateSuccess():
-        break;
+        return true;
       case CoursePreferenceUpdateStale():
         setState(() {
           _pending.remove(key);
@@ -148,6 +207,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               'The visible course changed before this setting was saved. '
               'Review the saved controls and try again.';
         });
+        return false;
       case CoursePreferenceUpdateFailure():
         setState(() {
           _pending.remove(key);
@@ -155,6 +215,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               'The course setting was not saved. Your previous setting is '
               'still in use; try again.';
         });
+        return false;
     }
   }
 
@@ -209,13 +270,23 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
         AppBreakpoints.of(context) == AppWindowClass.compact
         ? AppSpacing.md
         : AppSpacing.lg;
-    final headerCount = _writeFailureMessage == null ? 1 : 2;
+    final selectedCourse = catalog.courses.firstWhere(
+      (course) => course.key.courseId == _selectedCourseId,
+      orElse: () => catalog.courses.first,
+    );
+    final controlsDisabled = _globalWriting || _pending.isNotEmpty;
+    final allMuted = catalog.courses.every(
+      (course) => course.preference.notificationsMuted,
+    );
+    final allBackgroundDisabled = catalog.courses.every(
+      (course) => !course.preference.backgroundMonitoringEnabled,
+    );
 
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: _courseLedgerMaxWidth),
-          child: ListView.separated(
+          child: ListView(
             key: const Key('course-preferences-list'),
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
@@ -223,33 +294,58 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               horizontalPadding,
               AppSpacing.lg,
             ),
-            itemCount: catalog.courses.length + headerCount,
-            separatorBuilder: (_, index) => index < headerCount
-                ? const SizedBox(height: AppSpacing.md)
-                : const Divider(height: AppSpacing.lg),
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return _CourseLedgerHeader(
-                  semesterId: catalog.activeSemesterId!,
-                );
-              }
-              if (_writeFailureMessage != null && index == 1) {
-                return AppStatusBanner.stale(
+            children: [
+              _CourseLedgerHeader(semesterId: catalog.activeSemesterId!),
+              const SizedBox(height: AppSpacing.md),
+              _GlobalCourseControls(
+                writing: _globalWriting,
+                muteAllEnabled: !controlsDisabled && !allMuted,
+                disableAllBackgroundEnabled:
+                    !controlsDisabled && !allBackgroundDisabled,
+                onMuteAll: () => _muteAll(catalog),
+                onDisableAllBackground: () =>
+                    _disableAllBackgroundMonitoring(catalog),
+              ),
+              if (_writeFailureMessage != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                AppStatusBanner.stale(
                   key: const Key('course-preference-write-error'),
                   message: _writeFailureMessage!,
-                );
-              }
-              final course = catalog.courses[index - headerCount];
-              return _CoursePreferenceRow(
-                key: Key('course-preference-row-${course.key.courseId}'),
-                course: course,
-                writing: _pending.containsKey(course.key),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              DropdownButtonFormField<int>(
+                key: Key(
+                  'course-preference-selector-${selectedCourse.key.courseId}',
+                ),
+                initialValue: selectedCourse.key.courseId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Course'),
+                items: [
+                  for (final course in catalog.courses)
+                    DropdownMenuItem(
+                      value: course.key.courseId,
+                      child: Text(course.name, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: controlsDisabled
+                    ? null
+                    : (value) => setState(() => _selectedCourseId = value),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _CoursePreferenceRow(
+                key: Key(
+                  'course-preference-row-${selectedCourse.key.courseId}',
+                ),
+                course: selectedCourse,
+                writing:
+                    _globalWriting || _pending.containsKey(selectedCourse.key),
                 onNotificationsMuted: (value) =>
-                    _setNotificationsMuted(course, value),
+                    _setNotificationsMuted(selectedCourse, value),
                 onBackgroundMonitoring: (value) =>
-                    _setBackgroundMonitoring(course, value),
-              );
-            },
+                    _setBackgroundMonitoring(selectedCourse, value),
+              ),
+            ],
           ),
         ),
       ),
@@ -292,6 +388,64 @@ class _CourseLedgerHeader extends StatelessWidget {
             'viewing this page does not clear them.',
             style: theme.textTheme.bodyLarge,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GlobalCourseControls extends StatelessWidget {
+  const _GlobalCourseControls({
+    required this.writing,
+    required this.muteAllEnabled,
+    required this.disableAllBackgroundEnabled,
+    required this.onMuteAll,
+    required this.onDisableAllBackground,
+  });
+
+  final bool writing;
+  final bool muteAllEnabled;
+  final bool disableAllBackgroundEnabled;
+  final VoidCallback onMuteAll;
+  final VoidCallback onDisableAllBackground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: 'All course controls',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('All courses', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              FilledButton.tonalIcon(
+                key: const Key('course-mute-all'),
+                onPressed: muteAllEnabled ? onMuteAll : null,
+                icon: const Icon(Icons.notifications_off_outlined),
+                label: const Text('Mute all notifications'),
+              ),
+              FilledButton.tonalIcon(
+                key: const Key('course-background-disable-all'),
+                onPressed: disableAllBackgroundEnabled
+                    ? onDisableAllBackground
+                    : null,
+                icon: const Icon(Icons.sync_disabled_rounded),
+                label: const Text('Disable all background monitoring'),
+              ),
+            ],
+          ),
+          if (writing) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const LinearProgressIndicator(
+              key: Key('course-global-preference-progress'),
+            ),
+          ],
         ],
       ),
     );

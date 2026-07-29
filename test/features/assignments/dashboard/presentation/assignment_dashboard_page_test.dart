@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_projection.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart';
@@ -81,10 +82,15 @@ void main() {
     await tester.pump(const Duration(seconds: 13));
 
     expect(find.text('Graph traversal'), findsOneWidget);
-    expect(find.text('Packet analysis'), findsOneWidget);
     expect(find.byKey(const Key('assignment-inline-progress')), findsOneWidget);
     expect(find.text('Loading saved assignments'), findsNothing);
     expect(service.reasons, [SyncReason.appLaunch]);
+    await tester.scrollUntilVisible(
+      find.text('Packet analysis'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Packet analysis'), findsOneWidget);
 
     gate.complete(
       AssignmentDashboardRefreshSuccess(service.initialCache.targetKey),
@@ -120,12 +126,25 @@ void main() {
   });
 
   testWidgets(
-    'search, section, submission, course, and sort controls compose',
+    'search, section, status, course, and Bangkok deadline controls compose',
     (tester) async {
       final service = FakeAssignmentDashboardService();
       addTearDown(service.close);
-      await _pumpPage(tester, service);
+      await _pumpPage(
+        tester,
+        service,
+        deadlinePicker: (_, _) async => DateTime(2026, 8, 2, 23, 59),
+      );
       await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('assignment-status-summary')),
+        findsOneWidget,
+      );
+      expect(find.text('Not submitted 2'), findsOneWidget);
+      expect(find.text('Filters'), findsOneWidget);
+      expect(find.text('Only unsubmitted'), findsNothing);
+      expect(find.byKey(const Key('assignment-deadline-sort')), findsNothing);
 
       await tester.enterText(
         find.byKey(const Key('assignment-search-field')),
@@ -139,132 +158,492 @@ void main() {
         find.byKey(const Key('assignment-search-field')),
         '',
       );
+      await _openFilters(tester);
       await _chooseDropdown<AssignmentDashboardSection>(
         tester,
         const Key('assignment-section-filter'),
         'Recently added',
       );
+      await _applyFilters(tester);
       expect(find.text('Packet analysis'), findsOneWidget);
       expect(find.text('Graph traversal'), findsNothing);
 
+      await _openFilters(tester);
       await _chooseDropdown<AssignmentDashboardSection>(
         tester,
         const Key('assignment-section-filter'),
         'All assignments',
       );
-      await _chooseDropdown<AssignmentSubmissionFilter>(
-        tester,
-        const Key('assignment-submission-filter'),
-        'Unsubmitted only',
-      );
+      await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+      await tester.pump();
       expect(
         tester
-            .widget<DropdownButtonFormField<AssignmentSubmissionFilter>>(
-              find.byKey(const Key('assignment-submission-filter')),
+            .widget<SwitchListTile>(
+              find.byKey(const Key('assignment-unsubmitted-filter')),
             )
-            .initialValue,
-        AssignmentSubmissionFilter.unsubmitted,
+            .value,
+        isTrue,
+      );
+      await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
+      await tester.pump();
+      expect(find.textContaining('GMT+7 (Bangkok)'), findsWidgets);
+      expect(
+        find.byKey(const Key('assignment-deadline-filter-clear')),
+        findsOneWidget,
       );
       await _chooseDropdown<int?>(
         tester,
         const Key('assignment-course-filter'),
         'Algorithms',
       );
+      await _applyFilters(tester);
       expect(find.text('Graph traversal'), findsOneWidget);
       expect(find.text('Packet analysis'), findsNothing);
-
-      await _chooseDropdown<AssignmentDeadlineDirection>(
-        tester,
-        const Key('assignment-deadline-sort'),
-        'Latest within each group',
+      await tester.pumpAndSettle();
+      expect(
+        service.savedPreferences.any(
+          (preferences) => preferences.searchQuery == 'packet',
+        ),
+        isTrue,
       );
       expect(
-        tester
-            .widget<DropdownButtonFormField<AssignmentDeadlineDirection>>(
-              find.byKey(const Key('assignment-deadline-sort')),
-            )
-            .initialValue,
-        AssignmentDeadlineDirection.descending,
-      );
-    },
-  );
-
-  testWidgets(
-    'upcoming and overdue exclude submitted work and filter status badges',
-    (tester) async {
-      tester.view.physicalSize = const Size(375, 1400);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final service = FakeAssignmentDashboardService(
-        initialCache: dashboardCache(
-          assignments: [
-            dashboardAssignment(
-              identityKey: 'pending',
-              title: 'Pending assignment',
-            ),
-            dashboardAssignment(
-              identityKey: 'submitted',
-              title: 'Submitted assignment',
-              submissionStatus: AssignmentSubmissionStatus.submitted,
-            ),
-            dashboardAssignment(
-              identityKey: 'overdue',
-              title: 'Overdue assignment',
-              dueDateExceed: true,
-            ),
-            dashboardAssignment(
-              identityKey: 'announcement',
-              title: 'Course announcement',
-              dueDateSource: null,
-              submissionStatus: AssignmentSubmissionStatus.notApplicable,
-            ),
-          ],
+        service.savedPreferences.last,
+        AssignmentDashboardPreferences(
+          section: AssignmentDashboardSection.all,
+          selectedCourseId: 3001,
+          submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+          deadlineAtOrBeforeBangkok: DateTime(2026, 8, 2, 23, 59),
         ),
       );
-      addTearDown(service.close);
-
-      await _pumpPage(tester, service);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Pending assignment'), findsOneWidget);
-      expect(find.text('Submitted assignment'), findsNothing);
-      expect(find.text('Overdue assignment'), findsNothing);
-      expect(find.text('Not submitted'), findsOneWidget);
-
-      await _chooseDropdown<AssignmentDashboardSection>(
-        tester,
-        const Key('assignment-section-filter'),
-        'Overdue',
-      );
-      expect(find.text('Overdue assignment'), findsOneWidget);
-      expect(find.text('Submitted assignment'), findsNothing);
-
-      await _chooseDropdown<AssignmentDashboardSection>(
-        tester,
-        const Key('assignment-section-filter'),
-        'All assignments',
-      );
-      expect(find.text('Submitted'), findsOneWidget);
-      expect(find.text('Not submitted'), findsNWidgets(2));
-      expect(find.text('No submission required'), findsOneWidget);
-
-      final pendingSemantics = tester.getSemantics(
-        find.byKey(const Key('assignment-card-101-pending')),
-      );
-      expect(pendingSemantics.label, contains('Not submitted'));
-
-      await _chooseDropdown<AssignmentSubmissionFilter>(
-        tester,
-        const Key('assignment-submission-filter'),
-        'Unsubmitted only',
-      );
-      expect(find.text('Pending assignment'), findsOneWidget);
-      expect(find.text('Overdue assignment'), findsOneWidget);
-      expect(find.text('Submitted assignment'), findsNothing);
-      expect(find.text('Course announcement'), findsNothing);
     },
   );
+
+  testWidgets('restores every saved filter and exposes no Upcoming option', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.recent,
+        searchQuery: 'packet',
+        selectedCourseId: 3002,
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('assignment-search-field')))
+          .controller!
+          .text,
+      'packet',
+    );
+    expect(find.text('Packet analysis'), findsOneWidget);
+    expect(find.text('Graph traversal'), findsNothing);
+    expect(find.text('Filters (4)'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-submission')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Aug 3'), findsWidgets);
+    expect(find.textContaining('GMT+7 (Bangkok)'), findsWidgets);
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-section-filter')));
+    await tester.pumpAndSettle();
+    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Recently added'), findsWidgets);
+    expect(find.text('Overdue'), findsOneWidget);
+    expect(find.text('All assignments'), findsOneWidget);
+  });
+
+  testWidgets('filter dialog cancel discards its draft without saving', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    await _openFilters(tester);
+    await _chooseDropdown<AssignmentDashboardSection>(
+      tester,
+      const Key('assignment-section-filter'),
+      'Overdue',
+    );
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+    await tester.tap(find.byKey(const Key('assignment-filter-cancel')));
+    await tester.pumpAndSettle();
+
+    expect(service.preferenceSaveAttempts, isEmpty);
+    expect(find.text('Filters'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-section')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('apply saves four advanced filters as one complete snapshot', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService();
+    addTearDown(service.close);
+    await _pumpPage(
+      tester,
+      service,
+      deadlinePicker: (_, _) async => DateTime(2026, 8, 2, 23, 59),
+    );
+    await tester.pumpAndSettle();
+
+    await _openFilters(tester);
+    await _chooseDropdown<AssignmentDashboardSection>(
+      tester,
+      const Key('assignment-section-filter'),
+      'Overdue',
+    );
+    await _chooseDropdown<int?>(
+      tester,
+      const Key('assignment-course-filter'),
+      'Algorithms',
+    );
+    await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+    await _applyFilters(tester);
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(
+      service.preferenceSaveAttempts.single,
+      AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.overdue,
+        selectedCourseId: 3001,
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        deadlineAtOrBeforeBangkok: DateTime(2026, 8, 2, 23, 59),
+      ),
+    );
+    expect(find.text('Filters (4)'), findsOneWidget);
+  });
+
+  testWidgets('restored chips exclude search and remove one saved filter', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.recent,
+        searchQuery: 'packet',
+        selectedCourseId: 3002,
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Filters (4)'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-section')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('assignment-filter-chip-course')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('assignment-filter-chip-deadline')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('assignment-filter-chip-submission')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Search:'), findsNothing);
+
+    tester
+        .widget<InputChip>(
+          find.byKey(const Key('assignment-filter-chip-section')),
+        )
+        .onDeleted!();
+    await tester.pumpAndSettle();
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(
+      service.preferenceSaveAttempts.single.section,
+      AssignmentDashboardSection.all,
+    );
+    expect(service.preferenceSaveAttempts.single.searchQuery, 'packet');
+    expect(service.preferenceSaveAttempts.single.selectedCourseId, 3002);
+    expect(find.text('Filters (3)'), findsOneWidget);
+  });
+
+  testWidgets('search and filter button share a row on mobile', (tester) async {
+    tester.view.physicalSize = const Size(375, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: const AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.overdue,
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    final search = find.byKey(const Key('assignment-search-field'));
+    final chip = find.byKey(const Key('assignment-filter-chip-section'));
+    final button = find.byKey(const Key('assignment-filter-button'));
+    final controlsRow = find
+        .ancestor(of: search, matching: find.byType(Row))
+        .first;
+    final wrapFinder = find.ancestor(of: chip, matching: find.byType(Wrap));
+    final wrap = tester.widget<Wrap>(wrapFinder);
+
+    expect(find.descendant(of: controlsRow, matching: button), findsOneWidget);
+    expect(tester.getCenter(search).dy, tester.getCenter(button).dy);
+    expect(
+      tester.getTopLeft(chip).dy,
+      greaterThan(tester.getBottomLeft(search).dy),
+    );
+    expect(
+      tester.getTopLeft(chip).dy,
+      greaterThan(tester.getBottomLeft(button).dy),
+    );
+    expect(wrap.children, hasLength(1));
+    expect(wrap.children.single, same(tester.widget<InputChip>(chip)));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reset remains draft-only until applied', (tester) async {
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: AssignmentDashboardPreferences(
+        section: AssignmentDashboardSection.recent,
+        searchQuery: 'packet',
+        selectedCourseId: 3002,
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-filter-reset')));
+    await tester.pump();
+    expect(service.preferenceSaveAttempts, isEmpty);
+    await _applyFilters(tester);
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(
+      service.preferenceSaveAttempts.single,
+      const AssignmentDashboardPreferences(searchQuery: 'packet'),
+    );
+    expect(find.text('Filters'), findsOneWidget);
+  });
+
+  testWidgets('rapid filter edits cannot overtake a delayed preference write', (
+    tester,
+  ) async {
+    final firstWrite = Completer<void>();
+    final service = FakeAssignmentDashboardService()
+      ..preferenceSaveGates.add(firstWrite);
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('assignment-search-field')),
+      'graph',
+    );
+    await tester.pump();
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+    await tester.pump();
+    await _applyFilters(tester);
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(service.preferenceSaveAttempts.single.searchQuery, 'graph');
+    expect(
+      service.preferenceSaveAttempts.single.submissionFilter,
+      AssignmentSubmissionFilter.all,
+    );
+
+    firstWrite.complete();
+    await tester.pumpAndSettle();
+
+    expect(service.preferenceSaveAttempts, hasLength(2));
+    expect(
+      service.preferenceSaveAttempts.last,
+      const AssignmentDashboardPreferences(
+        searchQuery: 'graph',
+        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+      ),
+    );
+    expect(service.savedPreferences, service.preferenceSaveAttempts);
+  });
+
+  testWidgets('preference failures use fixed copy and keep filters usable', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService()
+      ..failPreferenceRead = true
+      ..failPreferenceWrite = true;
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Filters'), findsOneWidget);
+    expect(
+      find.text(
+        'Saved filters could not be loaded. Default filters are in use.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('<PRIVATE_'), findsNothing);
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+    await _applyFilters(tester);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Filters changed, but could not be saved on this device.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('assignment-filter-chip-submission')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('<PRIVATE_'), findsNothing);
+  });
+
+  testWidgets('defaults to all while overdue excludes submitted work', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = FakeAssignmentDashboardService(
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'pending',
+            title: 'Pending assignment',
+          ),
+          dashboardAssignment(
+            identityKey: 'submitted',
+            title: 'Submitted assignment',
+            submissionStatus: AssignmentSubmissionStatus.submitted,
+          ),
+          dashboardAssignment(
+            identityKey: 'overdue',
+            title: 'Overdue assignment',
+            dueDateExceed: true,
+          ),
+          dashboardAssignment(
+            identityKey: 'announcement',
+            title: 'Course announcement',
+            dueDateSource: null,
+            submissionStatus: AssignmentSubmissionStatus.notApplicable,
+          ),
+        ],
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pending assignment'), findsOneWidget);
+    expect(find.text('Submitted assignment'), findsOneWidget);
+    expect(find.text('Overdue assignment'), findsOneWidget);
+    expect(find.text('Course announcement'), findsOneWidget);
+    expect(find.text('Not submitted'), findsNWidgets(2));
+
+    await _openFilters(tester);
+    await _chooseDropdown<AssignmentDashboardSection>(
+      tester,
+      const Key('assignment-section-filter'),
+      'Overdue',
+    );
+    await _applyFilters(tester);
+    expect(find.text('Overdue assignment'), findsOneWidget);
+    expect(find.text('Submitted assignment'), findsNothing);
+
+    await _openFilters(tester);
+    await _chooseDropdown<AssignmentDashboardSection>(
+      tester,
+      const Key('assignment-section-filter'),
+      'All assignments',
+    );
+    await _applyFilters(tester);
+    expect(find.text('Submitted'), findsOneWidget);
+    expect(find.text('Not submitted'), findsNWidgets(2));
+    expect(find.text('No submission required'), findsOneWidget);
+
+    final pendingSemantics = tester.getSemantics(
+      find.byKey(const Key('assignment-card-101-pending')),
+    );
+    expect(pendingSemantics.label, contains('Not submitted'));
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
+    await _applyFilters(tester);
+    expect(find.text('Pending assignment'), findsOneWidget);
+    expect(find.text('Overdue assignment'), findsOneWidget);
+    expect(find.text('Submitted assignment'), findsNothing);
+    expect(find.text('Course announcement'), findsNothing);
+  });
+
+  testWidgets('cancelled deadline picker preserves the active cutoff', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService();
+    addTearDown(service.close);
+    final results = <DateTime?>[DateTime(2026, 8, 2, 23, 59), null];
+    await _pumpPage(
+      tester,
+      service,
+      deadlinePicker: (_, _) async => results.removeAt(0),
+    );
+    await tester.pumpAndSettle();
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
+    await tester.pump();
+    String deadlineLabel() => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(const Key('assignment-deadline-filter')),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+    final selectedLabel = deadlineLabel();
+    expect(selectedLabel, contains('Aug 2'));
+    expect(selectedLabel, contains('GMT+7 (Bangkok)'));
+    expect(find.text('Packet analysis'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
+    await tester.pump();
+
+    expect(deadlineLabel(), selectedLabel);
+    expect(find.text('Packet analysis'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-deadline-filter-clear')),
+      findsOneWidget,
+    );
+    await _applyFilters(tester);
+    expect(find.text('Packet analysis'), findsNothing);
+  });
 
   testWidgets('expanded rows render saved submission badges', (tester) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -286,12 +665,6 @@ void main() {
 
     await _pumpPage(tester, service);
     await tester.pumpAndSettle();
-    await _chooseDropdown<AssignmentDashboardSection>(
-      tester,
-      const Key('assignment-section-filter'),
-      'All assignments',
-    );
-
     expect(
       find.byKey(const Key('assignment-row-101-submitted')),
       findsOneWidget,
@@ -315,11 +688,13 @@ void main() {
     await _pumpPage(tester, service);
     await tester.pumpAndSettle();
 
+    await _openFilters(tester);
     await _chooseDropdown<int?>(
       tester,
       const Key('assignment-course-filter'),
       'Algorithms',
     );
+    await _applyFilters(tester);
     expect(find.text('Graph traversal'), findsOneWidget);
     expect(find.text('Packet analysis'), findsNothing);
 
@@ -348,27 +723,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    final visibleSelection = find.text('All courses').hitTestable();
-    expect(visibleSelection, findsOneWidget);
-    final semanticsHandle = tester.ensureSemantics();
-    try {
-      final visibleSelectionLabel = tester
-          .getSemantics(visibleSelection)
-          .getSemanticsData()
-          .label;
-      expect(visibleSelectionLabel, contains('All courses'));
-      expect(visibleSelectionLabel, isNot(contains('Algorithms')));
-    } finally {
-      semanticsHandle.dispose();
-    }
+    expect(
+      find.byKey(const Key('assignment-filter-chip-course')),
+      findsNothing,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Index design'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Packet analysis'), findsOneWidget);
     expect(find.text('Index design'), findsOneWidget);
     expect(find.text('Graph traversal'), findsNothing);
     expect(find.text('Algorithms'), findsNothing);
+    expect(service.savedPreferences.last.selectedCourseId, isNull);
 
+    await _openFilters(tester);
+    expect(tester.takeException(), isNull);
     await tester.tap(find.byKey(const Key('assignment-course-filter')));
     await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
     expect(find.text('All courses').hitTestable(), findsOneWidget);
     expect(find.text('Networks').hitTestable(), findsOneWidget);
     expect(find.text('Databases').hitTestable(), findsOneWidget);
@@ -376,8 +749,49 @@ void main() {
 
     await tester.tap(find.text('All courses').hitTestable());
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('assignment-filter-cancel')));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('All courses').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('modal cannot reapply a course removed from the live catalog', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: const AssignmentDashboardPreferences(
+        selectedCourseId: 3001,
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+    await _openFilters(tester);
+
+    final withoutSelectedCourse = dashboardCache(
+      courses: const [AssignmentDashboardCourse(id: 3002, name: 'Networks')],
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'backend:1002',
+          title: 'Packet analysis',
+          courseId: 3002,
+          courseName: 'Networks',
+        ),
+      ],
+    );
+    service.initialCache = withoutSelectedCourse;
+    service.controller.add(withoutSelectedCourse);
+    await tester.pumpAndSettle();
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(service.preferenceSaveAttempts.single.selectedCourseId, isNull);
+    await _applyFilters(tester);
+
+    expect(service.preferenceSaveAttempts, hasLength(1));
+    expect(find.text('Filters'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-course')),
+      findsNothing,
+    );
   });
 
   testWidgets('offline and stale evidence keeps cached rows visible', (
@@ -518,7 +932,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No saved assignments yet'), findsOneWidget);
-    expect(find.byKey(const Key('assignment-section-filter')), findsOneWidget);
+    expect(find.byKey(const Key('assignment-filter-button')), findsOneWidget);
 
     final populated = dashboardCache();
     service.initialCache = populated;
@@ -554,10 +968,7 @@ void main() {
       opened,
       AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001'),
     );
-    expect(
-      find.byKey(const Key('assignment-deadline-zone-caveat')),
-      findsOneWidget,
-    );
+    expect(semantics.label, contains('GMT+7'));
   });
 
   testWidgets('expanded row activates through pointer and keyboard intent', (
@@ -603,6 +1014,12 @@ void main() {
       await _pumpPage(tester, service, textScale: 2);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: 'size $size');
+      if (size.width == 320 || size.width == 768) {
+        await _openFilters(tester);
+        expect(tester.takeException(), isNull, reason: 'dialog size $size');
+        await tester.tap(find.byKey(const Key('assignment-filter-cancel')));
+        await tester.pumpAndSettle();
+      }
       await service.close();
       await tester.pumpWidget(const SizedBox.shrink());
     }
@@ -644,6 +1061,7 @@ Future<void> _pumpPage(
   double textScale = 1,
   VoidCallback? onChooseSemester,
   ValueChanged<AssignmentDetailKey>? onOpenAssignment,
+  AssignmentDeadlinePicker? deadlinePicker,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -661,12 +1079,15 @@ Future<void> _pumpPage(
             onChooseSemester: onChooseSemester ?? () {},
             onOpenAssignment: onOpenAssignment ?? (_) {},
             deadlineFormatter: (_, deadline) => switch (deadline) {
-              ZonedAssignmentDeadline() => 'Aug 1, 2026 at 9:30 AM',
-              UnzonedAssignmentDeadline() => '2026-08-03 09:00',
+              ZonedAssignmentDeadline() =>
+                'Aug 1, 2026 at 4:30 PM · GMT+7 (Bangkok)',
+              UnzonedAssignmentDeadline() =>
+                '2026-08-03 09:00 · GMT+7 (Bangkok)',
               MissingAssignmentDeadline() => 'No deadline',
               InvalidAssignmentDeadline() => 'Deadline format unavailable',
             },
             timestampFormatter: (_, _) => 'Jul 26, 2026 at 8:01 AM',
+            deadlinePicker: deadlinePicker ?? ((_, _) async => null),
           ),
         ),
       ),
@@ -682,6 +1103,15 @@ final class _FirstReadFailureService implements AssignmentDashboardService {
       const AssignmentDashboardRefreshNoTarget();
 
   @override
+  Future<AssignmentDashboardPreferences> readPreferences() async =>
+      const AssignmentDashboardPreferences();
+
+  @override
+  Future<void> savePreferences(
+    AssignmentDashboardPreferences preferences,
+  ) async {}
+
+  @override
   Stream<AssignmentDashboardCache> watchCached() =>
       Stream.error(StateError('<PRIVATE_LOCAL_ERROR>'));
 }
@@ -694,5 +1124,16 @@ Future<void> _chooseDropdown<T>(
   await tester.tap(find.byKey(key));
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openFilters(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('assignment-filter-button')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('assignment-filter-dialog')), findsOneWidget);
+}
+
+Future<void> _applyFilters(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('assignment-filter-apply')));
   await tester.pumpAndSettle();
 }

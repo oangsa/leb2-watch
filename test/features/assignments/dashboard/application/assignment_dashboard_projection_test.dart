@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_projection.dart';
+import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
 
 import '../dashboard_test_support.dart';
 
 void main() {
-  test('projects the four exact saved-snapshot section predicates', () {
+  test('projects the three exact saved-snapshot section predicates', () {
     final upcoming = dashboardAssignment(
       identityKey: 'upcoming',
       dueDateSource: '2026-08-01T12:00:00Z',
@@ -45,9 +46,6 @@ void main() {
       ],
     );
 
-    expect(_keys(_project(cache, AssignmentDashboardSection.upcoming)), [
-      'upcoming',
-    ]);
     expect(_keys(_project(cache, AssignmentDashboardSection.overdue)), [
       'overdue',
     ]);
@@ -99,6 +97,92 @@ void main() {
     );
 
     expect(_keys(projection), ['match']);
+  });
+
+  test('Bangkok deadline cutoff composes with the existing filters', () {
+    final cache = dashboardCache(
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'match',
+          title: 'Packet lab',
+          courseId: 3002,
+          courseName: 'Networks',
+          dueDateSource: '2026-08-01T03:30:59.999999999Z',
+          isBaseline: false,
+        ),
+        dashboardAssignment(
+          identityKey: 'after',
+          title: 'Packet late',
+          courseId: 3002,
+          courseName: 'Networks',
+          dueDateSource: '2026-08-01T03:31:00Z',
+          isBaseline: false,
+        ),
+        dashboardAssignment(
+          identityKey: 'submitted',
+          title: 'Packet submitted',
+          courseId: 3002,
+          courseName: 'Networks',
+          dueDateSource: '2026-08-01T03:00:00Z',
+          submissionStatus: AssignmentSubmissionStatus.submitted,
+          isBaseline: false,
+        ),
+      ],
+    );
+
+    final projection = projectAssignmentDashboard(
+      cache: cache,
+      section: AssignmentDashboardSection.recent,
+      searchQuery: 'packet',
+      selectedCourseId: 3002,
+      direction: AssignmentDeadlineDirection.ascending,
+      submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+      deadlineAtOrBeforeBangkok: DateTime(2026, 8, 1, 10, 30),
+    );
+
+    expect(_keys(projection), ['match']);
+  });
+
+  test('deadline cutoff treats unzoned values as Bangkok wall time', () {
+    final cache = dashboardCache(
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'unzoned-in-minute',
+          dueDateSource: '2026-08-01T10:30:59.999999999',
+        ),
+        dashboardAssignment(
+          identityKey: 'unzoned-after',
+          dueDateSource: '2026-08-01T10:31:00',
+        ),
+        dashboardAssignment(identityKey: 'missing', dueDateSource: null),
+        dashboardAssignment(identityKey: 'invalid', dueDateSource: 'legacy'),
+        dashboardAssignment(
+          identityKey: 'invalid-day',
+          dueDateSource: '2026-02-31T16:00:00Z',
+        ),
+        dashboardAssignment(
+          identityKey: 'invalid-hour',
+          dueDateSource: '2026-01-01T24:00:00Z',
+        ),
+        dashboardAssignment(
+          identityKey: 'invalid-offset',
+          dueDateSource: '2026-01-01T16:00:00+24:00',
+        ),
+      ],
+    );
+
+    final unfiltered = _project(cache, AssignmentDashboardSection.all);
+    final filtered = projectAssignmentDashboard(
+      cache: cache,
+      section: AssignmentDashboardSection.all,
+      searchQuery: '',
+      selectedCourseId: null,
+      direction: AssignmentDeadlineDirection.ascending,
+      deadlineAtOrBeforeBangkok: DateTime(2026, 8, 1, 10, 30),
+    );
+
+    expect(_keys(unfiltered), hasLength(7));
+    expect(_keys(filtered), ['unzoned-in-minute']);
   });
 
   test(

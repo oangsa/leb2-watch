@@ -1,8 +1,5 @@
 import '../data/assignment_dashboard_store.dart';
-
-enum AssignmentDashboardSection { upcoming, recent, overdue, all }
-
-enum AssignmentSubmissionFilter { all, unsubmitted }
+import 'assignment_dashboard_preferences.dart';
 
 enum AssignmentDeadlineDirection { ascending, descending }
 
@@ -14,7 +11,11 @@ sealed class AssignmentDeadline {
       return const MissingAssignmentDeadline();
     }
     final match = _datePattern.firstMatch(source);
-    if (match == null || DateTime.tryParse(source) == null) {
+    final parsed = DateTime.tryParse(source);
+    if (match == null ||
+        parsed == null ||
+        !_hasExactWallClockComponents(match) ||
+        !_hasValidOffsetComponents(match)) {
       return const InvalidAssignmentDeadline();
     }
     final zone = match.namedGroup('zone');
@@ -22,13 +23,10 @@ sealed class AssignmentDeadline {
       match.namedGroup('fraction'),
     );
     if (zone != null) {
-      final instant = DateTime.tryParse(source)?.toUtc();
-      return instant == null
-          ? const InvalidAssignmentDeadline()
-          : ZonedAssignmentDeadline(
-              instantUtc: instant,
-              subMicrosecondNanoseconds: fractionNanoseconds % 1000,
-            );
+      return ZonedAssignmentDeadline(
+        instantUtc: parsed.toUtc(),
+        subMicrosecondNanoseconds: fractionNanoseconds % 1000,
+      );
     }
     return UnzonedAssignmentDeadline(
       source: source,
@@ -146,6 +144,7 @@ AssignmentDashboardProjection projectAssignmentDashboard({
   required int? selectedCourseId,
   required AssignmentDeadlineDirection direction,
   AssignmentSubmissionFilter submissionFilter = AssignmentSubmissionFilter.all,
+  DateTime? deadlineAtOrBeforeBangkok,
 }) {
   final availableCourseIds = cache.courses.map((course) => course.id).toSet();
   final reconciledCourseId = availableCourseIds.contains(selectedCourseId)
@@ -159,11 +158,6 @@ AssignmentDashboardProjection projectAssignmentDashboard({
   final rows = cache.assignments
       .where(
         (assignment) => switch (section) {
-          AssignmentDashboardSection.upcoming =>
-            assignment.dueDateSource != null &&
-                !assignment.dueDateExceed &&
-                assignment.submissionStatus ==
-                    AssignmentSubmissionStatus.unsubmitted,
           AssignmentDashboardSection.recent => !assignment.isBaseline,
           AssignmentDashboardSection.overdue =>
             assignment.dueDateSource != null &&
@@ -193,6 +187,14 @@ AssignmentDashboardProjection projectAssignmentDashboard({
         return assignment.title.toLowerCase().contains(normalizedSearch) ||
             assignment.courseName.toLowerCase().contains(normalizedSearch);
       })
+      .where(
+        (assignment) =>
+            deadlineAtOrBeforeBangkok == null ||
+            _fallsWithinBangkokDeadlineFilter(
+              AssignmentDeadline.fromSource(assignment.dueDateSource),
+              deadlineAtOrBeforeBangkok,
+            ),
+      )
       .map(
         (assignment) => AssignmentDashboardRow(
           assignment: assignment,
@@ -235,6 +237,48 @@ AssignmentDashboardProjection projectAssignmentDashboard({
     selectedCourseId: reconciledCourseId,
   );
 }
+
+bool _fallsWithinBangkokDeadlineFilter(
+  AssignmentDeadline deadline,
+  DateTime selectedMinute,
+) {
+  final deadlineTuple = switch (deadline) {
+    ZonedAssignmentDeadline(
+      :final instantUtc,
+      :final subMicrosecondNanoseconds,
+    ) =>
+      _dateTimeTuple(
+        instantUtc.add(const Duration(hours: 7)),
+        subMicrosecondNanoseconds: subMicrosecondNanoseconds,
+      ),
+    UnzonedAssignmentDeadline(:final wallClockTuple) => wallClockTuple,
+    MissingAssignmentDeadline() || InvalidAssignmentDeadline() => null,
+  };
+  if (deadlineTuple == null) {
+    return false;
+  }
+  final exclusiveEnd = DateTime(
+    selectedMinute.year,
+    selectedMinute.month,
+    selectedMinute.day,
+    selectedMinute.hour,
+    selectedMinute.minute,
+  ).add(const Duration(minutes: 1));
+  return _compareIntLists(deadlineTuple, _dateTimeTuple(exclusiveEnd)) < 0;
+}
+
+List<int> _dateTimeTuple(DateTime value, {int subMicrosecondNanoseconds = 0}) =>
+    [
+      value.year,
+      value.month,
+      value.day,
+      value.hour,
+      value.minute,
+      value.second,
+      value.millisecond * 1000000 +
+          value.microsecond * 1000 +
+          subMicrosecondNanoseconds,
+    ];
 
 int compareAssignmentDeadlines(
   AssignmentDeadline left,
@@ -287,6 +331,37 @@ final _datePattern = RegExp(
   r'(?::(?<second>\d{2})(?:\.(?<fraction>\d{1,9}))?)?'
   r'(?<zone>Z|[+-]\d{2}:\d{2})?$',
 );
+
+bool _hasExactWallClockComponents(RegExpMatch match) {
+  final year = int.parse(match.namedGroup('year')!);
+  final month = int.parse(match.namedGroup('month')!);
+  final day = int.parse(match.namedGroup('day')!);
+  final hour = int.parse(match.namedGroup('hour')!);
+  final minute = int.parse(match.namedGroup('minute')!);
+  final second = int.tryParse(match.namedGroup('second') ?? '') ?? 0;
+  final DateTime wallClock;
+  try {
+    wallClock = DateTime.utc(year, month, day, hour, minute, second);
+  } on ArgumentError {
+    return false;
+  }
+  return wallClock.year == year &&
+      wallClock.month == month &&
+      wallClock.day == day &&
+      wallClock.hour == hour &&
+      wallClock.minute == minute &&
+      wallClock.second == second;
+}
+
+bool _hasValidOffsetComponents(RegExpMatch match) {
+  final zone = match.namedGroup('zone');
+  if (zone == null || zone == 'Z') {
+    return true;
+  }
+  final offsetHour = int.parse(zone.substring(1, 3));
+  final offsetMinute = int.parse(zone.substring(4, 6));
+  return offsetHour <= 23 && offsetMinute <= 59;
+}
 
 int _fractionNanoseconds(String? digits) {
   if (digits == null) {
