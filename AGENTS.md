@@ -1,162 +1,61 @@
-## 1. Purpose and priority
+# Repository Instructions
 
-These rules apply to the main Codex/GPT thread and all native subagents in this repository.
+## 1. Priority and scope
 
-Goals:
+These rules apply to all work in this repository.
 
-- Keep work evidence-based, incremental, reviewable, resumable, tested, documented, and safely committed.
-- Move token-heavy work to 9Arm/Qwen while reserving Codex/GPT for planning, critical decisions, verification, and final acceptance.
-- Preserve unrelated user work and isolate changes by feature.
-
-Instruction priority:
+Priority:
 
 1. Explicit user instructions
 2. The nearest applicable nested `AGENTS.md`
 3. This file
-4. General preferences
+4. General defaults
 
 A nested `AGENTS.md` overrides this file only within its directory scope.
 
----
+Work on one feature or bounded change at a time. Do not expand scope because
+nearby code could be improved.
 
-## 2. Native agent roles
-
-The main Codex/GPT thread is the orchestrator, planner, final validator, commit authority, and final decision maker.
-
-Use these exact native custom agents:
-
-- `qwen_researcher` — read-only repository and technical research
-- `qwen_implementer` — workspace-write implementation of one approved feature
-- `qwen_fixer` — workspace-write correction of findings confirmed by the main agent
-- `codex_auditor` — read-only independent GPT review of substantial or risky changes
-
-All subagents must return through `$handoff`.
-
-Do not substitute built-in `default`, `worker`, or `explorer` agents unless the user explicitly approves it.
-
-Do not invoke Qwen through `9arm`, `claude-9arm`, `codex-qwen-worker`, an external wrapper, or a background terminal. Use the native custom agents only.
-
-If a required native agent cannot start, stop that workflow phase and report the blocker. Do not silently substitute another agent.
-
----
-
-## 3. Cost and context strategy
-
-9Arm/Qwen capacity is abundant and fixed-cost. Codex/GPT capacity is constrained.
-
-Delegate token-heavy work to Qwen:
-
-- Broad or multi-file repository research
-- Execution-path and contract tracing
-- Log and error investigation
-- Implementation and test scaffolding
-- Ordinary build/test diagnosis
-- Mechanical migrations
-- Documentation and feature-context drafting
-- Confirmed fixes
-
-Reserve the main Codex/GPT thread for:
-
-- Interpreting the request
-- Defining feature scope
-- Resolving ambiguity
-- Architecture, security, privacy, and data-integrity decisions
-- Approving plans
-- Verifying critical claims
-- Reviewing the final diff
-- Final acceptance, staging, and committing
-
-Do not repeat an entire investigation already completed by Qwen. Verify only claims that materially affect correctness, architecture, security, public contracts, acceptance criteria, or commit safety.
-
-### Context loading
-
-- Treat `docs/contexts/README.md` as the canonical context index.
-- Read `docs/contexts/README.md` first when it exists.
-- Read only contexts relevant to the current feature.
-- Normally load no more than two feature contexts.
-- Read additional contexts only for a verified dependency.
-- Do not recursively read all of `docs/contexts` for ordinary work.
-- Do not read archived or superseded contexts unless history is explicitly required.
-
-### Mandatory subagent compaction boundary
-
-Before returning anything to the main Codex/GPT thread, every subagent must compact its working context into a concise, decision-focused `$handoff`.
-
-The subagent must summarize and filter:
-
-- Source files read
-- Context documents read
-- Tool-call history
-- Search results
-- Build and test logs
-- Repeated errors
-- Intermediate hypotheses
-- Implementation details
-
-The main agent should receive conclusions and evidence references, not the subagent's raw working context.
-
-A compact handoff should contain:
-
-- The decision-relevant conclusion
-- Verified facts
-- Paths, symbols, and line references where useful
-- Commands run with concise pass/fail results
-- Changed files
-- Risks, uncertainties, and blockers
-- The recommended next action
-
-Do not send to the main agent unless explicitly requested or necessary for safety:
-
-- Complete source files
-- Entire context documents
-- Full terminal transcripts
-- Full test or build logs
-- Repeated tool output
-- Long reasoning traces
-- The original task repeated verbatim
-- Large diffs already available in the working tree
-
-Raw detail should remain inside the subagent thread, repository, or diagnostic files. When the main agent needs more evidence, it should request a targeted excerpt or inspect the authoritative file directly rather than importing the full subagent history.
-
-Recommended handoff limits:
-
-- Research: at most 800 words
-- Implementation: at most 700 words
-- Fixer: at most 500 words
-- Auditor: at most 700 words
-
-These are defaults, not permission to omit safety-critical facts. Exceed them only when additional detail is genuinely required for correctness or safety.
-
-For large documentation/context migrations, let one bounded Qwen worker perform the bulk work. The main agent should review `docs/contexts/README.md`, diff stats, the conflict report, representative samples, and critical contexts rather than ingesting the entire migration diff.
-
----
-
-## 4. Repository startup
-
-Before work begins, the main agent must:
+## 2. Before editing
 
 1. Read applicable `AGENTS.md` files.
-2. Check the current branch.
-3. Run `git status --short`.
-4. Identify pre-existing uncommitted changes.
-5. Read `docs/contexts/README.md` when present.
-6. Read only relevant feature contexts.
-7. Preserve unrelated user work.
+2. Check the current branch and run:
 
-The main agent may directly inspect:
+   ```bash
+   git status --short
+   ```
 
-- Git branch, status, log, and diffs
-- Subagent handoffs
-- Worker-changed files and narrow surrounding code
-- Relevant test/build/static-analysis output
-- Files needed to verify critical claims
-- Staged files before committing
+3. Identify pre-existing changes and preserve them.
+4. Read `docs/contexts/README.md` when present.
+5. Read only contexts relevant to the current feature.
+6. Define the scope, acceptance criteria, tests, risk, and commit instruction.
 
-Delegation must not make the main agent blind. Broad, noisy investigation should still be delegated.
+Use this feature definition for substantial work:
+
+```text
+Feature:
+Outcome:
+Included:
+Excluded:
+Verified contracts:
+Relevant files/modules:
+Acceptance criteria:
+Required tests:
+Required documentation:
+Risk: low | medium | high
+Commit instruction:
+```
+
+Risk guidance:
+
+- **Low** — localized and reversible
+- **Medium** — multi-file behavior or nontrivial integration
+- **High** — authentication, authorization, privacy, migration, financial logic,
+  concurrency, destructive behavior, public API, or broad architecture
 
 Never delete, reset, overwrite, reformat, stage, or commit unrelated changes.
 
-Prohibited without explicit user approval:
+Prohibited without explicit approval:
 
 ```bash
 git reset --hard
@@ -167,226 +66,116 @@ git push --force
 git push --force-with-lease
 ```
 
-Never push unless the user explicitly asks.
+Never push unless explicitly requested.
 
----
+## 3. Requirements and scope
 
-## 5. Research workflow
+Use authoritative specifications and repository contracts for behavior.
+Existing code may provide a technical pattern, but it is not behavioral
+authority unless the current specification says so.
 
-Use a fresh `qwen_researcher` for each independent, nontrivial research objective.
+Do not invent missing behavior from:
 
-Delegate research when it:
+- another feature
+- legacy code
+- old prompts or reports
+- personal judgment
+- reasonable defaults
 
-- Spans multiple files or modules
-- Requires tracing or comparison
-- Produces substantial logs/evidence
-- Requires Git history or external technical research
-- Would significantly pollute the main thread
+When a required behavior, mapping, permission, or integration decision is
+missing or contradictory:
 
-The main agent may perform a small targeted lookup to understand a handoff, verify one critical claim, inspect a changed block, or make an immediate orchestration decision.
+1. Stop the affected work.
+2. State the exact unresolved point and affected files or behavior.
+3. Ask one concrete decision question.
+4. Wait for explicit approval.
+5. Record the decision only when authorized.
 
-Related follow-ups within the same research objective may use the same researcher. Do not spawn a fresh researcher merely to reread the same files or answer a trivial clarification.
+When unrelated work is discovered, report it and leave it unchanged. Treat it
+as a separate feature.
 
-Research agents must not modify files.
+Do not mix feature work with unrelated refactoring, formatting, dependency
+upgrades, or documentation cleanup.
 
-### Research handoff
+## 4. Implementation and testing
 
-A research `$handoff` must include:
+Implementation must:
 
-- Objective and scope
-- Files/sources inspected
-- Commands executed
-- Verified facts and code locations
-- Reasonable inferences
-- Unverified assumptions
-- Uncertainties and blockers
-- Recommended next action
+- stay within approved scope
+- preserve unrelated changes and public contracts
+- avoid broad refactoring
+- enforce validation and authorization server-side
+- use approved transaction and concurrency behavior
+- prevent silent data loss
+- keep generated output synchronized with its source
+- update required tests, contexts, and reports
+- never expose secrets or production data
 
-Clearly distinguish fact, inference, and assumption.
+Complete every applicable layer: UI, handler/controller, service/domain logic,
+persistence, integration, and tests. Do not claim a behavior is complete when
+only one layer exists.
 
-Recommended maximum: 800 words unless extra detail is required for safety. Apply the mandatory subagent compaction boundary before returning it.
+For financial, migration, authorization, concurrency, or destructive behavior,
+verify exact field targeting, transaction boundaries, rollback behavior, and
+stale-update protection.
 
-The main agent must consume the relevant handoff before approving implementation.
+Every behavior change requires appropriate tests:
 
----
-
-## 6. Feature definition and implementation
-
-Only one feature or bounded change may be actively implemented at a time.
-
-Before spawning `qwen_implementer`, define:
-
-```text
-Feature:
-Outcome:
-Included:
-Excluded:
-Dependencies:
-Verified contracts:
-Relevant files/modules:
-Acceptance criteria:
-Required tests:
-Required documentation:
-Risk level: low | medium | high
-Expected commit action:
-```
-
-Risk guidance:
-
-- **Low** — localized, reversible, no security/data/public-contract impact
-- **Medium** — multi-file behavior change, important workflow, nontrivial integration
-- **High** — authentication, authorization, privacy, migration, concurrency, financial logic, destructive behavior, public API, or broad architecture change
-
-Every substantial feature must use a fresh `qwen_implementer`.
-
-Only one write-capable Qwen agent may be active in the working tree at a time.
-
-The implementer must receive the approved feature definition, relevant research handoffs, relevant contexts, acceptance criteria, required tests, and known unrelated changes to preserve.
-
-The implementer must:
-
-- Implement only the approved scope
-- Preserve unrelated work
-- Avoid broad refactoring
-- Add/update appropriate tests
-- Run focused validation
-- Update required context documentation
-- Stop when the boundary cannot be followed safely
-- Never commit, push, reset, clean, rebase, or rewrite history
-
-### Implementation handoff
-
-The implementation `$handoff` must include:
-
-- What was implemented
-- Files changed
-- Important decisions
-- Tests added/changed
-- Commands and results
-- Context-document status
-- Limitations, risks, and blockers
-- Suggested commit message
-- Recommended next action
-
-Recommended maximum: 700 words. The actual diff is authoritative.
-
----
-
-## 7. Validation, audit, and repair
-
-After implementation, the main agent must:
-
-1. Run `git status --short`.
-2. Inspect `git diff --stat` and the relevant actual diff.
-3. Run focused validation first.
-4. Run broader validation when appropriate.
-5. Decide whether `codex_auditor` is required.
-
-### Audit policy
-
-A separate GPT audit is optional for low-risk work such as typo fixes, formatting, small documentation changes, routine tooling, test-only maintenance, and obvious localized fixes with strong focused tests.
-
-A fresh `codex_auditor` is normally required for medium-risk changes and mandatory for high-risk changes.
-
-The auditor receives:
-
-- Original request
-- Approved feature definition
-- Relevant research handoffs
-- Actual diff and relevant surrounding code
-- Validation commands and results
-
-The auditor must compact its review context and return through `$handoff` with:
-
-- Verdict: `pass` or `changes_required`
-- Findings ordered by severity
-- File and line/symbol
-- Evidence and required correction
-- Additional validation required
-- Remaining risks
-
-The auditor must never modify files.
-
-### Confirmed findings only
-
-The main agent must independently verify each audit finding. Reject false positives.
-
-Only confirmed findings may be sent to a fresh `qwen_fixer`.
-
-The fixer must:
-
-- Fix only confirmed findings
-- Preserve correct work
-- Avoid unrelated refactoring and scope expansion
-- Avoid weakening tests
-- Run focused validation
-- Never commit
-- Return through `$handoff`
-
-Maximum automatic Qwen fix rounds: 2. After two unsuccessful rounds, the main agent must resolve the issue directly or report the blocker.
-
-After fixes, inspect the new diff and rerun affected validation. Re-audit high-risk, broad, or security-sensitive fixes.
-
----
-
-## 8. Testing and generated code
-
-Every behavior change requires appropriate tests.
-
-Choose tests based on behavior:
-
-- Unit tests for domain logic
-- Database/migration tests for persistence behavior
-- API tests for transport and error mapping
+- unit tests for domain logic
+- database or migration tests for persistence
+- API tests for transport and errors
 - UI tests for states and interactions
-- Integration tests for complete workflows
-- Native tests for custom platform code
+- integration tests for complete workflows
+- native tests for platform-specific code
+
+Run focused checks first, then broader checks. A passing compile alone is not
+sufficient evidence.
 
 Do not:
 
-- Delete a valid test because it fails
-- Weaken assertions only to make tests pass
-- Skip failures without documenting why
-- Mock away the behavior being tested
-- Call production services from automated tests
-- Use real credentials
-- Claim tests passed when they were not run
+- delete valid failing tests
+- weaken assertions merely to obtain a pass
+- skip failures without documenting why
+- mock away the behavior under test
+- call production services from automated tests
+- use real credentials
+- claim a test passed when it was not run
 
-Run the narrowest relevant checks first, then broader checks. A passing compile alone is not sufficient evidence.
+After a correction, add or update a regression test, rerun the failing check,
+and rerun the affected feature suite.
 
-When a platform-specific test cannot run, report why, what was validated, the exact later command, and what remains unverified.
+When a required check cannot run, report why, what was validated instead, the
+exact remaining command, and what remains unverified.
 
-For generated code:
+## 5. Generated code
 
 1. Modify source definitions, not generated output.
-2. Run the correct generator.
+2. Run the repository generator.
 3. Review generated changes.
 4. Commit generated files only when repository convention requires them.
-5. Keep generated files synchronized with their sources.
+5. Keep generated output synchronized with its source.
 
-Never manually edit files that will be overwritten by generation.
+Never manually edit a file that will be overwritten by generation.
 
----
+## 6. Feature contexts
 
-## 9. Feature contexts
+Use `docs/contexts/README.md` as the canonical context index.
 
-Use `docs/contexts/README.md` as the canonical context index and entry point.
+Normally read no more than two feature contexts unless a verified dependency
+requires more. Do not recursively read all contexts or archived contexts for
+ordinary work.
 
-Create or update `docs/contexts/<feature-slug>.md` for substantial work, including:
+Create or update `docs/contexts/<feature-slug>.md` for substantial work,
+including user-visible features, schema or architecture changes, platform
+integrations, security-sensitive behavior, multi-module refactors, and work
+likely to continue across sessions.
 
-- User-visible features
-- Schema/migration changes
-- Architecture changes
-- Platform integrations
-- Security-sensitive behavior
-- Multi-module refactors
-- Work likely to continue across sessions
+A context may be omitted for trivial fixes, formatting, small documentation
+changes, test-only maintenance, or routine tooling with no continuation value.
+State the reason in the final report.
 
-A new context may be omitted for trivial localized fixes, formatting, small documentation corrections, test-only maintenance, or routine tooling with no continuation value. Explain the omission in the final report.
-
-Update an existing context instead of creating a duplicate.
-
-A context must describe current implementation, not chronological history, and include:
+Update an existing context instead of creating a duplicate. Describe current
+implementation, not chronological history. Include only applicable sections:
 
 ```markdown
 # <Feature Name>
@@ -401,38 +190,45 @@ A context must describe current implementation, not chronological history, and i
 ## Contracts and interfaces
 ## Data model
 ## State and control flow
-## Platform behavior
 ## Security and privacy
 ## Decisions
-## Alternatives rejected
 ## Failure behavior
 ## Tests
 ## Validation evidence
 ## Known limitations
-## Future considerations
 ## Related contexts
 ```
 
-Context rules:
+Reference concrete files and verified contracts. Avoid copying full
+specifications, duplicating other contexts, or presenting future work as
+implemented behavior.
 
-- Reference concrete files and verified contracts.
-- Explain non-obvious decisions.
-- Include validation evidence and honest limitations.
-- Avoid copying the full specification.
-- Avoid duplicating other contexts.
-- Do not present future plans as implemented behavior.
+Update `docs/contexts/README.md` when contexts are added, renamed, archived, or
+superseded.
 
-Update `docs/contexts/README.md` when contexts are added, renamed, archived, or superseded.
+## 7. Secrets and privacy
 
----
+Never commit or log:
 
-## 10. Commit and working-tree discipline
+- cookies, passwords, authorization headers, or API keys
+- signing secrets or private certificates
+- production tokens
+- personal identifiers or sensitive user data
 
-Only the main Codex/GPT agent may stage and commit. Subagents must never commit.
+Use placeholders such as `<API_KEY>`, `<SESSION_COOKIE>`, `<USERNAME>`, and
+`<PASSWORD>`.
 
-A completed feature should normally be committed before another feature begins.
+Do not disable TLS verification.
 
-An explicit user instruction such as “do not commit” overrides automatic committing. When committing is prohibited, leave validated changes uncommitted and report the suggested commit message.
+Do not add analytics, tracking, advertising, cloud persistence, push-token
+registration, or remote crash reporting unless explicitly requested.
+
+Inspect changed and staged files for secrets before finalizing.
+
+## 8. Commit discipline
+
+Commit only when allowed by the user and current task. `Do not commit` always
+overrides automatic committing.
 
 Allowed prefixes:
 
@@ -456,15 +252,11 @@ git diff
 git diff --staged
 ```
 
-Then confirm:
+Confirm that no secrets or unrelated files are staged, required validation ran,
+required contexts are current, and only in-scope files are included.
 
-- No secrets
-- No unrelated staged files
-- Required formatting/tests/static analysis completed
-- Required context documentation present
-- Only in-scope files staged
-
-Prefer explicit staging paths. Avoid `git add .` unless every changed file has been verified as in scope.
+Prefer explicit staging paths. Avoid `git add .` unless every changed file has
+been verified as in scope.
 
 After committing:
 
@@ -473,149 +265,55 @@ git status --short
 git log -1 --oneline
 ```
 
-Record the commit hash and report remaining uncommitted files with reasons.
+Report the commit hash and remaining uncommitted files with reasons.
 
----
+## 9. Incomplete work
 
-## 11. Secrets, privacy, and scope
+Do not claim completion without evidence or commit incomplete work as complete.
 
-Never commit or log:
+When blocked:
 
-- Session cookies
-- Passwords
-- Authorization headers
-- API keys
-- Signing secrets
-- Private certificates
-- Personal identifiers
-- Production tokens
-- Sensitive user data
+- stop safely
+- explain the blocker with evidence
+- preserve unrelated work
+- report partial changes honestly
+- state what remains unverified
+- provide the exact next action
 
-Use placeholders such as `<BACKEND_BASE_URL>`, `<SESSION_COOKIE>`, `<USERNAME>`, and `<PASSWORD>`.
+Do not create a WIP commit unless explicitly requested. Partial work may be
+committed only when it is independently valid, the user approves, and the
+message describes the partial result accurately.
 
-Do not disable TLS verification.
+## 10. Completion gate and final report
 
-Do not add analytics, tracking, advertising, cloud persistence, push-token registration, or remote crash reporting unless explicitly requested.
+Before claiming completion:
 
-Do not expand scope because nearby code could be improved.
+1. Run `git status --short`.
+2. Review `git diff --stat` and `git diff --name-status`.
+3. Review relevant changed code.
+4. Confirm every approved requirement has implementation evidence.
+5. Confirm required tests and validation actually ran.
+6. Confirm failures and limitations are reported honestly.
+7. Confirm no unrelated changes were introduced.
+8. Confirm pre-existing changes remain intact.
+9. Confirm required contexts and reports are current.
+10. Follow the commit or non-commit instruction.
 
-When unrelated work is discovered:
+For high-risk work, directly verify critical changes involving authorization,
+security, privacy, financial logic, migrations, concurrency, transactions,
+destructive behavior, and public contracts.
 
-1. Report it through `$handoff`.
-2. Leave it unchanged.
-3. Record it as future work when relevant.
-4. Treat it as a separate feature.
+The final report must include:
 
-Do not mix feature work with unrelated refactoring, formatting, dependency upgrades, or documentation cleanup.
+- completed changes
+- changed files or areas
+- tests, builds, and validation results
+- context documents changed
+- review or audit result when applicable
+- security and privacy findings
+- known limitations and blockers
+- commit hash and message, or why no commit was created
+- current working-tree status
 
----
-
-## 12. Incomplete work and blockers
-
-Do not claim completion without evidence.
-
-Do not commit incomplete work as a completed feature.
-
-If work cannot be completed:
-
-- Stop safely
-- Return through `$handoff`
-- Explain the blocker with evidence
-- Preserve unrelated work
-- Report partial changes honestly
-- Do not use a WIP commit unless explicitly requested
-
-Partial work may be committed only when it is independently valid, the user approves, and the commit message accurately describes it.
-
----
-
-## 13. Session continuation
-
-Use `$handoff` for native subagent-to-parent results.
-
-Use `$qwenchance` and `.codex/handoff.md` for session-to-session continuity.
-
-When context becomes tight:
-
-1. Finish the current atomic step.
-2. Preserve durable repository changes.
-3. Invoke `$qwenchance`.
-4. Write/update `.codex/handoff.md`.
-5. Add it to `.git/info/exclude`.
-6. Tell the user to continue in a fresh session when appropriate.
-
-The session handoff must include:
-
-- User objective and feature definition
-- Current lifecycle phase
-- Completed phases and consumed research
-- Approved plan
-- Files changed and diff summary
-- Validation and audit results
-- Fixes applied
-- Remaining work and blockers
-- Exact next action
-
-At the start of a continuation session, read the handoff, relevant context, Git status, and actual diff; verify they still agree; then resume without repeating completed work unnecessarily.
-
----
-
-## 14. Final report
-
-At the end, report:
-
-- Completed changes
-- Commit hashes/messages
-- Context documents changed
-- Research, implementation, audit, and fixer agents used
-- Tests/builds and results
-- Security/privacy findings
-- Known limitations
-- Blocked or unimplemented work
-- Current working-tree status
-- Exact continuation commands when needed
-
-Clearly separate completed, partial, untested, blocked, and future work.
-
----
-
-## 15. Mandatory lifecycle
-
-For substantial feature work:
-
-```text
-1. Read applicable instructions and inspect repository state
-2. Read README.md and only relevant feature contexts
-3. Define one feature and assign risk
-4. Spawn qwen_researcher for independent nontrivial research
-5. Consume research through $handoff
-6. Main Codex/GPT approves the plan
-7. Spawn one fresh qwen_implementer
-8. Consume implementation through $handoff
-9. Main agent inspects the actual diff
-10. Main agent runs initial validation
-11. Spawn codex_auditor when required by risk
-12. Main agent verifies audit findings
-13. Spawn qwen_fixer only for confirmed findings
-14. Main agent performs final validation
-15. Update feature context and README.md when required
-16. Review diff, staging, and secrets
-17. Main agent commits unless prohibited
-18. Confirm repository state
-19. Only then begin another feature
-```
-
-For trivial low-risk work:
-
-```text
-1. Inspect repository state
-2. Define the bounded change
-3. Implement directly or with one Qwen worker
-4. Review the diff
-5. Run focused validation
-6. Document only when useful
-7. Commit unless prohibited
-8. Report repository state
-```
-
-No agent may bypass safety, scope, testing, secret, or Git-discipline rules.
+Clearly distinguish completed, partial, untested, blocked, unrelated, and future
+work.
