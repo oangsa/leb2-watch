@@ -119,60 +119,188 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('search, section, course, and sort controls compose', (
-    tester,
-  ) async {
-    final service = FakeAssignmentDashboardService();
+  testWidgets(
+    'search, section, submission, course, and sort controls compose',
+    (tester) async {
+      final service = FakeAssignmentDashboardService();
+      addTearDown(service.close);
+      await _pumpPage(tester, service);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('assignment-search-field')),
+        'packet',
+      );
+      await tester.pump();
+      expect(find.text('Packet analysis'), findsOneWidget);
+      expect(find.text('Graph traversal'), findsNothing);
+
+      await tester.enterText(
+        find.byKey(const Key('assignment-search-field')),
+        '',
+      );
+      await _chooseDropdown<AssignmentDashboardSection>(
+        tester,
+        const Key('assignment-section-filter'),
+        'Recently added',
+      );
+      expect(find.text('Packet analysis'), findsOneWidget);
+      expect(find.text('Graph traversal'), findsNothing);
+
+      await _chooseDropdown<AssignmentDashboardSection>(
+        tester,
+        const Key('assignment-section-filter'),
+        'All assignments',
+      );
+      await _chooseDropdown<AssignmentSubmissionFilter>(
+        tester,
+        const Key('assignment-submission-filter'),
+        'Unsubmitted only',
+      );
+      expect(
+        tester
+            .widget<DropdownButtonFormField<AssignmentSubmissionFilter>>(
+              find.byKey(const Key('assignment-submission-filter')),
+            )
+            .initialValue,
+        AssignmentSubmissionFilter.unsubmitted,
+      );
+      await _chooseDropdown<int?>(
+        tester,
+        const Key('assignment-course-filter'),
+        'Algorithms',
+      );
+      expect(find.text('Graph traversal'), findsOneWidget);
+      expect(find.text('Packet analysis'), findsNothing);
+
+      await _chooseDropdown<AssignmentDeadlineDirection>(
+        tester,
+        const Key('assignment-deadline-sort'),
+        'Latest within each group',
+      );
+      expect(
+        tester
+            .widget<DropdownButtonFormField<AssignmentDeadlineDirection>>(
+              find.byKey(const Key('assignment-deadline-sort')),
+            )
+            .initialValue,
+        AssignmentDeadlineDirection.descending,
+      );
+    },
+  );
+
+  testWidgets(
+    'upcoming and overdue exclude submitted work and filter status badges',
+    (tester) async {
+      tester.view.physicalSize = const Size(375, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = FakeAssignmentDashboardService(
+        initialCache: dashboardCache(
+          assignments: [
+            dashboardAssignment(
+              identityKey: 'pending',
+              title: 'Pending assignment',
+            ),
+            dashboardAssignment(
+              identityKey: 'submitted',
+              title: 'Submitted assignment',
+              submissionStatus: AssignmentSubmissionStatus.submitted,
+            ),
+            dashboardAssignment(
+              identityKey: 'overdue',
+              title: 'Overdue assignment',
+              dueDateExceed: true,
+            ),
+            dashboardAssignment(
+              identityKey: 'announcement',
+              title: 'Course announcement',
+              dueDateSource: null,
+              submissionStatus: AssignmentSubmissionStatus.notApplicable,
+            ),
+          ],
+        ),
+      );
+      addTearDown(service.close);
+
+      await _pumpPage(tester, service);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pending assignment'), findsOneWidget);
+      expect(find.text('Submitted assignment'), findsNothing);
+      expect(find.text('Overdue assignment'), findsNothing);
+      expect(find.text('Not submitted'), findsOneWidget);
+
+      await _chooseDropdown<AssignmentDashboardSection>(
+        tester,
+        const Key('assignment-section-filter'),
+        'Overdue',
+      );
+      expect(find.text('Overdue assignment'), findsOneWidget);
+      expect(find.text('Submitted assignment'), findsNothing);
+
+      await _chooseDropdown<AssignmentDashboardSection>(
+        tester,
+        const Key('assignment-section-filter'),
+        'All assignments',
+      );
+      expect(find.text('Submitted'), findsOneWidget);
+      expect(find.text('Not submitted'), findsNWidgets(2));
+      expect(find.text('No submission required'), findsOneWidget);
+
+      final pendingSemantics = tester.getSemantics(
+        find.byKey(const Key('assignment-card-101-pending')),
+      );
+      expect(pendingSemantics.label, contains('Not submitted'));
+
+      await _chooseDropdown<AssignmentSubmissionFilter>(
+        tester,
+        const Key('assignment-submission-filter'),
+        'Unsubmitted only',
+      );
+      expect(find.text('Pending assignment'), findsOneWidget);
+      expect(find.text('Overdue assignment'), findsOneWidget);
+      expect(find.text('Submitted assignment'), findsNothing);
+      expect(find.text('Course announcement'), findsNothing);
+    },
+  );
+
+  testWidgets('expanded rows render saved submission badges', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = FakeAssignmentDashboardService(
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'submitted',
+            title: 'Submitted assignment',
+            submissionStatus: AssignmentSubmissionStatus.submitted,
+          ),
+        ],
+      ),
+    );
     addTearDown(service.close);
+
     await _pumpPage(tester, service);
     await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const Key('assignment-search-field')),
-      'packet',
-    );
-    await tester.pump();
-    expect(find.text('Packet analysis'), findsOneWidget);
-    expect(find.text('Graph traversal'), findsNothing);
-
-    await tester.enterText(
-      find.byKey(const Key('assignment-search-field')),
-      '',
-    );
-    await _chooseDropdown<AssignmentDashboardSection>(
-      tester,
-      const Key('assignment-section-filter'),
-      'Recently added',
-    );
-    expect(find.text('Packet analysis'), findsOneWidget);
-    expect(find.text('Graph traversal'), findsNothing);
-
     await _chooseDropdown<AssignmentDashboardSection>(
       tester,
       const Key('assignment-section-filter'),
       'All assignments',
     );
-    await _chooseDropdown<int?>(
-      tester,
-      const Key('assignment-course-filter'),
-      'Algorithms',
-    );
-    expect(find.text('Graph traversal'), findsOneWidget);
-    expect(find.text('Packet analysis'), findsNothing);
 
-    await _chooseDropdown<AssignmentDeadlineDirection>(
-      tester,
-      const Key('assignment-deadline-sort'),
-      'Latest within each group',
+    expect(
+      find.byKey(const Key('assignment-row-101-submitted')),
+      findsOneWidget,
     );
     expect(
-      tester
-          .widget<DropdownButtonFormField<AssignmentDeadlineDirection>>(
-            find.byKey(const Key('assignment-deadline-sort')),
-          )
-          .initialValue,
-      AssignmentDeadlineDirection.descending,
+      find.byKey(const Key('assignment-submission-status-submitted')),
+      findsOneWidget,
     );
+    expect(find.text('Submitted'), findsOneWidget);
   });
 
   testWidgets('removed selected course resets the field to all courses', (

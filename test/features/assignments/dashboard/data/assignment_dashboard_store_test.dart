@@ -49,6 +49,7 @@ void main() {
         title: 'Graph traversal',
         dueDate: '2026-08-01T12:00:00Z',
         dueDateExceed: false,
+        submittedAtJson: '{"private":"payload"}',
       );
       await _insertSeen(
         database,
@@ -67,8 +68,10 @@ void main() {
       expect(assignment.activityType, 'ASM');
       expect(assignment.dueDateSource, '2026-08-01T12:00:00Z');
       expect(assignment.dueDateExceed, isFalse);
+      expect(assignment.submissionStatus, AssignmentSubmissionStatus.submitted);
       expect(assignment.isBaseline, isFalse);
       expect(assignment.toString(), 'CachedAssignment(redacted: true)');
+      expect(assignment.toString(), isNot(contains('private')));
       expect(() => cache.assignments.add(assignment), throwsUnsupportedError);
       expect(
         () => cache.courses.add(cache.courses.single),
@@ -76,6 +79,94 @@ void main() {
       );
     },
   );
+
+  test('derives the compatible backend submission states', () async {
+    await _seedTarget(database, semesterId: 101);
+    await _insertCourse(database, 101, 3001, 'Algorithms');
+    final cases =
+        <
+          ({
+            String key,
+            String activityType,
+            String? dueDate,
+            String? submittedAtJson,
+            bool quizSubmitted,
+            AssignmentSubmissionStatus expected,
+          })
+        >[
+          (
+            key: 'quiz-submitted',
+            activityType: 'QUZ',
+            dueDate: null,
+            submittedAtJson: null,
+            quizSubmitted: true,
+            expected: AssignmentSubmissionStatus.submitted,
+          ),
+          (
+            key: 'quiz-unsubmitted',
+            activityType: 'QUZ',
+            dueDate: null,
+            submittedAtJson: '{"ignored":"for-quiz"}',
+            quizSubmitted: false,
+            expected: AssignmentSubmissionStatus.unsubmitted,
+          ),
+          (
+            key: 'assignment-submitted',
+            activityType: 'ASM',
+            dueDate: '2026-08-01T12:00:00Z',
+            submittedAtJson: '{"date":"2026-07-20 14:30:00"}',
+            quizSubmitted: false,
+            expected: AssignmentSubmissionStatus.submitted,
+          ),
+          (
+            key: 'assignment-submitted-no-due',
+            activityType: 'ASM',
+            dueDate: null,
+            submittedAtJson: '{"date":"2026-07-20 14:30:00"}',
+            quizSubmitted: false,
+            expected: AssignmentSubmissionStatus.submitted,
+          ),
+          (
+            key: 'assignment-unsubmitted',
+            activityType: 'ASM',
+            dueDate: '2026-08-01T12:00:00Z',
+            submittedAtJson: null,
+            quizSubmitted: false,
+            expected: AssignmentSubmissionStatus.unsubmitted,
+          ),
+          (
+            key: 'announcement',
+            activityType: 'ANN',
+            dueDate: null,
+            submittedAtJson: null,
+            quizSubmitted: false,
+            expected: AssignmentSubmissionStatus.notApplicable,
+          ),
+        ];
+    for (final value in cases) {
+      await _insertSeen(database, key: value.key, courseId: 3001);
+      await _insertActivity(
+        database,
+        key: value.key,
+        courseId: 3001,
+        title: value.key,
+        activityType: value.activityType,
+        dueDate: value.dueDate,
+        submittedAtJson: value.submittedAtJson,
+        quizSubmitted: value.quizSubmitted,
+      );
+    }
+
+    final cache = await store.watchActiveCache().first;
+    final statuses = {
+      for (final assignment in cache.assignments)
+        assignment.identityKey: assignment.submissionStatus,
+    };
+
+    for (final value in cases) {
+      expect(statuses[value.key], value.expected, reason: value.key);
+    }
+  });
 
   test(
     'switches active semester and orders latest attempt and success',
@@ -297,8 +388,11 @@ Future<void> _insertActivity(
   required String key,
   required int courseId,
   required String title,
+  String activityType = 'ASM',
   String? dueDate,
   bool dueDateExceed = false,
+  String? submittedAtJson,
+  bool quizSubmitted = false,
 }) {
   return database
       .into(database.activities)
@@ -311,7 +405,7 @@ Future<void> _insertActivity(
           userId: 2001,
           advStarred: 0,
           groupType: 'individual',
-          activityType: 'ASM',
+          activityType: activityType,
           peerAssessment: 0,
           isAllowRepeat: 0,
           title: title,
@@ -325,11 +419,9 @@ Future<void> _insertActivity(
           classUserId: 4001,
           activityGroupId: const drift.Value(null),
           activityGroupName: const drift.Value(null),
-          activitySubmissionSubmittedAtJson: const drift.Value(
-            '{"private":"payload"}',
-          ),
+          activitySubmissionSubmittedAtJson: drift.Value(submittedAtJson),
           dueDateExceed: dueDateExceed,
-          quizSubmissionIsSubmitted: false,
+          quizSubmissionIsSubmitted: quizSubmitted,
           countGroupMember: 1,
           activitySubmissionIsLate: false,
           fileActivitiesJson: '[{"private":"attachment"}]',

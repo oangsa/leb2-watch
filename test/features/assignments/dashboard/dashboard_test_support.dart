@@ -66,6 +66,8 @@ CachedAssignment dashboardAssignment({
   String activityType = 'ASM',
   String? dueDateSource = '2026-08-01T12:00:00Z',
   bool dueDateExceed = false,
+  AssignmentSubmissionStatus submissionStatus =
+      AssignmentSubmissionStatus.unsubmitted,
   DateTime? firstSeenAtUtc,
   bool isBaseline = true,
 }) {
@@ -78,6 +80,7 @@ CachedAssignment dashboardAssignment({
     activityType: activityType,
     dueDateSource: dueDateSource,
     dueDateExceed: dueDateExceed,
+    submissionStatus: submissionStatus,
     firstSeenAtUtc: firstSeenAtUtc ?? DateTime.utc(2026, 7, 25),
     isBaseline: isBaseline,
   );

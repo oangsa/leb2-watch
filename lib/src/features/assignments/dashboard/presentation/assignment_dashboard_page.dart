@@ -48,6 +48,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
   StreamSubscription<AssignmentDashboardCache>? _subscription;
   AssignmentDashboardCache? _cache;
   AssignmentDashboardSection _section = AssignmentDashboardSection.upcoming;
+  AssignmentSubmissionFilter _submissionFilter = AssignmentSubmissionFilter.all;
   AssignmentDeadlineDirection _direction =
       AssignmentDeadlineDirection.ascending;
   int? _selectedCourseId;
@@ -197,6 +198,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
       searchQuery: _searchQuery,
       selectedCourseId: _selectedCourseId,
       direction: _direction,
+      submissionFilter: _submissionFilter,
     );
     return Material(
       color: Theme.of(context).colorScheme.surface,
@@ -204,6 +206,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         cache: cache,
         projection: projection,
         section: _section,
+        submissionFilter: _submissionFilter,
         direction: _direction,
         refreshing: _refreshing,
         streamFailed: _streamFailed,
@@ -216,6 +219,8 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
             ? null
             : () => _refresh(SyncReason.manualRefresh),
         onSectionChanged: (value) => setState(() => _section = value),
+        onSubmissionFilterChanged: (value) =>
+            setState(() => _submissionFilter = value),
         onSearchChanged: (value) => setState(() => _searchQuery = value),
         onCourseChanged: (value) => setState(() => _selectedCourseId = value),
         onDirectionChanged: (value) => setState(() => _direction = value),
@@ -229,6 +234,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.cache,
     required this.projection,
     required this.section,
+    required this.submissionFilter,
     required this.direction,
     required this.refreshing,
     required this.streamFailed,
@@ -238,6 +244,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.onOpenAssignment,
     required this.onRefresh,
     required this.onSectionChanged,
+    required this.onSubmissionFilterChanged,
     required this.onSearchChanged,
     required this.onCourseChanged,
     required this.onDirectionChanged,
@@ -246,6 +253,7 @@ class _DashboardWorklist extends StatelessWidget {
   final AssignmentDashboardCache cache;
   final AssignmentDashboardProjection projection;
   final AssignmentDashboardSection section;
+  final AssignmentSubmissionFilter submissionFilter;
   final AssignmentDeadlineDirection direction;
   final bool refreshing;
   final bool streamFailed;
@@ -255,6 +263,7 @@ class _DashboardWorklist extends StatelessWidget {
   final ValueChanged<AssignmentDetailKey> onOpenAssignment;
   final VoidCallback? onRefresh;
   final ValueChanged<AssignmentDashboardSection> onSectionChanged;
+  final ValueChanged<AssignmentSubmissionFilter> onSubmissionFilterChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<int?> onCourseChanged;
   final ValueChanged<AssignmentDeadlineDirection> onDirectionChanged;
@@ -263,13 +272,15 @@ class _DashboardWorklist extends StatelessWidget {
   Widget build(BuildContext context) {
     final windowClass = AppBreakpoints.of(context);
     final expanded = windowClass == AppWindowClass.expanded;
+    final compact = windowClass == AppWindowClass.compact;
     final horizontalPadding = windowClass == AppWindowClass.compact
         ? AppSpacing.md
         : AppSpacing.lg;
     final status = _statusBanner(cache, streamFailed, refreshResult);
     final isFiltered =
         projection.selectedCourseId != null ||
-        section != AssignmentDashboardSection.all;
+        section != AssignmentDashboardSection.all ||
+        submissionFilter != AssignmentSubmissionFilter.all;
 
     return SafeArea(
       child: Center(
@@ -313,10 +324,13 @@ class _DashboardWorklist extends StatelessWidget {
                       _DashboardControls(
                         courses: projection.courses,
                         section: section,
+                        submissionFilter: submissionFilter,
                         selectedCourseId: projection.selectedCourseId,
                         direction: direction,
+                        compact: compact,
                         expanded: expanded,
                         onSectionChanged: onSectionChanged,
+                        onSubmissionFilterChanged: onSubmissionFilterChanged,
                         onSearchChanged: onSearchChanged,
                         onCourseChanged: onCourseChanged,
                         onDirectionChanged: onDirectionChanged,
@@ -348,7 +362,7 @@ class _DashboardWorklist extends StatelessWidget {
                     message: cache.assignments.isEmpty
                         ? 'Saved assignments appear after a successful refresh.'
                         : isFiltered
-                        ? 'Change the section, course, or search to see more.'
+                        ? 'Change the section, submission status, course, or search to see more.'
                         : 'Try a different search.',
                   ),
                 )
@@ -483,10 +497,13 @@ class _DashboardControls extends StatelessWidget {
   const _DashboardControls({
     required this.courses,
     required this.section,
+    required this.submissionFilter,
     required this.selectedCourseId,
     required this.direction,
+    required this.compact,
     required this.expanded,
     required this.onSectionChanged,
+    required this.onSubmissionFilterChanged,
     required this.onSearchChanged,
     required this.onCourseChanged,
     required this.onDirectionChanged,
@@ -494,10 +511,13 @@ class _DashboardControls extends StatelessWidget {
 
   final List<AssignmentDashboardCourse> courses;
   final AssignmentDashboardSection section;
+  final AssignmentSubmissionFilter submissionFilter;
   final int? selectedCourseId;
   final AssignmentDeadlineDirection direction;
+  final bool compact;
   final bool expanded;
   final ValueChanged<AssignmentDashboardSection> onSectionChanged;
+  final ValueChanged<AssignmentSubmissionFilter> onSubmissionFilterChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<int?> onCourseChanged;
   final ValueChanged<AssignmentDeadlineDirection> onDirectionChanged;
@@ -544,6 +564,27 @@ class _DashboardControls extends StatelessWidget {
         ],
         onChanged: onCourseChanged,
       ),
+      DropdownButtonFormField<AssignmentSubmissionFilter>(
+        key: const Key('assignment-submission-filter'),
+        initialValue: submissionFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Submission'),
+        items: const [
+          DropdownMenuItem(
+            value: AssignmentSubmissionFilter.all,
+            child: Text('All statuses'),
+          ),
+          DropdownMenuItem(
+            value: AssignmentSubmissionFilter.unsubmitted,
+            child: Text('Unsubmitted only'),
+          ),
+        ],
+        onChanged: (value) {
+          if (value != null) {
+            onSubmissionFilterChanged(value);
+          }
+        },
+      ),
       DropdownButtonFormField<AssignmentDeadlineDirection>(
         key: const Key('assignment-deadline-sort'),
         initialValue: direction,
@@ -569,7 +610,7 @@ class _DashboardControls extends StatelessWidget {
       ),
     ];
 
-    if (!expanded) {
+    if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -578,6 +619,32 @@ class _DashboardControls extends StatelessWidget {
             if (index != controls.length - 1)
               const SizedBox(height: AppSpacing.sm),
           ],
+        ],
+      );
+    }
+    if (!expanded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          controls[0],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: controls[1]),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(child: controls[3]),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: controls[2]),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(flex: 2, child: controls[4]),
+            ],
+          ),
         ],
       );
     }
@@ -590,7 +657,9 @@ class _DashboardControls extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Expanded(child: controls[2]),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(flex: 2, child: controls[3]),
+        Expanded(child: controls[3]),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(flex: 2, child: controls[4]),
       ],
     );
   }
@@ -618,7 +687,7 @@ class _CompactAssignmentCard extends StatelessWidget {
     final label =
         'Open assignment: ${assignment.title}, ${assignment.courseName}, '
         '${_deadlineSemantic(row.deadline, deadline)}, '
-        '${_statusLabel(assignment)}';
+        '${_statusLabel(assignment.submissionStatus)}';
     return Semantics(
       container: true,
       button: detailKey != null,
@@ -667,11 +736,12 @@ class _CompactAssignmentCard extends StatelessWidget {
                       assignment.activityType,
                       style: theme.textTheme.bodySmall,
                     ),
-                    Text(
-                      _statusLabel(assignment),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    _AssignmentSubmissionBadge(
+                      key: Key(
+                        'assignment-submission-status-'
+                        '${assignment.identityKey}',
                       ),
+                      status: assignment.submissionStatus,
                     ),
                   ],
                 ),
@@ -727,7 +797,7 @@ class _ExpandedAssignmentRow extends StatelessWidget {
     final label =
         'Open assignment: ${assignment.title}, ${assignment.courseName}, '
         '${_deadlineSemantic(row.deadline, deadline)}, '
-        '${_statusLabel(assignment)}';
+        '${_statusLabel(assignment.submissionStatus)}';
     return Semantics(
       container: true,
       button: detailKey != null,
@@ -788,14 +858,73 @@ class _ExpandedAssignmentRow extends StatelessWidget {
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text(
-                    _statusLabel(assignment),
-                    style: theme.textTheme.bodyMedium,
+                  child: Align(
+                    alignment: AlignmentDirectional.topStart,
+                    child: _AssignmentSubmissionBadge(
+                      key: Key(
+                        'assignment-submission-status-'
+                        '${assignment.identityKey}',
+                      ),
+                      status: assignment.submissionStatus,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AssignmentSubmissionBadge extends StatelessWidget {
+  const _AssignmentSubmissionBadge({required this.status, super.key});
+
+  final AssignmentSubmissionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (background, foreground, icon) = switch (status) {
+      AssignmentSubmissionStatus.submitted => (
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+        Icons.check_circle_outline_rounded,
+      ),
+      AssignmentSubmissionStatus.unsubmitted => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        Icons.cancel_outlined,
+      ),
+      AssignmentSubmissionStatus.notApplicable => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        Icons.remove_circle_outline_rounded,
+      ),
+    };
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(AppRadii.prominent),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Wrap(
+          spacing: AppSpacing.xxs,
+          runSpacing: AppSpacing.xxs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: foreground),
+            Text(
+              _statusLabel(status),
+              style: theme.textTheme.labelMedium?.copyWith(color: foreground),
+            ),
+          ],
         ),
       ),
     );
@@ -858,21 +987,20 @@ String _sectionExplanation(
   AssignmentDashboardSection section,
 ) => switch (section) {
   AssignmentDashboardSection.upcoming =>
-    'Deadlines the backend did not report as exceeded in the saved snapshot.',
+    'Unsubmitted deadlines the backend did not report as exceeded in the saved snapshot.',
   AssignmentDashboardSection.recent =>
     'Discovered after the first successful sync. Viewing does not clear this list.',
   AssignmentDashboardSection.overdue =>
-    'Deadlines the backend reported as exceeded in the saved snapshot.',
+    'Unsubmitted deadlines the backend reported as exceeded in the saved snapshot.',
   AssignmentDashboardSection.all =>
     'Every current assignment in the saved snapshot.',
 };
 
-String _statusLabel(CachedAssignment assignment) {
-  if (assignment.dueDateSource == null) {
-    return 'No deadline';
-  }
-  return assignment.dueDateExceed ? 'Reported overdue' : 'Not reported overdue';
-}
+String _statusLabel(AssignmentSubmissionStatus status) => switch (status) {
+  AssignmentSubmissionStatus.submitted => 'Submitted',
+  AssignmentSubmissionStatus.unsubmitted => 'Not submitted',
+  AssignmentSubmissionStatus.notApplicable => 'No submission required',
+};
 
 String _deadlineSemantic(AssignmentDeadline deadline, String formatted) {
   return deadline is UnzonedAssignmentDeadline

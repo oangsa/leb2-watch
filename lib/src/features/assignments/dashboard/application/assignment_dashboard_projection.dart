@@ -2,6 +2,8 @@ import '../data/assignment_dashboard_store.dart';
 
 enum AssignmentDashboardSection { upcoming, recent, overdue, all }
 
+enum AssignmentSubmissionFilter { all, unsubmitted }
+
 enum AssignmentDeadlineDirection { ascending, descending }
 
 sealed class AssignmentDeadline {
@@ -143,6 +145,7 @@ AssignmentDashboardProjection projectAssignmentDashboard({
   required String searchQuery,
   required int? selectedCourseId,
   required AssignmentDeadlineDirection direction,
+  AssignmentSubmissionFilter submissionFilter = AssignmentSubmissionFilter.all,
 }) {
   final availableCourseIds = cache.courses.map((course) => course.id).toSet();
   final reconciledCourseId = availableCourseIds.contains(selectedCourseId)
@@ -157,11 +160,25 @@ AssignmentDashboardProjection projectAssignmentDashboard({
       .where(
         (assignment) => switch (section) {
           AssignmentDashboardSection.upcoming =>
-            assignment.dueDateSource != null && !assignment.dueDateExceed,
+            assignment.dueDateSource != null &&
+                !assignment.dueDateExceed &&
+                assignment.submissionStatus ==
+                    AssignmentSubmissionStatus.unsubmitted,
           AssignmentDashboardSection.recent => !assignment.isBaseline,
           AssignmentDashboardSection.overdue =>
-            assignment.dueDateSource != null && assignment.dueDateExceed,
+            assignment.dueDateSource != null &&
+                assignment.dueDateExceed &&
+                assignment.submissionStatus ==
+                    AssignmentSubmissionStatus.unsubmitted,
           AssignmentDashboardSection.all => true,
+        },
+      )
+      .where(
+        (assignment) => switch (submissionFilter) {
+          AssignmentSubmissionFilter.all => true,
+          AssignmentSubmissionFilter.unsubmitted =>
+            assignment.submissionStatus ==
+                AssignmentSubmissionStatus.unsubmitted,
         },
       )
       .where(

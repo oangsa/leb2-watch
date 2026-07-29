@@ -96,6 +96,43 @@ attempt as a second aggregate result. Focused Android deletion checks passed
 25 tests, and the guarded API 36 native delete-all smoke passed once on the
 disposable emulator.
 
+### Assignment submission filtering — 2026-07-29
+
+The dashboard now mirrors the compatible backend revision's exact submission
+predicate. Quizzes use `quizSubmissionIsSubmitted`. For other activity, a
+saved `activitySubmissionSubmittedAt` means `Submitted` regardless of due-date
+presence; only without that timestamp does a due date mean `Not submitted`
+and no due date mean `No submission required`. Raw submission timestamps and
+payloads remain outside presentation state.
+
+Upcoming and Overdue show only unsubmitted work and continue to trust the
+saved backend `dueDateExceed` flag rather than a local-clock calculation.
+Recently added and All retain every status unless the new `Unsubmitted only`
+filter is selected. Compact and expanded rows show accessible `Submitted`,
+`Not submitted`, or `No submission required` badges. The medium-width control
+layout uses two columns so the extra filter does not push the lazy list below
+ordinary desktop viewports.
+
+Final feature evidence is:
+
+- 15/15 focused store/projection tests passed;
+- 19/19 dashboard widget tests passed;
+- 81/81 complete dashboard and app-router tests passed, including both
+  reviewed and intentionally updated golden baselines;
+- repository formatting checked 348 files with zero changes;
+- Dart and Flutter analyzers reported no issues;
+- the memory-safe runner discovered 138 files and all 14/14 sequential shards
+  reported `All tests passed` (the displayed tool output did not retain the
+  wrapper's numeric exit field, so do not claim it); and
+- the Linux Release development build for `http://localhost:5015` completed
+  with exit 0, embeds that origin in `lib/libapp.so`, and has no missing dynamic
+  libraries.
+
+The local testing build must use `APP_ENV=development` and
+`BACKEND_BASE_URL=http://localhost:5015`. Production still must be wired to the
+operator's actual HTTPS backend with `APP_ENV=production`; never ship
+localhost or `example.invalid`.
+
 ### Android WorkManager runtime-validation status
 
 `08f5106` contains a debug-only, fixed-name WorkManager inspector, an explicit

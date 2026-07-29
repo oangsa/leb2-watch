@@ -10,19 +10,39 @@ void main() {
       identityKey: 'upcoming',
       dueDateSource: '2026-08-01T12:00:00Z',
     );
+    final submittedUpcoming = dashboardAssignment(
+      identityKey: 'submitted-upcoming',
+      dueDateSource: '2026-08-02T12:00:00Z',
+      submissionStatus: AssignmentSubmissionStatus.submitted,
+      isBaseline: false,
+    );
     final overdue = dashboardAssignment(
       identityKey: 'overdue',
       dueDateSource: '2026-07-01T12:00:00Z',
       dueDateExceed: true,
       isBaseline: false,
     );
+    final submittedOverdue = dashboardAssignment(
+      identityKey: 'submitted-overdue',
+      dueDateSource: '2026-06-01T12:00:00Z',
+      dueDateExceed: true,
+      submissionStatus: AssignmentSubmissionStatus.submitted,
+      isBaseline: false,
+    );
     final recentWithoutDeadline = dashboardAssignment(
       identityKey: 'recent-no-due',
       dueDateSource: null,
+      submissionStatus: AssignmentSubmissionStatus.notApplicable,
       isBaseline: false,
     );
     final cache = dashboardCache(
-      assignments: [upcoming, overdue, recentWithoutDeadline],
+      assignments: [
+        upcoming,
+        submittedUpcoming,
+        overdue,
+        submittedOverdue,
+        recentWithoutDeadline,
+      ],
     );
 
     expect(_keys(_project(cache, AssignmentDashboardSection.upcoming)), [
@@ -34,11 +54,51 @@ void main() {
     expect(_keys(_project(cache, AssignmentDashboardSection.recent)), [
       'overdue',
       'recent-no-due',
+      'submitted-overdue',
+      'submitted-upcoming',
     ]);
     expect(
       _keys(_project(cache, AssignmentDashboardSection.all)),
-      hasLength(3),
+      hasLength(5),
     );
+  });
+
+  test('unsubmitted filter composes with section, course, and search', () {
+    final cache = dashboardCache(
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'match',
+          title: 'Packet lab',
+          courseId: 3002,
+          courseName: 'Networks',
+          isBaseline: false,
+        ),
+        dashboardAssignment(
+          identityKey: 'submitted',
+          title: 'Packet submitted',
+          courseId: 3002,
+          courseName: 'Networks',
+          submissionStatus: AssignmentSubmissionStatus.submitted,
+          isBaseline: false,
+        ),
+        dashboardAssignment(
+          identityKey: 'wrong-course',
+          title: 'Packet other',
+          isBaseline: false,
+        ),
+      ],
+    );
+
+    final projection = projectAssignmentDashboard(
+      cache: cache,
+      section: AssignmentDashboardSection.recent,
+      searchQuery: 'packet',
+      selectedCourseId: 3002,
+      direction: AssignmentDeadlineDirection.ascending,
+      submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+    );
+
+    expect(_keys(projection), ['match']);
   });
 
   test(
@@ -240,6 +300,7 @@ AssignmentDashboardProjection _project(
   AssignmentDashboardCache cache,
   AssignmentDashboardSection section, {
   AssignmentDeadlineDirection direction = AssignmentDeadlineDirection.ascending,
+  AssignmentSubmissionFilter submissionFilter = AssignmentSubmissionFilter.all,
 }) {
   return projectAssignmentDashboard(
     cache: cache,
@@ -247,6 +308,7 @@ AssignmentDashboardProjection _project(
     searchQuery: '',
     selectedCourseId: null,
     direction: direction,
+    submissionFilter: submissionFilter,
   );
 }
 

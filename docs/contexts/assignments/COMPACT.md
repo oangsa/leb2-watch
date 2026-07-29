@@ -24,6 +24,16 @@ The historical feature records are consolidated in the retained area sections be
 
 `projectAssignmentDashboard` — section predicates, normalized search, course reconciliation, deterministic deadline ordering. Stateful page subscribes before launching refresh, fences late results by semester/session revision, preserves prior cache on stream error, never cancels shared sync service on disposal.
 
+Dashboard submission state is derived at the Drift presentation-cache boundary
+without exposing raw submission payloads. It mirrors the compatible backend:
+`QUZ` uses `quizSubmissionIsSubmitted`. For other activity, a saved
+`activitySubmissionSubmittedAt` means submitted regardless of due-date
+presence; only without that timestamp does a due date mean unsubmitted and no
+due date mean no submission is required. Upcoming and Overdue therefore
+contain only unsubmitted work and retain the backend `dueDateExceed` flag as
+overdue authority. Recently added and All retain every status unless the
+explicit Unsubmitted-only filter is selected.
+
 Notification targets reuse assignment-detail key without changing dashboard projection. Platform launch/resume, background, desktop timer, tray triggers call same sync service; cached data remains first.
 
 ### Architecture
@@ -233,6 +243,11 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Use a flat Record Sheet rather than nested metric cards or a new
   master-detail state graph.
 - Keep deadline-exceeded status sourced only from the saved backend flag.
+- Mirror the compatible backend's type-aware submission predicate rather than
+  treating a submission ID, historical status, or local date comparison as
+  current submission evidence.
+- Present `Submitted`, `Not submitted`, and `No submission required` as
+  accessible saved-status badges in compact and expanded dashboard layouts.
 
 ## Known Limitations
 
@@ -287,6 +302,22 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Golden: 2 mobile + 2 desktop determinstic Linux baselines
 - Cached-startup resilience: 42 focused tests
 - Full suite: 987 tests
+- Submission-status correction: 15 store/projection tests and 19 widget tests
+  passed, including six exact backend-predicate cases, submitted exclusion
+  from Upcoming/Overdue, filter composition, responsive layouts, 200-percent
+  text, row semantics, and list laziness.
+- Final dashboard/app-router suite: 81 tests passed, including two reviewed and
+  intentionally updated dashboard goldens.
+- `dart format --output=none --set-exit-if-changed .`: 348 files checked, zero
+  changes.
+- Dart and Flutter analyzers: no issues.
+- Memory-safe aggregate: 138 discovered files and 14/14 sequential shards
+  reported `All tests passed`; the displayed tool output did not retain the
+  wrapper's numeric exit field.
+- Linux Release development build with
+  `BACKEND_BASE_URL=http://localhost:5015`: exit 0; origin present in
+  `lib/libapp.so`; no missing dynamic libraries. Production must use the
+  operator's actual HTTPS backend.
 
 ### Validation evidence
 

@@ -41,6 +41,8 @@ final class AssignmentDashboardCourse {
   String toString() => 'AssignmentDashboardCourse(redacted: true)';
 }
 
+enum AssignmentSubmissionStatus { submitted, unsubmitted, notApplicable }
+
 final class CachedAssignment {
   const CachedAssignment({
     required this.semesterId,
@@ -51,6 +53,7 @@ final class CachedAssignment {
     required this.activityType,
     required this.dueDateSource,
     required this.dueDateExceed,
+    required this.submissionStatus,
     required this.firstSeenAtUtc,
     required this.isBaseline,
   });
@@ -63,6 +66,7 @@ final class CachedAssignment {
   final String activityType;
   final String? dueDateSource;
   final bool dueDateExceed;
+  final AssignmentSubmissionStatus submissionStatus;
   final DateTime firstSeenAtUtc;
   final bool isBaseline;
 
@@ -250,6 +254,8 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
         .customSelect(
           'SELECT a.identity_key, a.course_id, c.name AS course_name, '
           'a.title, a.activity_type, a.due_date_source, a.due_date_exceed, '
+          'a.activity_submission_submitted_at_json, '
+          'a.quiz_submission_is_submitted, '
           's.first_seen_at_utc, s.is_baseline '
           'FROM activities AS a '
           'INNER JOIN courses AS c '
@@ -268,23 +274,37 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
         )
         .get();
     final assignments = assignmentRows
-        .map(
-          (row) => CachedAssignment(
+        .map((row) {
+          final activityType = row.read<String>('activity_type');
+          final dueDateSource = row.readNullable<String>('due_date_source');
+          final submittedAtJson = row.readNullable<String>(
+            'activity_submission_submitted_at_json',
+          );
+          final quizSubmissionIsSubmitted = row.read<bool>(
+            'quiz_submission_is_submitted',
+          );
+          return CachedAssignment(
             semesterId: semesterId,
             identityKey: row.read<String>('identity_key'),
             courseId: row.read<int>('course_id'),
             courseName: row.read<String>('course_name'),
             title: row.read<String>('title'),
-            activityType: row.read<String>('activity_type'),
-            dueDateSource: row.readNullable<String>('due_date_source'),
+            activityType: activityType,
+            dueDateSource: dueDateSource,
             dueDateExceed: row.read<bool>('due_date_exceed'),
+            submissionStatus: _submissionStatus(
+              activityType: activityType,
+              dueDateSource: dueDateSource,
+              submittedAtJson: submittedAtJson,
+              quizSubmissionIsSubmitted: quizSubmissionIsSubmitted,
+            ),
             firstSeenAtUtc: DateTime.fromMillisecondsSinceEpoch(
               row.read<int>('first_seen_at_utc'),
               isUtc: true,
             ),
             isBaseline: row.read<bool>('is_baseline'),
-          ),
-        )
+          );
+        })
         .toList(growable: false);
 
     final runRows =
@@ -329,4 +349,23 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
 
   @override
   String toString() => 'DriftAssignmentDashboardStore(redacted: true)';
+}
+
+AssignmentSubmissionStatus _submissionStatus({
+  required String activityType,
+  required String? dueDateSource,
+  required String? submittedAtJson,
+  required bool quizSubmissionIsSubmitted,
+}) {
+  if (activityType == 'QUZ') {
+    return quizSubmissionIsSubmitted
+        ? AssignmentSubmissionStatus.submitted
+        : AssignmentSubmissionStatus.unsubmitted;
+  }
+  if (submittedAtJson != null) {
+    return AssignmentSubmissionStatus.submitted;
+  }
+  return dueDateSource == null
+      ? AssignmentSubmissionStatus.notApplicable
+      : AssignmentSubmissionStatus.unsubmitted;
 }
