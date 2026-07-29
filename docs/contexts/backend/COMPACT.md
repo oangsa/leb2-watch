@@ -97,6 +97,12 @@ any class fails the whole request—successful partial snapshots are forbidden.
 Use this route rather than the flat activity endpoint because the latter loses
 empty-class information.
 
+`activitySubmissionSubmittedAt.date` follows the backend API reference and may
+use either an ISO `T` separator or the upstream-compatible single-space form
+such as `2026-07-20 14:30:00`. The frontend validates and preserves that text
+with its separate timezone metadata; it does not silently assign a timezone.
+Other contracted activity date fields retain their stricter ISO `T` form.
+
 ### Exact session-expiry distinction
 
 Only HTTP 401 with `SESSION_EXPIRED`, after credentialed upstream evidence of
@@ -292,6 +298,13 @@ Feature 9.2 adds 12 session-transport tests: direct candidate authorization with
 ### Validation evidence
 
 ```text
+Submission timestamp contract correction (2026-07-29):
+  dio_backend_api_client_test.dart: 37/37 passed
+  test/core/network: 73/73 passed
+  flutter analyze --fatal-infos --fatal-warnings: No issues
+  memory-safe runner: 138 discovered files, 14/14 sequential shards, exit 0
+  live localhost snapshot mapping: success twice (4.15 seconds and 58 milliseconds)
+
 Request-cancellation hardening (2026-07-27):
   dio_backend_api_client_test.dart: 36/36 passed after detachable registration cleanup
   Combined dio + session tests: 48/48 passed

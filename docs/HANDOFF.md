@@ -506,6 +506,22 @@ Asia/Bangkok. `createdAt` is not verified as publication time. Attachment,
 external-link, completion, and removal schemas remain unverified; do not
 invent them.
 
+Live localhost validation on 2026-07-29 found and corrected one frontend
+contract mismatch: documented `activitySubmissionSubmittedAt.date` values can
+use `2026-07-20 14:30:00`, while the client previously accepted only a `T`
+separator. The final focused client suite passed 37/37, the core-network suite
+passed 73/73, and the memory-safe runner passed all 14 sequential shards across
+138 discovered test files with exit 0. The same disposable profile completed
+two snapshot mappings successfully (4.15 seconds and 58 milliseconds) against
+the compatible local backend. No raw response, credential, cookie, assignment
+content, or identifier was logged.
+
+The localhost artifact is development-only. Before any production build,
+replace `http://localhost:5015` with the operator's real HTTPS origin using
+`--dart-define=APP_ENV=production` and
+`--dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>`. Never ship a
+localhost or `example.invalid` backend origin.
+
 Use the compatible backend revision:
 
 ```text

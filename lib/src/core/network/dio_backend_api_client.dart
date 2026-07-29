@@ -610,7 +610,7 @@ AssignmentActivity _mapActivity(ActivityDto dto, int semesterId) {
   if (submittedAtDto == null) {
     submittedAt = null;
   } else {
-    _requireIsoDate(submittedAtDto.date);
+    _requireSubmissionTimestampDate(submittedAtDto.date);
     submittedAt = ActivitySubmissionTimestamp(
       date: submittedAtDto.date,
       timezoneType: submittedAtDto.timezoneType,
@@ -696,11 +696,23 @@ final _isoDatePattern = RegExp(
   r'(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})?$',
 );
 
+final _submissionTimestampDatePattern = RegExp(
+  r'^[+-]?\d{4,6}-\d{2}-\d{2}[T ]\d{2}:\d{2}'
+  r'(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})?$',
+);
+
 void _requireIsoDate(String? value) {
   if (value == null) {
     return;
   }
   if (!_isoDatePattern.hasMatch(value) || DateTime.tryParse(value) == null) {
+    throw const _ResponseInvariantException();
+  }
+}
+
+void _requireSubmissionTimestampDate(String value) {
+  if (!_submissionTimestampDatePattern.hasMatch(value) ||
+      DateTime.tryParse(value) == null) {
     throw const _ResponseInvariantException();
   }
 }

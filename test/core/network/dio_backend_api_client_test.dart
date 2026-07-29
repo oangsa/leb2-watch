@@ -316,6 +316,32 @@ void main() {
       },
     );
 
+    test('accepts the documented space-separated submission date', () async {
+      final source = _fixtureObject('snapshot_success.json');
+      _firstActivity(source)['activitySubmissionSubmittedAt'] = {
+        'date': '2026-07-20 14:30:00',
+        'timezoneType': 3,
+        'timezone': 'Asia/Bangkok',
+      };
+      final adapter = CallbackHttpClientAdapter(
+        (_, _, _) => jsonResponse(source),
+      );
+
+      final snapshot = await _client(
+        adapter,
+      ).getSemesterSnapshot(semesterId: 101, userId: 2001);
+      final submittedAt = snapshot
+          .courses
+          .first
+          .activities
+          .single
+          .activitySubmissionSubmittedAt;
+
+      expect(submittedAt?.date, '2026-07-20 14:30:00');
+      expect(submittedAt?.timezoneType, 3);
+      expect(submittedAt?.timezone, 'Asia/Bangkok');
+    });
+
     test('maps exact empty response semantics', () async {
       final adapter = CallbackHttpClientAdapter((options, _, _) {
         if (options.path == '/Semester' || options.path.startsWith('/Class/')) {
@@ -411,6 +437,7 @@ void main() {
           (json) => _firstActivity(json)['title'] = '',
           (json) => _firstActivity(json)['createdAt'] = 'not-a-date',
           (json) => _firstActivity(json)['dueDate'] = '2026/07/31',
+          (json) => _firstActivity(json)['dueDate'] = '2026-07-31 23:59:00',
           (json) => _firstActivity(json)['id'] = 1.5,
           (json) => _firstActivity(json).remove('activityGroupName'),
           (json) => _firstActivity(json)['fileActivities'] = [1],
