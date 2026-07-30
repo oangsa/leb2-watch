@@ -123,6 +123,41 @@ deadline delivery, session expiration, delete-all, X11, GNOME, login launch,
 or packaging. One mis-targeted active-window screenshot was immediately
 deleted and excluded from evidence; no screenshot was retained.
 
+### Linux Secret Service and notification flow — 2026-07-30
+
+Phase 20.2 is complete on the current KDE Plasma/Wayland session. Native
+`secret-tool` operations used one isolated app-owned attribute set to prove
+create, read, update, and delete against the live Secret Service. The created
+entry was absent before the smoke and confirmed absent after cleanup. No
+credential key, value, cookie, username, password, or production data was
+logged or retained.
+
+The existing Linux notification integration smoke now reports the live Linux
+delivery state and supports an explicit manual-tap mode. With
+`APP_ENV=development`, `BACKEND_BASE_URL=http://localhost:5015`, and disposable
+`HOME`/XDG/TMP state, the owner clicked the visible KDE notification while the
+test process remained alive. The production response stream decoded the exact
+assignment target, the test passed 1/1 in two seconds, and `finally` cancelled
+only notification ID `2147483645`.
+
+The successful isolated run left the normal app-support, autostart, and runtime
+metadata hashes unchanged and removed its prefix-checked disposable state. Two
+earlier manual windows timed out without a callback. Those attempts still ran
+exact-ID cleanup, but used the normal `XDG_RUNTIME_DIR` and rewrote the
+app-owned `notification_plugin_cache.json` to `{}`, changing its metadata. No
+normal credential, autostart entry, backend, or system notification history was
+otherwise changed.
+
+Final repository validation formatted 351 files with zero changes, both Dart
+and Flutter analyzers reported no issues, and the memory-safe runner discovered
+139 test files, passed all 14 sequential shards, and exited 0.
+
+This evidence covers live libsecret CRUD and same-process notification action
+only on the current KDE/Wayland session. It does not prove the production
+Flutter secure-storage adapter end to end, cold or terminated notification
+activation, X11, GNOME, deadline delivery, session expiration, delete-all,
+login launch, or packaging.
+
 ### Assignment submission filtering — 2026-07-29
 
 The dashboard now mirrors the compatible backend revision's exact submission
@@ -650,7 +685,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1 complete; 20.2 owner consent required | Partial |
+| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 owner consent required | Partial |
 | 21 | Backend release | Access + release target + publish authority | Authority-gated |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -738,10 +773,10 @@ already proven and must not be repeated without a new reason.
 1. **20.1 — Visible shell and tray flow (completed on KDE/Wayland):** first
    frame, human-visible tray icon, first close explanation, Keep-running hide,
    and tray Open/focus passed using a disposable application profile.
-2. **20.2 — Secret Service and notification flow:** use isolated app-owned
-   values to prove libsecret CRUD, notification delivery-state reporting, one
-   visible test notification, and one live same-process tap; then remove only
-   the created secret and notification.
+2. **20.2 — Secret Service and notification flow (completed on
+   KDE/Wayland):** isolated libsecret CRUD, Linux delivery-state reporting, one
+   visible notification, one live same-process tap, and exact owned cleanup
+   passed.
 3. **20.3 — Runtime state transitions:** prove process-lifetime deadline
    delivery, session-expiration cache retention, and delete-all cleanup under a
    disposable application profile.
@@ -865,18 +900,19 @@ workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
-private-route decision. Phase 20.1 is complete. Phase 20.2 is the next
-current-host candidate, but it is not authorized until the owner approves its
-exact Secret Service and notification mutations and cleanup boundary. The next
+private-route decision. Phases 20.1 and 20.2 are complete. Phase 20.3 is the
+next current-host candidate, but it is not authorized until the owner approves
+its exact disposable-profile state transitions and cleanup boundary. The next
 concrete decision question is:
 
 ```text
-Do you authorize Phase 20.2 on the current KDE/Wayland desktop using only
-isolated app-owned test values, one visible test notification, one same-process
-tap, and exact removal of the created secret and notification afterward?
+Do you authorize Phase 20.3 on the current KDE/Wayland desktop using a
+disposable application profile to prove one process-lifetime deadline delivery,
+session-expiration cache retention, and delete-all cleanup, with no production
+credentials or backend data?
 ```
 
-Do not imply that Phase 20.2 or any later atomic feature has started until that
+Do not imply that Phase 20.3 or any later atomic feature has started until that
 approval is explicit.
 
 ## Safe continuation commands

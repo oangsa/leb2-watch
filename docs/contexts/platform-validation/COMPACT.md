@@ -303,9 +303,12 @@ real `FlutterLocalNotificationsPlugin`, injects it into
 `FlutterLocalNotificationsAdapter`, and constructs
 `LocalNotificationServiceImpl`. It does not use a fake platform. After the
 service encodes and submits a synthetic `NewAssignmentNotification`, the test
-reads the public Linux plugin system-ID map and calls KDE's server-owned
-`org.kde.NotificationManager.InvokeAction` for `default`. The service response
-stream must emit the exact `AssignmentNotificationTarget`.
+asserts the live Linux delivery state is `notRequired` and reads the public
+Linux plugin system-ID map. Default mode calls KDE's server-owned
+`org.kde.NotificationManager.InvokeAction` for `default`; explicit manual mode
+waits up to two minutes for the owner to click the visible notification. Both
+paths require the service response stream to emit the exact
+`AssignmentNotificationTarget`.
 
 ### State and control flow
 
@@ -313,8 +316,10 @@ stream must emit the exact `AssignmentNotificationTarget`.
 2. The service initializes and subscribes to responses before submission.
 3. The service submits the synthetic new-assignment notification.
 4. The Linux plugin returns the KDE system ID for the exact app ID.
-5. KDE invokes `default`; the test awaits one exact decoded target.
-6. `finally` cancels only the known app ID, then disposes the stream/service.
+5. Default mode invokes KDE `default`; manual mode waits for the owner to click
+   the live notification.
+6. The test awaits one exact decoded target.
+7. `finally` cancels only the known app ID, then disposes the stream/service.
 
 ### Architecture
 
@@ -659,7 +664,9 @@ each successful operation. The tested Linux entry is exactly
 The test requires `TargetPlatform.linux`, `gdbus`, a freedesktop notification
 server identifying as KDE Plasma, the `actions` capability, and KDE's
 `InvokeAction` endpoint. It uses `LinuxFlutterLocalNotificationsPlugin`
-`getSystemIdMap()` only to find its own app notification ID.
+`getSystemIdMap()` only to find its own app notification ID. Compile-time
+`LEB2_WATCH_LINUX_NOTIFICATION_MANUAL_TAP=true` selects the bounded human-tap
+path; the default remains deterministic and automatic.
 
 ### Contracts and interfaces
 
@@ -777,8 +784,8 @@ OS-retained future schedule.
   broad product API solely for a test.
 - Use a fixed valid ID outside the reserved test ID so cleanup is exact and
   auditable.
-- Treat KDE server acceptance and action callback as distinct from visual or
-  human delivery evidence.
+- Keep automated KDE server acceptance/action evidence distinct from the
+  explicit manual mode that proves one visible human-click path.
 
 ### Decisions
 
@@ -891,10 +898,10 @@ Flatpak, Snap, Windows, or macOS.
 
 ### Known limitations
 
-This does not prove that a notification was visibly rendered, that a human
-clicked it, that a cold or terminated process can receive an action, that
-deadline schedules survive process exit, or that other Linux desktops behave
-the same way.
+Current KDE/Wayland evidence proves one visible notification and one human
+same-process click. It does not prove that a cold or terminated process can
+receive an action, that deadline schedules survive process exit, or that other
+Linux desktops behave the same way.
 
 ### Known limitations
 
@@ -1240,10 +1247,45 @@ session transitions, delete-all, login launch, and packaging remain unverified.
 One mis-targeted active-window screenshot was immediately deleted and excluded
 from evidence; no screenshot was retained.
 
+Phase 20.2 live evidence on the current KDE Plasma/Wayland session:
+
+```text
+Secret Service preflight
+PASS: org.freedesktop.secrets owned; exact isolated attribute set absent
+
+secret-tool create/read/update/delete
+PASS: live libsecret CRUD; exact isolated entry absent after cleanup
+
+flutter test integration_test/linux_local_notification_runtime_test.dart \
+  -d linux --reporter=expanded \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015 \
+  --dart-define=LEB2_WATCH_LINUX_NOTIFICATION_MANUAL_TAP=true
+PASS: Linux delivery state notRequired; owner clicked visible notification;
+      exact target decoded; 1 passed in 2 seconds; exact ID cancelled
+
+Isolation and cleanup
+PASS: successful run used disposable HOME/XDG/TMP including XDG_RUNTIME_DIR;
+      normal app-support, autostart, and runtime metadata hashes unchanged;
+      disposable state removed
+
+Repository validation
+PASS: format checked 351 files with 0 changes; Dart and Flutter analyzers found
+      no issues; memory-safe runner passed 139 files in 14/14 shards, exit 0
+```
+
+Two earlier manual windows timed out and performed exact-ID cleanup. They used
+the normal `XDG_RUNTIME_DIR`, which rewrote the app-owned
+`notification_plugin_cache.json` to `{}` and changed its metadata. No normal
+credential, autostart entry, backend, or system notification history was
+otherwise changed. Live Secret Service evidence used the native libsecret CLI;
+it does not prove the Flutter secure-storage adapter end to end.
+
 ### Tests
 
 - Native KDE smoke: production submission, server-ID mapping, default action,
-  strict target decoding, and exact-ID cleanup.
+  Linux delivery-state reporting, optional bounded human tap, strict target
+  decoding, and exact-ID cleanup.
 - Existing notification service/adapter/native-configuration tests remain the
   focused regression coverage for application behavior and platform policy.
 

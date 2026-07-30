@@ -12,6 +12,10 @@ import 'package:leb2_watch/src/features/notifications/domain/local_notification_
 
 const _notificationId = 2147483645;
 const _responseTimeout = Duration(seconds: 10);
+const _manualResponseTimeout = Duration(minutes: 2);
+const _manualTap = bool.fromEnvironment(
+  'LEB2_WATCH_LINUX_NOTIFICATION_MANUAL_TAP',
+);
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +57,10 @@ void main() {
           adapter.capabilities.platform,
           NotificationRuntimePlatform.linux,
         );
+        expect(
+          await service.readDeliveryPermission(),
+          NotificationDeliveryPermissionStatus.notRequired,
+        );
 
         // Set this before awaiting: a platform exception can occur after the
         // server has accepted Notify, so the known ID must still be cancelled.
@@ -66,8 +74,15 @@ void main() {
         expect(linuxPlugin, isNotNull);
         final systemId = await _awaitSystemId(linuxPlugin!);
 
-        await _invokeDefaultAction(systemId);
-        await _waitForResponse(responses);
+        if (_manualTap) {
+          debugPrint('Tap the visible LEB2 Watch validation notification.');
+        } else {
+          await _invokeDefaultAction(systemId);
+        }
+        await _waitForResponse(
+          responses,
+          timeout: _manualTap ? _manualResponseTimeout : _responseTimeout,
+        );
         expect(responses, <LocalNotificationTarget>[
           AssignmentNotificationTarget(assignment),
         ]);
@@ -169,8 +184,11 @@ Future<void> _invokeDefaultAction(int systemId) async {
   _requireSuccess(result, 'KDE default action invocation');
 }
 
-Future<void> _waitForResponse(List<LocalNotificationTarget> responses) async {
-  final deadline = DateTime.now().add(_responseTimeout);
+Future<void> _waitForResponse(
+  List<LocalNotificationTarget> responses, {
+  required Duration timeout,
+}) async {
+  final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     if (responses.isNotEmpty) {
       return;
