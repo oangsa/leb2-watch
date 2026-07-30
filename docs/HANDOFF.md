@@ -238,11 +238,12 @@ guard, native-artifact evidence, privacy boundary, and the documented
 transitive WorkManager foreground-service provenance. The fresh validation
 gate described below satisfies its full-suite condition and is committed.
 
-Do not infer fixture-dependent behavior from this foreground evidence. Native
-WorkManager registration/execution, notification permission or delivery,
+Do not infer fixture-dependent behavior from this foreground evidence.
+Fixture-backed WorkManager execution, notification permission or delivery,
 secure-storage CRUD, session-expiration recovery, local-data deletion,
 reboot/worker recovery, and physical-device behavior remain unproven because
-no verified sanitized fixture/session was used.
+no verified sanitized fixture/session was used. The later bounded native
+registration/replacement/cancellation observation is recorded above.
 
 ### Completed validation evidence and next actions
 
@@ -288,8 +289,8 @@ injected platform adapters (menu construction, close explanation, pause/resume
 menu rebuild, show-before-focus ordering, quit termination). The partials
 below reflect remaining evidence gaps.
 
-All three partials are evidence or specification-boundary gaps, not wholly
-missing features:
+The remaining limitations are evidence or specification-boundary gaps, not
+wholly missing features:
 
 1. The requested `sqlite3_flutter_libs` package is intentionally absent.
    `sqlite3 3.5.0` supplies native assets; `sqlite3_flutter_libs 0.6.0+eol`
@@ -610,91 +611,208 @@ caveats, compile-time frontend-origin configuration, quotas, and operator
 responsibility. The project is designed for operators to host their own
 compatible backend, not to depend on an author-funded shared service.
 
-## Remaining work, ranked
+## Continuation phases 18-23
 
-### 1. Android fixture and device-validation gaps
+These phases close release evidence and governance gaps around the implemented
+MVP. They are not permission to add product behavior. A runtime defect may
+produce a separate, narrowly scoped correction only after reproduction and
+root-cause confirmation.
 
-The committed Release build and API 36 foreground smoke are recorded above.
-The remaining public-beta evidence needs a sanitized compatible fixture/session
-and a physical device; an operator-owned signing decision or test key must stay
-outside Git.
+Priority remains Android, Windows, Linux, compatible backend release, private
+security reporting, then Apple. A blocked phase does not become complete; its
+exact blocker is recorded, and the next independent phase may proceed. Within
+every phase, execute one numbered atomic feature at a time through research,
+approved implementation or validation, focused and final checks, context
+update, independent review, and one commit.
 
-Required evidence:
+| Phase | Outcome | Current gate | Status |
+| --- | --- | --- | --- |
+| 18 | Android device + fixture | Fixture/session + physical device | Blocked |
+| 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
+| 20 | Linux native runtime | Owner consent + disposable restore plan | Consent-gated |
+| 21 | Backend release | Access + release target + publish authority | Authority-gated |
+| 22 | Private security route | Owner route choice + configure authority | Decision-gated |
+| 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
 
-- Gradle configuration and sanitized Release APK build;
-- merged manifest and explicit Release signer state;
-- install/start on a supported device;
-- secure-storage save/read/delete;
-- explained notification permission and a visible test notification;
-- unique WorkManager registration without duplicate chains;
-- network constraint and disabled/paused cancellation;
-- baseline silence, one later new-assignment app request, and stable-ID dedupe;
-- session-expiration cache retention and stale-generation cancellation;
-- verified recovery with a fresh generation;
-- process death, reboot, and force-stop/reopen behavior; and
-- delete-all cleanup for app-owned schedules and notifications.
+### Phase 18 — Android physical-device and fixture validation
 
-Do not use production credentials or a production backend.
+**Goal:** prove the fixture/session-dependent Android flows and physical-device
+behavior still excluded from committed emulator evidence.
 
-### 2. Windows Release build and Windows 10/11 runtime
+**Entry gate:** provide one supported physical Android device, a sanitized
+compatible backend fixture/session with no production data, and an
+operator-owned signing or test identity outside Git. Record device/API/OEM,
+fixture ownership, reset method, and cleanup plan before use.
 
-Use either an authorized remote CI run or a native Windows host with Visual
-Studio Desktop development with C++, a Windows SDK, and C++ ATL.
+**Atomic features:**
 
-Prove the complete Release-directory build, launch, same-session
-single-instance behavior, tray flows, close explanation, Keep-running, Quit,
-DPAPI secure-storage CRUD, autostart opt-in, live notifications, same-process
-tap reveal, process-lifetime reminders, session-expiration cache retention,
-and delete-all.
+1. **18.1 — Release artifact and device preflight:** build with a sanitized
+   non-production origin, inspect merged manifest and signer state, install the
+   complete artifact, cold-launch it, and record exact build/device evidence.
+2. **18.2 — Local security and notification path:** prove secure-storage
+   save/read/delete, show the explanation before notification permission,
+   submit one bounded test notification, observe visible delivery, and clean up
+   only app-owned test state.
+3. **18.3 — Fixture-backed synchronization:** prove baseline silence, one later
+   new-assignment app request, stable-ID dedupe, one unique WorkManager chain,
+   connected-network gating, and disabled/paused cancellation. Keep native
+   submission, worker execution, and visible OS delivery as separate evidence.
+4. **18.4 — Recovery and deletion:** prove session-expiration cache retention,
+   stale-generation cancellation, fresh-generation recovery, process death,
+   reboot, force-stop/reopen, and delete-all cleanup for app-owned work and
+   notifications.
 
-Do not claim MSIX behavior. The current target is an unsigned, unpackaged
-preview.
+**Exit gate:** all four atomic features have committed evidence from a
+documented fixture/device matrix; failures and OEM limits are recorded; no
+credential, cookie, assignment content, signing material, or production origin
+exists in source, logs, artifacts retained in Git, or reports.
 
-### 3. Remaining Linux native integration smoke
+**Still excluded:** exact-once visible notification delivery, every OEM power
+policy, Play publication, and production signing.
 
-KDE/Wayland Quit and same-instance are already proven. With explicit consent,
-sanitized/disposable data, and a restore plan, still test:
+### Phase 19 — Windows 10/11 Release and runtime validation
 
-- first frame and human-visible tray icon;
-- close explanation, Keep-running hide, and tray Open/focus;
-- Secret Service/libsecret CRUD;
-- notification status, visible test notification, and live tap;
-- opt-in autostart login/reboot launch (the disposable-HOME entry
-  enable/disable smoke is now proven);
-- process-lifetime deadline delivery;
-- session-expiration cache retention;
-- delete-all;
-- X11 and ideally GNOME; and
-- packaging if distribution requires it.
+**Goal:** prove the unsigned, unpackaged preview on supported Windows 10 and 11
+hosts without claiming MSIX behavior.
 
-Do not touch the normal secure-storage account, notification history, or
-autostart state without explicit scope and consent.
+**Entry gate:** native Windows host with Flutter 3.44.8, Visual Studio Desktop
+development with C++, a Windows SDK, and C++ ATL. Remote CI can prove build
+only; it cannot replace interactive runtime evidence.
 
-### 4. Open-source governance and security route
+**Atomic features:**
 
-The owner selected Apache-2.0 for both frontend and backend. The frontend
-license/security files are committed in `38f57c3`; the compatible backend
-repository has the corresponding legal/security commit `222e74f`. The owner
-selected GitHub Issues as the security-reporting route. GitHub Issues are
-public, not confidential; do not submit credentials, private user data, or
-unpatched vulnerability details there. A private advisory/email route remains
-unconfigured and is a release-governance follow-up.
+1. **19.1 — Release-directory build:** build with sanitized defines, inspect
+   the complete `build/windows/x64/runner/Release` directory and required DLLs,
+   launch from that directory, and retain the workflow/run identity when CI is
+   used.
+2. **19.2 — Window and process lifecycle:** prove same-session single-instance
+   behavior, second-launch activation, tray Open/focus, first close
+   explanation, Keep-running, and Quit on Windows 10 and Windows 11.
+3. **19.3 — Local integration lifecycle:** prove DPAPI-backed secure-storage
+   CRUD, autostart opt-in/readback/disable, live notifications and same-process
+   tap reveal, process-lifetime reminders, session-expiration cache retention,
+   and delete-all cleanup.
 
-### 5. Compatible backend release
+**Exit gate:** 19.1-19.3 pass on both supported Windows versions, or the phase
+remains partial with an exact per-version matrix. Evidence identifies native
+build, CI build, and live runtime separately.
 
-Merge or publish the compatible contract on a supported backend branch, run
-backend tests/build at that exact revision, create a compatible tag/release,
-and update frontend self-hosting docs from a raw commit pin to the supported
-release. Do not silently point the frontend at incompatible `main`.
+**Still excluded:** MSIX, installer/signing/update/store behavior,
+cold/terminated notification activation, OS-retained reminder schedules, and
+cross-session uniqueness.
 
-### 6. Apple native validation
+### Phase 20 — Remaining Linux native runtime validation
 
-On macOS/Xcode, validate iOS builds, RunnerTests, simulator/device
-notifications, Keychain/Drift, BGTask launch and forced expiration. Validate
-macOS build, signing/notarization, Keychain, tray/autostart, notifications,
-single-instance behavior, and sandboxed HTTPS.
+**Goal:** close the remaining live Linux integration gaps without touching the
+developer's normal credentials, notification history, or autostart state.
 
-This is deferred behind the user's Linux/Windows/Android priority.
+**Entry gate:** explicit owner consent for the selected atomic feature, exact
+desktop/session identification, disposable app-support/cache/credential state,
+and a prefix-checked cleanup and restore plan. KDE/Wayland Quit,
+same-instance behavior, and disposable-HOME autostart entry mutation are
+already proven and must not be repeated without a new reason.
+
+**Atomic features:**
+
+1. **20.1 — Visible shell and tray flow:** prove first frame, human-visible tray
+   icon, first close explanation, Keep-running hide, and tray Open/focus on the
+   selected desktop session.
+2. **20.2 — Secret Service and notification flow:** use isolated app-owned
+   values to prove libsecret CRUD, notification delivery-state reporting, one
+   visible test notification, and one live same-process tap; then remove only
+   the created secret and notification.
+3. **20.3 — Runtime state transitions:** prove process-lifetime deadline
+   delivery, session-expiration cache retention, and delete-all cleanup under a
+   disposable application profile.
+4. **20.4 — Desktop coverage:** repeat the applicable bounded shell evidence on
+   X11 and GNOME. Record unavailable session types as blocked, not passed.
+5. **20.5 — Distribution artifact:** begin only after the owner selects a Linux
+   packaging target or explicitly declares packaging outside the preview.
+   Validate the selected complete artifact, not a loose executable.
+
+**Exit gate:** 20.1-20.4 have exact live evidence and cleanup confirmation;
+20.5 has either a selected validated artifact or a recorded owner decision that
+packaging is outside the preview. Unsupported cold activation and
+process-lifetime reminder limits remain explicit.
+
+### Phase 21 — Compatible backend release
+
+**Goal:** replace the raw compatible commit pin with an immutable supported
+backend release without pointing users at incompatible `main`.
+
+**Entry gate:** verified access to the backend repository, owner selection of
+the supported release branch and version/tag, and explicit authority to merge,
+tag, or publish. Remote mutation is not authorized by this handoff alone.
+
+**Atomic features:**
+
+1. **21.1 — Release candidate verification:** check out exact compatible
+   revision `d6e3261537c53507873f36de166f6245bc82fcc4` or its approved descendant;
+   review contract drift; run restore, build, and tests at that exact revision.
+2. **21.2 — Immutable publication:** merge or publish only the verified
+   contract, create the approved tag/release, and record branch, commit, tag,
+   test results, and release URL. Do not publish from unreviewed local changes.
+3. **21.3 — Frontend release reference:** update self-hosting and build docs
+   from the raw commit pin to the supported release while retaining exact root
+   route, opaque-cookie authentication, user-header, health, quota, and
+   operator-responsibility boundaries.
+
+**Exit gate:** an immutable compatible backend release is externally reachable,
+its exact source revision passed backend validation, and frontend documentation
+resolves to that release. If publication is denied or unavailable, retain the
+raw pin and keep this phase blocked.
+
+### Phase 22 — Private security-reporting route
+
+**Goal:** provide a non-public path for sensitive vulnerability reports while
+keeping GitHub Issues explicitly public.
+
+**Entry gate:** owner selects an approved private advisory or email route,
+defines who receives it, and authorizes required external configuration and
+documentation changes. Do not invent an address or imply confidentiality
+before verification.
+
+**Atomic features:**
+
+1. **22.1 — Route configuration:** configure the chosen private destination
+   and its ownership/access controls without sending vulnerability details.
+2. **22.2 — Safe verification and documentation:** verify reachability with
+   non-sensitive test content, update `SECURITY.md` and linked public guidance,
+   and preserve GitHub Issues for public, non-confidential reports only.
+
+**Exit gate:** the documented private route is reachable, ownership is clear,
+and frontend/backend policies agree. Never place credentials, private user
+data, or unpatched vulnerability details in a public Issue or test message.
+
+Apache-2.0 remains selected for both repositories. Frontend legal/security
+commit `38f57c3` and backend legal/security commit `222e74f` remain the current
+committed baseline.
+
+### Phase 23 — iOS and macOS native validation
+
+**Goal:** replace Linux-only Apple static evidence with native Xcode build and
+runtime results after Android, Windows, and Linux priority work.
+
+**Entry gate:** macOS host with the repository's required Flutter/Xcode
+toolchain, approved simulator/device matrix, and explicit signing/notarization
+scope. Never treat `--no-codesign` as signed distribution evidence.
+
+**Atomic features:**
+
+1. **23.1 — iOS build and native tests:** lint plist/entitlements, run
+   simulator and no-codesign builds, run `RunnerTests`, and separate compile,
+   signing, simulator, and device evidence.
+2. **23.2 — iOS runtime lifecycle:** prove Keychain/Drift behavior,
+   notification permission/delivery/tap, BGTask launch, cooperative forced
+   expiration, session recovery, and delete-all on the approved matrix.
+3. **23.3 — macOS lifecycle and distribution:** prove build, Keychain,
+   tray/autostart, notifications, single-instance behavior, sandboxed HTTPS,
+   and delete-all. Validate signing/notarization only when explicitly included.
+
+**Exit gate:** all three atomic features have native evidence on the documented
+matrix, or remaining host/device/signing gaps stay marked partial. iOS results
+do not imply macOS results, and simulator results do not imply physical-device
+results.
 
 ### Optional scope expansions
 
@@ -710,15 +828,34 @@ Only begin these with explicit owner approval:
 
 `7f6ae9f... fix: preserve room constructors in android release builds` records
 the sanitized Android Release build, signer/manifest inspection, narrow API 36
-emulator foreground proof, and Room/R8 startup repair. It does not prove
-fixture/session-dependent WorkManager, notification, secure-storage, deletion,
-reboot, or physical-device behavior; retain those limitations.
+emulator foreground proof, and Room/R8 startup repair.
+`5d5c053... chore: complete android workmanager runtime validation` adds the
+bounded API 36 native registration/replacement/cancellation observation. These
+commits do not prove fixture-backed worker execution, notification delivery,
+secure-storage CRUD, durable cancellation, reboot/force-stop recovery, or
+physical-device behavior; retain those limits in Phase 18.
 
 ## Next feature selection
 
-Choose the next single feature through the mandatory research, worker,
-validation, context, review, and commit lifecycle. Do not imply that any
-platform feature has already started.
+Select the highest-priority phase whose entry gate is satisfied, then select
+only its first incomplete atomic feature. Record a blocked gate without marking
+the phase complete; do not start two atomic features or two write-capable
+workers together.
+
+At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
+Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
+private-route decision. Phase 20 is the only current-host candidate, but it is
+not authorized until the owner approves one exact consent-gated smoke and its
+cleanup boundary. The next concrete decision question is:
+
+```text
+Do you authorize Phase 20.1 on the current Linux desktop using only a
+disposable application profile, with no writes to normal secure storage or
+autostart state, and exact cleanup afterward?
+```
+
+Do not imply that Phase 20.1 or any later phase has started until that approval
+is explicit.
 
 ## Safe continuation commands
 
@@ -940,11 +1077,11 @@ For prepared native hosts with no newly discovered defects:
 
 | Workstream | Focused estimate |
 | --- | ---: |
-| Android build plus meaningful device matrix | 4-8 hours, possibly 1-2 days because background timing requires waits |
-| Windows build plus native smoke | 3-6 hours |
-| Remaining Linux live matrix | 2-4 hours |
-| Compatible backend release and remaining security-route governance | 1-3 hours |
-| Apple validation | another 1-2 working days |
+| Phase 18 — Android physical-device matrix | 4-8 hours; waits may extend to 1-2 days |
+| Phase 19 — Windows build and runtime | 3-6 hours |
+| Phase 20 — Remaining Linux live matrix | 2-4 hours |
+| Phases 21-22 — Backend release and security route | 1-3 hours after owner decisions and access |
+| Phase 23 — Apple validation | another 1-2 working days |
 
 The listed Android + Windows + Linux + release-documentation work totals
 10-21 focused hours before background waits: roughly 1.5-3 working days on
@@ -964,7 +1101,8 @@ the remaining release evidence can be completed and verified in two hours.
 - [ ] Read [`AGENTS.md`](../AGENTS.md), this file, and the newly selected
       feature context.
 - [ ] Preserve the committed Android evidence and its fixture/device limits.
-- [ ] Define and research one next feature before any implementation.
+- [ ] Select one Phase 18-23 atomic feature whose entry gate is satisfied.
+- [ ] Define and research that one feature before implementation or mutation.
 - [ ] Preserve the local-first, credential, transport, and persistence
       invariants.
 - [ ] Use the memory-safe 139-file/14-shard runner.
