@@ -65,36 +65,39 @@ source ~/.zshrc
 Do not repeat that command before every Flutter invocation in the same
 terminal.
 
-## Current account-switch checkpoint — 2026-07-28
+## Current account-switch checkpoint — 2026-07-30
 
-The live repository state at this pause is:
+The documentation refresh began from this verified parent state:
 
 ```text
-Branch:       dev
-HEAD:         b7ad4c4 feat: validate Linux desktop tray runtime
-Working tree: clean
+Branch:              dev
+Parent commit:       80efe11 feat: persist dashboard filters and streamline course controls
+Parent working tree: clean
+Configured upstream: none
 ```
+
+This handoff cannot contain its own eventual commit hash. On resumption,
+verify that the live tip has this parent and the expected documentation commit
+rather than assuming either remains `HEAD`.
 
 Recent committed validation and reliability work, newest first:
 
 ```text
+80efe11 feat: persist dashboard filters and streamline course controls
+084c6a9 fix: show unsubmitted assignment status
+b266953 fix: accept backend submission timestamps
+f45395a chore: update AGENTS.md
+89ab04a chore: add contributing guidelines, code of conduct, and API reference documentation
+bbbd90f chore: compact feature context documents
+8c57dc4 chore: update continuation handoff for Linux desktop tray runtime validation
 b7ad4c4 feat: validate Linux desktop tray runtime
 644b01a feat: validate Linux autostart runtime under disposable HOME
-d74173c chore: update continuation handoff
-08f5106 chore: validate android workmanager runtime
-f340a12 chore: validate android native local data deletion
-08622f1 fix: isolate drift lifecycle stress diagnostic
-e08c196 fix: stabilize startup database lease test
-c1c44a1 chore: add drift startup executor diagnostics
 ```
 
 The normal host runner has a complete green validation at the current
-application/test content: 134 discovered files, 14 sequential shards, all
-shards passed. The durable full-suite rerun attempted during the Android
-deletion review lost its output channel partway through; do not use that
-attempt as a second aggregate result. Focused Android deletion checks passed
-25 tests, and the guarded API 36 native delete-all smoke passed once on the
-disposable emulator.
+application/test content: 139 discovered files, 14 sequential shards, all
+shards passed, and the runner exited 0. Older aggregate evidence below remains
+historical to its stated feature boundary.
 
 ### Assignment submission filtering — 2026-07-29
 
@@ -105,13 +108,11 @@ presence; only without that timestamp does a due date mean `Not submitted`
 and no due date mean `No submission required`. Raw submission timestamps and
 payloads remain outside presentation state.
 
-Upcoming and Overdue show only unsubmitted work and continue to trust the
-saved backend `dueDateExceed` flag rather than a local-clock calculation.
-Recently added and All retain every status unless the new `Unsubmitted only`
-filter is selected. Compact and expanded rows show accessible `Submitted`,
-`Not submitted`, or `No submission required` badges. The medium-width control
-layout uses two columns so the extra filter does not push the lazy list below
-ordinary desktop viewports.
+Overdue shows only unsubmitted work and continues to trust the saved backend
+`dueDateExceed` flag rather than a local-clock calculation. Recently added and
+All retain every status unless the new `Unsubmitted only` filter is selected.
+Compact and expanded rows show accessible `Submitted`, `Not submitted`, or
+`No submission required` badges.
 
 Final feature evidence is:
 
@@ -132,6 +133,35 @@ The local testing build must use `APP_ENV=development` and
 `BACKEND_BASE_URL=http://localhost:5015`. Production still must be wired to the
 operator's actual HTTPS backend with `APP_ENV=production`; never ship
 localhost or `example.invalid`.
+
+### Saved dashboard filters and compact controls — 2026-07-30
+
+The dashboard now defaults to All assignments and no longer exposes Upcoming.
+Search remains directly available. Section, course, unsubmitted-only, and an
+optional inclusive minute-precision Bangkok `Due by` cutoff live in one filter
+dialog with draft-only Reset, Cancel, and Apply actions. Applied non-default
+filters appear as individually removable chips.
+
+Search, section, course, submission filter, and deadline cutoff persist in
+local Drift settings. Preferences load before the cache subscription; complete
+snapshots serialize writes so rapid edits cannot persist out of order. Missing
+saved courses fall back to All courses. Read failures use defaults, and write
+failures retain the live filter state with fixed redacted copy.
+
+Final feature evidence is:
+
+- 204 focused dashboard, database, routing, shell, notification, migration,
+  and course-preference tests passed with exit 0;
+- independent review found one deadline-classification defect; invalid
+  wall-clock and numeric-offset timestamps are now rejected;
+- the 10-test projection file and affected dashboard suite passed after that
+  correction;
+- schema generation completed with exit 0;
+- repository formatting checked 351 files with zero changes;
+- Dart and Flutter analyzers reported no issues;
+- `git diff --check` passed; and
+- the memory-safe runner discovered 139 files, passed all 14 sequential
+  shards, and exited 0.
 
 ### Android WorkManager runtime-validation status
 
@@ -328,17 +358,11 @@ dart run tool/run_flutter_tests.dart
 Its current persisted evidence is:
 
 ```text
-Discovered test/**/*_test.dart files: 132
+Discovered test/**/*_test.dart files: 139
 Sequential fresh-process shards:       14
 Maximum files per shard:               10
-Aggregate result:                       1,097 passed (14/14 shard markers)
-Wrapper exit status:                    not captured
-```
-
-The per-shard totals were:
-
-```text
-107, 68, 103, 67, 93, 119, 65, 106, 91, 82, 74, 57, 55, 10
+Aggregate result:                       all 14 shards passed
+Wrapper exit status:                    0
 ```
 
 Do not replace this with one monolithic `flutter test` process on the
@@ -361,7 +385,7 @@ The latest applicable broad checks passed:
 
 ```text
 dart format --output=none --set-exit-if-changed .
-  PASS: 330 files, zero changes
+  PASS: 351 files, zero changes
 
 dart analyze --fatal-infos --fatal-warnings
   PASS: no issues
@@ -808,7 +832,7 @@ has `222e74f`. Do not describe GitHub Issues as a private security channel, and
 do not place sensitive vulnerability details, credentials, or user data in an
 Issue. Compatible backend release/tag and remote CI state remain unverified.
 
-## Documentation drift
+## Documentation evidence boundaries
 
 Treat this handoff as the current evidence summary while preserving historical
 feature records:
@@ -821,11 +845,10 @@ feature records:
   parallel-run flake. The checked-in memory-safe runner and deterministic
   joiner correction are current authority.
 - [`README.md`](../README.md), [`platform-support.md`](platform-support.md),
-  and [`troubleshooting.md`](troubleshooting.md) still broadly say Linux live
-  tray behavior needs validation. Exact KDE/Wayland Quit and same-instance
-  behavior passed 2/2, while the broader Linux matrix remains unverified.
+  and [`troubleshooting.md`](troubleshooting.md) now record the exact 2/2
+  KDE/Wayland Quit/same-instance result and disposable-HOME autostart entry
+  result while retaining the broader unverified Linux matrix.
 
-Reconcile those public docs only as a later coherent documentation feature.
 Do not rewrite historical evidence sections to imply that their old counts
 were measured at the current tip.
 

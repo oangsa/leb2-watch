@@ -61,7 +61,7 @@ process exits.
 
 | Platform | Implementation | Validation on the current Linux host |
 | --- | --- | --- |
-| Linux | Application, tray, timers, autostart adapter, secure storage, immediate notifications, process-lifetime deadline reminders | Release build passed; live desktop integrations still need environment-specific smoke tests |
+| Linux | Application, tray, timers, autostart adapter, secure storage, immediate notifications, process-lifetime deadline reminders | Release build passed; KDE/Wayland Quit and same-instance behavior passed 2/2 in disposable environments, and disposable-HOME autostart entry enable/disable passed; broader desktop integration tests remain |
 | Android | Application and WorkManager integration | Sanitized, externally test-signed Release APK built, inspected, installed, and foreground-launched on an API 36 emulator; the explained notification-permission and fixed test-notification submission smoke passed. WorkManager/session/device behavior remains unverified. |
 | iOS | Application and BGAppRefresh integration | Dart/static tests only; macOS, Xcode, signing, and device validation required |
 | macOS | Application, tray, timer, and autostart | Dart/static tests only; macOS build, signing, and runtime validation required |

@@ -192,8 +192,10 @@ This native quit-on-destroy fallback prevents an invisible process from
 retaining the single-instance mutex.
 
 Start at login is opt-in and uses the operating system as its source of truth.
-Live tray/autostart behavior still needs validation on each supported desktop
-environment.
+On Linux, 2/2 isolated KDE/Wayland smokes proved Quit and same-instance
+behavior, and a guarded disposable-HOME smoke proved autostart entry
+enable/disable. Live close/Keep-running/Open-focus, login/reboot launch,
+X11/GNOME, and other supported desktop environments remain unverified.
 
 ## A native build fails
 

@@ -11,7 +11,7 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status, cooperative exact-generation expiration bridge | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/forced-expiration cancellation and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
 | Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
-| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build and guarded disposable-HOME autostart entry enable/disable smoke passed | Live X11/Wayland tray, keyring, notification, login/reboot autostart, and distribution-packaging tests |
+| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build; 2/2 KDE/Wayland Quit and same-instance smokes in disposable environments; guarded disposable-HOME autostart entry enable/disable smoke | Live close/Keep-running/Open-focus, keyring, notifications, login/reboot autostart, X11/GNOME, and distribution-packaging tests |
 
 Linux is release-build verified on the current host. Android has a bounded
 sanitized Release build and API 36 emulator foreground-launch validation; it
@@ -164,7 +164,9 @@ Runtime dependencies and limitations:
 - secure storage requires an available, unlocked Secret Service/libsecret
   keyring;
 - the tray links against AppIndicator 3;
-- X11/Wayland tray behavior still needs live environment testing;
+- KDE Plasma/Wayland Quit and same-instance behavior passed 2/2 in isolated
+  disposable environments; live close/Keep-running/Open-focus and X11/GNOME
+  behavior remain unverified;
 - the desktop timer works only while the process remains alive;
 - start at login is opt-in;
 - immediate notifications work through the Linux adapter;

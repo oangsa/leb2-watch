@@ -563,8 +563,9 @@ obligations were not audited.
 - Linux runtime evidence is intentionally narrow.
 - Legal, security-contact, release-tag, signing, packaging, and update-policy
   decisions remain unresolved.
-- Public documentation has known evidence drift that this isolated feature
-  records but does not edit.
+- Public documentation records the narrow 2/2 KDE/Wayland Quit/same-instance
+  and disposable-HOME autostart-entry evidence without implying broader Linux
+  runtime validation.
 
 ### Known limitations
 
@@ -685,6 +686,13 @@ git diff and git status review
 ```
 
 No Flutter/Dart command is required solely for this documentation record.
+
+The current documentation reconciliation also checks that README, platform
+support, troubleshooting, and the continuation handoff distinguish the proven
+Linux KDE/Wayland and disposable-HOME boundaries from the remaining live
+close, keyring, notification, login/reboot, X11/GNOME, and packaging gaps. It
+updates current dashboard and host-suite evidence without rewriting historical
+feature totals.
 
 ### Tests
 
