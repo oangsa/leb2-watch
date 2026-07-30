@@ -102,6 +102,27 @@ application/test content: 139 discovered files, 14 sequential shards, all
 shards passed, and the runner exited 0. Older aggregate evidence below remains
 historical to its stated feature boundary.
 
+### Linux visible shell and tray flow — 2026-07-30
+
+Phase 20.1 is complete on the current KDE Plasma/Wayland session. A Release
+bundle built successfully with `APP_ENV=development` and
+`BACKEND_BASE_URL=http://localhost:5015`, then ran with disposable
+`HOME`/XDG/TMP state. The owner visually confirmed the first frame, visible
+tray icon, first-close explanation, Keep-running hide, and tray Open/focus.
+
+App-specific accessibility and D-Bus evidence separately recorded an onscreen
+LEB2 Watch frame, one active KDE StatusNotifier item using the bundled Linux
+icon, a live process and tray item after hide, the exact visible
+`Open LEB2 Watch` menu action restoring the frame with its active state, and
+the exact `Quit` action terminating the process. Before/after metadata for the
+normal app-support, autostart, and runtime paths matched exactly. All
+prefix-checked disposable state was removed.
+
+This evidence does not cover Secret Service, notifications, backend requests,
+deadline delivery, session expiration, delete-all, X11, GNOME, login launch,
+or packaging. One mis-targeted active-window screenshot was immediately
+deleted and excluded from evidence; no screenshot was retained.
+
 ### Assignment submission filtering — 2026-07-29
 
 The dashboard now mirrors the compatible backend revision's exact submission
@@ -629,7 +650,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | Owner consent + disposable restore plan | Consent-gated |
+| 20 | Linux native runtime | 20.1 complete; 20.2 owner consent required | Partial |
 | 21 | Backend release | Access + release target + publish authority | Authority-gated |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -714,9 +735,9 @@ already proven and must not be repeated without a new reason.
 
 **Atomic features:**
 
-1. **20.1 — Visible shell and tray flow:** prove first frame, human-visible tray
-   icon, first close explanation, Keep-running hide, and tray Open/focus on the
-   selected desktop session.
+1. **20.1 — Visible shell and tray flow (completed on KDE/Wayland):** first
+   frame, human-visible tray icon, first close explanation, Keep-running hide,
+   and tray Open/focus passed using a disposable application profile.
 2. **20.2 — Secret Service and notification flow:** use isolated app-owned
    values to prove libsecret CRUD, notification delivery-state reporting, one
    visible test notification, and one live same-process tap; then remove only
@@ -844,18 +865,19 @@ workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
-private-route decision. Phase 20 is the only current-host candidate, but it is
-not authorized until the owner approves one exact consent-gated smoke and its
-cleanup boundary. The next concrete decision question is:
+private-route decision. Phase 20.1 is complete. Phase 20.2 is the next
+current-host candidate, but it is not authorized until the owner approves its
+exact Secret Service and notification mutations and cleanup boundary. The next
+concrete decision question is:
 
 ```text
-Do you authorize Phase 20.1 on the current Linux desktop using only a
-disposable application profile, with no writes to normal secure storage or
-autostart state, and exact cleanup afterward?
+Do you authorize Phase 20.2 on the current KDE/Wayland desktop using only
+isolated app-owned test values, one visible test notification, one same-process
+tap, and exact removal of the created secret and notification afterward?
 ```
 
-Do not imply that Phase 20.1 or any later phase has started until that approval
-is explicit.
+Do not imply that Phase 20.2 or any later atomic feature has started until that
+approval is explicit.
 
 ## Safe continuation commands
 

@@ -884,7 +884,8 @@ Flatpak, Snap, Windows, or macOS.
 ### Known limitations
 
 - Tests use injected platform adapters; they do not call native method channels.
-- No live KDE/Wayland D-BusMenu, tray icon visibility, or first-frame evidence.
+- Live visible-shell evidence covers only the current KDE Plasma/Wayland
+  session; it does not generalize to other desktops or display servers.
 - X11 and GNOME runtime behavior remain unverified.
 - Packaging, autostart login/reboot launch, and other platforms are excluded.
 
@@ -1210,6 +1211,34 @@ No issues found!
 dart format --output=none --set-exit-if-changed .
 348 files, 0 changed, exit 0
 ```
+
+Phase 20.1 live evidence on the current KDE Plasma/Wayland session:
+
+```text
+flutter build linux --release \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+PASS: exit 0; Release bundle contained the requested localhost origin
+
+Owner visual confirmation
+PASS: first frame, visible tray icon, first-close explanation,
+      Keep-running hide, and tray Open/focus
+
+App-specific accessibility and D-Bus checks
+PASS: onscreen LEB2 Watch frame; one active KDE StatusNotifier item using the
+      bundled Linux icon; process and tray remained after hide; exact visible
+      Open action restored the frame active; exact Quit terminated the process
+
+Isolation and cleanup
+PASS: normal app-support, autostart, and runtime metadata unchanged;
+      prefix-checked disposable HOME/XDG/TMP state removed
+```
+
+No credential, notification, autostart, or backend mutation was part of this
+smoke. X11, GNOME, Secret Service, notification delivery/tap, deadline and
+session transitions, delete-all, login launch, and packaging remain unverified.
+One mis-targeted active-window screenshot was immediately deleted and excluded
+from evidence; no screenshot was retained.
 
 ### Tests
 
