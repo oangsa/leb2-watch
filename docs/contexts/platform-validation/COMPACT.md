@@ -849,9 +849,11 @@ runner and remains a separate device command.
 
 ### Known limitations
 
-No native terminal registration, replacement, constraint, or cancellation
-result is claimed until the guarded integration test runs on an API 36
-emulator. This feature does not prove execution or connected-network blocking.
+The guarded API 36 integration test proves one observed native registration,
+replacement, connected-network constraint value, and empty active-record
+snapshot after cancellation. It does not prove worker execution,
+connected-network blocking, cancellation durability, reboot/force-stop
+recovery, or physical-device behavior.
 
 ### Known limitations
 
@@ -1060,7 +1062,9 @@ flutter test -d emulator-5554 \
 - `android_workmanager_runtime_guard_test.dart` verifies the opt-in truth table.
 - `android_workmanager_runtime_native_configuration_test.dart` verifies fixed
   name scoping, public metadata access, and absent release channel source.
-- The guarded integration test remains pending an attached disposable emulator.
+- `android_workmanager_runtime_test.dart` verifies native registration,
+  generation replacement, connected-network metadata, and cancellation on a
+  disposable API 36 emulator.
 
 ### Validation evidence
 
@@ -1075,14 +1079,26 @@ flutter analyze --fatal-infos --fatal-warnings
 
 The first `compileDebugKotlin` exposed an invalid `FlutterEngine` context
 assumption; the inspector now receives `MainActivity.applicationContext` and a
-second compile passed. `adb devices` returned no attached devices, so this was
-not run:
+second compile passed.
+
+Fresh runtime evidence on 2026-07-30:
 
 ```text
 flutter test -d emulator-5554 integration_test/android_workmanager_runtime_test.dart \
   --dart-define=LEB2_WATCH_ANDROID_WORKMANAGER_RUNTIME_TEST=true \
   --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+1 passed on API 36
+
+flutter test test/platform/android/android_workmanager_runtime_guard_test.dart \
+  test/platform/android/android_workmanager_runtime_native_configuration_test.dart
+2 passed
 ```
+
+The first integration invocation failed before the test body with `getVersion:
+(112) Service has disappeared`; ADB briefly reported the emulator offline. The
+same emulator recovered without restart, and the identical rerun passed. No
+source change was required. The disposable emulator then stopped cleanly and
+`adb devices -l` returned no attached devices.
 
 ### Tests
 

@@ -171,20 +171,19 @@ Final feature evidence is:
 `08f5106` contains a debug-only, fixed-name WorkManager inspector, an explicit
 opt-in Android integration test, host guard/source-boundary tests, and
 release/profile no-op variants. Static analysis, focused tests, Kotlin
-compilation, and a release APK build/package inspection passed. The API 36
-native registration/replacement/cancellation command was **not run** because
-no emulator or device was attached and no AVD is installed in the current
-environment. Criterion 7 therefore remains **Partial**. Do not claim native
-unique-work, network-constraint, or terminal-cancellation evidence until this
-command succeeds:
+compilation, and a release APK build/package inspection passed. On 2026-07-30,
+the existing guarded integration test passed on a disposable API 36 Google
+APIs x86_64 emulator. It observed one connected-network periodic record under
+the fixed unique name, replacement from generation A to B without retaining A,
+and an empty active-record snapshot after cancellation. Criterion 7 is now
+satisfied at that bounded runtime-observation point.
 
-```bash
-source ~/.zshrc
-flutter test -d emulator-5554 \
-  integration_test/android_workmanager_runtime_test.dart \
-  --dart-define=LEB2_WATCH_ANDROID_WORKMANAGER_RUNTIME_TEST=true \
-  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
-```
+The first invocation failed before the test body when the VM service
+disappeared and ADB briefly reported the emulator offline. The emulator
+recovered without restart; an identical rerun passed 1/1. The two focused host
+guard/configuration tests also passed 2/2. No source correction was needed.
+This does not prove worker execution, connected-network blocking, cancellation
+durability, reboot/force-stop recovery, or physical-device behavior.
 
 ### Linux and deferred platform status
 
@@ -460,12 +459,13 @@ The exact evidence boundaries are:
   X11/GNOME, and packaging remain unverified.
 - **Android:** 134 host-test files across 14 green serial shards, sanitized
   Release APK/build and signature inspection, API 36 emulator
-  install/cold/relaunch, and one guarded API 36 native delete-all smoke are
-  proven. WorkManager has a committed debug/static inspector and guarded test,
-  but native registration/replacement/cancellation was not run because no
-  emulator/device is currently available. Notification delivery/permission,
-  credential-store CRUD, fixture/session behavior, reboot/worker recovery, and
-  physical-device behavior remain unverified.
+  install/cold/relaunch, one guarded API 36 native delete-all smoke, and one
+  guarded API 36 WorkManager registration/replacement/cancellation smoke are
+  proven. The WorkManager smoke observed active native records through the
+  debug-only inspector; it did not execute a worker or test network blocking or
+  durable recovery. Notification delivery/permission, credential-store CRUD,
+  fixture/session behavior, reboot/worker recovery, and physical-device
+  behavior remain unverified.
 - **Windows:** unpackaged-preview source/static tests pass and a Release CI job
   is configured. An observed CI result, MSVC build, install/runtime smoke,
   DPAPI, tray, autostart, and notifications remain unverified; there is no
