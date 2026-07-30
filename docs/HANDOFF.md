@@ -67,22 +67,25 @@ terminal.
 
 ## Current account-switch checkpoint — 2026-07-30
 
-The documentation refresh began from this verified parent state:
+The live repository state at this checkpoint was verified as:
 
 ```text
 Branch:              dev
-Parent commit:       80efe11 feat: persist dashboard filters and streamline course controls
-Parent working tree: clean
+HEAD:                b673ffb81b909c61cded573f461521730ccb6f96
+HEAD message:        chore: refresh continuation evidence
+Parent:              80efe110c36c291b0466e98e37102851e54320e8
+Parent message:      feat: persist dashboard filters and streamline course controls
+Working tree:        clean
 Configured upstream: none
 ```
 
-This handoff cannot contain its own eventual commit hash. On resumption,
-verify that the live tip has this parent and the expected documentation commit
-rather than assuming either remains `HEAD`.
+On resumption, reverify the live branch, tip, parent, working tree, and upstream
+rather than assuming this checkpoint remains current.
 
 Recent committed validation and reliability work, newest first:
 
 ```text
+b673ffb chore: refresh continuation evidence
 80efe11 feat: persist dashboard filters and streamline course controls
 084c6a9 fix: show unsubmitted assignment status
 b266953 fix: accept backend submission timestamps
@@ -191,9 +194,11 @@ disabled state, enable/readback, exact desktop-entry content, disable/readback,
 and entry absence. It did not prove login/reboot launch, X11/GNOME, or packaged
 behavior; see the [platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence).
 
-Per owner direction, Windows and iOS runtime/build validation are deferred.
-Their source/static status and exact host commands remain documented below,
-but neither platform may be reported as build-verified or runtime-tested.
+Windows and Apple native validation are unavailable on this Linux host.
+Windows Release/runtime is ranked second after Android; Apple remains deferred
+behind the Android, Windows, and Linux priorities. Their source/static status
+and exact host commands remain documented below, but neither platform may be
+reported as build-verified or runtime-tested.
 
 ## Current Android validation checkpoint — 2026-07-27
 
@@ -938,7 +943,7 @@ For prepared native hosts with no newly discovered defects:
 | Android build plus meaningful device matrix | 4-8 hours, possibly 1-2 days because background timing requires waits |
 | Windows build plus native smoke | 3-6 hours |
 | Remaining Linux live matrix | 2-4 hours |
-| License/security/backend-release docs after owner decisions | 1-3 hours |
+| Compatible backend release and remaining security-route governance | 1-3 hours |
 | Apple validation | another 1-2 working days |
 
 The listed Android + Windows + Linux + release-documentation work totals
@@ -949,9 +954,9 @@ These are effort estimates, not elapsed-time promises.
 On the current host, Windows and Apple have no responsible fixed completion
 estimate until the required native toolchains/hosts are available. Android
 still needs a sanitized compatible fixture/session and physical-device work
-for its remaining evidence. Legal and security work also depends on owner
-decisions. Do not claim that the remaining release evidence can be completed
-and verified in two hours.
+for its remaining evidence. A compatible backend release and a private
+security-reporting route remain unverified or unconfigured. Do not claim that
+the remaining release evidence can be completed and verified in two hours.
 
 ## Resume checklist
 
@@ -962,7 +967,7 @@ and verified in two hours.
 - [ ] Define and research one next feature before any implementation.
 - [ ] Preserve the local-first, credential, transport, and persistence
       invariants.
-- [ ] Use the memory-safe 132-file/14-shard runner.
+- [ ] Use the memory-safe 139-file/14-shard runner.
 - [ ] Keep native-build, runtime, static, and unit evidence clearly separated.
 - [ ] Never use real credentials, production origins, or signing secrets.
 - [ ] Commit each completed feature with its context before beginning another.
