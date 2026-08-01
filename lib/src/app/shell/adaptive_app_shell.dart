@@ -34,7 +34,7 @@ class AdaptiveAppShell extends StatelessWidget {
   }
 
   void _changeSemester(BuildContext context) {
-    context.go(AppRoute.semesters.path);
+    context.push(AppRoute.semesters.path);
   }
 
   @override

@@ -146,11 +146,21 @@ void main() {
         await tester.tap(action);
         await tester.pumpAndSettle();
 
-        expect(
-          setup.router.routeInformationProvider.value.uri.path,
-          AppRoute.semesters.path,
-        );
         expect(find.text('Choose semester'), findsOneWidget);
+        expect(find.byType(BackButton), findsOneWidget);
+        expect(setup.router.canPop(), isTrue);
+
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+
+        expect(
+          setup.router.routerDelegate.currentConfiguration.uri.path,
+          AppRoute.assignments.path,
+        );
+        expect(
+          find.byKey(const Key('assignment-dashboard-list')),
+          findsOneWidget,
+        );
       } finally {
         semanticsHandle.dispose();
       }
