@@ -17,6 +17,13 @@ void main() {
       'assets/desktop/tray_icon_linux.png',
     );
     expect(
+      desktopTrayAssetFor(
+        DesktopOperatingSystem.linux,
+        runningInFlatpak: true,
+      ).path,
+      desktopPackageName,
+    );
+    expect(
       desktopTrayAssetFor(DesktopOperatingSystem.macOS),
       isA<DesktopTrayAssetSpec>()
           .having((asset) => asset.isTemplate, 'isTemplate', isTrue)

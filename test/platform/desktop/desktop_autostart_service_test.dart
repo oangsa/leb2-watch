@@ -106,6 +106,22 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('passes explicit launcher arguments to the desktop adapter', () async {
+    final platform = _AutostartPlatform();
+    final service = LocalDesktopAutostartService(
+      platform,
+      operatingSystem: DesktopOperatingSystem.linux,
+      executablePath: '/usr/bin/flatpak',
+      executableArguments: const ['run', desktopPackageName],
+    );
+    addTearDown(service.dispose);
+
+    await service.initialize();
+
+    expect(platform.appPath, '"/usr/bin/flatpak"');
+    expect(platform.args, ['run', desktopPackageName]);
+  });
 }
 
 final class _AutostartPlatform implements DesktopAutostartPlatform {

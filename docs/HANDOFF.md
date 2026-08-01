@@ -97,10 +97,15 @@ b7ad4c4 feat: validate Linux desktop tray runtime
 644b01a feat: validate Linux autostart runtime under disposable HOME
 ```
 
-The normal host runner has a complete green validation at the current
+The last committed checkpoint has a complete green validation at its
 application/test content: 139 discovered files, 14 sequential shards, all
-shards passed, and the runner exited 0. Older aggregate evidence below remains
-historical to its stated feature boundary.
+shards passed, and the runner exited 0. This continuation adds two focused
+Flatpak/autostart tests. Its current 141-file, 15-shard run stopped in shard 8
+after 12 failures in the unrelated
+`deadline_reminder_convergence_test.dart`; an exact-file rerun reproduced the
+same 12 failures. Do not claim the current dirty tree has a green full suite.
+Older aggregate evidence below remains historical to its stated feature
+boundary.
 
 ### Linux visible shell and tray flow — 2026-07-30
 
@@ -537,12 +542,12 @@ build.
 
 ### Linux build and narrow runtime evidence
 
-This sanitized command passed:
+This local-development command passed:
 
 ```bash
 flutter build linux --release \
-  --dart-define=APP_ENV=production \
-  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
 ```
 
 The resulting x86-64 Release bundle had no missing dynamically linked
@@ -569,7 +574,7 @@ all Linux integrations.
 
 | Platform | Source/static | Native build | Live runtime |
 | --- | --- | --- | --- |
-| Linux | Passed | Release passed | Narrow KDE/Wayland proof |
+| Linux | Passed | Release passed | KDE/Wayland 20.1-20.3 evidence |
 | Android | Passed | Sanitized Release APK | API 36 foreground smoke |
 | Windows | Passed | Not verified | Not verified |
 | iOS | Passed on Linux | Not verified | Not verified |
@@ -577,15 +582,26 @@ all Linux integrations.
 
 The exact evidence boundaries are:
 
-- **Linux:** host suite, 2/2 mocked workflows, a sanitized Release build,
-  2/2 KDE/Wayland Quit/same-instance smokes, production-adapter autostart
-  entry enable/disable under a disposable `HOME`, and Linux desktop tray
-  coordinator lifecycle (menu construction, close explanation, pause/resume
-  menu rebuild, show-before-focus ordering, quit termination) via injected
-  platform adapters are proven. Keyring CRUD, visible notification/tap/history,
-  autostart login/reboot launch, close explanation (live), Keep-running/Open-focus
-  (live), process reminders, session-expiration cache retention, delete-all,
-  X11/GNOME, and packaging remain unverified.
+- **Linux:** 20.1-20.3 KDE/Wayland evidence proven: shell/tray (visible frame,
+  tray icon, close explanation, Keep-running, Open/focus), keyring (isolated
+  libsecret CRUD), notification/tap (one visible notification, one live
+  same-process tap), process-lifetime deadline reminder delivery, session-expiration
+  cache retention (hermetic production-graph evidence from the 2/2 workflow, not
+  live HTTP 401 proof), and delete-all cleanup under a disposable application
+  profile. 20.4 X11/GNOME intentionally skipped for the current preview.
+  Login/reboot autostart remains unverified. On 2026-08-01 a fresh Linux
+  Release bundle was built from current source with `APP_ENV=development` and
+  `BACKEND_BASE_URL=http://localhost:5015` using Flutter 3.44.8 from a
+  disposable writable SDK copy. This is local-development packaging/runtime
+  evidence only. A host-side Swagger preflight and the same request from the
+  installed Flatpak sandbox both returned HTTP 200; no authenticated app flow
+  was run. The Flatpak manifest was rebuilt, exported, and user installation
+  updated; metadata/permission inspection and a read-only in-sandbox
+  file/linker/symlink smoke passed. A fresh bounded Wayland launch of this
+  updated package stayed alive for 20 seconds and exited 124 from the expected
+  timeout; only cursor-theme and AppIndicator deprecation warnings appeared.
+  Production still requires an operator HTTPS origin and runtime flow;
+  login/reboot autostart validation remains unverified.
 - **Android:** 134 host-test files across 14 green serial shards, sanitized
   Release APK/build and signature inspection, API 36 emulator
   install/cold/relaunch, one guarded API 36 native delete-all smoke, and one
@@ -757,8 +773,8 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1-20.3 complete; 20.4 requires X11/GNOME host/session | Partial |
-| 21 | Backend release | Access + release target + publish authority | Authority-gated |
+| 20 | Linux native runtime | 20.1-20.3 complete; 20.4 owner-skipped (X11/GNOME); 20.5 localhost-backed Flatpak preview built/installed/smoke-tested, production bundle and login/reboot remain | Partial |
+| 21 | Backend release | Access + release target + publish authority | wait |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
 
@@ -852,16 +868,29 @@ already proven and must not be repeated without a new reason.
 3. **20.3 — Runtime state transitions:** prove process-lifetime deadline
    delivery, session-expiration cache retention, and delete-all cleanup under a
    disposable application profile.
-4. **20.4 — Desktop coverage:** repeat the applicable bounded shell evidence on
-   X11 and GNOME. Record unavailable session types as blocked, not passed.
-5. **20.5 — Distribution artifact:** begin only after the owner selects a Linux
-   packaging target or explicitly declares packaging outside the preview.
-   Validate the selected complete artifact, not a loose executable.
+4. **20.4 — Desktop coverage:** owner-skipped on 2026-08-01. X11 and GNOME
+   validation is intentionally skipped for the current Linux preview; this is
+   not runtime evidence and does not block 20.5.
+5. **20.5 — Distribution artifact:** Flatpak was selected by the owner on
+   2026-08-01. The repository manifest at
+   `packaging/flatpak/dev.oangsa.leb2watch.json` packages the complete Linux
+   release bundle with desktop metadata and the required tray compatibility
+   modules. A fresh current-source development bundle with
+   `BACKEND_BASE_URL=http://localhost:5015` was rebuilt into Flatpak and
+   installed; metadata, permissions, in-sandbox file/linker/symlink smoke, and
+   a bounded Wayland launch passed. A host-side Swagger preflight and the same
+   request from the installed Flatpak sandbox both returned HTTP 200. An
+   unauthenticated `/Semester` request returned HTTP 401 from both namespaces,
+   and the exact packaged autostart command stayed alive for its bounded
+   15-second smoke. No authenticated app flow or real login/reboot launch was
+   run. Production still requires an HTTPS operator origin, and login/reboot
+   autostart validation remains required.
 
-**Exit gate:** 20.1-20.4 have exact live evidence and cleanup confirmation;
-20.5 has either a selected validated artifact or a recorded owner decision that
-packaging is outside the preview. Unsupported cold activation and
-process-lifetime reminder limits remain explicit.
+**Exit gate:** 20.1-20.3 require their documented evidence and cleanup confirmation;
+20.4 is explicitly skipped without a pass claim; 20.5 fresh localhost-backed
+package build, install, and bounded Wayland launch pass. A production-origin
+bundle, runtime flow against that origin, and login/reboot autostart validation
+remain required for release completion.
 
 ### Phase 21 — Compatible backend release
 
@@ -971,17 +1000,42 @@ the phase complete; do not start two atomic features or two write-capable
 workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
-Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
-private-route decision. Phases 20.1-20.3 are complete. Phase 20.4 is the next
-incomplete atomic feature, but it is blocked because this host provides KDE /
-Wayland and no X11 or GNOME host/session is available. Do not claim Phase 20
-overall complete until 20.4 and the packaging decision are resolved.
+Phase 21 is `wait` by owner direction and will be handled separately; and
+Phase 22 remains subject to the owner's private-route decision. Phases 20.1-20.3
+are complete. Phase 20.4 is owner-skipped; 20.5 remains partial: the
+localhost-backed Flatpak was built, installed, inspected, reached the live
+backend, and passed the packaged launch smoke, but authenticated package flow
+and autostart login/reboot validation remain pending. Phase 20 is not complete
+until 20.5 resolves. After Phase 20 closes, Phase 22 is the next candidate;
+Phase 21 should remain waiting unless the owner separately opens it.
 
 ```text
 Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the
 current KDE/Wayland desktop, disposable application profile, development-only
 http://localhost:5015, sanitized/local data, and no production credentials or
 backend data.
+```
+
+```text
+Owner decision recorded: Phase 20.4 X11/GNOME validation owner-skipped on
+2026-08-01. X11 and GNOME are intentionally skipped for the current Linux
+preview; this resolves the 20.4 scope without runtime evidence.
+```
+
+```text
+Owner decision recorded: Phase 20.5 Flatpak packaging selected on 2026-08-01.
+The repository contains a preview manifest, desktop metadata, and vendored
+AppIndicator compatibility module recipes. The current host built and
+user-installed a fresh current-source bundle with `APP_ENV=development` and
+`BACKEND_BASE_URL=http://localhost:5015`, passed metadata/permission inspection
+and a read-only in-sandbox file/linker/symlink smoke, and stayed alive for a
+bounded 20-second Wayland launch before the expected timeout exit 124. Host and
+Flatpak Swagger preflights returned HTTP 200; unauthenticated `/Semester`
+requests returned HTTP 401 in both namespaces; and the packaged autostart
+command stayed alive for its bounded 15-second smoke. No authenticated app flow
+or real login/reboot launch was run. This development-only artifact must not
+ship; production requires an operator HTTPS origin, and production runtime flow
+plus login/reboot validation remain unverified.
 ```
 
 ## Safe continuation commands
@@ -999,8 +1053,16 @@ flutter analyze --fatal-infos --fatal-warnings
 dart run tool/run_flutter_tests.dart
 flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux
 flutter build linux --release \
-  --dart-define=APP_ENV=production \
-  --dart-define=BACKEND_BASE_URL=https://backend.example.invalid
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+flatpak-builder --force-clean \
+  --repo=build/flatpak-repo \
+  build/flatpak \
+  packaging/flatpak/dev.oangsa.leb2watch.json
+flatpak build-bundle \
+  build/flatpak-repo \
+  build/leb2-watch.flatpak \
+  dev.oangsa.leb2watch
 git status --short
 ```
 

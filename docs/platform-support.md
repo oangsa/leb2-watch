@@ -11,7 +11,7 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status, cooperative exact-generation expiration bridge | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/forced-expiration cancellation and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
 | Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
-| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, and process-lifetime deadline reminders | Linux release build; 2/2 KDE/Wayland Quit and same-instance smokes in disposable environments; guarded disposable-HOME autostart entry enable/disable smoke | Live close/Keep-running/Open-focus, keyring, notifications, login/reboot autostart, X11/GNOME, and distribution-packaging tests |
+| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, process-lifetime deadline reminders, and a Flatpak preview target | Linux release build; 20.1-20.3 KDE/Wayland evidence (shell/tray, keyring, notification/tap, process-lifetime reminder, delete-all); localhost-backed current-source Flatpak package build/install, in-sandbox file/linker smoke, and bounded Wayland launch; session-expiration retention is hermetic production-graph evidence | Production-origin bundle/backend flow, login/reboot autostart, and deeper Flatpak app-flow validation remain unverified; X11/GNOME intentionally skipped for the current preview |
 
 Linux is release-build verified on the current host. Android has a bounded
 sanitized Release build and API 36 emulator foreground-launch validation; it
@@ -164,9 +164,10 @@ Runtime dependencies and limitations:
 - secure storage requires an available, unlocked Secret Service/libsecret
   keyring;
 - the tray links against AppIndicator 3;
-- KDE Plasma/Wayland Quit and same-instance behavior passed 2/2 in isolated
-  disposable environments; live close/Keep-running/Open-focus and X11/GNOME
-  behavior remain unverified;
+- Current KDE/Wayland evidence covers 20.1-20.3: shell/tray, keyring,
+  notification/tap, process-lifetime reminders, and delete-all; session-expiration
+  retention is hermetic rather than live HTTP 401; X11/GNOME is intentionally
+  skipped and remains unverified;
 - the desktop timer works only while the process remains alive;
 - start at login is opt-in;
 - immediate notifications work through the Linux adapter;
@@ -175,7 +176,21 @@ Runtime dependencies and limitations:
 - OS-retained schedules and cold-launch notification payload recovery are
   unsupported because the app is not DBus-activatable.
 
-No distro package, installer, AppImage, Flatpak, or Snap is configured.
+The selected Flatpak preview target is configured and built at
+[`packaging/flatpak/dev.oangsa.leb2watch.json`](../packaging/flatpak/dev.oangsa.leb2watch.json).
+It consumes the complete Linux release bundle, installs desktop metadata and
+the tray icon, and includes the pinned AppIndicator compatibility modules. The
+current host built `build/leb2-watch.flatpak`, installed it user-scoped, and
+passed metadata/permission, in-sandbox file/linker, and bounded Wayland launch
+checks for a fresh current-source development bundle compiled with
+`BACKEND_BASE_URL=http://localhost:5015`. A host-side Swagger preflight and the
+same request from the installed Flatpak sandbox both returned HTTP 200. An
+unauthenticated `/Semester` request returned HTTP 401 from both namespaces, and
+the packaged autostart command stayed alive for its bounded 15-second smoke.
+No authenticated app flow or real login/reboot launch was run. This is not a
+production release: production rejects HTTP and requires an operator-owned
+HTTPS origin; login/reboot autostart and deeper Flatpak app flow remain
+unverified. No AppImage, Snap, or distro package is configured.
 
 ## Native smoke-test expectations
 

@@ -184,7 +184,16 @@ On the current Linux host, the verified release bundle location is:
 build/linux/x64/release/bundle/leb2-watch
 ```
 
-No distro package, installer, AppImage, Flatpak, or Snap is configured.
+The selected Flatpak preview target is configured at
+[`packaging/flatpak/dev.oangsa.leb2watch.json`](../packaging/flatpak/dev.oangsa.leb2watch.json).
+Build the Linux release bundle first, then follow
+[`packaging/flatpak/README.md`](../packaging/flatpak/README.md) to build and
+bundle it. The earlier development preview used `http://localhost:5015`, and
+the current installed Flatpak validation also uses that origin with
+`APP_ENV=development`. The localhost-backed artifact is for local validation
+only: production rejects HTTP, so build a fresh bundle with
+`APP_ENV=production` and the operator's real HTTPS origin before distribution.
+No distro package, installer, AppImage, or Snap is configured.
 
 ### macOS
 

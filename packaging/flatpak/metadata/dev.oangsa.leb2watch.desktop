@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=LEB2 Watch
+Comment=Local-first assignment monitoring for LEB2
+Exec=leb2-watch
+Icon=dev.oangsa.leb2watch
+Terminal=false
+Type=Application
+Categories=Education;
+StartupNotify=true

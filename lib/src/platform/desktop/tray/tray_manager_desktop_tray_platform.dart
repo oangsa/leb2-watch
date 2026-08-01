@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:tray_manager/tray_manager.dart';
 
 import '../autostart/desktop_autostart_service.dart';
@@ -19,10 +21,15 @@ final class DesktopTrayAssetSpec {
   final bool supportsTooltip;
 }
 
-DesktopTrayAssetSpec desktopTrayAssetFor(DesktopOperatingSystem system) {
+DesktopTrayAssetSpec desktopTrayAssetFor(
+  DesktopOperatingSystem system, {
+  bool runningInFlatpak = false,
+}) {
   return switch (system) {
-    DesktopOperatingSystem.linux => const DesktopTrayAssetSpec(
-      path: 'assets/desktop/tray_icon_linux.png',
+    DesktopOperatingSystem.linux => DesktopTrayAssetSpec(
+      path: runningInFlatpak
+          ? desktopPackageName
+          : 'assets/desktop/tray_icon_linux.png',
       isTemplate: false,
       iconSize: 18,
       supportsTooltip: false,
@@ -103,7 +110,11 @@ final class TrayManagerDesktopTrayPlatform
     required DesktopOperatingSystem operatingSystem,
     DesktopTrayPlugin plugin = const TrayManagerDesktopTrayPlugin(),
   }) => TrayManagerDesktopTrayPlatform._(
-    desktopTrayAssetFor(operatingSystem),
+    desktopTrayAssetFor(
+      operatingSystem,
+      runningInFlatpak:
+          Platform.environment['FLATPAK_ID'] == desktopPackageName,
+    ),
     plugin,
   );
 

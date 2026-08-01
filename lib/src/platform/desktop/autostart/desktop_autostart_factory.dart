@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../../../features/background_sync/domain/desktop_autostart_service.dart';
 import 'desktop_autostart_service.dart';
+import 'flatpak_desktop_autostart_platform.dart';
 import 'launch_at_startup_desktop_autostart_platform.dart';
 
 DesktopAutostartService createDesktopAutostartService() {
@@ -9,10 +10,18 @@ DesktopAutostartService createDesktopAutostartService() {
   if (operatingSystem == DesktopOperatingSystem.unsupported) {
     return const UnsupportedDesktopAutostartService();
   }
+  final launch = desktopAutostartLaunchFor(
+    resolvedExecutable: Platform.resolvedExecutable,
+    runningInFlatpak: Platform.environment['FLATPAK_ID'] == desktopPackageName,
+  );
+  final platform = Platform.environment['FLATPAK_ID'] == desktopPackageName
+      ? FlatpakDesktopAutostartPlatform()
+      : const LaunchAtStartupDesktopAutostartPlatform();
   return LocalDesktopAutostartService(
-    const LaunchAtStartupDesktopAutostartPlatform(),
+    platform,
     operatingSystem: operatingSystem,
-    executablePath: Platform.resolvedExecutable,
+    executablePath: launch.executablePath,
+    executableArguments: launch.executableArguments,
   );
 }
 

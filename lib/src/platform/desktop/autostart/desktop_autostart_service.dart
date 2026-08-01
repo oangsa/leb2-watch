@@ -27,11 +27,13 @@ final class LocalDesktopAutostartService implements DesktopAutostartService {
     this._platform, {
     required this._operatingSystem,
     required this._executablePath,
-  });
+    List<String> executableArguments = const [],
+  }) : _executableArguments = List.unmodifiable(executableArguments);
 
   final DesktopAutostartPlatform _platform;
   final DesktopOperatingSystem _operatingSystem;
   final String _executablePath;
+  final List<String> _executableArguments;
   final StreamController<DesktopAutostartSnapshot> _changes =
       StreamController<DesktopAutostartSnapshot>.broadcast(sync: true);
 
@@ -56,7 +58,7 @@ final class LocalDesktopAutostartService implements DesktopAutostartService {
         appName: desktopAppName,
         appPath: quoteDesktopExecutable(_executablePath, _operatingSystem),
         packageName: desktopPackageName,
-        args: const [],
+        args: _executableArguments,
       );
       _emit(
         DesktopAutostartSnapshot(
@@ -135,6 +137,20 @@ final class LocalDesktopAutostartService implements DesktopAutostartService {
 
   @override
   String toString() => 'LocalDesktopAutostartService(redacted: true)';
+}
+
+({String executablePath, List<String> executableArguments})
+desktopAutostartLaunchFor({
+  required String resolvedExecutable,
+  required bool runningInFlatpak,
+}) {
+  if (runningInFlatpak) {
+    return (
+      executablePath: '/usr/bin/flatpak',
+      executableArguments: const ['run', desktopPackageName],
+    );
+  }
+  return (executablePath: resolvedExecutable, executableArguments: const []);
 }
 
 String quoteDesktopExecutable(

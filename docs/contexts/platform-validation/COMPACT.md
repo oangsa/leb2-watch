@@ -4,7 +4,12 @@
 
 Partial. Android background synchronization and WorkManager have implementation
 and bounded host/static evidence, but required native runtime proof remains
-incomplete; other platform records retain their stated validation boundaries.
+incomplete; Linux 20.1-20.3 are complete, 20.4 X11/GNOME is intentionally
+skipped for the current preview, and 20.5 Flatpak packaging has a built,
+installed, and smoke-tested preview artifact. Host and Flatpak live API
+reachability is proven; authenticated package flow and login/reboot autostart
+remain unverified. Other platform records retain their stated validation
+boundaries.
 
 ## Purpose
 
@@ -482,8 +487,18 @@ the native quit message.
   coverage.
 - `lib/src/platform/desktop/autostart/desktop_autostart_service.dart` —
   production service under test.
+- `lib/src/platform/desktop/autostart/flatpak_desktop_autostart_platform.dart`
+  — sandbox-aware XDG autostart adapter.
 - `lib/src/platform/desktop/autostart/launch_at_startup_desktop_autostart_platform.dart`
   — production plugin adapter under test.
+
+### Important files
+
+- `packaging/flatpak/dev.oangsa.leb2watch.json` — selected Flatpak preview
+  manifest and sandbox permissions.
+- `packaging/flatpak/metadata/` — desktop entry and AppStream metadata.
+- `packaging/flatpak/modules/` — vendored AppIndicator compatibility recipes.
+- `packaging/flatpak/README.md` — build, bundle, and validation boundary.
 
 ### Important files
 
@@ -893,8 +908,11 @@ Flatpak, Snap, Windows, or macOS.
 - Tests use injected platform adapters; they do not call native method channels.
 - Live visible-shell evidence covers only the current KDE Plasma/Wayland
   session; it does not generalize to other desktops or display servers.
-- X11 and GNOME runtime behavior remain unverified.
-- Packaging, autostart login/reboot launch, and other platforms are excluded.
+- X11 and GNOME runtime behavior remain intentionally unverified (skipped on
+  2026-08-01).
+- A production-origin Flatpak build and deeper authenticated app-flow/runtime
+  validation remain unverified. The fresh localhost package is development-only
+  and must not ship; autostart login/reboot launch also remains unverified.
 
 ### Known limitations
 
@@ -1356,16 +1374,95 @@ evidence. A preliminary filesystem-only launch exposed the normal Secret
 Service namespace, so it was stopped immediately and excluded from evidence.
 The completed run used the unique namespace above.
 
+### Phase 20.4 decision — owner-skipped — 2026-08-01
+
+On 2026-08-01 the owner decided to skip X11 and GNOME validation for the
+current Linux preview. No X11/GNOME pass claim is made; this is an intentional
+scope decision, not a runtime result.
+
+### Phase 20.5 decision — Flatpak selected — 2026-08-01
+
+The owner selected Flatpak packaging for the Linux preview. The manifest at
+`packaging/flatpak/dev.oangsa.leb2watch.json` consumes the complete Linux
+release bundle, installs desktop metadata and the tray icon, and includes
+vendored official AppIndicator compatibility module recipes for the sandboxed
+tray integration. The current host has Flatpak 1.18.0,
+`flatpak-builder` 1.4.10, and the 25.08 SDK/runtime. The earlier preview was
+built, user-installed, inspected, checked in-sandbox for files/linker paths,
+and launched for 20 seconds on Wayland using the development-configured
+`http://localhost:5015` bundle. On 2026-08-01 a fresh current-source Release
+bundle was rebuilt with `APP_ENV=development` and that localhost origin using
+Flutter 3.44.8 from a disposable writable SDK copy. The manifest was rebuilt,
+exported, and user-installed; metadata, permissions, and a read-only
+in-sandbox file/linker/symlink smoke passed. A fresh bounded Wayland launch of
+the updated package stayed alive for 20 seconds and exited 124 from the
+expected timeout, with only cursor-theme and AppIndicator deprecation
+warnings. A host-side Swagger preflight and the same request from the installed
+Flatpak sandbox both returned HTTP 200. An unauthenticated `/Semester` request
+returned HTTP 401 from both namespaces, confirming the expected auth boundary.
+The exact packaged Flatpak launch command used by the generated autostart entry
+stayed alive for 15 seconds and exited 124 from the bounded timeout. No
+authenticated app flow or real login/reboot launch was run. This is
+development-only packaging/runtime evidence; production requires an operator
+HTTPS origin. Flathub publication is outside this phase.
+
 ### Validation evidence
 
 ```text
 dart format --output=none --set-exit-if-changed .
 dart analyze
 flutter analyze
-flutter build linux
+flutter build linux --release \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+desktop-file-validate packaging/flatpak/metadata/dev.oangsa.leb2watch.desktop
+appstreamcli validate --no-net packaging/flatpak/metadata/dev.oangsa.leb2watch.metainfo.xml
+flatpak-builder --force-clean --repo=build/flatpak-repo build/flatpak \
+  packaging/flatpak/dev.oangsa.leb2watch.json
+flatpak build-bundle build/flatpak-repo build/leb2-watch.flatpak \
+  dev.oangsa.leb2watch
+flatpak install --user --assumeyes build/leb2-watch.flatpak
+flatpak info --user --show-permissions dev.oangsa.leb2watch
+flatpak run --command=sh dev.oangsa.leb2watch -c \
+  'test -x /app/bin/leb2-watch && test -L /app/lib/libappindicator3.so.1 && \
+   ldd /app/bin/lib/libtray_manager_plugin.so | grep libappindicator3' \
+  # in-sandbox file/linker smoke
+timeout --signal=TERM 20s flatpak run dev.oangsa.leb2watch  # Wayland launch
 jarsigner -verify <aab>          # exit 0, jar verified
 jarsigner -verify -strict -certs # exit 4, self-signed signer
 ```
+
+Flatpak preview results:
+
+```text
+flatpak-builder: PASS; manifest built with the Freedesktop 25.08 SDK/runtime
+flatpak build-bundle: PASS; build/leb2-watch.flatpak created
+flatpak install --user: PASS; dev.oangsa.leb2watch installed
+flatpak info --user: PASS; command, runtime, narrow permissions, and metadata
+in-sandbox smoke: PASS; executable, metadata, icon, AppIndicator symlink, and
+  Flutter/AppIndicator/dbusmenu linker resolution were present
+Wayland launch: PASS; process stayed alive for the bounded 20-second window;
+  termination exit 124 was expected, with only cursor-theme/deprecation warnings
+```
+
+The current package input was the complete Linux bundle whose compile-time
+backend origin was development-only `http://localhost:5015`. Its bounded
+Wayland and packaged-autostart command launches passed under the current
+KDE/Wayland session. The host and installed Flatpak sandbox both reached the
+Swagger endpoint and received HTTP 200; unauthenticated `/Semester` requests
+returned HTTP 401 in both namespaces. No authenticated API flow or real
+login/reboot launch was run; this does not validate a production backend or
+every newly changed Dart path.
+
+Current continuation checks on 2026-08-01 passed the 20 focused desktop
+autostart/tray tests, Flutter analysis, formatting of the eight changed Dart
+files, manifest/desktop/AppStream validation, and `git diff --check`. The
+memory-safe runner discovered 141 files in 15 shards but stopped in shard 8
+after 12 failures in `deadline_reminder_convergence_test.dart`; an exact-file
+rerun reproduced those failures. Direct Dart analysis could not initialize the
+`riverpod_lint` analyzer plugin because the restricted host could not reach
+`pub.dev`; Flutter analysis completed with no issues. This is not full-suite
+pass evidence for the current dirty tree.
 
 ### Tests
 

@@ -1,0 +1,62 @@
+{
+  "id": "dev.oangsa.leb2watch",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "25.08",
+  "sdk": "org.freedesktop.Sdk",
+  "command": "leb2-watch",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--share=network",
+    "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.freedesktop.secrets",
+    "--talk-name=org.kde.StatusNotifierWatcher",
+    "--filesystem=xdg-config/autostart:create",
+    "--env=LD_LIBRARY_PATH=/app/lib:/app/bin/lib"
+  ],
+  "modules": [
+    "modules/libayatana-appindicator/libayatana-appindicator-gtk3.json",
+    {
+      "name": "leb2-watch-bundle",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -d /app/bin",
+        "cp -a . /app/bin/",
+        "install -d /app/lib",
+        "ln -sfn libayatana-appindicator3.so.1 /app/lib/libappindicator3.so.1"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../../build/linux/x64/release/bundle"
+        }
+      ]
+    },
+    {
+      "name": "leb2-watch-metadata",
+      "buildsystem": "simple",
+      "build-commands": [
+        "install -Dm644 dev.oangsa.leb2watch.desktop /app/share/applications/dev.oangsa.leb2watch.desktop",
+        "install -Dm644 dev.oangsa.leb2watch.metainfo.xml /app/share/metainfo/dev.oangsa.leb2watch.metainfo.xml",
+        "install -Dm644 dev.oangsa.leb2watch.png /app/share/icons/hicolor/64x64/apps/dev.oangsa.leb2watch.png"
+      ],
+      "sources": [
+        {
+          "type": "file",
+          "path": "metadata/dev.oangsa.leb2watch.desktop"
+        },
+        {
+          "type": "file",
+          "path": "metadata/dev.oangsa.leb2watch.metainfo.xml"
+        },
+        {
+          "type": "file",
+          "path": "../../assets/desktop/tray_icon_linux.png",
+          "dest-filename": "dev.oangsa.leb2watch.png"
+        }
+      ]
+    }
+  ]
+}
