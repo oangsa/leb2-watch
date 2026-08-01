@@ -1303,12 +1303,14 @@ Built build/linux/x64/debug/bundle/leb2-watch
 The successful test is runtime evidence that the production path reached the
 current KDE server and received its same-process `default` action callback.
 
-### Phase 20.3 runtime state transition attempt — 2026-08-01
+### Phase 20.3 runtime state transitions — complete — 2026-08-01
 
-Owner-approved scope was the current KDE/Wayland session with a disposable
-profile boundary, development-only `http://localhost:5015`, sanitized/local
-data, and no production credentials or backend data. The normal app profile
-and the separate backend repository remained untouched.
+Phase 20.3 passed on the current KDE/Wayland session under the approved
+disposable boundary and development-only `http://localhost:5015`. The completed
+run used a temporary Linux build with a unique application/keyring namespace
+and isolated `HOME`, XDG, `TMPDIR`, and runtime paths. The normal release
+artifact and backend repository were untouched; no credentials, cookies, user
+IDs, assignment titles, or backend payloads were recorded.
 
 ```text
 Focused repository proof
@@ -1330,15 +1332,29 @@ PASS: Release bundle built and contained the requested localhost origin;
       no missing dynamic libraries were reported
 ```
 
-The mocked workflow is one-process evidence. It does not prove an operating-
-system process relaunch or live process-lifetime deadline delivery. The first
-sandboxed localhost preflight returned connection refused (HTTP 000) because
-that execution boundary could not see the host terminal's listener. A later
-host-boundary check with the API running returned HTTP 200 for
-`/swagger/index.html` and confirmed listeners on `127.0.0.1:5015` and
-`[::1]:5015`. No real backend session or live profile transition was used by
-the recorded workflow. Phase 20.3 remains partial/pending at the live
-process-lifetime deadline boundary; this is not completion evidence.
+The host-boundary API check returned HTTP 200 for `/swagger/index.html`. A
+user-interactive disposable development/test login returned sanitized 200
+results for `userLogin`, `sessionCookieAcquisition`, `sessionVerification`,
+`semesters`, and `semesterSnapshot`.
+
+One cached activity in the disposable database was changed to a sanitized
+course/title and future deadline. With the real Linux process alive, the
+one-hour reminder was reconciled and delivered through the production
+process-lifetime coordinator: the pending outbox was removed and exactly one
+`deadline-submitted` history row remained, with zero deadline failure rows.
+This does not prove OS-retained scheduling or process relaunch.
+
+Delete all local data returned the app to onboarding. The reopened disposable
+database had zero cached assignment, reminder, outbox, notification-history,
+sync, and app-setting rows; the owned cache was empty; and the isolated
+secure-storage payload was exactly `{}`. The app was then stopped and the exact
+temporary profiles, build copy, and screenshots were removed.
+
+The session-expiration/cache-retention transition remains hermetic
+production-graph evidence from the 2/2 workflow; it is not live HTTP 401
+evidence. A preliminary filesystem-only launch exposed the normal Secret
+Service namespace, so it was stopped immediately and excluded from evidence.
+The completed run used the unique namespace above.
 
 ### Validation evidence
 

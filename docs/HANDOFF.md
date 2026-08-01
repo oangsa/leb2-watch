@@ -158,13 +158,15 @@ Flutter secure-storage adapter end to end, cold or terminated notification
 activation, X11, GNOME, deadline delivery, session expiration, delete-all,
 login launch, or packaging.
 
-### Linux runtime state transitions — 2026-08-01
+### Linux runtime state transitions — 2026-08-01 — complete
 
-The owner approved the Phase 20.3 run on the current KDE/Wayland desktop with
-the disposable-profile boundary, development-only
-`BACKEND_BASE_URL=http://localhost:5015`, sanitized/local data only, and no
-production credentials or backend data. The run did not touch the normal app
-profile or the separate backend repository.
+Phase 20.3 passed on the current KDE/Wayland desktop with the approved
+disposable-profile boundary and development-only
+`BACKEND_BASE_URL=http://localhost:5015`. The completed evidence run used a
+temporary Linux build with a unique application/keyring namespace plus isolated
+`HOME`, XDG, `TMPDIR`, and runtime paths. The normal release artifact and the
+separate backend repository were untouched; no credentials, cookies, user IDs,
+assignment titles, or backend payloads were recorded.
 
 The focused repository proof passed all 81 tests across the desktop deadline
 delivery coordinator/store/planning, session-expiration, deletion
@@ -201,17 +203,32 @@ PASS: Release bundle built; embedded origin was http://localhost:5015;
       no missing dynamic libraries were reported
 ```
 
-The workflow proves the expiration/cache-retention and delete-all transitions
-through the production application graph with sanitized in-process transport,
-but it is not an operating-system process relaunch and does not prove a live
-process-lifetime deadline notification. The first sandboxed backend preflight
-returned connection refused (`curl` HTTP 000) because that execution boundary
-could not see the host terminal's listener. A later host-boundary check with
-the API running returned HTTP 200 for `/swagger/index.html` and confirmed
-listeners on `127.0.0.1:5015` and `[::1]:5015`. No real backend session was
-used by the recorded workflow, and no live Phase 20.3 disposable-profile
-state transition was claimed; Phase 20.3 remains partial and pending the live
-process-lifetime deadline proof.
+The development API host-boundary preflight returned HTTP 200 for
+`/swagger/index.html`. A user-interactive disposable development/test login
+then produced only these sanitized live route results: `userLogin` 200,
+`sessionCookieAcquisition` 200, `sessionVerification` 200, `semesters` 200,
+and `semesterSnapshot` 200.
+
+For bounded live timing, one cached activity in the disposable SQLite profile
+was replaced with a sanitized title/course and a future deadline. With the
+real Linux process alive, the one-hour reminder was reconciled, its pending
+process-delivery outbox was removed after submission, and exactly one
+`deadline-submitted` history record was written; no deadline failure records
+were written. This proves the process-lifetime delivery path, not OS-retained
+scheduling or process relaunch.
+
+The Delete all local data UI returned the app to onboarding. The reopened
+disposable database had zero cached semesters, courses, activities, seen
+activities, reminders, outbox rows, notification history, sync rows, or app
+settings; the owned cache was empty; and the isolated secure-storage payload
+was exactly `{}`. The process was then stopped and the exact temporary
+profiles, temporary build copy, and screenshots were removed.
+
+The session-expiration/cache-retention transition remains hermetic
+production-graph evidence from the 2/2 workflow above; it is not live HTTP 401
+proof. A preliminary filesystem-only launch did expose the normal Linux
+Secret Service namespace; it was stopped immediately and excluded from this
+evidence. The completed run used the unique namespace described above.
 
 ### Assignment submission filtering — 2026-07-29
 
@@ -740,7 +757,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 live deadline proof pending | Partial |
+| 20 | Linux native runtime | 20.1-20.3 complete; 20.4 requires X11/GNOME host/session | Partial |
 | 21 | Backend release | Access + release target + publish authority | Authority-gated |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -955,13 +972,10 @@ workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
-private-route decision. Phases 20.1 and 20.2 are complete. The owner approved
-the Phase 20.3 current-host run on 2026-08-01. Its sanitized repository and
-hermetic Linux workflow checks passed. A later host-boundary preflight confirmed
-the development API is reachable on localhost:5015, but the recorded workflow
-still did not use a real backend session or prove live process-lifetime
-deadline delivery. Phase 20.3 therefore remains partial; do not start 20.4 or
-claim 20.3 complete until that live boundary has exact evidence.
+private-route decision. Phases 20.1-20.3 are complete. Phase 20.4 is the next
+incomplete atomic feature, but it is blocked because this host provides KDE /
+Wayland and no X11 or GNOME host/session is available. Do not claim Phase 20
+overall complete until 20.4 and the packaging decision are resolved.
 
 ```text
 Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the
