@@ -31,20 +31,20 @@ without exposing raw submission payloads. It mirrors the compatible backend:
 presence; only without that timestamp does a due date mean unsubmitted and no
 due date mean no submission is required. Overdue contains only unsubmitted
 work and retains the backend `dueDateExceed` flag as authority. The dashboard
-no longer exposes an Upcoming section. It defaults to All assignments;
-Recently added and All retain every status unless the explicit
-Unsubmitted-only filter is selected.
+no longer exposes an Upcoming section. It defaults to showing only unsubmitted
+assignments. The `Show submitted assignment` filter opts into all saved
+submission statuses; Recently added and All still use that same visibility
+filter.
 
-The dashboard keeps these saved statuses visible in a read-only summary card.
-Search remains directly available. Section, course, unsubmitted-only, and the
-optional `Due by` cutoff use one compact filter dialog with draft-only Reset,
-Cancel, and Apply actions. Applied non-default filters appear as individually
-removable chips; search is neither counted nor duplicated as a chip. The due
-control uses the platform date and time pickers. Zoned instants are displayed
-and filtered in fixed GMT+7 Bangkok wall time; by explicit product decision,
-backend deadlines without a zone use their stored wall-clock components as
-Bangkok time for this presentation filter. Raw saved deadline sources are not
-rewritten.
+Search remains directly available. Section, course, submission visibility, and
+the optional `Due by` cutoff use one compact filter dialog with draft-only
+Reset, Cancel, and Apply actions. Applied non-default filters appear as
+individually removable chips; search is neither counted nor duplicated as a
+chip. The due control uses the platform date and time pickers. Zoned instants
+are displayed and filtered in fixed GMT+7 Bangkok wall time; by explicit
+product decision, backend deadlines without a zone use their stored wall-clock
+components as Bangkok time for this presentation filter. Raw saved deadline
+sources are not rewritten.
 
 Every dashboard control is saved locally: search text, section, course,
 submission filter, and the minute-precision Bangkok deadline cutoff. Modal
@@ -413,6 +413,9 @@ dart format                        → 315 files checked, 0 changed
 - Exact non-golden detail/dashboard/router/dependency focused command — 86
   tests passed.
 - Dashboard golden refresh — two intentional baselines updated after Material
+  and dashboard-control changes.
+- Current dashboard, onboarding, course-control, routing, database, and golden
+  focused suite — 110 tests passed; both dashboard goldens passed.
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 

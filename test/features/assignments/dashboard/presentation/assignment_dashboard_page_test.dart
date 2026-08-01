@@ -126,7 +126,7 @@ void main() {
   });
 
   testWidgets(
-    'search, section, status, course, and Bangkok deadline controls compose',
+    'search, section, course, and Bangkok deadline controls compose',
     (tester) async {
       final service = FakeAssignmentDashboardService();
       addTearDown(service.close);
@@ -137,13 +137,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const Key('assignment-status-summary')),
-        findsOneWidget,
-      );
-      expect(find.text('Not submitted 2'), findsOneWidget);
+      expect(find.byKey(const Key('assignment-status-summary')), findsNothing);
       expect(find.text('Filters'), findsOneWidget);
-      expect(find.text('Only unsubmitted'), findsNothing);
+      expect(find.text('Show submitted assignment'), findsNothing);
       expect(find.byKey(const Key('assignment-deadline-sort')), findsNothing);
 
       await tester.enterText(
@@ -159,6 +155,7 @@ void main() {
         '',
       );
       await _openFilters(tester);
+      expect(find.text('Show submitted assignment'), findsOneWidget);
       await _chooseDropdown<AssignmentDashboardSection>(
         tester,
         const Key('assignment-section-filter'),
@@ -211,7 +208,7 @@ void main() {
         AssignmentDashboardPreferences(
           section: AssignmentDashboardSection.all,
           selectedCourseId: 3001,
-          submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+          submissionFilter: AssignmentSubmissionFilter.all,
           deadlineAtOrBeforeBangkok: DateTime(2026, 8, 2, 23, 59),
         ),
       );
@@ -226,7 +223,7 @@ void main() {
         section: AssignmentDashboardSection.recent,
         searchQuery: 'packet',
         selectedCourseId: 3002,
-        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        submissionFilter: AssignmentSubmissionFilter.all,
         deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
       ),
     );
@@ -320,7 +317,7 @@ void main() {
       AssignmentDashboardPreferences(
         section: AssignmentDashboardSection.overdue,
         selectedCourseId: 3001,
-        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        submissionFilter: AssignmentSubmissionFilter.all,
         deadlineAtOrBeforeBangkok: DateTime(2026, 8, 2, 23, 59),
       ),
     );
@@ -335,7 +332,7 @@ void main() {
         section: AssignmentDashboardSection.recent,
         searchQuery: 'packet',
         selectedCourseId: 3002,
-        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        submissionFilter: AssignmentSubmissionFilter.all,
         deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
       ),
     );
@@ -424,7 +421,7 @@ void main() {
         section: AssignmentDashboardSection.recent,
         searchQuery: 'packet',
         selectedCourseId: 3002,
-        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        submissionFilter: AssignmentSubmissionFilter.all,
         deadlineAtOrBeforeBangkok: DateTime(2026, 8, 3, 9),
       ),
     );
@@ -471,7 +468,7 @@ void main() {
     expect(service.preferenceSaveAttempts.single.searchQuery, 'graph');
     expect(
       service.preferenceSaveAttempts.single.submissionFilter,
-      AssignmentSubmissionFilter.all,
+      AssignmentSubmissionFilter.unsubmitted,
     );
 
     firstWrite.complete();
@@ -482,7 +479,7 @@ void main() {
       service.preferenceSaveAttempts.last,
       const AssignmentDashboardPreferences(
         searchQuery: 'graph',
-        submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+        submissionFilter: AssignmentSubmissionFilter.all,
       ),
     );
     expect(service.savedPreferences, service.preferenceSaveAttempts);
@@ -524,7 +521,7 @@ void main() {
     expect(find.textContaining('<PRIVATE_'), findsNothing);
   });
 
-  testWidgets('defaults to all while overdue excludes submitted work', (
+  testWidgets('defaults to unsubmitted while overdue excludes submitted work', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(375, 1400);
@@ -563,9 +560,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Pending assignment'), findsOneWidget);
-    expect(find.text('Submitted assignment'), findsOneWidget);
+    expect(find.text('Submitted assignment'), findsNothing);
     expect(find.text('Overdue assignment'), findsOneWidget);
-    expect(find.text('Course announcement'), findsOneWidget);
+    expect(find.text('Course announcement'), findsNothing);
     expect(find.text('Not submitted'), findsNWidgets(2));
 
     await _openFilters(tester);
@@ -584,6 +581,7 @@ void main() {
       const Key('assignment-section-filter'),
       'All assignments',
     );
+    await tester.tap(find.byKey(const Key('assignment-unsubmitted-filter')));
     await _applyFilters(tester);
     expect(find.text('Submitted'), findsOneWidget);
     expect(find.text('Not submitted'), findsNWidgets(2));
@@ -659,6 +657,9 @@ void main() {
             submissionStatus: AssignmentSubmissionStatus.submitted,
           ),
         ],
+      ),
+      initialPreferences: const AssignmentDashboardPreferences(
+        submissionFilter: AssignmentSubmissionFilter.all,
       ),
     );
     addTearDown(service.close);

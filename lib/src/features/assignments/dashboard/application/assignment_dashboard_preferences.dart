@@ -7,7 +7,7 @@ final class AssignmentDashboardPreferences {
     this.section = AssignmentDashboardSection.all,
     this.searchQuery = '',
     this.selectedCourseId,
-    this.submissionFilter = AssignmentSubmissionFilter.all,
+    this.submissionFilter = AssignmentSubmissionFilter.unsubmitted,
     this.deadlineAtOrBeforeBangkok,
   }) : assert(selectedCourseId == null || selectedCourseId > 0);
 

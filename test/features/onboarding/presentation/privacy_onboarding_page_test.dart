@@ -13,27 +13,13 @@ const _titles = <String>[
 ];
 
 void main() {
-  testWidgets('starts with the product explanation and exact disclaimer', (
-    tester,
-  ) async {
+  testWidgets('starts with a minimal product step', (tester) async {
     await _pumpPage(tester);
 
     expect(find.text('LEB2 Watch'), findsOneWidget);
     expect(find.text(_titles.first), findsWidgets);
-    expect(
-      find.text(
-        'LEB2 Watch shows saved assignment data immediately, then checks for '
-        'updates asynchronously.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'LEB2 Watch is an independent third-party application and is not '
-        'affiliated with or endorsed by KMUTT or LEB2.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.textContaining('shows saved assignment data'), findsNothing);
+    expect(find.textContaining('independent third-party'), findsNothing);
     expect(find.text('Step 1 of 5'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Back'), findsNothing);
@@ -61,53 +47,23 @@ void main() {
     expect(completionCount, 1);
   });
 
-  testWidgets('explains notification permission without requesting it', (
-    tester,
-  ) async {
+  testWidgets('keeps notification step free of extra copy', (tester) async {
     await _pumpPage(tester);
     await _advanceTo(tester, 3);
 
     expect(find.text('Notifications are your choice'), findsWidgets);
-    expect(
-      find.text(
-        'New-assignment alerts and deadline reminders are created on this '
-        'device.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Continuing here does not open a system permission prompt',
-      ),
-      findsOneWidget,
-    );
+    expect(find.textContaining('system permission prompt'), findsNothing);
   });
 
-  testWidgets('states iOS timing and notification delivery limits', (
-    tester,
-  ) async {
+  testWidgets('keeps background step free of extra copy', (tester) async {
     await _pumpPage(tester);
     await _advanceTo(tester, 4);
 
     expect(
-      find.textContaining(
-        'iOS decides when background refresh runs. A check may be delayed for '
-        'hours',
-      ),
-      findsOneWidget,
+      find.textContaining('iOS decides when background refresh runs'),
+      findsNothing,
     );
-    expect(
-      find.textContaining(
-        'cannot promise exact check times or exact notification delivery',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Opening or resuming the app provides another opportunity to refresh',
-      ),
-      findsOneWidget,
-    );
+    expect(find.textContaining('exact notification delivery'), findsNothing);
   });
 
   testWidgets('Back returns to the previous disclosure in order', (

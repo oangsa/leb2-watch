@@ -37,7 +37,7 @@ void main() {
     expect(preferences.section, 'all');
     expect(preferences.searchQuery, isEmpty);
     expect(preferences.selectedCourseId, isNull);
-    expect(preferences.submissionFilter, 'all');
+    expect(preferences.submissionFilter, 'unsubmitted');
     expect(preferences.deadlineAtOrBeforeBangkok, isNull);
     final settings = await database.select(database.appSettings).getSingle();
     expect(settings.activeSemesterId, 101);

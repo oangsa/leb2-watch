@@ -22,7 +22,7 @@ void main() {
     expect(find.text('Semester 101 · saved on this device'), findsOneWidget);
     expect(
       find.textContaining('viewing this page does not clear them'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(find.text('Distributed Systems'), findsNWidgets(2));
     expect(find.text('Mute all notifications'), findsOneWidget);

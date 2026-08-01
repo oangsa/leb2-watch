@@ -381,13 +381,6 @@ class _CourseLedgerHeader extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Counts reflect the last saved assignment snapshot. New '
-            'activities were discovered after the first successful sync; '
-            'viewing this page does not clear them.',
-            style: theme.textTheme.bodyLarge,
-          ),
         ],
       ),
     );

@@ -65,8 +65,8 @@ request.
 
 `PrivacyOnboardingPage` is a stateful presentation module with one public
 interface: a required `VoidCallback onCompleted`. Its five-step model,
-responsive compositions, progress, disclosure content, and action controls are
-private to the same library.
+responsive compositions, title-only step content, progress, and action controls
+are private to the same library.
 
 The router owns flow progression. Its onboarding builder supplies a callback
 that updates the existing `AppFlowController` to
@@ -182,7 +182,7 @@ completes or fails. A failure enables only the navigation retry path.
 ### Important files
 
 - `lib/src/features/onboarding/presentation/privacy_onboarding_page.dart` —
-  five-step disclosure, responsive layout, semantics, and controls.
+  five-step title flow, responsive layout, semantics, and controls.
 - `lib/src/app/routing/app_router.dart` — onboarding route composition and
   current-process flow callback.
 - `test/features/onboarding/presentation/privacy_onboarding_page_test.dart` —
@@ -475,10 +475,9 @@ hashes remained unchanged.
 
 `privacy_onboarding_page_test.dart` verifies:
 
-- the product explanation, exact disclaimer, first-step controls, and no Skip;
+- the minimal first-step content, first-step controls, and no Skip;
 - all five titles and progress values in order before completion;
-- notification permission timing and local-notification copy;
-- iOS delay and exact-delivery limitations;
+- removed onboarding paragraphs stay absent;
 - Back behavior and exactly-once completion;
 - visible and semantic progress;
 - current-heading semantics without hidden rail or icon noise;
@@ -496,6 +495,9 @@ privacy access, and the root onboarding label.
 
 Flutter and Dart commands ran in one newly opened persistent zsh terminal, so
 the user's shell configuration was loaded once for the validation session.
+
+The current title-only onboarding and course-header copy cleanup passed the
+focused onboarding, course-control, and routing coverage.
 
 ```text
 dart format <feature files>

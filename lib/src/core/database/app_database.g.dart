@@ -11057,7 +11057,7 @@ class $AssignmentDashboardPreferencesRecordsTable
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('all'),
+    defaultValue: const Constant('unsubmitted'),
   );
   static const VerificationMeta _deadlineAtOrBeforeBangkokMeta =
       const VerificationMeta('deadlineAtOrBeforeBangkok');

@@ -54,7 +54,8 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
   final TextEditingController _searchController = TextEditingController();
   AssignmentDashboardCache? _cache;
   AssignmentDashboardSection _section = AssignmentDashboardSection.all;
-  AssignmentSubmissionFilter _submissionFilter = AssignmentSubmissionFilter.all;
+  AssignmentSubmissionFilter _submissionFilter =
+      AssignmentSubmissionFilter.unsubmitted;
   DateTime? _deadlineAtOrBeforeBangkok;
   int? _selectedCourseId;
   String _searchQuery = '';
@@ -433,7 +434,7 @@ class _DashboardWorklist extends StatelessWidget {
     final isFiltered =
         projection.selectedCourseId != null ||
         section != AssignmentDashboardSection.all ||
-        submissionFilter != AssignmentSubmissionFilter.all ||
+        submissionFilter != AssignmentSubmissionFilter.unsubmitted ||
         deadlineAtOrBeforeBangkok != null ||
         searchQuery.trim().isNotEmpty;
 
@@ -500,14 +501,6 @@ class _DashboardWorklist extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _AssignmentStatusSummary(assignments: cache.assignments),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        _sectionExplanation(section),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                       if (expanded && projection.rows.isNotEmpty) ...[
                         const SizedBox(height: AppSpacing.lg),
                         const _ExpandedColumnHeader(),
@@ -736,10 +729,10 @@ class _DashboardControls extends StatelessWidget {
           label: Text('Due by: ${_formatBangkokWallTime(context, deadline)}'),
           onDeleted: onDeadlineCleared,
         ),
-      if (submissionFilter == AssignmentSubmissionFilter.unsubmitted)
+      if (submissionFilter == AssignmentSubmissionFilter.all)
         InputChip(
           key: const Key('assignment-filter-chip-submission'),
-          label: const Text('Only unsubmitted'),
+          label: const Text('Show submitted assignment'),
           onDeleted: onSubmissionCleared,
         ),
     ];
@@ -826,7 +819,7 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
     setState(() {
       _section = AssignmentDashboardSection.all;
       _selectedCourseId = null;
-      _submissionFilter = AssignmentSubmissionFilter.all;
+      _submissionFilter = AssignmentSubmissionFilter.unsubmitted;
       _deadlineAtOrBeforeBangkok = null;
     });
   }
@@ -918,17 +911,13 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
                       SwitchListTile.adaptive(
                         key: const Key('assignment-unsubmitted-filter'),
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Only unsubmitted'),
-                        subtitle: const Text(
-                          'Hide submitted work and activities that need no submission.',
-                        ),
+                        title: const Text('Show submitted assignment'),
                         value:
-                            _submissionFilter ==
-                            AssignmentSubmissionFilter.unsubmitted,
+                            _submissionFilter == AssignmentSubmissionFilter.all,
                         onChanged: (selected) => setState(
                           () => _submissionFilter = selected
-                              ? AssignmentSubmissionFilter.unsubmitted
-                              : AssignmentSubmissionFilter.all,
+                              ? AssignmentSubmissionFilter.all
+                              : AssignmentSubmissionFilter.unsubmitted,
                         ),
                       ),
                     ],
@@ -1013,43 +1002,6 @@ class _DeadlineFilterControl extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _AssignmentStatusSummary extends StatelessWidget {
-  const _AssignmentStatusSummary({required this.assignments});
-
-  final List<CachedAssignment> assignments;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    int count(AssignmentSubmissionStatus status) =>
-        assignments.where((item) => item.submissionStatus == status).length;
-
-    return Card.filled(
-      key: const Key('assignment-status-summary'),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Wrap(
-          spacing: AppSpacing.md,
-          runSpacing: AppSpacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Saved status', style: theme.textTheme.titleSmall),
-            Text('Submitted ${count(AssignmentSubmissionStatus.submitted)}'),
-            Text(
-              'Not submitted ${count(AssignmentSubmissionStatus.unsubmitted)}',
-            ),
-            Text(
-              'No submission required '
-              '${count(AssignmentSubmissionStatus.notApplicable)}',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -1364,20 +1316,9 @@ int _activeFilterCount({
 }) {
   return (section == AssignmentDashboardSection.all ? 0 : 1) +
       (selectedCourseId == null ? 0 : 1) +
-      (submissionFilter == AssignmentSubmissionFilter.all ? 0 : 1) +
+      (submissionFilter == AssignmentSubmissionFilter.unsubmitted ? 0 : 1) +
       (deadlineAtOrBeforeBangkok == null ? 0 : 1);
 }
-
-String _sectionExplanation(
-  AssignmentDashboardSection section,
-) => switch (section) {
-  AssignmentDashboardSection.recent =>
-    'Discovered after the first successful sync. Viewing does not clear this list.',
-  AssignmentDashboardSection.overdue =>
-    'Unsubmitted deadlines the backend reported as exceeded in the saved snapshot.',
-  AssignmentDashboardSection.all =>
-    'Every current assignment in the saved snapshot.',
-};
 
 String _statusLabel(AssignmentSubmissionStatus status) => switch (status) {
   AssignmentSubmissionStatus.submitted => 'Submitted',

@@ -720,7 +720,7 @@ class AssignmentDashboardPreferencesRecords extends Table {
   TextColumn get searchQuery => text().withDefault(const Constant(''))();
   IntColumn get selectedCourseId => integer().nullable()();
   TextColumn get submissionFilter =>
-      text().withDefault(const Constant('all'))();
+      text().withDefault(const Constant('unsubmitted'))();
   TextColumn get deadlineAtOrBeforeBangkok => text().nullable()();
 
   @override

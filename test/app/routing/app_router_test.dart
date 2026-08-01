@@ -707,7 +707,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
-      expect(find.text('Router course'), findsOneWidget);
+      expect(
+        find.byKey(const Key('course-preference-row-3001')),
+        findsOneWidget,
+      );
       await tester.drag(
         find.byKey(const Key('course-preferences-list')),
         const Offset(0, -400),
