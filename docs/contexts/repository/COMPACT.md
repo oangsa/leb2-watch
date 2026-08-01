@@ -434,6 +434,9 @@ command, not before every command.
 - Apache-2.0 was selected by the repository owner for both repositories.
 - GitHub Issues was selected by the owner despite its public-only nature; the
   policy states that limitation plainly rather than implying a private route.
+- A private security-reporting route is intentionally not configured. Public
+  GitHub Issues are the only approved non-confidential route; forks remain
+  allowed and contribution acceptance is owner-controlled.
 - The license text comes verbatim from the locally cached `mockito` package
   license, avoiding an unverified network fetch.
 
@@ -513,9 +516,15 @@ obligations were not audited.
 
 - Both repositories lack licenses. This is a release blocker; the owner must
   choose whether they share a license and supply the copyright identity/year.
-- Contribution terms (ordinary license grant, DCO, or CLA) are undecided.
-- There is no designated private security-reporting channel. This is a release
-  blocker.
+- Contribution acceptance is owner-controlled; forks are allowed, but no
+  contribution acceptance is promised and no DCO/CLA has been selected.
+- There is no designated private security-reporting channel by owner decision;
+  this is intentional and must not be described as a confidential-reporting
+  gap.
+- GitHub `main` branch protection is an external repository setting. The owner
+  requested pull-request-only changes with force-pushes blocked and forks
+  enabled; its application and verification remain pending outside this local
+  checkout.
 - The compatible backend code is not on its current default branch or tagged
   release. This is a release blocker because an unqualified clone is
   incompatible with the frontend.

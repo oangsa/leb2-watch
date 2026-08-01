@@ -763,9 +763,11 @@ MVP. They are not permission to add product behavior. A runtime defect may
 produce a separate, narrowly scoped correction only after reproduction and
 root-cause confirmation.
 
-Priority remains Android, Windows, Linux, compatible backend release, private
-security reporting, then Apple. A blocked phase does not become complete; its
-exact blocker is recorded, and the next independent phase may proceed. Within
+Priority remains Android, Windows, Linux, compatible backend release, then
+Apple. Phase 22 is owner-closed as public-only; its separate main-branch
+protection request remains an external GitHub setting. A blocked phase does not
+become complete; its exact blocker is recorded, and the next independent phase
+may proceed. Within
 every phase, execute one numbered atomic feature at a time through research,
 approved implementation or validation, focused and final checks, context
 update, independent review, and one commit.
@@ -776,7 +778,7 @@ update, independent review, and one commit.
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
 | 20 | Linux native runtime | 20.1-20.3 complete; 20.4 owner-skipped (X11/GNOME); 20.5 localhost-backed Flatpak preview complete with owner-confirmed authenticated flow and login/reboot autostart; HTTPS production-origin release remains unverified | Complete (preview) |
 | 21 | Backend release | Access + release target + publish authority | wait |
-| 22 | Private security route | Owner route choice + configure authority | Decision-gated |
+| 22 | Private security route | Owner selected public-only GitHub Issues; no private route required; main branch protection is a separate external setting | Owner-closed (public-only) |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
 
 ### Phase 18 — Android physical-device and fixture validation
@@ -928,10 +930,24 @@ raw pin and keep this phase blocked.
 **Goal:** provide a non-public path for sensitive vulnerability reports while
 keeping GitHub Issues explicitly public.
 
+**Owner decision (2026-08-01):** the project is open source and will use GitHub
+Issues as its only security-reporting route. Issues are explicitly public and
+non-confidential; no private advisory or email route is wanted or required.
+Phase 22 is therefore closed as not applicable rather than completed through a
+private-channel implementation.
+
 **Entry gate:** owner selects an approved private advisory or email route,
 defines who receives it, and authorizes required external configuration and
 documentation changes. Do not invent an address or imply confidentiality
 before verification.
+
+**Separate repository-control request:** the owner requested that `main` require
+pull requests, reject direct changes and force-pushes, and leave forks enabled.
+This is a GitHub repository-settings operation, not a source-file rule. The
+repository is public, Issues are enabled, and forks are currently enabled. The
+branch-protection setting was not applied or independently verified in this
+session because the available GitHub connector has no branch-settings write
+operation and the local machine has no authenticated `gh` client.
 
 **Atomic features:**
 
@@ -941,9 +957,9 @@ before verification.
    non-sensitive test content, update `SECURITY.md` and linked public guidance,
    and preserve GitHub Issues for public, non-confidential reports only.
 
-**Exit gate:** the documented private route is reachable, ownership is clear,
-and frontend/backend policies agree. Never place credentials, private user
-data, or unpatched vulnerability details in a public Issue or test message.
+**Exit gate:** not applicable under the owner’s public-only decision. Never
+describe GitHub Issues as confidential, and never place credentials, private
+user data, or unpatched vulnerability details in a public Issue or test message.
 
 Apache-2.0 remains selected for both repositories. Frontend legal/security
 commit `38f57c3` and backend legal/security commit `222e74f` remain the current
@@ -1005,14 +1021,15 @@ workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 is `wait` by owner direction and will be handled separately; and
-Phase 22 remains subject to the owner's private-route decision. Phases 20.1-20.3
+Phase 22 is owner-closed as public-only, with its requested main-branch
+protection still pending as an external GitHub setting. Phases 20.1-20.3
 are complete. Phase 20.4 is owner-skipped; 20.5 is complete for the current
 development-only preview: the localhost-backed Flatpak was built, installed,
 inspected, reached the live backend, passed the packaged launch smoke, and the
 owner reports repeated successful authenticated package-flow and login/reboot
-autostart testing. Phase 20 is complete for this preview scope. Phase 22 is the
-next candidate; Phase 21 should remain waiting unless the owner separately opens
-it. Production-origin HTTPS packaging and runtime remain outside this result.
+autostart testing. Phase 20 is complete for this preview scope. Phase 21 should
+remain waiting unless the owner separately opens it. Production-origin HTTPS
+packaging and runtime remain outside this result.
 
 ```text
 Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the
@@ -1050,8 +1067,9 @@ Owner confirmation recorded: On 2026-08-01 the owner reported that the
 authenticated packaged flow and login/reboot autostart had been tested
 repeatedly and were working. This is owner-confirmed evidence for the
 development-only preview, not an agent-captured credential or production-data
-record. Phase 22 is the next candidate; its private-route decision gate remains
-open, while Phase 21 stays in its explicit wait state.
+record. Phase 22 is owner-closed as public-only; its separate main-branch
+protection setting remains pending, while Phase 21 stays in its explicit wait
+state.
 ```
 
 ## Safe continuation commands
@@ -1170,7 +1188,8 @@ The owner decisions are now recorded:
 
 - frontend and backend license: Apache-2.0;
 - security-reporting route: GitHub Issues, explicitly public/non-confidential;
-- private vulnerability reporting: not configured; and
+- private vulnerability reporting: intentionally not configured; public GitHub
+  Issues remain the explicit non-confidential route; and
 - copyright identity/year, DCO/CLA, code of conduct, signing, package, update,
   and release policy: not selected or verified here.
 
@@ -1296,9 +1315,10 @@ These are effort estimates, not elapsed-time promises.
 On the current host, Windows and Apple have no responsible fixed completion
 estimate until the required native toolchains/hosts are available. Android
 still needs a sanitized compatible fixture/session and physical-device work
-for its remaining evidence. A compatible backend release and a private
-security-reporting route remain unverified or unconfigured. Do not claim that
-the remaining release evidence can be completed and verified in two hours.
+for its remaining evidence. A compatible backend release remains unverified.
+The owner-requested `main` branch protection is an external GitHub setting and
+remains unverified from this environment. Do not claim that the remaining
+release evidence can be completed and verified in two hours.
 
 ## Resume checklist
 
