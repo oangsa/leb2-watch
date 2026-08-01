@@ -1221,12 +1221,11 @@ packages:
     source: hosted
     version: "0.9.0+3"
   workmanager_android:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: workmanager_android
-      sha256: "9ae744db4ef891f5fcd2fb8671fccc712f4f96489a487a1411e0c8675e5e8cb7"
-      url: "https://pub.dev"
-    source: hosted
+      path: "third_party/workmanager_android"
+      relative: true
+    source: path
     version: "0.9.0+2"
   workmanager_apple:
     dependency: transitive

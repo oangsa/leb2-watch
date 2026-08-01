@@ -1510,6 +1510,28 @@ dart analyze --fatal-infos --fatal-warnings: no issues.
 flutter analyze --fatal-infos --fatal-warnings: no issues.
 dart format --output=none --set-exit-if-changed .:
 
+### Android Workmanager Built-in Kotlin migration
+
+The app pins the transitive `workmanager_android` implementation to the
+source-controlled `third_party/workmanager_android/` copy through the
+`dependency_overrides` entry in `pubspec.yaml`. The copy is upstream
+`workmanager_android` 0.9.0+2 with its public Dart/Kotlin API and Android
+dependencies preserved. Its `android/build.gradle` removes the legacy
+`kotlin-android` application and nested `kotlinOptions` block, then configures
+the project-level Built-in Kotlin `compilerOptions` DSL with JVM 1.8.
+
+The app remains on Flutter's compatibility setting
+`android.builtInKotlin=false` because the current Flutter 3.44.8 project still
+contains other third-party Android plugins using KGP. A direct app-wide
+`android.builtInKotlin=true` Gradle probe fails at the unmigrated
+`flutter_local_notifications` plugin, so this change intentionally migrates
+only Workmanager and does not claim a full app-wide Built-in Kotlin migration.
+
+The path override resolved successfully, the forced no-build-cache
+`:workmanager_android:compileDebugKotlin` task passed, the Workmanager-focused
+Flutter tests passed, `flutter analyze` passed, and a sanitized release APK
+build passed without Flutter's Workmanager KGP warning.
+
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 
 ## Cross-links

@@ -1,6 +1,11 @@
 name: leb2_watch
 description: "Local-first assignment monitoring for LEB2."
 publish_to: 'none'
+
+dependency_overrides:
+  workmanager_android:
+    path: third_party/workmanager_android
+
 version: 0.1.0+1
 
 environment:
