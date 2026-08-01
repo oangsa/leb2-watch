@@ -167,6 +167,20 @@ void main() {
     });
   }
 
+  testWidgets('change semester action respects the top safe area', (
+    tester,
+  ) async {
+    final setup = await _pumpShell(tester, width: 375, topPadding: 32);
+    addTearDown(setup.dispose);
+
+    expect(
+      tester
+          .getTopLeft(find.byKey(AdaptiveAppShell.changeSemesterActionKey))
+          .dy,
+      greaterThanOrEqualTo(32),
+    );
+  });
+
   testWidgets('expanded Linux uses Control plus digits for destinations', (
     tester,
   ) async {
@@ -575,6 +589,7 @@ Future<_ShellSetup> _pumpShell(
   WidgetTester tester, {
   required double width,
   double height = 720,
+  double topPadding = 0,
   TextScaler textScaler = TextScaler.noScaling,
   SessionLifecycleSnapshot lifecycle = const SessionLifecycleSnapshot(
     state: SessionLifecycleState.active,
@@ -618,7 +633,11 @@ Future<_ShellSetup> _pumpShell(
         routerConfig: router,
         builder: (context, child) {
           return MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+            data: MediaQuery.of(context).copyWith(
+              padding: EdgeInsets.only(top: topPadding),
+              textScaler: textScaler,
+              viewPadding: EdgeInsets.only(top: topPadding),
+            ),
             child: child!,
           );
         },

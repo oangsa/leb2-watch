@@ -220,22 +220,26 @@ class _ShellContent extends StatelessWidget {
     final scaledText = MediaQuery.textScalerOf(context).scale(1) > 1;
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            child: Semantics(
-              key: AdaptiveAppShell.changeSemesterActionKey,
-              container: true,
-              excludeSemantics: true,
-              label: 'Change semester',
-              button: true,
-              enabled: true,
-              onTap: onChangeSemester,
-              child: IconButton(
-                tooltip: 'Change semester',
-                onPressed: onChangeSemester,
-                icon: const Icon(Icons.swap_horiz_rounded),
+        SafeArea(
+          top: true,
+          bottom: false,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Semantics(
+                key: AdaptiveAppShell.changeSemesterActionKey,
+                container: true,
+                excludeSemantics: true,
+                label: 'Change semester',
+                button: true,
+                enabled: true,
+                onTap: onChangeSemester,
+                child: IconButton(
+                  tooltip: 'Change semester',
+                  onPressed: onChangeSemester,
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                ),
               ),
             ),
           ),
