@@ -11,7 +11,7 @@ LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 | iOS | Flutter app, Keychain configuration, local notifications, BGAppRefresh registration/status, cooperative exact-generation expiration bridge | Dart tests and static Xcode/Swift configuration | macOS/Xcode build, signing, device task launch/forced-expiration cancellation and notification tests |
 | macOS | Flutter app, Keychain, tray, timer, autostart, single-instance metadata, notifications | Dart tests and static native configuration | macOS build/sign/notarize and live tray/autostart/notification tests |
 | Windows | Unsigned/unpackaged preview, tray, timers, autostart, one instance per interactive session, immediate notifications, process-lifetime deadline reminders, and same-process tap reveal | Dart tests and static native configuration; Windows Release CI gate configured | Successful Windows CI/native build, Windows 10/11 runtime tests, packaging, installer/signing |
-| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, process-lifetime deadline reminders, and a Flatpak preview target | Linux release build; 20.1-20.3 KDE/Wayland evidence (shell/tray, keyring, notification/tap, process-lifetime reminder, delete-all); localhost-backed current-source Flatpak package build/install, in-sandbox file/linker smoke, and bounded Wayland launch; session-expiration retention is hermetic production-graph evidence | Production-origin bundle/backend flow, login/reboot autostart, and deeper Flatpak app-flow validation remain unverified; X11/GNOME intentionally skipped for the current preview |
+| Linux | Flutter app, release bundle, tray/timer/autostart adapters, secure storage, immediate notifications, process-lifetime deadline reminders, and a Flatpak preview target | Linux release build; 20.1-20.3 KDE/Wayland evidence (shell/tray, keyring, notification/tap, process-lifetime reminder, delete-all); localhost-backed current-source Flatpak package build/install, in-sandbox file/linker smoke, bounded Wayland launch, and owner-confirmed authenticated flow/login-reboot autostart; session-expiration retention is hermetic production-graph evidence | Production-origin HTTPS bundle/backend flow remains unverified; X11/GNOME intentionally skipped for the current preview |
 
 Linux is release-build verified on the current host. Android has a bounded
 sanitized Release build and API 36 emulator foreground-launch validation; it
@@ -187,10 +187,12 @@ checks for a fresh current-source development bundle compiled with
 same request from the installed Flatpak sandbox both returned HTTP 200. An
 unauthenticated `/Semester` request returned HTTP 401 from both namespaces, and
 the packaged autostart command stayed alive for its bounded 15-second smoke.
-No authenticated app flow or real login/reboot launch was run. This is not a
-production release: production rejects HTTP and requires an operator-owned
-HTTPS origin; login/reboot autostart and deeper Flatpak app flow remain
-unverified. No AppImage, Snap, or distro package is configured.
+The owner subsequently reported repeated successful authenticated app-flow and
+login/reboot autostart testing on 2026-08-01. This closes the current
+development-only preview validation, but it is not a production release:
+production rejects HTTP and requires an operator-owned HTTPS origin, whose
+bundle/backend flow remains unverified. No AppImage, Snap, or distro package is
+configured.
 
 ## Native smoke-test expectations
 

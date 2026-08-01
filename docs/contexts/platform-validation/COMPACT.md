@@ -7,9 +7,10 @@ and bounded host/static evidence, but required native runtime proof remains
 incomplete; Linux 20.1-20.3 are complete, 20.4 X11/GNOME is intentionally
 skipped for the current preview, and 20.5 Flatpak packaging has a built,
 installed, and smoke-tested preview artifact. Host and Flatpak live API
-reachability is proven; authenticated package flow and login/reboot autostart
-remain unverified. Other platform records retain their stated validation
-boundaries.
+reachability is proven, and the owner reports successful authenticated package
+flow and login/reboot autostart testing for the development preview. A
+production-origin HTTPS Flatpak flow remains unverified. Other platform records
+retain their stated validation boundaries.
 
 ## Purpose
 
@@ -910,9 +911,10 @@ Flatpak, Snap, Windows, or macOS.
   session; it does not generalize to other desktops or display servers.
 - X11 and GNOME runtime behavior remain intentionally unverified (skipped on
   2026-08-01).
-- A production-origin Flatpak build and deeper authenticated app-flow/runtime
-  validation remain unverified. The fresh localhost package is development-only
-  and must not ship; autostart login/reboot launch also remains unverified.
+- A production-origin Flatpak build and runtime validation remain unverified.
+  The fresh localhost package is development-only and must not ship. The
+  authenticated package-flow and login/reboot result is owner-confirmed rather
+  than an agent-captured production-origin test.
 
 ### Known limitations
 
@@ -1401,10 +1403,12 @@ warnings. A host-side Swagger preflight and the same request from the installed
 Flatpak sandbox both returned HTTP 200. An unauthenticated `/Semester` request
 returned HTTP 401 from both namespaces, confirming the expected auth boundary.
 The exact packaged Flatpak launch command used by the generated autostart entry
-stayed alive for 15 seconds and exited 124 from the bounded timeout. No
-authenticated app flow or real login/reboot launch was run. This is
-development-only packaging/runtime evidence; production requires an operator
-HTTPS origin. Flathub publication is outside this phase.
+stayed alive for 15 seconds and exited 124 from the bounded timeout. The owner
+subsequently reported repeated successful authenticated app-flow and login/
+reboot autostart testing on 2026-08-01. This closes 20.5 for the current
+development-only preview scope; production requires an operator HTTPS origin,
+and the owner-confirmed result is not a production-origin runtime claim.
+Flathub publication is outside this phase.
 
 ### Validation evidence
 
@@ -1450,9 +1454,11 @@ backend origin was development-only `http://localhost:5015`. Its bounded
 Wayland and packaged-autostart command launches passed under the current
 KDE/Wayland session. The host and installed Flatpak sandbox both reached the
 Swagger endpoint and received HTTP 200; unauthenticated `/Semester` requests
-returned HTTP 401 in both namespaces. No authenticated API flow or real
-login/reboot launch was run; this does not validate a production backend or
-every newly changed Dart path.
+returned HTTP 401 in both namespaces. The owner reports repeated successful
+authenticated package-flow and login/reboot autostart testing. That report is
+owner-confirmed, with no credentials, cookies, or backend data recorded by the
+agent; it does not validate a production backend or every newly changed Dart
+path.
 
 Current continuation checks on 2026-08-01 passed the 20 focused desktop
 autostart/tray tests, Flutter analysis, formatting of the eight changed Dart

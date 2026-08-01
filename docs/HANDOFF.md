@@ -574,7 +574,7 @@ all Linux integrations.
 
 | Platform | Source/static | Native build | Live runtime |
 | --- | --- | --- | --- |
-| Linux | Passed | Release passed | KDE/Wayland 20.1-20.3 evidence |
+| Linux | Passed | Release passed | KDE/Wayland 20.1-20.5 preview evidence; owner-confirmed authenticated flow and login/reboot autostart |
 | Android | Passed | Sanitized Release APK | API 36 foreground smoke |
 | Windows | Passed | Not verified | Not verified |
 | iOS | Passed on Linux | Not verified | Not verified |
@@ -589,19 +589,20 @@ The exact evidence boundaries are:
   cache retention (hermetic production-graph evidence from the 2/2 workflow, not
   live HTTP 401 proof), and delete-all cleanup under a disposable application
   profile. 20.4 X11/GNOME intentionally skipped for the current preview.
-  Login/reboot autostart remains unverified. On 2026-08-01 a fresh Linux
+  On 2026-08-01 a fresh Linux
   Release bundle was built from current source with `APP_ENV=development` and
   `BACKEND_BASE_URL=http://localhost:5015` using Flutter 3.44.8 from a
   disposable writable SDK copy. This is local-development packaging/runtime
   evidence only. A host-side Swagger preflight and the same request from the
-  installed Flatpak sandbox both returned HTTP 200; no authenticated app flow
-  was run. The Flatpak manifest was rebuilt, exported, and user installation
+  installed Flatpak sandbox both returned HTTP 200. The owner subsequently
+  reported repeated successful authenticated app-flow and login/reboot
+  autostart testing. The Flatpak manifest was rebuilt, exported, and user installation
   updated; metadata/permission inspection and a read-only in-sandbox
   file/linker/symlink smoke passed. A fresh bounded Wayland launch of this
   updated package stayed alive for 20 seconds and exited 124 from the expected
   timeout; only cursor-theme and AppIndicator deprecation warnings appeared.
-  Production still requires an operator HTTPS origin and runtime flow;
-  login/reboot autostart validation remains unverified.
+  Production still requires an operator HTTPS origin and production-origin
+  runtime flow; the owner-confirmed result is for the development-only preview.
 - **Android:** 134 host-test files across 14 green serial shards, sanitized
   Release APK/build and signature inspection, API 36 emulator
   install/cold/relaunch, one guarded API 36 native delete-all smoke, and one
@@ -773,7 +774,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1-20.3 complete; 20.4 owner-skipped (X11/GNOME); 20.5 localhost-backed Flatpak preview built/installed/smoke-tested, production bundle and login/reboot remain | Partial |
+| 20 | Linux native runtime | 20.1-20.3 complete; 20.4 owner-skipped (X11/GNOME); 20.5 localhost-backed Flatpak preview complete with owner-confirmed authenticated flow and login/reboot autostart; HTTPS production-origin release remains unverified | Complete (preview) |
 | 21 | Backend release | Access + release target + publish authority | wait |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -882,15 +883,18 @@ already proven and must not be repeated without a new reason.
    request from the installed Flatpak sandbox both returned HTTP 200. An
    unauthenticated `/Semester` request returned HTTP 401 from both namespaces,
    and the exact packaged autostart command stayed alive for its bounded
-   15-second smoke. No authenticated app flow or real login/reboot launch was
-   run. Production still requires an HTTPS operator origin, and login/reboot
-   autostart validation remains required.
+   15-second smoke. The owner subsequently reported repeated successful testing
+   of the authenticated packaged flow and login/reboot autostart on 2026-08-01.
+   This closes 20.5 for the current development-only preview scope. Production
+   still requires an HTTPS operator origin; no credentials, cookies, or backend
+   data were recorded in this repository.
 
 **Exit gate:** 20.1-20.3 require their documented evidence and cleanup confirmation;
 20.4 is explicitly skipped without a pass claim; 20.5 fresh localhost-backed
-package build, install, and bounded Wayland launch pass. A production-origin
-bundle, runtime flow against that origin, and login/reboot autostart validation
-remain required for release completion.
+package build, install, bounded Wayland launch, and owner-confirmed authenticated
+flow plus login/reboot autostart pass. Phase 20 is complete for the current
+development-only preview scope. A production-origin HTTPS bundle and runtime
+flow against that origin remain required for release completion.
 
 ### Phase 21 — Compatible backend release
 
@@ -1002,12 +1006,13 @@ workers together.
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 is `wait` by owner direction and will be handled separately; and
 Phase 22 remains subject to the owner's private-route decision. Phases 20.1-20.3
-are complete. Phase 20.4 is owner-skipped; 20.5 remains partial: the
-localhost-backed Flatpak was built, installed, inspected, reached the live
-backend, and passed the packaged launch smoke, but authenticated package flow
-and autostart login/reboot validation remain pending. Phase 20 is not complete
-until 20.5 resolves. After Phase 20 closes, Phase 22 is the next candidate;
-Phase 21 should remain waiting unless the owner separately opens it.
+are complete. Phase 20.4 is owner-skipped; 20.5 is complete for the current
+development-only preview: the localhost-backed Flatpak was built, installed,
+inspected, reached the live backend, passed the packaged launch smoke, and the
+owner reports repeated successful authenticated package-flow and login/reboot
+autostart testing. Phase 20 is complete for this preview scope. Phase 22 is the
+next candidate; Phase 21 should remain waiting unless the owner separately opens
+it. Production-origin HTTPS packaging and runtime remain outside this result.
 
 ```text
 Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the
@@ -1032,10 +1037,21 @@ and a read-only in-sandbox file/linker/symlink smoke, and stayed alive for a
 bounded 20-second Wayland launch before the expected timeout exit 124. Host and
 Flatpak Swagger preflights returned HTTP 200; unauthenticated `/Semester`
 requests returned HTTP 401 in both namespaces; and the packaged autostart
-command stayed alive for its bounded 15-second smoke. No authenticated app flow
-or real login/reboot launch was run. This development-only artifact must not
-ship; production requires an operator HTTPS origin, and production runtime flow
-plus login/reboot validation remain unverified.
+command stayed alive for its bounded 15-second smoke. The owner subsequently
+reported repeated successful authenticated package-flow and login/reboot
+autostart testing on 2026-08-01. This closes Phase 20.5 for the current
+development-only preview scope. The artifact must not ship as production;
+production requires an operator HTTPS origin, and production-origin runtime
+flow remains unverified. No credentials, cookies, or backend data were recorded.
+```
+
+```text
+Owner confirmation recorded: On 2026-08-01 the owner reported that the
+authenticated packaged flow and login/reboot autostart had been tested
+repeatedly and were working. This is owner-confirmed evidence for the
+development-only preview, not an agent-captured credential or production-data
+record. Phase 22 is the next candidate; its private-route decision gate remains
+open, while Phase 21 stays in its explicit wait state.
 ```
 
 ## Safe continuation commands
