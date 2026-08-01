@@ -204,11 +204,14 @@ PASS: Release bundle built; embedded origin was http://localhost:5015;
 The workflow proves the expiration/cache-retention and delete-all transitions
 through the production application graph with sanitized in-process transport,
 but it is not an operating-system process relaunch and does not prove a live
-process-lifetime deadline notification. The approved backend preflight returned
-connection refused (`curl` HTTP 000), with no listener on port 5015, so no real
-backend session was used. No live Phase 20.3 disposable-profile state
-transition was claimed at that boundary; Phase 20.3 remains partial and
-blocked on the live process-lifetime deadline/backend path.
+process-lifetime deadline notification. The first sandboxed backend preflight
+returned connection refused (`curl` HTTP 000) because that execution boundary
+could not see the host terminal's listener. A later host-boundary check with
+the API running returned HTTP 200 for `/swagger/index.html` and confirmed
+listeners on `127.0.0.1:5015` and `[::1]:5015`. No real backend session was
+used by the recorded workflow, and no live Phase 20.3 disposable-profile
+state transition was claimed; Phase 20.3 remains partial and pending the live
+process-lifetime deadline proof.
 
 ### Assignment submission filtering — 2026-07-29
 
@@ -737,7 +740,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 live deadline/backend path blocked | Partial |
+| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 live deadline proof pending | Partial |
 | 21 | Backend release | Access + release target + publish authority | Authority-gated |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -954,10 +957,11 @@ At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
 private-route decision. Phases 20.1 and 20.2 are complete. The owner approved
 the Phase 20.3 current-host run on 2026-08-01. Its sanitized repository and
-hermetic Linux workflow checks passed, but the live process-lifetime deadline
-and backend boundary was unavailable because localhost:5015 had no listener.
-Phase 20.3 therefore remains partial; do not start 20.4 or claim 20.3 complete
-until that live boundary has exact evidence.
+hermetic Linux workflow checks passed. A later host-boundary preflight confirmed
+the development API is reachable on localhost:5015, but the recorded workflow
+still did not use a real backend session or prove live process-lifetime
+deadline delivery. Phase 20.3 therefore remains partial; do not start 20.4 or
+claim 20.3 complete until that live boundary has exact evidence.
 
 ```text
 Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the

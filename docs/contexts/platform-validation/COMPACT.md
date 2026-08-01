@@ -1331,11 +1331,14 @@ PASS: Release bundle built and contained the requested localhost origin;
 ```
 
 The mocked workflow is one-process evidence. It does not prove an operating-
-system process relaunch or live process-lifetime deadline delivery. The
-localhost backend preflight returned connection refused (HTTP 000), and no
-listener was present on port 5015, so no real backend session or live profile
-transition was used. Phase 20.3 remains partial/blocked at the live
-process-lifetime deadline/backend boundary; this is not completion evidence.
+system process relaunch or live process-lifetime deadline delivery. The first
+sandboxed localhost preflight returned connection refused (HTTP 000) because
+that execution boundary could not see the host terminal's listener. A later
+host-boundary check with the API running returned HTTP 200 for
+`/swagger/index.html` and confirmed listeners on `127.0.0.1:5015` and
+`[::1]:5015`. No real backend session or live profile transition was used by
+the recorded workflow. Phase 20.3 remains partial/pending at the live
+process-lifetime deadline boundary; this is not completion evidence.
 
 ### Validation evidence
 
