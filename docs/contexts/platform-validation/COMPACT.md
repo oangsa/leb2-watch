@@ -1303,6 +1303,40 @@ Built build/linux/x64/debug/bundle/leb2-watch
 The successful test is runtime evidence that the production path reached the
 current KDE server and received its same-process `default` action callback.
 
+### Phase 20.3 runtime state transition attempt — 2026-08-01
+
+Owner-approved scope was the current KDE/Wayland session with a disposable
+profile boundary, development-only `http://localhost:5015`, sanitized/local
+data, and no production credentials or backend data. The normal app profile
+and the separate backend repository remained untouched.
+
+```text
+Focused repository proof
+PASS: 81 tests across desktop deadline delivery coordinator/store/planning,
+      session-expiration, deletion coordinator/adapters/quiescence, and app
+      notification lifecycle seams
+
+flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux \
+  --reporter=expanded \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+PASS: 2/2; sanitized session-expiration cache retention and delete-all cleanup
+      completed through the hermetic production application graph
+
+flutter build linux --release \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+PASS: Release bundle built and contained the requested localhost origin;
+      no missing dynamic libraries were reported
+```
+
+The mocked workflow is one-process evidence. It does not prove an operating-
+system process relaunch or live process-lifetime deadline delivery. The
+localhost backend preflight returned connection refused (HTTP 000), and no
+listener was present on port 5015, so no real backend session or live profile
+transition was used. Phase 20.3 remains partial/blocked at the live
+process-lifetime deadline/backend boundary; this is not completion evidence.
+
 ### Validation evidence
 
 ```text

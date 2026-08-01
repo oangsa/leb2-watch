@@ -158,6 +158,58 @@ Flutter secure-storage adapter end to end, cold or terminated notification
 activation, X11, GNOME, deadline delivery, session expiration, delete-all,
 login launch, or packaging.
 
+### Linux runtime state transitions — 2026-08-01
+
+The owner approved the Phase 20.3 run on the current KDE/Wayland desktop with
+the disposable-profile boundary, development-only
+`BACKEND_BASE_URL=http://localhost:5015`, sanitized/local data only, and no
+production credentials or backend data. The run did not touch the normal app
+profile or the separate backend repository.
+
+The focused repository proof passed all 81 tests across the desktop deadline
+delivery coordinator/store/planning, session-expiration, deletion
+coordinator/adapters/quiescence, and app notification lifecycle seams:
+
+```text
+flutter test --concurrency=1 --reporter=expanded \
+  test/features/notifications/application/desktop_deadline_reminder_delivery_coordinator_test.dart \
+  test/features/notifications/data/desktop_deadline_reminder_delivery_store_test.dart \
+  test/features/notifications/data/desktop_deadline_reminder_planning_test.dart \
+  test/features/assignments/sync/session_expiration_sync_test.dart \
+  test/features/settings/data_deletion/application/local_data_deletion_service_test.dart \
+  test/features/settings/data_deletion/data/local_data_cleanup_adapters_test.dart \
+  test/features/settings/data_deletion/data/local_data_deletion_quiescence_test.dart \
+  test/app/leb2_watch_app_notifications_test.dart
+PASS: All tests passed; 81 tests
+```
+
+The sanitized Linux workflow passed 2/2, and a fresh Release development
+bundle built successfully with the approved localhost origin embedded:
+
+```text
+flutter test integration_test/end_to_end_mocked_workflow_test.dart -d linux \
+  --reporter=expanded \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+PASS: 2/2; sanitized session-expiration cache retention and delete-all
+      cleanup completed in the hermetic workflow process
+
+flutter build linux --release \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://localhost:5015
+PASS: Release bundle built; embedded origin was http://localhost:5015;
+      no missing dynamic libraries were reported
+```
+
+The workflow proves the expiration/cache-retention and delete-all transitions
+through the production application graph with sanitized in-process transport,
+but it is not an operating-system process relaunch and does not prove a live
+process-lifetime deadline notification. The approved backend preflight returned
+connection refused (`curl` HTTP 000), with no listener on port 5015, so no real
+backend session was used. No live Phase 20.3 disposable-profile state
+transition was claimed at that boundary; Phase 20.3 remains partial and
+blocked on the live process-lifetime deadline/backend path.
+
 ### Assignment submission filtering — 2026-07-29
 
 The dashboard now mirrors the compatible backend revision's exact submission
@@ -685,7 +737,7 @@ update, independent review, and one commit.
 | --- | --- | --- | --- |
 | 18 | Android device + fixture | Fixture/session + physical device | Blocked |
 | 19 | Windows Release/runtime | Native Windows + VS C++/SDK/ATL | Blocked |
-| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 owner consent required | Partial |
+| 20 | Linux native runtime | 20.1-20.2 complete; 20.3 live deadline/backend path blocked | Partial |
 | 21 | Backend release | Access + release target + publish authority | Authority-gated |
 | 22 | Private security route | Owner route choice + configure authority | Decision-gated |
 | 23 | Apple native validation | macOS/Xcode + device/signing decisions | Blocked |
@@ -762,9 +814,9 @@ cross-session uniqueness.
 **Goal:** close the remaining live Linux integration gaps without touching the
 developer's normal credentials, notification history, or autostart state.
 
-**Entry gate:** explicit owner consent for the selected atomic feature, exact
-desktop/session identification, disposable app-support/cache/credential state,
-and a prefix-checked cleanup and restore plan. KDE/Wayland Quit,
+**Entry gate:** owner approval for the selected atomic feature was recorded on
+2026-08-01 for the current KDE/Wayland session, disposable app-support/cache/
+credential state, and a prefix-checked cleanup and restore plan. KDE/Wayland Quit,
 same-instance behavior, and disposable-HOME autostart entry mutation are
 already proven and must not be repeated without a new reason.
 
@@ -900,20 +952,19 @@ workers together.
 
 At this checkpoint, Phases 18, 19, and 23 lack required native hardware/hosts;
 Phase 21 lacks verified publication authority; and Phase 22 lacks the owner's
-private-route decision. Phases 20.1 and 20.2 are complete. Phase 20.3 is the
-next current-host candidate, but it is not authorized until the owner approves
-its exact disposable-profile state transitions and cleanup boundary. The next
-concrete decision question is:
+private-route decision. Phases 20.1 and 20.2 are complete. The owner approved
+the Phase 20.3 current-host run on 2026-08-01. Its sanitized repository and
+hermetic Linux workflow checks passed, but the live process-lifetime deadline
+and backend boundary was unavailable because localhost:5015 had no listener.
+Phase 20.3 therefore remains partial; do not start 20.4 or claim 20.3 complete
+until that live boundary has exact evidence.
 
 ```text
-Do you authorize Phase 20.3 on the current KDE/Wayland desktop using a
-disposable application profile to prove one process-lifetime deadline delivery,
-session-expiration cache retention, and delete-all cleanup, with no production
-credentials or backend data?
+Owner decision recorded: Phase 20.3 run authorized on 2026-08-01 for the
+current KDE/Wayland desktop, disposable application profile, development-only
+http://localhost:5015, sanitized/local data, and no production credentials or
+backend data.
 ```
-
-Do not imply that Phase 20.3 or any later atomic feature has started until that
-approval is explicit.
 
 ## Safe continuation commands
 
