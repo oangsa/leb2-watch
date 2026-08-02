@@ -234,13 +234,14 @@ without treating it as deterministic product coverage.
 
 ### Validation evidence
 
-Schema v14 dashboard-preference validation passed: the focused database,
-dashboard, course-control, router, shell, and app group completed 204 tests;
-the real frozen-v13 migration tests prove creation and default seeding while
-retaining representative prior settings. Code generation completed with exit
-0. Repository formatting checked 351 files with zero changes, both analyzers
-reported no issues, and the final memory-safe runner passed all 14 sequential
-shards across 139 discovered test files with exit 0.
+Schema v17 validation passed: the focused database, dashboard, course-control,
+router, shell, and app group completed 204 tests; the real frozen-v13 migration
+tests prove creation and default seeding while retaining representative prior
+settings. The v16-to-v17 migration checks for an existing `semesters.name`
+column before altering legacy fixtures, preserving idempotent upgrades. The
+2026-08-02 memory-safe runner passed all 15 sequential shards across 143
+discovered test files with exit 0. Code generation completed with exit 0,
+formatting changed zero files, and both analyzers reported no issues.
 
 Before isolation, the focused five-case file passed, but a bounded
 fresh-process run of the independent-open comparison reproduced the raw

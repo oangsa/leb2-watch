@@ -1461,15 +1461,12 @@ owner-confirmed, with no credentials, cookies, or backend data recorded by the
 agent; it does not validate a production backend or every newly changed Dart
 path.
 
-Current continuation checks on 2026-08-01 passed the 20 focused desktop
-autostart/tray tests, Flutter analysis, formatting of the eight changed Dart
-files, manifest/desktop/AppStream validation, and `git diff --check`. The
-memory-safe runner discovered 141 files in 15 shards but stopped in shard 8
-after 12 failures in `deadline_reminder_convergence_test.dart`; an exact-file
-rerun reproduced those failures. Direct Dart analysis could not initialize the
-`riverpod_lint` analyzer plugin because the restricted host could not reach
-`pub.dev`; Flutter analysis completed with no issues. This is not full-suite
-pass evidence for the current dirty tree.
+Current continuation checks on 2026-08-02 passed the 20 focused desktop
+autostart/tray tests, Flutter analysis, formatting, manifest/desktop/AppStream
+validation, and `git diff --check`. The memory-safe runner discovered 143 files
+in 15 shards and all shards passed. Dart analysis, Flutter analysis, and code
+generation also completed successfully. Windows/macOS native build and runtime
+validation remains unverified on this host.
 
 ### Tests
 

@@ -140,10 +140,7 @@ class AppDatabase extends _$AppDatabase {
           await migrator.alterTable(TableMigration(syncBackoffStates));
         }
         if (from <= 16) {
-          await customStatement(
-            'ALTER TABLE semesters ADD COLUMN name TEXT NULL '
-            'CHECK (name IS NULL OR length(trim(name)) > 0)',
-          );
+          await _ensureSemesterNameColumn();
         }
         await _seedSingletons();
       },
@@ -166,6 +163,20 @@ class AppDatabase extends _$AppDatabase {
           'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
         );
       },
+    );
+  }
+
+  Future<void> _ensureSemesterNameColumn() async {
+    final columns = await customSelect('PRAGMA table_info(semesters)').get();
+    final hasNameColumn = columns.any(
+      (column) => column.read<String>('name') == 'name',
+    );
+    if (hasNameColumn) {
+      return;
+    }
+    await customStatement(
+      'ALTER TABLE semesters ADD COLUMN name TEXT NULL '
+      'CHECK (name IS NULL OR length(trim(name)) > 0)',
     );
   }
 

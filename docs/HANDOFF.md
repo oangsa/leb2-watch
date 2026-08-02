@@ -109,13 +109,11 @@ b7ad4c4 feat: validate Linux desktop tray runtime
 
 The last committed checkpoint has a complete green validation at its
 application/test content: 139 discovered files, 14 sequential shards, all
-shards passed, and the runner exited 0. This continuation adds two focused
-Flatpak/autostart tests. Its current 141-file, 15-shard run stopped in shard 8
-after 12 failures in the unrelated
-`deadline_reminder_convergence_test.dart`; an exact-file rerun reproduced the
-same 12 failures. Do not claim the current dirty tree has a green full suite.
+shards passed, and the runner exited 0. The current checked-in runner now
+discovers 143 test files across 15 sequential shards, and all shards pass after
+the migration, authentication-fixture, and deadline-convergence corrections.
 Older aggregate evidence below remains historical to its stated feature
-boundary.
+boundary; native Windows/macOS build and runtime evidence is still absent.
 
 ### Linux visible shell and tray flow — 2026-07-30
 
@@ -455,10 +453,11 @@ Public Beta v0.1. This is a testing release label, not a production, store,
 signing, or notarization readiness claim. Fixture/session-dependent Android
 behavior and native Windows/macOS evidence remain unproven.
 
-The 2026-08-02 release-gate run is currently blocked: the checked-in runner
-discovered 143 test files and stopped at shard 3/15 after two migration tests
-failed with duplicate `semesters.name` column errors. No public-beta artifact
-is claimed from that run.
+The 2026-08-02 release-gate run is green: the checked-in runner discovered 143
+test files, all 15 sequential shards passed, and the Dart/Flutter analyzers
+reported no issues. This proves the host-side function and static-validation
+boundary only. Native Windows/macOS builds and runtime remain untested, and no
+public-beta artifact is claimed from this Linux checkout.
 
 ## Latest corrections
 

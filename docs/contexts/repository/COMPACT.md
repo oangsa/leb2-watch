@@ -12,9 +12,11 @@
 
 Completed. The repository is labeled Public Beta v0.1 for testing only;
 production/store readiness remains unclaimed while native Windows/macOS and
-other documented platform evidence gaps remain. The 2026-08-02 release gate
-also stopped at shard 3/15 after two migration tests failed with duplicate
-`semesters.name` column errors, so no artifact is claimed from that run.
+other documented platform evidence gaps remain. The 2026-08-02 host-side
+release gate is green: the checked-in runner discovered 143 test files and all
+15 sequential shards passed; Dart and Flutter analysis also reported no
+issues. No artifact is claimed from this Linux checkout because native
+Windows/macOS build and runtime evidence is still absent.
 
 ## Purpose
 

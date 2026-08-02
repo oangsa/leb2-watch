@@ -20,6 +20,7 @@ import 'package:leb2_watch/src/features/settings/data_deletion/data/local_data_c
 import 'package:leb2_watch/src/features/settings/data_deletion/domain/local_data_deletion.dart';
 
 final _now = DateTime.utc(2026, 7, 26, 12);
+const _accessKey = '00000000-0000-4000-8000-000000000001';
 const _credentials = StoredCredentials(
   username: '<USERNAME>',
   password: '<PASSWORD>',
@@ -54,6 +55,7 @@ void main() {
 
       expect(
         await service.connectWithCookie(
+          accessKey: _accessKey,
           sessionCookie: '<SESSION_COOKIE_MANUAL>',
           userId: 2001,
         ),
@@ -112,6 +114,7 @@ void main() {
 
     expect(
       await manual.connectWithCookie(
+        accessKey: _accessKey,
         sessionCookie: '<SESSION_COOKIE_MANUAL>',
         userId: 2001,
       ),
@@ -150,6 +153,7 @@ void main() {
       );
       expect(
         await manual.connectWithCookie(
+          accessKey: _accessKey,
           sessionCookie: '<SESSION_COOKIE_MANUAL>',
           userId: 2001,
         ),
@@ -249,6 +253,7 @@ Future<_Fixture> _fixture() async {
     DriftSessionLifecycleStore(database),
     DriftAutomaticSessionReauthenticationStore(database),
     _MemoryCredentialStore(
+      accessKey: _accessKey,
       cookie: '<SESSION_COOKIE_OLD>',
       credentials: _credentials,
     ),

@@ -172,7 +172,7 @@ void main() {
           DriftDeadlineReminderStore(database),
           notifications,
           policy: DeadlineReminderSchedulingPolicy.android,
-          nowUtc: () => DateTime.now().toUtc(),
+          nowUtc: _movingFixtureClock(),
           ownerTokenFactory: () => owner,
           wait: (duration) => Future<void>.delayed(duration),
           leaseDuration: const Duration(milliseconds: 300),
@@ -359,7 +359,10 @@ void main() {
         final platform = _AttemptAwareNotificationsPlatform(
           initializeAttempts: [() => firstInitialize.future, () async => true],
         );
-        final notifications = LocalNotificationServiceImpl(platform);
+        final notifications = LocalNotificationServiceImpl(
+          platform,
+          nowUtc: _movingFixtureClock(),
+        );
         addTearDown(notifications.dispose);
 
         await _timeoutCoordinator(firstDatabase, notifications, 'owner-a')
@@ -403,7 +406,10 @@ void main() {
         final platform = _AttemptAwareNotificationsPlatform(
           initializeAttempts: [() => firstInitialize.future, () async => true],
         );
-        final notifications = LocalNotificationServiceImpl(platform);
+        final notifications = LocalNotificationServiceImpl(
+          platform,
+          nowUtc: _movingFixtureClock(),
+        );
         addTearDown(notifications.dispose);
 
         await _timeoutCoordinator(firstDatabase, notifications, 'owner-a')
@@ -431,7 +437,10 @@ void main() {
       final platform = _AttemptAwareNotificationsPlatform(
         initializeAttempts: [() => firstInitialize.future, () async => true],
       );
-      final notifications = LocalNotificationServiceImpl(platform);
+      final notifications = LocalNotificationServiceImpl(
+        platform,
+        nowUtc: _movingFixtureClock(),
+      );
       addTearDown(notifications.dispose);
 
       await _timeoutCoordinator(firstDatabase, notifications, 'owner-a')
@@ -462,7 +471,10 @@ void main() {
           initializeAttempts: [() async => true, () async => true],
           launchAttempts: [() => firstLaunchPayload.future, () async => null],
         );
-        final notifications = LocalNotificationServiceImpl(platform);
+        final notifications = LocalNotificationServiceImpl(
+          platform,
+          nowUtc: _movingFixtureClock(),
+        );
         addTearDown(notifications.dispose);
 
         await _timeoutCoordinator(firstDatabase, notifications, 'owner-a')
@@ -763,7 +775,7 @@ DeadlineReminderCoordinator _shortLeaseCoordinator(
     DriftDeadlineReminderStore(database),
     notifications,
     policy: DeadlineReminderSchedulingPolicy.android,
-    nowUtc: () => DateTime.now().toUtc(),
+    nowUtc: _movingFixtureClock(),
     ownerTokenFactory: () => owner,
     wait: (duration) => Future<void>.delayed(duration),
     leaseDuration: const Duration(milliseconds: 300),
@@ -780,13 +792,19 @@ DeadlineReminderCoordinator _timeoutCoordinator(
     DriftDeadlineReminderStore(database),
     notifications,
     policy: DeadlineReminderSchedulingPolicy.android,
-    nowUtc: () => DateTime.now().toUtc(),
+    nowUtc: _movingFixtureClock(),
     ownerTokenFactory: () => owner,
     wait: (duration) => Future<void>.delayed(duration),
     leaseDuration: const Duration(milliseconds: 120),
     leaseHeartbeatFraction: 0.25,
     platformEffectTimeout: const Duration(milliseconds: 40),
   );
+}
+
+DateTime Function() _movingFixtureClock() {
+  final realStart = DateTime.now().toUtc();
+  final fixtureStart = DateTime.utc(2026, 8, 1, 10);
+  return () => fixtureStart.add(DateTime.now().toUtc().difference(realStart));
 }
 
 Future<void> _expectSettled(AppDatabase database) async {
