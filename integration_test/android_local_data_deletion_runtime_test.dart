@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:leb2_watch/src/core/database/app_database_manager.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/security/flutter_secure_credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
@@ -61,6 +62,9 @@ void main() {
           notificationAdapter.capabilities,
         ),
         credentials: SecureLocalDataCredentialCleanup(credentials),
+        deviceIdentity: PlatformLocalDataDeviceIdentityCleanup(
+          PlatformDeviceIdentityProvider(),
+        ),
         database: DriftLocalDataDatabaseCleanup(databaseManager, storage),
         cache: cache,
         providerGraph: CallbackLocalProviderGraphReset(() async {}),

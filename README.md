@@ -60,8 +60,11 @@ same-package, same-signing-identity reinstall on the same Android user/profile
 can reconnect with the same key after the user re-enters the key and LEB2
 credentials. Installing a newer APK over the existing app preserves local
 secrets and the binding. Non-Android platforms use a cryptographically random
-installation identifier in secure storage; losing that storage may require an
-operator reset. The identifier is never shown or logged.
+installation identifier in secure storage; logout and Delete saved credentials
+preserve it, while Delete all local data removes it. Android `ANDROID_ID` is
+platform-owned and is not deleted by Delete all local data. Losing non-Android
+secure storage may require an operator reset. The identifier is never shown or
+logged.
 
 ## Current capabilities
 

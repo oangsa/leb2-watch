@@ -43,8 +43,11 @@ the same Android user/profile and application signing identity. Other platforms
 use an installation identity, not a hardware identity claim; losing its secure
 storage can require an operator device-binding reset.
 
-Application clearing deletes only LEB2 Watch's three secure entries; it does not
-call a keyring-wide `deleteAll`.
+Application credential clearing removes the access key, session cookie, and
+optional saved credentials. Full local deletion additionally removes the
+app-owned non-Android installation identity. Android `ANDROID_ID` is
+platform-owned and is not deleted; the app never calls a keyring-wide
+`deleteAll`.
 
 ## Automatic reauthentication
 
@@ -146,8 +149,9 @@ Settings provides three confirmed actions:
   the local user identity fence. A failed server call does not clear secrets.
 - **Delete all local data** attempts to cancel app-owned background work and
   supported notifications, disable desktop autostart, clear credentials,
-  logically scrub and then delete SQLite files, remove the app-owned cache, and
-  return to onboarding after complete cleanup.
+  remove the app-owned non-Android installation identity, logically scrub and
+  then delete SQLite files, remove the app-owned cache, and return to onboarding
+  after complete cleanup. Android `ANDROID_ID` remains platform-owned.
 
 Partial failures are reported as fixed cleanup categories and can be retried.
 The UI never displays raw exceptions or paths. These actions remove app-owned

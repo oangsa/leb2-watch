@@ -1,12 +1,12 @@
 # LEB2 Watch Continuation Handoff
 
-> **Current contract note (2026-08-02):** The live frontend targets the
+> **Current contract note (2026-08-03):** The live frontend targets the
 > current `LEB2SCRAPPER-API/docs/api-reference.md` contract (or this checkout's
 > `docs/api-reference.md` fallback), not the historical commit references below.
 > Non-health backend requests require the user-supplied `access-key`; the
 > operator provisions per-user keys and persists their assignment/mapping in
-> Supabase PostgreSQL. `/api/v1/Semester` remains a sanitized integer-ID list in this
-> frontend contract. Historical checkpoints that mention cookie-only requests,
+> Supabase PostgreSQL. `/api/v1/Semester` returns structured `{id,name}`
+> semester objects in this frontend contract. Historical checkpoints that mention cookie-only requests,
 > no durable backend mapping, or an incompatible default branch are retained
 > only as immutable validation history.
 
@@ -675,8 +675,9 @@ Preserve these boundaries:
 - Desktop uses a non-overlapping process timer, tray/autostart adapters,
   process-lifetime reminder delivery, and native single-instance mechanisms.
 - Delete-all quiesces work, cancels app-owned schedules/notifications, clears
-  two secure entries, scrubs and deletes SQLite plus sidecars, clears
-  app-owned cache, and returns to onboarding.
+  credential secrets and the app-owned non-Android installation identity,
+  scrubs and deletes SQLite plus sidecars, clears app-owned cache, and returns
+  to onboarding. Android `ANDROID_ID` is platform-owned and not deleted.
 
 Product identity:
 

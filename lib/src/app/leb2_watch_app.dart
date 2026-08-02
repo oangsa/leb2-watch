@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/config/app_configuration.dart';
 import '../core/network/backend_compatibility.dart';
+import '../core/network/backend_compatibility_coordinator.dart';
 import '../core/session/session_lifecycle.dart';
 import '../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../features/background_sync/application/background_monitoring_lifecycle.dart';
@@ -45,9 +46,18 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     final notifications = ref.read(localNotificationServiceProvider);
     final windowReveal = ref.read(desktopWindowRevealSignalProvider);
     final compatibility = ref.read(backendCompatibilityControllerProvider);
+    BackendCompatibilityCoordinator? compatibilityCoordinator;
+    try {
+      compatibilityCoordinator = ref.read(
+        backendCompatibilityCoordinatorProvider,
+      );
+    } on Object {
+      // Test and recovery shells may omit network configuration.
+    }
     _router = createAppRouter(
       flowController,
       compatibilityController: compatibility,
+      compatibilityCoordinator: compatibilityCoordinator,
     );
     _notificationNavigation = NotificationNavigationCoordinator(
       notifications,

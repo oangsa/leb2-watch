@@ -18,6 +18,7 @@ void main() {
       'autostart',
       'notifications',
       'credentials',
+      'deviceIdentity',
       'scrubAll',
       'deleteFiles',
       'cache',
@@ -37,6 +38,7 @@ void main() {
         'autostart': LocalDataDeletionStepStatus.failed,
         'notifications': LocalDataDeletionStepStatus.failed,
         'credentials': LocalDataDeletionStepStatus.failed,
+        'deviceIdentity': LocalDataDeletionStepStatus.failed,
         'cache': LocalDataDeletionStepStatus.failed,
       },
     );
@@ -61,6 +63,7 @@ void main() {
         LocalDataDeletionStep.desktopAutostart,
         LocalDataDeletionStep.notifications,
         LocalDataDeletionStep.credentials,
+        LocalDataDeletionStep.deviceIdentity,
         LocalDataDeletionStep.cacheFiles,
       ]),
     );
@@ -248,6 +251,24 @@ void main() {
       expect(text, isNot(contains('/')));
     }
   });
+
+  test(
+    'failed installation identity cleanup prevents complete delete-all',
+    () async {
+      final harness = _Harness(
+        <String>[],
+        statuses: {'deviceIdentity': LocalDataDeletionStepStatus.failed},
+      );
+
+      final result = await harness.service.deleteAll();
+
+      expect(result.isComplete, isFalse);
+      expect(
+        result.failedSteps,
+        contains(LocalDataDeletionStep.deviceIdentity),
+      );
+    },
+  );
 }
 
 final class _Harness {
@@ -261,6 +282,7 @@ final class _Harness {
       autostart: _Autostart(this),
       notifications: _Notifications(this),
       credentials: _Credentials(this),
+      deviceIdentity: _DeviceIdentity(this),
       database: _Database(this),
       cache: _Cache(this),
       providerGraph: _ProviderReset(this),
@@ -308,6 +330,14 @@ final class _Credentials implements LocalDataCredentialCleanup {
   final _Harness harness;
   @override
   Future<LocalDataDeletionStepStatus> clear() => harness.run('credentials');
+}
+
+final class _DeviceIdentity implements LocalDataDeviceIdentityCleanup {
+  _DeviceIdentity(this.harness);
+  final _Harness harness;
+
+  @override
+  Future<LocalDataDeletionStepStatus> clear() => harness.run('deviceIdentity');
 }
 
 final class _Database implements LocalDataDatabaseCleanup {

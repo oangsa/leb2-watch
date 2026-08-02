@@ -8,6 +8,7 @@ import 'package:leb2_watch/src/app/app_dependencies.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
@@ -175,6 +176,9 @@ void main() {
             ),
           ),
           credentialStoreProvider.overrideWithValue(_CredentialStore()),
+          deviceIdentityCleanupProvider.overrideWithValue(
+            const _NoopDeviceIdentityCleanup(),
+          ),
           backgroundSchedulerProvider.overrideWith(
             (_) async => _BackgroundScheduler(),
           ),
@@ -234,6 +238,14 @@ final class _RouteLogoutService implements LogoutService {
 
   @override
   Future<LogoutResult> logout() async => const LogoutSuccess();
+}
+
+final class _NoopDeviceIdentityCleanup implements DeviceIdentityCleanup {
+  const _NoopDeviceIdentityCleanup();
+
+  @override
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity() async =>
+      DeviceIdentityCleanupResult.notApplicable;
 }
 
 final class _CompletedDeletionService implements LocalDataDeletionService {

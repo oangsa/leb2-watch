@@ -2,7 +2,9 @@
 
 ## Status
 
-Completed.
+Completed. The current frontend correction keeps explicit
+`CLIENT_UPDATE_REQUIRED` sticky while allowing anonymous metadata enrichment;
+the compatibility page can retry metadata without exposing transport errors.
 
 ## Purpose
 
@@ -90,6 +92,13 @@ frontend/runtime secrets, not backend persistence fields.
 
 Frontend defines application-owned JSON transport DTOs for verified camelCase fields, maps to separate Freezed domain models. Error envelopes, credential responses, and snapshot DTOs remain separate.
 
+`BackendCompatibilityCoordinator` owns application-level response to an exact
+`426 CLIENT_UPDATE_REQUIRED`: it marks the controller immediately, performs a
+deduplicated anonymous `/api/v1/meta` refresh, and enriches sticky
+`updateRequired` state without allowing a later startup snapshot to clear it.
+The low-level HTTP mapper only invokes the existing bounded callback; it does
+not dispatch another request.
+
 ### Required activity and snapshot contract
 
 Every route except `/api/v1/meta` and `/api/v1/health/leb2` requires the
@@ -149,6 +158,7 @@ delete permanent key ownership.
 - `lib/src/core/network/backend_api_client.dart` — external interface, cancellation value, module library
 - `lib/src/core/network/dio_backend_api_client.dart` — concrete Dio adapter, credential interceptor, strict decoding, invariants, mapping
 - `lib/src/core/network/backend_transport_failure.dart` — fixed configuration and transport failure
+- `lib/src/core/network/backend_compatibility_coordinator.dart` — sticky 426 handling and anonymous metadata refresh
 - `lib/src/core/network/backend_transport_event.dart` — bounded metadata-only development events
 - `lib/src/core/network/retry_after_parser.dart` — pure delta-seconds and HTTP date parser
 - `lib/src/core/network/domain/backend_models.dart` — Freezed domain source
@@ -324,6 +334,10 @@ Formatted all project files with no changes required.
 
 ### Tests
 
+- Current compatibility correction: sticky 426 state, anonymous metadata
+  refresh, metadata enrichment, metadata-less retry UI, and exact Dio request
+  sequencing are covered by `backend_compatibility_test.dart`,
+  `dio_backend_api_client_test.dart`, and `update_required_page_test.dart`.
 - Request-cancellation lifecycle: terminal detachment, late cancellation, completed token cleanup.
 - Content-type validation: exact, missing, multiple, malformed, HTML, unsupported.
 - Malformed UTF-8/JSON, empty bodies, JSON null, wrong shapes.

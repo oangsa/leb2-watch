@@ -276,6 +276,7 @@ LocalDataDeletionService _deletionService(
       ),
     ),
     credentials: const _CompletedCredentialCleanup(),
+    deviceIdentity: const _CompletedDeviceIdentityCleanup(),
     database:
         databaseCleanup ?? DriftLocalDataDatabaseCleanup(manager, storage),
     cache: const _CompletedCacheCleanup(),
@@ -509,6 +510,15 @@ final class _CompletedAutostartCleanup implements LocalDataAutostartCleanup {
 
 final class _CompletedCredentialCleanup implements LocalDataCredentialCleanup {
   const _CompletedCredentialCleanup();
+  @override
+  Future<LocalDataDeletionStepStatus> clear() async =>
+      LocalDataDeletionStepStatus.completed;
+}
+
+final class _CompletedDeviceIdentityCleanup
+    implements LocalDataDeviceIdentityCleanup {
+  const _CompletedDeviceIdentityCleanup();
+
   @override
   Future<LocalDataDeletionStepStatus> clear() async =>
       LocalDataDeletionStepStatus.completed;

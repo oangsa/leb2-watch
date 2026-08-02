@@ -8,6 +8,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/database/app_database_manager.dart';
 import '../../../../core/database/local_database_access_gate.dart';
 import '../../../../core/database/local_database_storage.dart';
+import '../../../../core/network/backend_runtime_identity.dart';
 import '../../../../core/security/credential_store.dart';
 import '../../../../core/session/session_lifecycle.dart';
 import '../../../authentication/application/session_mutation_gate.dart';
@@ -173,6 +174,31 @@ final class SecureLocalDataCredentialCleanup
         });
       }
       return LocalDataDeletionStepStatus.completed;
+    } on Object {
+      return LocalDataDeletionStepStatus.failed;
+    }
+  }
+}
+
+final class PlatformLocalDataDeviceIdentityCleanup
+    implements LocalDataDeviceIdentityCleanup {
+  PlatformLocalDataDeviceIdentityCleanup(this._cleanup);
+
+  final DeviceIdentityCleanup _cleanup;
+
+  @override
+  Future<LocalDataDeletionStepStatus> clear() async {
+    try {
+      return switch (await _cleanup.clearInstallationIdentity()) {
+        DeviceIdentityCleanupResult.completed =>
+          LocalDataDeletionStepStatus.completed,
+        DeviceIdentityCleanupResult.alreadyAbsent =>
+          LocalDataDeletionStepStatus.alreadyAbsent,
+        DeviceIdentityCleanupResult.notApplicable =>
+          LocalDataDeletionStepStatus.notApplicable,
+        DeviceIdentityCleanupResult.failed =>
+          LocalDataDeletionStepStatus.failed,
+      };
     } on Object {
       return LocalDataDeletionStepStatus.failed;
     }

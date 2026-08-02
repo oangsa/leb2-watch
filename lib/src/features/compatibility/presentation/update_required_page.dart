@@ -3,21 +3,70 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/design_system/app_tokens.dart';
 import '../../../core/network/backend_compatibility.dart';
+import '../../../core/network/backend_compatibility_controller.dart';
 
 class UpdateRequiredPage extends StatefulWidget {
-  const UpdateRequiredPage({required this.snapshot, super.key});
+  const UpdateRequiredPage({
+    required this.snapshot,
+    required this.onRetry,
+    this.controller,
+    super.key,
+  });
 
   final BackendCompatibilitySnapshot snapshot;
+  final Future<BackendCompatibilitySnapshot?> Function() onRetry;
+  final BackendCompatibilityController? controller;
 
   @override
   State<UpdateRequiredPage> createState() => _UpdateRequiredPageState();
 }
 
 class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
+  late BackendCompatibilitySnapshot _snapshot = widget.snapshot;
   String? _launchError;
+  String? _retryError;
+  var _retrying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_updateFromController);
+  }
+
+  @override
+  void didUpdateWidget(covariant UpdateRequiredPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    oldWidget.controller?.removeListener(_updateFromController);
+    widget.controller?.addListener(_updateFromController);
+    if (!identical(oldWidget.snapshot, widget.snapshot)) {
+      _snapshot = widget.snapshot;
+      if (_snapshot.metadata != null) {
+        _retryError = null;
+      }
+    }
+  }
+
+  void _updateFromController() {
+    final controller = widget.controller;
+    if (controller == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _snapshot = controller.snapshot;
+      if (_snapshot.metadata != null) {
+        _retryError = null;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_updateFromController);
+    super.dispose();
+  }
 
   Future<void> _download() async {
-    final url = widget.snapshot.metadata?.downloadUrl;
+    final url = _snapshot.metadata?.downloadUrl;
     if (url == null) {
       return;
     }
@@ -36,9 +85,36 @@ class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
     }
   }
 
+  Future<void> _retryMetadata() async {
+    if (_retrying) {
+      return;
+    }
+    setState(() {
+      _retrying = true;
+      _retryError = null;
+    });
+    BackendCompatibilitySnapshot? snapshot;
+    try {
+      snapshot = await widget.onRetry();
+    } on Object {
+      snapshot = null;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _retrying = false;
+      if (snapshot == null) {
+        _retryError = 'Could not load update information. Try again.';
+      } else {
+        _snapshot = snapshot;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final snapshot = widget.snapshot;
+    final snapshot = _snapshot;
     final metadata = snapshot.metadata;
     final unsupported =
         snapshot.state == BackendCompatibilityState.backendContractUnsupported;
@@ -92,6 +168,32 @@ class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
                             key: const Key('download-update'),
                             onPressed: _download,
                             child: const Text('Download update'),
+                          ),
+                        ],
+                        if (metadata == null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          const Text('Update information could not be loaded.'),
+                          const SizedBox(height: AppSpacing.sm),
+                          OutlinedButton(
+                            key: const Key('retry-update-information'),
+                            onPressed: _retrying ? null : _retryMetadata,
+                            child: _retrying
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Retry update information'),
+                          ),
+                        ],
+                        if (_retryError != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            _retryError!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
                           ),
                         ],
                         if (_launchError != null) ...[

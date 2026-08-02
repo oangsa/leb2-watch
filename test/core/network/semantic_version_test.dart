@@ -23,6 +23,14 @@ void main() {
       equals(SemanticVersion.parse('1.0.0+2')),
     );
     expect(
+      SemanticVersion.parse('1.0.0+1').hashCode,
+      SemanticVersion.parse('1.0.0+2').hashCode,
+    );
+    final a = SemanticVersion.parse('1.0.0-rc.1');
+    final b = SemanticVersion.parse('1.0.0-rc.1');
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+    expect(
       SemanticVersion.parse('1.0.0-rc.10'),
       greaterThan(SemanticVersion.parse('1.0.0-rc.2')),
     );

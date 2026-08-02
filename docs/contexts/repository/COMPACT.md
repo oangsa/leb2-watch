@@ -1,19 +1,19 @@
 # Repository — Compacted Context
 
-> **Current contract note (2026-08-02):** Current frontend compatibility comes
+> **Current contract note (2026-08-03):** Current frontend compatibility comes
 > from `LEB2SCRAPPER-API/docs/api-reference.md` (or this repository's
 > `docs/api-reference.md` fallback). Every non-health request carries the
 > runtime per-user `access-key`; the operator owns Supabase PostgreSQL
 > provisioning and user/key mapping. This frontend consumes `/api/v1/Semester`
-> as a sanitized integer-ID list. Older commit pins, cookie-only examples, and
+> as structured `{id,name}` semester objects. Older commit pins, cookie-only examples, and
 > no-database/default-branch claims below are immutable historical notes only.
 
 ## Status
 
 Completed. The repository is labeled Public Beta v0.1 for testing only;
 production/store readiness remains unclaimed while native Windows/macOS and
-other documented platform evidence gaps remain. The 2026-08-02 host-side
-release gate is green: the checked-in runner discovered 143 test files and all
+other documented platform evidence gaps remain. The 2026-08-03 host-side
+release gate is green: the checked-in runner discovered 149 test files and all
 15 sequential shards passed; Dart and Flutter analysis also reported no
 issues. No artifact is claimed from this Linux checkout because native
 Windows/macOS build and runtime evidence is still absent.

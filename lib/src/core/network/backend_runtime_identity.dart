@@ -40,6 +40,17 @@ abstract interface class DeviceIdentityProvider {
   Future<DeviceIdentity> read();
 }
 
+enum DeviceIdentityCleanupResult {
+  completed,
+  alreadyAbsent,
+  notApplicable,
+  failed,
+}
+
+abstract interface class DeviceIdentityCleanup {
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity();
+}
+
 enum ClientVersionFailureReason { missing, invalid, unavailable }
 
 final class ClientVersionException implements Exception {
@@ -73,7 +84,7 @@ abstract interface class BackendClientIdentityProvider {
 }
 
 final class RuntimeBackendClientIdentityProvider
-    implements BackendClientIdentityProvider {
+    implements BackendClientIdentityProvider, DeviceIdentityCleanup {
   RuntimeBackendClientIdentityProvider({
     required this.device,
     required this.clientVersion,
@@ -86,6 +97,21 @@ final class RuntimeBackendClientIdentityProvider
   @override
   Future<BackendClientIdentity> read() => _cached ??= _readIdentity();
 
+  @override
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity() async {
+    final cleanup = device is DeviceIdentityCleanup
+        ? device as DeviceIdentityCleanup
+        : null;
+    if (cleanup == null) {
+      return DeviceIdentityCleanupResult.failed;
+    }
+    final result = await cleanup.clearInstallationIdentity();
+    if (result != DeviceIdentityCleanupResult.failed) {
+      _cached = null;
+    }
+    return result;
+  }
+
   Future<BackendClientIdentity> _readIdentity() async {
     final device = await this.device.read();
     final version = await clientVersion.readVersion();
@@ -96,25 +122,31 @@ final class RuntimeBackendClientIdentityProvider
   String toString() => 'RuntimeBackendClientIdentityProvider(redacted: true)';
 }
 
-final class PlatformDeviceIdentityProvider implements DeviceIdentityProvider {
+final class PlatformDeviceIdentityProvider
+    implements DeviceIdentityProvider, DeviceIdentityCleanup {
   PlatformDeviceIdentityProvider({
     FlutterSecureStorage? storage,
     AndroidId? androidId,
+    bool? androidPlatform,
+    this.androidIdReader,
   }) : _storage = storage ?? const FlutterSecureStorage(),
-       _androidId = androidId ?? const AndroidId();
+       _androidId = androidId ?? const AndroidId(),
+       _androidPlatform = androidPlatform ?? Platform.isAndroid;
 
   static const _installationIdentityKey =
       'leb2_watch.installation_device_id.v1';
 
   final FlutterSecureStorage _storage;
   final AndroidId _androidId;
+  final bool _androidPlatform;
+  final Future<String?> Function()? androidIdReader;
   Future<DeviceIdentity>? _cached;
 
   @override
   Future<DeviceIdentity> read() => _cached ??= _readIdentity();
 
   Future<DeviceIdentity> _readIdentity() async {
-    final id = Platform.isAndroid
+    final id = _androidPlatform
         ? await _readAndroidId()
         : await _readInstallationId();
     final trimmed = id.trim();
@@ -131,7 +163,7 @@ final class PlatformDeviceIdentityProvider implements DeviceIdentityProvider {
   Future<String> _readAndroidId() async {
     final String? id;
     try {
-      id = await _androidId.getId();
+      id = await (androidIdReader?.call() ?? _androidId.getId());
     } on Object {
       throw const DeviceIdentityException(
         DeviceIdentityFailureReason.unavailable,
@@ -141,6 +173,25 @@ final class PlatformDeviceIdentityProvider implements DeviceIdentityProvider {
       throw const DeviceIdentityException(DeviceIdentityFailureReason.missing);
     }
     return id;
+  }
+
+  @override
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity() async {
+    if (_androidPlatform) {
+      return DeviceIdentityCleanupResult.notApplicable;
+    }
+    try {
+      final existing = await _storage.read(key: _installationIdentityKey);
+      if (existing == null) {
+        _cached = null;
+        return DeviceIdentityCleanupResult.alreadyAbsent;
+      }
+      await _storage.delete(key: _installationIdentityKey);
+      _cached = null;
+      return DeviceIdentityCleanupResult.completed;
+    } on Object {
+      return DeviceIdentityCleanupResult.failed;
+    }
   }
 
   Future<String> _readInstallationId() async {
@@ -160,14 +211,15 @@ final class PlatformDeviceIdentityProvider implements DeviceIdentityProvider {
     }
   }
 
-  String get _platformName => switch (Platform.operatingSystem) {
-    'android' => 'android',
-    'ios' => 'ios',
-    'macos' => 'macos',
-    'windows' => 'windows',
-    'linux' => 'linux',
-    _ => 'unknown',
-  };
+  String get _platformName =>
+      switch (_androidPlatform ? 'android' : Platform.operatingSystem) {
+        'android' => 'android',
+        'ios' => 'ios',
+        'macos' => 'macos',
+        'windows' => 'windows',
+        'linux' => 'linux',
+        _ => 'unknown',
+      };
 
   String? _optional(String value) {
     final trimmed = value.trim();

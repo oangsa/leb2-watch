@@ -7,6 +7,7 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
     required LocalDataAutostartCleanup autostart,
     required LocalDataNotificationCleanup notifications,
     required LocalDataCredentialCleanup credentials,
+    required LocalDataDeviceIdentityCleanup deviceIdentity,
     required LocalDataDatabaseCleanup database,
     required LocalApplicationCacheCleanup cache,
     required LocalProviderGraphReset providerGraph,
@@ -15,6 +16,7 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
          autostart,
          notifications,
          credentials,
+         deviceIdentity,
          database,
          cache,
          providerGraph,
@@ -25,6 +27,7 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
     this._autostart,
     this._notifications,
     this._credentials,
+    this._deviceIdentity,
     this._database,
     this._cache,
     this._providerGraph,
@@ -34,6 +37,7 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
   final LocalDataAutostartCleanup _autostart;
   final LocalDataNotificationCleanup _notifications;
   final LocalDataCredentialCleanup _credentials;
+  final LocalDataDeviceIdentityCleanup _deviceIdentity;
   final LocalDataDatabaseCleanup _database;
   final LocalApplicationCacheCleanup _cache;
   final LocalProviderGraphReset _providerGraph;
@@ -102,6 +106,10 @@ final class LocalDataDeletionCoordinator implements LocalDataDeletionService {
                 )
               : _failed(LocalDataDeletionStep.notifications),
           await _step(LocalDataDeletionStep.credentials, _credentials.clear),
+          await _step(
+            LocalDataDeletionStep.deviceIdentity,
+            _deviceIdentity.clear,
+          ),
           await _step(
             LocalDataDeletionStep.databaseContent,
             _database.scrubAll,

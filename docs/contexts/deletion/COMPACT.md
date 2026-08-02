@@ -2,7 +2,9 @@
 
 ## Status
 
-Completed.
+Completed. Delete-all now reports a separate installation-identity step:
+Android is not applicable, while the app-owned non-Android secure-storage
+value is removed and any failure keeps the bounded result incomplete.
 
 ## Purpose
 
@@ -18,7 +20,8 @@ The historical feature records are consolidated in the retained area sections be
 
 `LocalDataDeletionService` — application-owned interface.
 `LocalDataDeletionCoordinator` — serializes ops, converts port results to fixed `LocalDataDeletionStepResult`.
-Ports: background work, autostart, notifications, credentials, DB cleanup, app cache, provider reset.
+Ports: background work, autostart, notifications, credentials, installation
+identity, DB cleanup, app cache, provider reset.
 Platform/storage adapters: `data/local_data_cleanup_adapters.dart`.
 
 `AppDatabaseManager` — owns foreground `AppDatabase`, exposes serialized awaited open/close.
@@ -50,8 +53,10 @@ deletion retains known foreground connection long enough for logical scrub, clos
 11. Cancel deletion-exclusive notifications.
 12. Reset providers → invalidate `appDatabaseProvider`.
 13. Clear secure credentials (credential-only or delete-all).
-14. Navigate to appropriate screen (semester selection / auth / onboarding).
-15. Report fixed, redacted results; offer retry on partial.
+14. On delete-all, clear the app-owned non-Android installation identity;
+    Android `ANDROID_ID` returns not-applicable.
+15. Navigate to appropriate screen (semester selection / auth / onboarding).
+16. Report fixed, redacted results; offer retry on partial.
 
 If the bounded activity-quiescence wait times out, deletion is fail-closed:
 record failed `activeOperations`/notification results and skip physical database
@@ -89,6 +94,7 @@ delete-all.
 
 - `LocalDataDeletionService` — single public entry point
 - `LocalDataDeletionCoordinator` — serialization + port result → `LocalDataDeletionStepResult`
+- `DeviceIdentityCleanup` — separate app-owned installation-identity cleanup; it never uses `CredentialStore`
 - `LocalDataDeletionStepResult` — fixed, redacted result type (no raw exceptions/paths/credentials)
 - `LocalDatabaseAccessGate` — lease protocol: `lease-<pid>-<48-hex-token>`, `owner-<pid>`, `deleting` dir
 - `AppDatabaseManager` — serialized open/close, fail-closed on close failure
@@ -103,6 +109,9 @@ delete-all.
   OS PID reuse, and cross-process races.
 - Provider invalidation (not eager recreation) — next consumer opens on demand.
 - Fixed `LocalDataDeletionStepResult` — bounded output, no raw leak.
+- Logout and Delete saved credentials preserve installation identity. Delete-all
+  removes the non-Android secure-storage value and reports failure if owned
+  identity deletion fails; Android cleanup is not applicable.
 
 ## Known Limitations
 
@@ -122,6 +131,10 @@ delete-all.
 
 ### Tests
 
+- Current review correction: device-identity cleanup, deletion-result,
+  logout-preservation, and notification-route regressions are covered. The
+  full runner discovered 149 test files across 15 sequential shards and all
+  passed.
 - `flutter test` — 904 tests passed after review corrections.
 - Step result tests — 18 tests (gate/sync/notification group).
 - Activity/deletion/provider composition — 48 tests.
@@ -132,6 +145,10 @@ delete-all.
 
 ### Validation evidence
 
+- Current review correction (2026-08-03): Dart and Flutter analysis reported
+  no issues; Dart formatting changed no files. The documented Android APK
+  command was attempted but could not start because this host has no Java
+  installation (`JAVA_HOME`/`java` unavailable).
 - `flutter test` — 904 passed.
 - `dart analyze --fatal-infos --fatal-warnings` — no issues.
 - `flutter analyze --fatal-infos --fatal-warnings` — no issues.

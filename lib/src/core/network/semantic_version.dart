@@ -10,7 +10,7 @@ final class SemanticVersion implements Comparable<SemanticVersion> {
       int.parse(match.group(1)!),
       int.parse(match.group(2)!),
       int.parse(match.group(3)!),
-      match.group(4)?.split('.') ?? const <String>[],
+      List.unmodifiable(match.group(4)?.split('.') ?? const <String>[]),
       match.group(5),
     );
   }
@@ -99,7 +99,8 @@ final class SemanticVersion implements Comparable<SemanticVersion> {
       other is SemanticVersion && compareTo(other) == 0;
 
   @override
-  int get hashCode => Object.hash(major, minor, patch, prerelease);
+  int get hashCode =>
+      Object.hash(major, minor, patch, Object.hashAll(prerelease));
 
   @override
   String toString() {

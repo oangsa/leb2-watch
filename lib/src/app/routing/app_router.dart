@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../app_dependencies.dart';
 import '../../core/network/backend_compatibility.dart';
+import '../../core/network/backend_compatibility_coordinator.dart';
 import '../../core/network/backend_compatibility_controller.dart';
 import '../design_system/widgets/app_status_banner.dart';
 import '../design_system/widgets/app_state_view.dart';
@@ -26,6 +27,7 @@ import 'app_route.dart';
 GoRouter createAppRouter(
   AppFlowController controller, {
   BackendCompatibilityController? compatibilityController,
+  BackendCompatibilityCoordinator? compatibilityCoordinator,
   String? initialLocation,
 }) {
   final compatibility =
@@ -64,7 +66,12 @@ GoRouter createAppRouter(
       GoRoute(
         name: AppRoute.updateRequired.name,
         path: AppRoute.updateRequired.path,
-        builder: (_, _) => UpdateRequiredPage(snapshot: compatibility.snapshot),
+        builder: (_, _) => UpdateRequiredPage(
+          snapshot: compatibility.snapshot,
+          onRetry:
+              compatibilityCoordinator?.refreshMetadata ?? () async => null,
+          controller: compatibility,
+        ),
       ),
       GoRoute(
         name: AppRoute.semesters.name,

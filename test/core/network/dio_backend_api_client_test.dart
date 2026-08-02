@@ -6,6 +6,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/config/app_configuration.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility_coordinator.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility_controller.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_event.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
@@ -1169,6 +1172,66 @@ void main() {
       expect(adapter.requests, hasLength(1));
     });
 
+    test('426 blocks immediately and refreshes anonymous metadata', () async {
+      var metadataCalls = 0;
+      final adapter = CallbackHttpClientAdapter((options, _, _) {
+        if (options.path == '/api/v1/meta') {
+          expect(options.headers, isNot(contains('access-key')));
+          expect(options.headers, isNot(contains('Authorization')));
+          metadataCalls += 1;
+          if (metadataCalls == 1) {
+            throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionTimeout,
+            );
+          }
+          return _fixtureResponse('meta_success.json');
+        }
+        expect(options.path, '/api/v1/Semester');
+        return _fixtureResponse('client_update_required.json', statusCode: 426);
+      });
+      final controller = BackendCompatibilityController();
+      addTearDown(controller.dispose);
+      late final BackendCompatibilityCoordinator coordinator;
+      final client = _client(
+        adapter,
+        onClientUpdateRequired: () =>
+            unawaited(coordinator.handleClientUpdateRequired()),
+      );
+      coordinator = BackendCompatibilityCoordinator(
+        controller: controller,
+        client: client,
+        clientVersion: const _TestClientVersion('0.4.0'),
+      );
+
+      await expectLater(
+        client.getMetadata(),
+        throwsA(
+          _transportFailure(BackendTransportFailureKind.connectionTimeout),
+        ),
+      );
+      controller.setSnapshot(const BackendCompatibilitySnapshot.unavailable());
+
+      final error = await _captureTransportFailure(client.getSemesters());
+      expect(error.httpError?.statusCode, 426);
+      expect(
+        controller.snapshot.state,
+        BackendCompatibilityState.updateRequired,
+      );
+      await _waitUntil(() => controller.snapshot.metadata != null);
+      expect(
+        controller.snapshot.state,
+        BackendCompatibilityState.updateRequired,
+      );
+      expect(controller.snapshot.metadata?.downloadUrl, isNotNull);
+      expect(metadataCalls, 2);
+      expect(adapter.requests.map((request) => request.path), [
+        '/api/v1/meta',
+        '/api/v1/Semester',
+        '/api/v1/meta',
+      ]);
+    });
+
     test('metadata rejects malformed compatibility fields', () async {
       final valid = _fixtureObject('meta_success.json');
       final cases = <Object>[
@@ -1364,6 +1427,15 @@ final class _UnavailableIdentityProvider
   }
 }
 
+final class _TestClientVersion implements ClientVersionProvider {
+  const _TestClientVersion(this.value);
+
+  final String value;
+
+  @override
+  Future<String> readVersion() async => value;
+}
+
 Map<String, dynamic> _fixtureObject(String name) {
   return jsonDecode(_fixtureSource(name)) as Map<String, dynamic>;
 }
@@ -1412,4 +1484,14 @@ Future<BackendTransportException> _captureTransportFailure(
     return error;
   }
   fail('Expected BackendTransportException.');
+}
+
+Future<void> _waitUntil(bool Function() predicate) async {
+  for (var attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) {
+      return;
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
+  fail('Timed out waiting for compatibility refresh.');
 }

@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_compatibility.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility_coordinator.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility_controller.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/network/semantic_version.dart';
 
 void main() {
@@ -58,4 +62,100 @@ void main() {
       );
     },
   );
+
+  test(
+    '426 state stays sticky while successful metadata refresh enriches it',
+    () async {
+      final controller = BackendCompatibilityController();
+      addTearDown(controller.dispose);
+      final metadataClient = _MetadataClient(metadata);
+      final coordinator = BackendCompatibilityCoordinator(
+        controller: controller,
+        client: metadataClient,
+        clientVersion: const _ClientVersion('0.4.0'),
+      );
+
+      await coordinator.handleClientUpdateRequired();
+
+      expect(
+        controller.snapshot.state,
+        BackendCompatibilityState.updateRequired,
+      );
+      expect(controller.snapshot.metadata, same(metadata));
+      expect(controller.snapshot.installedClientVersion?.coreVersion, '0.4.0');
+      expect(metadataClient.calls, 1);
+    },
+  );
+
+  test(
+    'metadata refresh failure keeps update-required state and returns null',
+    () async {
+      final controller = BackendCompatibilityController();
+      addTearDown(controller.dispose);
+      final coordinator = BackendCompatibilityCoordinator(
+        controller: controller,
+        client: _MetadataClient(null),
+        clientVersion: const _ClientVersion('0.4.0'),
+      );
+
+      await coordinator.handleClientUpdateRequired();
+
+      expect(
+        controller.snapshot.state,
+        BackendCompatibilityState.updateRequired,
+      );
+      expect(controller.snapshot.metadata, isNull);
+      expect(await coordinator.refreshMetadata(), isNull);
+    },
+  );
+
+  test(
+    'startup metadata snapshot cannot clear explicit update-required state',
+    () {
+      final controller = BackendCompatibilityController();
+      addTearDown(controller.dispose);
+      controller.markUpdateRequired();
+
+      controller.setSnapshot(
+        evaluateBackendCompatibility(
+          installedClientVersion: '0.6.0',
+          metadata: metadata,
+        ),
+      );
+
+      expect(
+        controller.snapshot.state,
+        BackendCompatibilityState.updateRequired,
+      );
+      expect(controller.snapshot.metadata, isNull);
+    },
+  );
+}
+
+final class _MetadataClient implements BackendCompatibilityClient {
+  _MetadataClient(this.metadata);
+
+  final BackendApiMetadata? metadata;
+  var calls = 0;
+
+  @override
+  Future<BackendApiMetadata> getMetadata({
+    BackendRequestCancellation? cancellation,
+  }) async {
+    calls += 1;
+    final value = metadata;
+    if (value == null) {
+      throw StateError('metadata unavailable');
+    }
+    return value;
+  }
+}
+
+final class _ClientVersion implements ClientVersionProvider {
+  const _ClientVersion(this.value);
+
+  final String value;
+
+  @override
+  Future<String> readVersion() async => value;
 }

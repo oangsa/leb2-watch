@@ -16,6 +16,10 @@ abstract interface class LocalDataCredentialCleanup {
   Future<LocalDataDeletionStepStatus> clear();
 }
 
+abstract interface class LocalDataDeviceIdentityCleanup {
+  Future<LocalDataDeletionStepStatus> clear();
+}
+
 abstract interface class LocalDataDatabaseCleanup {
   Future<LocalDataDeletionStepStatus> beginOperationQuiescence();
 

@@ -9,6 +9,7 @@ import 'package:leb2_watch/src/core/database/app_database_manager.dart';
 import 'package:leb2_watch/src/core/database/local_database_access_gate.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
     as backend;
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
@@ -640,6 +641,45 @@ void main() {
       expect(credentialStore.clearCalls, 1);
     },
   );
+
+  test('device identity cleanup maps every bounded result', () async {
+    for (final (source, expected)
+        in <(DeviceIdentityCleanupResult, LocalDataDeletionStepStatus)>[
+          (
+            DeviceIdentityCleanupResult.completed,
+            LocalDataDeletionStepStatus.completed,
+          ),
+          (
+            DeviceIdentityCleanupResult.alreadyAbsent,
+            LocalDataDeletionStepStatus.alreadyAbsent,
+          ),
+          (
+            DeviceIdentityCleanupResult.notApplicable,
+            LocalDataDeletionStepStatus.notApplicable,
+          ),
+          (
+            DeviceIdentityCleanupResult.failed,
+            LocalDataDeletionStepStatus.failed,
+          ),
+        ]) {
+      expect(
+        await PlatformLocalDataDeviceIdentityCleanup(
+          _DeviceIdentityCleanup(source),
+        ).clear(),
+        expected,
+      );
+    }
+  });
+}
+
+final class _DeviceIdentityCleanup implements DeviceIdentityCleanup {
+  const _DeviceIdentityCleanup(this.result);
+
+  final DeviceIdentityCleanupResult result;
+
+  @override
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity() async =>
+      result;
 }
 
 final class _CloseFailingStorage extends LocalDatabaseStorage {

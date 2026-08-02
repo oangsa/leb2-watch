@@ -245,6 +245,7 @@ class _DeletionResultView extends StatelessWidget {
     LocalDataDeletionStep.desktopAutostart => 'start at login',
     LocalDataDeletionStep.notifications => 'notifications',
     LocalDataDeletionStep.credentials => 'secure credentials',
+    LocalDataDeletionStep.deviceIdentity => 'installation identity',
     LocalDataDeletionStep.databaseContent => 'local database content',
     LocalDataDeletionStep.databaseFiles => 'local database files',
     LocalDataDeletionStep.cacheFiles => 'app cache',

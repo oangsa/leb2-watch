@@ -7,6 +7,7 @@ import '../core/database/app_database.dart';
 import '../core/database/app_database_manager.dart';
 import '../core/database/local_database_storage.dart';
 import '../core/network/backend_api_client.dart';
+import '../core/network/backend_compatibility_coordinator.dart';
 import '../core/network/backend_compatibility_controller.dart';
 import '../core/network/backend_runtime_identity.dart';
 import '../core/security/credential_store.dart';
@@ -97,13 +98,16 @@ final clientVersionProvider = Provider<ClientVersionProvider>((ref) {
   return PackageInfoClientVersionProvider();
 });
 
-final backendClientIdentityProvider = Provider<BackendClientIdentityProvider>((
-  ref,
-) {
-  return RuntimeBackendClientIdentityProvider(
-    device: ref.watch(deviceIdentityProvider),
-    clientVersion: ref.watch(clientVersionProvider),
-  );
+final backendClientIdentityProvider =
+    Provider<RuntimeBackendClientIdentityProvider>((ref) {
+      return RuntimeBackendClientIdentityProvider(
+        device: ref.watch(deviceIdentityProvider),
+        clientVersion: ref.watch(clientVersionProvider),
+      );
+    });
+
+final deviceIdentityCleanupProvider = Provider<DeviceIdentityCleanup>((ref) {
+  return ref.watch(backendClientIdentityProvider);
 });
 
 final backendCompatibilityControllerProvider =
@@ -210,16 +214,19 @@ Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
   }
 }
 
-final backendTransportClientProvider = Provider<DioBackendApiClient>((ref) {
-  return DioBackendApiClient(
-    configuration: ref.watch(appConfigurationProvider),
-    credentialStore: ref.watch(credentialStoreProvider),
-    runtimeIdentityProvider: ref.watch(backendClientIdentityProvider),
-    onClientUpdateRequired: ref
-        .read(backendCompatibilityControllerProvider)
-        .markUpdateRequired,
-  );
-});
+final Provider<DioBackendApiClient> backendTransportClientProvider =
+    Provider<DioBackendApiClient>((ref) {
+      return DioBackendApiClient(
+        configuration: ref.watch(appConfigurationProvider),
+        credentialStore: ref.watch(credentialStoreProvider),
+        runtimeIdentityProvider: ref.watch(backendClientIdentityProvider),
+        onClientUpdateRequired: () => unawaited(
+          ref
+              .read(backendCompatibilityCoordinatorProvider)
+              .handleClientUpdateRequired(),
+        ),
+      );
+    });
 
 final backendApiClientProvider = Provider<BackendApiClient>((ref) {
   return ref.watch(backendTransportClientProvider);
@@ -239,6 +246,15 @@ final backendCompatibilityClientProvider = Provider<BackendCompatibilityClient>(
     return ref.watch(backendTransportClientProvider);
   },
 );
+
+final backendCompatibilityCoordinatorProvider =
+    Provider<BackendCompatibilityCoordinator>((ref) {
+      return BackendCompatibilityCoordinator(
+        controller: ref.watch(backendCompatibilityControllerProvider),
+        client: ref.watch(backendCompatibilityClientProvider),
+        clientVersion: ref.watch(clientVersionProvider),
+      );
+    });
 
 final sessionIdentityStoreProvider = FutureProvider<SessionIdentityStore>((
   ref,

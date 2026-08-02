@@ -10,6 +10,7 @@ enum LocalDataDeletionStep {
   desktopAutostart,
   notifications,
   credentials,
+  deviceIdentity,
   databaseContent,
   databaseFiles,
   cacheFiles,

@@ -41,6 +41,9 @@ final localDataDeletionServiceProvider = Provider<LocalDataDeletionService>((
       lifecycleStoreLoader: () =>
           ref.read(sessionLifecycleStoreProvider.future),
     ),
+    deviceIdentity: PlatformLocalDataDeviceIdentityCleanup(
+      ref.watch(deviceIdentityCleanupProvider),
+    ),
     database: DriftLocalDataDatabaseCleanup(
       ref.read(appDatabaseManagerProvider),
       ref.read(localDatabaseStorageProvider),
