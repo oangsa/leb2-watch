@@ -2,15 +2,16 @@
 
 ## Status
 
-Partial. Android background synchronization and WorkManager have implementation
-and bounded host/static evidence, but required native runtime proof remains
-incomplete; Linux 20.1-20.3 are complete, 20.4 X11/GNOME is intentionally
-skipped for the current preview, and 20.5 Flatpak packaging has a built,
-installed, and smoke-tested preview artifact. Host and Flatpak live API
-reachability is proven, and the owner reports successful authenticated package
-flow and login/reboot autostart testing for the development preview. A
-production-origin HTTPS Flatpak flow remains unverified. Other platform records
-retain their stated validation boundaries.
+Partial. Public Beta v0.1 is labeled for testing only. Android background
+synchronization and WorkManager have implementation and bounded host/static
+evidence, but required native runtime proof remains incomplete; Linux 20.1-20.3
+are complete, 20.4 X11/GNOME is intentionally skipped for the current preview,
+and 20.5 Flatpak packaging has a built, installed, and smoke-tested preview
+artifact. Host and Flatpak live API reachability is proven, and the owner
+reports successful authenticated package flow and login/reboot autostart
+testing for the development preview. A production-origin HTTPS Flatpak flow
+remains unverified. Windows and macOS native builds/runtime remain unverified.
+Other platform records retain their stated validation boundaries.
 
 ## Purpose
 

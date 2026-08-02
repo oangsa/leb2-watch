@@ -10,7 +10,11 @@
 
 ## Status
 
-Completed.
+Completed. The repository is labeled Public Beta v0.1 for testing only;
+production/store readiness remains unclaimed while native Windows/macOS and
+other documented platform evidence gaps remain. The 2026-08-02 release gate
+also stopped at shard 3/15 after two migration tests failed with duplicate
+`semesters.name` column errors, so no artifact is claimed from that run.
 
 ## Purpose
 
@@ -488,7 +492,8 @@ command, not before every command.
 
 ### Decisions
 
-- Mark the beta not ready rather than treating test or static configuration evidence as operational proof.
+- Keep the Public Beta v0.1 label separate from operational proof: test/static
+  evidence and a successful build do not establish native runtime readiness.
 - Preserve the user's approved Phase 13/14 batching amendment rather than rewriting history to imply a literal per-subfeature commit sequence.
 - Keep the audit in `docs/contexts` so future workers can start with exact criterion-level gaps without changing public marketing copy.
 

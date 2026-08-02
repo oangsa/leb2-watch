@@ -16,6 +16,32 @@ Each target also needs its native host toolchain. See
 [Platform support](platform-support.md) before interpreting a command as a
 verified native build.
 
+## Public Beta v0.1 build script
+
+The repository marks version `0.1.0+1` as Public Beta v0.1. Build with an
+operator-owned HTTPS backend origin:
+
+```bash
+BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN> \
+  tool/build_public_beta.sh android
+```
+
+Use the same command with `flatpak` on Linux, `windows` on Windows, and `macos`
+on macOS. The script runs code generation, formatting, both analyzers, and the
+checked-in function-test runner before producing the artifact. It refuses
+`all` because Flutter cannot build Flatpak, Windows, and macOS from one native
+host; run the target-specific command on each required host. Windows and macOS
+artifacts remain untested native previews even when their builds succeed.
+
+The resulting artifacts are:
+
+```text
+Android:  build/app/outputs/bundle/release/app-release.aab
+Flatpak:  build/public-beta-v0.1/leb2-watch-v0.1.flatpak
+Windows:  build/windows/x64/runner/Release/
+macOS:    build/macos/Build/Products/Release/leb2_watch.app
+```
+
 ## Compile-time definitions
 
 The app reads exactly:

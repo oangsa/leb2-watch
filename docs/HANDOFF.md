@@ -450,10 +450,15 @@ wholly missing features:
    macOS native proof is absent, and Windows uniqueness is intentionally
    scoped to one interactive session.
 
-The MVP source is implemented. The public beta is **not ready** because
-fixture/session-dependent Android behavior and other required native evidence
-remain unproven. Native Windows and Apple results are also absent, and several
-Linux integrations still need live validation.
+The MVP source is implemented and the owner has labeled version 0.1.0+1 as
+Public Beta v0.1. This is a testing release label, not a production, store,
+signing, or notarization readiness claim. Fixture/session-dependent Android
+behavior and native Windows/macOS evidence remain unproven.
+
+The 2026-08-02 release-gate run is currently blocked: the checked-in runner
+discovered 143 test files and stopped at shard 3/15 after two migration tests
+failed with duplicate `semesters.name` column errors. No public-beta artifact
+is claimed from that run.
 
 ## Latest corrections
 

@@ -3,6 +3,11 @@
 LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 “statically tested,” and “native-build verified” are different claims.
 
+The current release label is Public Beta v0.1 (`pubspec.yaml` version
+`0.1.0+1`). This label does not imply production, store, signing, or
+notarization readiness. Windows and macOS still require native build and
+runtime validation.
+
 ## Current status
 
 | Platform | Implemented behavior | Current validation | Still required |

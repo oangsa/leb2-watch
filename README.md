@@ -6,6 +6,13 @@ notifications. It targets Android, iOS, Windows, macOS, and Linux.
 
 > LEB2 Watch is an independent third-party application and is not affiliated with or endorsed by KMUTT or LEB2.
 
+> **Public Beta v0.1:** the host-side function suite and source/static checks
+> are the current release gate. Windows and macOS native builds and runtime
+> behavior have not been tested yet, so this beta is not a production, store,
+> signing, or notarization readiness claim. The current gate is not green:
+> two migration tests fail, so no release artifact is claimed from this
+> checkout.
+
 ## Bring your own backend
 
 LEB2 Watch does not include access to an author-operated backend. To use it,
