@@ -11,6 +11,12 @@ enum SessionTransportFailureKind {
   invalidCredentials,
   rateLimited,
   backendUnavailable,
+  accessKeyMissing,
+  accessKeyInvalid,
+  accessKeyNotActivated,
+  accessKeyAccountMismatch,
+  accessKeyReauthenticationRequired,
+  accessKeyStoreUnavailable,
   unexpected,
 }
 
@@ -49,6 +55,18 @@ SessionTransportFailure mapSessionTransportFailure(
     BackendTransportFailureKind.badCertificate => const SessionTransportFailure(
       SessionTransportFailureKind.backendUnavailable,
     ),
+    BackendTransportFailureKind.missingAccessKey =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.accessKeyMissing,
+      ),
+    BackendTransportFailureKind.invalidAccessKey =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.accessKeyInvalid,
+      ),
+    BackendTransportFailureKind.accessKeyStoreUnavailable =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.accessKeyStoreUnavailable,
+      ),
     BackendTransportFailureKind.missingCredential ||
     BackendTransportFailureKind.credentialAccessFailed ||
     BackendTransportFailureKind.unknownFailure => const SessionTransportFailure(
@@ -69,6 +87,58 @@ SessionTransportFailure _mapHttpFailure(
 
   final status = evidence.statusCode;
   final code = evidence.responseCode;
+  if (code.startsWith('ACCESS_KEY_')) {
+    final exact = switch (code) {
+      'ACCESS_KEY_REQUIRED' => status == 401,
+      'ACCESS_KEY_INVALID' => status == 401,
+      'ACCESS_KEY_NOT_ACTIVATED' => status == 403,
+      'ACCESS_KEY_ALREADY_ASSIGNED' => status == 403,
+      'ACCESS_KEY_IDENTITY_MISMATCH' => status == 403,
+      'ACCESS_KEY_REAUTHENTICATION_REQUIRED' => status == 403,
+      'ACCESS_KEY_IDENTITY_CONFLICT' => status == 409,
+      'ACCESS_KEY_STORE_UNAVAILABLE' => status == 503,
+      _ => false,
+    };
+    if (!exact) {
+      return const SessionTransportFailure(
+        SessionTransportFailureKind.invalidResponse,
+      );
+    }
+  }
+  if (code == 'ACCESS_KEY_REQUIRED' && status == 401) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyMissing,
+    );
+  }
+  if (code == 'ACCESS_KEY_INVALID' && status == 401) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyInvalid,
+    );
+  }
+  if (code == 'ACCESS_KEY_NOT_ACTIVATED' && status == 403) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyNotActivated,
+    );
+  }
+  if ((code == 'ACCESS_KEY_ALREADY_ASSIGNED' ||
+          code == 'ACCESS_KEY_IDENTITY_MISMATCH' ||
+          code == 'ACCESS_KEY_IDENTITY_CONFLICT') &&
+      (status == 403 || status == 409)) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyAccountMismatch,
+    );
+  }
+  if (code == 'ACCESS_KEY_REAUTHENTICATION_REQUIRED' && status == 403) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyReauthenticationRequired,
+    );
+  }
+  if (code == 'ACCESS_KEY_STORE_UNAVAILABLE' && status == 503) {
+    return SessionTransportFailure(
+      SessionTransportFailureKind.accessKeyStoreUnavailable,
+      retryAfter: evidence.retryAfter,
+    );
+  }
   if (request == SessionTransportRequest.verification &&
       status == 401 &&
       code == 'SESSION_EXPIRED') {

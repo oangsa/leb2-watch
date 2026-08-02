@@ -32,17 +32,20 @@ abstract interface class BackendApiClient {
 
 abstract interface class BackendSessionClient {
   Future<List<Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   });
 
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   });
 
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,

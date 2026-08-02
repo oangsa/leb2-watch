@@ -13,20 +13,17 @@ quota, or shared server capacity.
 
 | LEB2 Watch version | Backend requirement |
 | --- | --- |
-| Current pre-release | [`LEB2SCRAPPER-API`](https://github.com/oangsa/LEB2SCRAPPER-API) commit `d6e3261537c53507873f36de166f6245bc82fcc4`, or a later revision explicitly verified as compatible |
+| Current pre-release | [`LEB2SCRAPPER-API`](https://github.com/oangsa/LEB2SCRAPPER-API) `dev` branch/current API reference, or a later release explicitly verified as compatible |
 
-The backend's current default `main` branch is older and does not implement the
-snapshot, Bearer-authentication, and resilience contract required by this
-frontend. Clone and check out the compatible commit explicitly:
+Use the backend revision whose checked-in API reference matches this frontend.
+Clone the repository and follow its current setup documentation:
 
 ```bash
 git clone https://github.com/oangsa/LEB2SCRAPPER-API.git
 cd LEB2SCRAPPER-API
-git checkout d6e3261537c53507873f36de166f6245bc82fcc4
 ```
 
-There is no contract-version endpoint. Until the backend has a tagged
-compatible release, compatibility is maintained through this pinned revision.
+There is no contract-version endpoint; verify the API reference when upgrading.
 
 ## Runtime and data model
 
@@ -35,9 +32,12 @@ The backend is an ASP.NET Core application on .NET 9:
 - Semester, class, and cookie acquisition use Selenium with Chrome or
   Chromium and a compatible ChromeDriver.
 - Activity requests use direct HTTP calls to LEB2.
-- There is no backend database, ORM, migration, persistent volume, or durable
-  per-user store.
-- Credentials and cookies are request-scoped.
+- Supabase PostgreSQL stores operator-provisioned access keys, assignment to
+  local user identity, and documented audit metadata. Follow the backend
+  repository's Supabase setup documentation; the frontend never connects to
+  Supabase directly.
+- LEB2 usernames/passwords and session cookies are request-scoped; access-key
+  assignment metadata is durable in Supabase PostgreSQL.
 - Assignment/structure results and HMAC client fingerprints can exist
   transiently in process memory.
 - Structure/class results are cached for 60 seconds by default, with up to
@@ -46,9 +46,9 @@ The backend is an ASP.NET Core application on .NET 9:
   entries.
 - Throttling, backoff, cache, health, and correlation state are process-local.
 
-The backend has no durable per-user database or credential persistence, but
-request data and short-lived caches/fingerprints exist transiently in the
-backend process while it handles and coalesces requests.
+The backend does not store LEB2 passwords or session cookies. Request data and
+short-lived caches/fingerprints still exist transiently in the backend process
+while it handles and coalesces requests.
 
 The current release is designed around one application process. Multiple
 instances have independent caches, throttles, and backoff unless the operator
@@ -67,6 +67,12 @@ GET  /Activity/{semesterId}/snapshot
 GET  /health/leb2
 ```
 
+Every route except `/health/leb2` requires the operator-provisioned access key:
+
+```http
+access-key: <operator-provided-uuid>
+```
+
 The complete compatible backend also exposes flat activity routes. Protected
 requests carry the opaque LEB2 cookie:
 
@@ -81,8 +87,8 @@ X-LEB2-USER-ID: <positive-int32>
 ```
 
 The cookie is not a JWT. Do not put an `/api` path in the frontend's backend
-URL. See the pinned
-[backend API reference](https://github.com/oangsa/LEB2SCRAPPER-API/blob/d6e3261537c53507873f36de166f6245bc82fcc4/docs/api-reference.md)
+URL. See the current
+[backend API reference](https://github.com/oangsa/LEB2SCRAPPER-API/blob/dev/docs/api-reference.md)
 and this repository's
 [verified contract](contexts/backend/COMPACT.md#contracts-and-interfaces) for response and error
 details.
@@ -167,12 +173,12 @@ GCP_DEPLOY_SERVICE_ACCOUNT
 GCP_RUNTIME_SERVICE_ACCOUNT
 ```
 
-Read the pinned
-[Cloud Run setup guide](https://github.com/oangsa/LEB2SCRAPPER-API/blob/d6e3261537c53507873f36de166f6245bc82fcc4/docs/cloud-run-continuous-deployment.md)
+Read the current
+[Cloud Run setup guide](https://github.com/oangsa/LEB2SCRAPPER-API/blob/dev/docs/cloud-run-continuous-deployment.md)
 before adapting it. Important limitations:
 
-- The workflow runs on backend `main`, while the compatible code is currently
-  pinned from `dev`; a fork operator must reconcile that branch condition.
+- The workflow runs on backend `main`, while this frontend targets the current
+  backend `dev` contract; a fork operator must reconcile that branch condition.
 - Repository identity, service name, region, and Workload Identity conditions
   are examples that a fork must replace.
 - The action versions use mutable major tags.
@@ -180,7 +186,8 @@ before adapting it. Important limitations:
 - The Flutter client does not send a Google identity token or
   `X-Serverless-Authorization`. As currently implemented, it needs an endpoint
   reachable without an additional IAM-authentication header.
-- Public access also exposes unauthenticated `/User/login` and `/User/cookie`.
+- `/User/login` and `/User/cookie` require the documented `access-key` header;
+  they are not anonymous endpoints.
 - Scale-to-zero reduces idle allocation but does not guarantee zero cost.
 - The three-instance example produces per-instance cache and throttle state.
 
@@ -210,8 +217,8 @@ Before exposing an instance:
   before a public release. Research found user-specific publish metadata and a
   high-entropy value but did not establish that it is a secret.
 
-Do not add API-key, Basic-auth, Cloud Run IAM, or proxy requirements without a
-matching frontend change: the current app cannot supply those extra headers.
+Do not replace the documented `access-key` contract with Basic-auth, Cloud Run
+IAM, or proxy requirements without a matching frontend change.
 
 ## Configure the app
 
@@ -227,9 +234,13 @@ Production builds require an HTTPS origin. The value is compiled into the
 binary, so changing servers requires a rebuild. Continue with
 [Configuration and builds](configuration-and-builds.md).
 
+The access key is not a build secret or `--dart-define`. Provision one key per
+user in the backend, give it to that user out of band, and let the user enter
+it during setup; LEB2 Watch stores it only in OS secure storage.
+
 ## Upgrading
 
-1. Read backend release notes or compare the pinned contract before updating.
+1. Read backend release notes and compare the current API reference before updating.
 2. Verify the required routes, Bearer header, user-ID header, error envelopes,
    and nested snapshot response.
 3. Run the backend tests.

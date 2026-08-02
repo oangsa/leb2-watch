@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
+    as backend;
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/notifications/application/new_assignment_notification_coordinator.dart';
@@ -81,7 +83,7 @@ final class _Semesters implements SemesterSelectionStore {
 
   @override
   Future<SemesterCatalogMergeResult> mergeIfSessionCurrent(
-    Iterable<int> semesterIds, {
+    Iterable<backend.Semester> semesters, {
     required SessionLifecycleSnapshot expectedSession,
   }) {
     throw UnimplementedError();

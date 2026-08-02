@@ -58,8 +58,8 @@ Local `persistenceFailed` is also non-retryable automatically.
 Each Dio request owns one private cancellation registration, disposes on every terminal path before emitting transport event. Reusable operation handle retains only currently active request tokens.
 
 Construction validates `AppConfiguration`, creates two Dio pipelines with same strict options:
-- **Authenticated pipeline:** installs one private async saved-credential interceptor.
-- **Session pipeline:** no interceptor — caller-supplied candidate cookie and unauthenticated requests cannot be replaced by saved state.
+- **Authenticated pipeline:** installs one private async saved-credential interceptor that reads both the access key and session cookie.
+- **Session pipeline:** no interceptor — caller-supplied candidate access key/cookie and login credentials cannot be replaced by saved state.
 
 Tests may inject one callback adapter into both. Implementation owns: request creation, response metadata validation, strict byte decoding, DTO conversion, invariant validation, domain mapping, HTTP evidence, event emission.
 
@@ -69,23 +69,29 @@ Domain models and checked DTOs are separate. DTOs = internal transport values wi
 
 | Method | Path | Auth | Success |
 |---|---|---|---|
-| POST | `/User/login` | None | User profile |
-| POST | `/User/cookie` | None | Cookie |
-| GET | `/Semester` | LEB2 Bearer | Integer array |
-| GET | `/Class/{id}` | LEB2 Bearer | Class array |
-| GET | `/Activity/{sid}/{cid}` | Bearer + positive user ID | Activity array |
-| GET | `/Activity/{sid}` | Bearer + positive user ID | Flat activity |
-| GET | `/Activity/{sid}/snapshot` | Bearer + positive user ID | Nested snapshot |
+| POST | `/User/login` | Provisioned `access-key` | User profile |
+| POST | `/User/cookie` | Activated `access-key` | Cookie |
+| GET | `/Semester` | `access-key` + LEB2 Bearer | `{id,name}` object array |
+| GET | `/Class/{id}` | `access-key` + LEB2 Bearer | Class array |
+| GET | `/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID | Activity array |
+| GET | `/Activity/{sid}` | `access-key` + Bearer + positive user ID | Flat activity |
+| GET | `/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID | Nested snapshot |
 | GET | `/health/leb2` | None | Health |
 
 No `/api` prefix. Swagger generated at runtime only in Development.
+
+The backend operator provisions access keys in Supabase PostgreSQL and owns the
+local user/key identity mapping and audit metadata. The frontend never connects
+to Supabase directly. LEB2 passwords and opaque session cookies remain
+frontend/runtime secrets, not backend persistence fields.
 
 Frontend defines application-owned JSON transport DTOs for verified camelCase fields, maps to separate Freezed domain models. Error envelopes, credential responses, and snapshot DTOs remain separate.
 
 ### Required activity and snapshot contract
 
-All protected routes use the opaque LEB2 cookie in `Authorization: Bearer
-<LEB2-session-cookie>`; activity routes also require `X-LEB2-USER-ID` with a
+Every route except `/health/leb2` requires the operator-provisioned `access-key`.
+All protected data routes also use the opaque LEB2 cookie in `Authorization: Bearer
+<LEB2-session-cookie>`; activity routes additionally require `X-LEB2-USER-ID` with a
 positive int32. The cookie is not a JWT, and a cookie-only flow cannot derive
 the user ID because no verified identity-from-cookie endpoint exists.
 
@@ -141,7 +147,8 @@ malformed responses, and backend outages are also not session expiry.
 - This compact's [required activity and snapshot contract](#required-activity-and-snapshot-contract) — verified contract and blockers
 - `test/fixtures/backend_api/README.md` — fixture inventory and HTTP metadata
 - `test/fixtures/backend_api/*.json` — sanitized responses for transport/integration tests
-- `../LEB2SCRAPPER-API/docs/api-reference.md` — committed backend API reference
+- `../../api-reference.md` — frontend repository copy of the authoritative
+  backend API reference
 - `../LEB2SCRAPPER-API/docs/auth-and-resilience.md` — auth, session-expiry, backoff
 - `../LEB2SCRAPPER-API/.../ActivityController.cs` — authoritative activity routes
 - `../LEB2SCRAPPER-API/.../GlobalExceptionMiddleware.cs` — error mapping and retry headers
@@ -153,6 +160,7 @@ malformed responses, and backend outages are also not session expiry.
 
 The public failure types are:
 
+- `AccessKeyFailure`
 - `SessionExpiredFailure`
 - `NetworkUnavailableFailure`
 - `RequestTimeoutFailure`
@@ -163,6 +171,9 @@ The public failure types are:
 
 `RequestTimeoutFailure` retains one `RequestTimeoutPhase`: `connection`,
 `send`, `receive`, `transform`, or `server`.
+
+`AccessKeyFailure` retains one `AccessKeyFailureReason`; deterministic key
+rejection is non-retryable, while `storeUnavailable` is retryable.
 
 `UnknownSyncFailure` retains one fixed `UnknownSyncFailureReason`:
 `missingCredential`, `credentialAccessFailed`, `cancelled`, `badCertificate`,
@@ -176,6 +187,15 @@ Verified HTTP mapping:
 | Status | Exact response code | Failure |
 | --- | --- | --- |
 | 401 | `SESSION_EXPIRED` | `SessionExpiredFailure` |
+
+Access-key response codes are first-class failures, never session expiry:
+
+| Status | Codes | Frontend behavior |
+| --- | --- | --- |
+| 401 | `ACCESS_KEY_REQUIRED`, `ACCESS_KEY_INVALID` | Deterministic access-key failure; no session-expiry recovery |
+| 403 | `ACCESS_KEY_NOT_ACTIVATED`, `ACCESS_KEY_ALREADY_ASSIGNED`, `ACCESS_KEY_IDENTITY_MISMATCH`, `ACCESS_KEY_REAUTHENTICATION_REQUIRED` | Actionable setup/account guidance; preserve cached data |
+| 409 | `ACCESS_KEY_IDENTITY_CONFLICT` | Account-mismatch failure; preserve local state |
+| 503 | `ACCESS_KEY_STORE_UNAVAILABLE` | Retryable temporary access-key-store failure |
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 
@@ -293,7 +313,7 @@ Formatted all project files with no changes required.
 - Delta, zero, future/past HTTP date, malformed, negative, overflow, multiple `Retry-After` values with injected clock.
 - Development/production events, throwing sinks, debug redaction, no retries, Dio/database ownership.
 
-Feature 9.2 adds 12 session-transport tests: direct candidate authorization without secure-store, exact unauthenticated POST contracts, strict login/cookie responses, empty-semester validity, malformed responses, exact error evidence, cancellation, no mutation, redacted values/events.
+Feature 9.2 adds session-transport tests: direct candidate access-key authorization without secure-store, exact access-key-only POST contracts, strict login/cookie responses, empty-semester validity, malformed responses, exact error evidence, cancellation, no mutation, redacted values/events.
 
 ### Validation evidence
 
@@ -325,7 +345,7 @@ Earlier validation:
 ### Validation evidence
 
 ```text
-Backend test binaries at commit d6e3261:
+Backend test binaries from the current API-reference revision:
   API integration, exception middleware, auth tests: Passed 37/37
   Activity service, rendered-page parser, HTTP service: Passed 23/23
 

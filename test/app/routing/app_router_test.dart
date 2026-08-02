@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/data/assignment_dashboard_store.dart';
@@ -279,6 +280,12 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Session cookie'));
+      await tester.pump();
+      await tester.enterText(
+        find.bySemanticsLabel('Access key'),
+        '00000000-0000-4000-8000-000000000001',
+      );
       await tester.enterText(
         find.byKey(const Key('session-cookie-field')),
         '<SESSION_COOKIE>',
@@ -332,6 +339,12 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Connect LEB2'), findsOneWidget);
 
+        await tester.tap(find.text('Session cookie'));
+        await tester.pump();
+        await tester.enterText(
+          find.bySemanticsLabel('Access key'),
+          '00000000-0000-4000-8000-000000000001',
+        );
         await tester.enterText(
           find.byKey(const Key('session-cookie-field')),
           '<SESSION_COOKIE>',
@@ -353,6 +366,67 @@ void main() {
         );
       },
     );
+
+    for (final testCase
+        in <({AutomaticReauthenticationFailureKind kind, String message})>[
+          (
+            kind: AutomaticReauthenticationFailureKind.accessKeyInvalid,
+            message: 'no valid access key',
+          ),
+          (
+            kind: AutomaticReauthenticationFailureKind.accessKeyNotActivated,
+            message: 'not activated',
+          ),
+          (
+            kind: AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
+            message: 'cannot be used with this LEB2 account',
+          ),
+          (
+            kind: AutomaticReauthenticationFailureKind
+                .accessKeyReauthenticationRequired,
+            message: 'needs Username / password reauthentication',
+          ),
+          (
+            kind:
+                AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable,
+            message: 'temporarily unavailable. Try again later.',
+          ),
+        ]) {
+      testWidgets('expired banner gives ${testCase.kind.name} guidance', (
+        tester,
+      ) async {
+        final controller = AppFlowController(initialStage: AppFlowStage.ready);
+        final router = createAppRouter(controller);
+        addTearDown(controller.dispose);
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          _RouterHarness(
+            router: router,
+            lifecycle: const SessionLifecycleSnapshot(
+              state: SessionLifecycleState.expired,
+              revision: 3,
+            ),
+            automaticAttempt: AutomaticReauthenticationAttempt(
+              sessionRevision: 3,
+              state: AutomaticReauthenticationAttemptState.failed,
+              startedAtUtc: DateTime.utc(2026, 8, 2, 12),
+              deadlineAtUtc: DateTime.utc(2026, 8, 2, 12, 1),
+              completedAtUtc: DateTime.utc(2026, 8, 2, 12, 1),
+              failureKind: testCase.kind,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+        expect(find.textContaining(testCase.message), findsOneWidget);
+        if (testCase.kind ==
+            AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable) {
+          expect(find.textContaining('Reconnect manually'), findsNothing);
+        }
+      });
+    }
 
     testWidgets('authentication route exposes a bounded loading state', (
       tester,
@@ -965,6 +1039,7 @@ class _RouterHarness extends StatelessWidget {
     this.courseServiceLoader,
     this.detailServiceLoader,
     this.diagnosticsServiceLoader,
+    this.automaticAttempt,
     this.lifecycle = const SessionLifecycleSnapshot(
       state: SessionLifecycleState.active,
       revision: 1,
@@ -979,6 +1054,7 @@ class _RouterHarness extends StatelessWidget {
   final FutureOr<AssignmentDetailService> Function()? detailServiceLoader;
   final FutureOr<SynchronizationDiagnosticsService> Function()?
   diagnosticsServiceLoader;
+  final AutomaticReauthenticationAttempt? automaticAttempt;
   final SessionLifecycleSnapshot lifecycle;
 
   @override
@@ -1014,7 +1090,7 @@ class _RouterHarness extends StatelessWidget {
         ),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
         currentAutomaticSessionReauthenticationAttemptProvider.overrideWith(
-          (_) => Stream.value(null),
+          (_) => Stream.value(automaticAttempt),
         ),
       ],
       child: MaterialApp.router(
@@ -1232,6 +1308,7 @@ final class _RouteSessionSetupService implements SessionSetupService {
 
   @override
   Future<SessionSetupResult> connectWithCookie({
+    String? accessKey,
     required String sessionCookie,
     required int userId,
     SessionSetupCancellation? cancellation,
@@ -1242,6 +1319,7 @@ final class _RouteSessionSetupService implements SessionSetupService {
 
   @override
   Future<SessionSetupResult> connectWithCredentials({
+    String? accessKey,
     required String username,
     required String password,
     required bool enableAutomaticReauthentication,

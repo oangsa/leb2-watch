@@ -1,4 +1,7 @@
-const sanitizedSemestersFixture = <int>[101, 102];
+const sanitizedSemestersFixture = <Map<String, Object?>>[
+  {'id': 101, 'name': '1/2026'},
+  {'id': 102, 'name': '3/2025'},
+];
 
 const sanitizedCredentialsRequest = <String, Object?>{
   'username': '<USERNAME>',

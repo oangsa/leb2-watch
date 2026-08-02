@@ -1,8 +1,8 @@
 # Troubleshooting
 
-Start with the specific message or platform state. Do not paste a session
-cookie, password, Authorization header, assignment data, personal identifier,
-or raw sensitive response into an issue.
+Start with the specific message or platform state. Do not paste an access key,
+session cookie, password, Authorization header, assignment data, personal
+identifier, or raw sensitive response into an issue.
 
 ## The app shows a configuration recovery screen
 
@@ -38,12 +38,8 @@ the app; it is not a runtime setting.
 
 ## Snapshot returns 404 or the response shape is wrong
 
-The backend default branch is currently incompatible with the frontend. Verify
-that the deployment uses exact backend commit:
-
-```text
-d6e3261537c53507873f36de166f6245bc82fcc4
-```
+Verify that deployment follows the current backend `dev` API reference and
+uses the documented `/Activity/{semesterId}/snapshot` route.
 
 The snapshot path is:
 
@@ -88,6 +84,7 @@ Do not add real credentials to configuration files or diagnostic output.
 The frontend/backend contract requires both:
 
 ```http
+access-key: <operator-provided-uuid>
 Authorization: Bearer <LEB2-session-cookie>
 X-LEB2-USER-ID: <positive-int32>
 ```
@@ -95,6 +92,12 @@ X-LEB2-USER-ID: <positive-int32>
 The cookie is opaque, not a JWT. The numeric user ID is stored separately as
 non-secret local identity after session verification. Do not try to derive it
 from the cookie.
+
+If the message says the access key is missing, invalid, not activated, or
+belongs to another account, request the correct key from the backend operator.
+Use Username/password once when activation is required. A temporary
+`ACCESS_KEY_STORE_UNAVAILABLE` error can be retried later; it does not mean the
+LEB2 password is wrong.
 
 ## The app says the session expired
 

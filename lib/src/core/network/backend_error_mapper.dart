@@ -4,6 +4,14 @@ import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 SyncFailure mapBackendTransportException(
   BackendTransportException exception,
 ) => switch (exception.kind) {
+  BackendTransportFailureKind.missingAccessKey => const AccessKeyFailure(
+    AccessKeyFailureReason.missing,
+  ),
+  BackendTransportFailureKind.invalidAccessKey => const AccessKeyFailure(
+    AccessKeyFailureReason.invalid,
+  ),
+  BackendTransportFailureKind.accessKeyStoreUnavailable =>
+    const AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
   BackendTransportFailureKind.missingCredential => const UnknownSyncFailure(
     UnknownSyncFailureReason.missingCredential,
   ),
@@ -44,6 +52,40 @@ SyncFailure _mapHttpEvidence(BackendHttpErrorEvidence? evidence) {
   }
 
   return switch (evidence.responseCode) {
+    'ACCESS_KEY_REQUIRED' => switch (evidence.statusCode) {
+      401 => const AccessKeyFailure(AccessKeyFailureReason.missing),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_INVALID' => switch (evidence.statusCode) {
+      401 => const AccessKeyFailure(AccessKeyFailureReason.invalid),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_NOT_ACTIVATED' => switch (evidence.statusCode) {
+      403 => const AccessKeyFailure(AccessKeyFailureReason.notActivated),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_ALREADY_ASSIGNED' => switch (evidence.statusCode) {
+      403 => const AccessKeyFailure(AccessKeyFailureReason.alreadyAssigned),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_IDENTITY_MISMATCH' => switch (evidence.statusCode) {
+      403 => const AccessKeyFailure(AccessKeyFailureReason.identityMismatch),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_REAUTHENTICATION_REQUIRED' => switch (evidence.statusCode) {
+      403 => const AccessKeyFailure(
+        AccessKeyFailureReason.reauthenticationRequired,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_IDENTITY_CONFLICT' => switch (evidence.statusCode) {
+      409 => const AccessKeyFailure(AccessKeyFailureReason.identityConflict),
+      _ => const InvalidResponseFailure(),
+    },
+    'ACCESS_KEY_STORE_UNAVAILABLE' => switch (evidence.statusCode) {
+      503 => const AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+      _ => const InvalidResponseFailure(),
+    },
     'SESSION_EXPIRED' => switch (evidence.statusCode) {
       401 => const SessionExpiredFailure(),
       _ => const InvalidResponseFailure(),

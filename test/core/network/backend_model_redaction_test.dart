@@ -54,7 +54,7 @@ void main() {
     const course = Course(semesterId: 101, id: 3001, name: 'sensitive-course');
 
     final values = <Object>[
-      const Semester(id: 101),
+      const Semester(id: 101, name: '1/2026'),
       course,
       CourseAssignments(course: course, activities: const [activity]),
       const AssignmentSnapshot(

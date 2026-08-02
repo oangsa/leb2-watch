@@ -66,8 +66,11 @@ Future<_CredentialPresence> _readCredentialPresence(
   CredentialStore credentialStore,
 ) async {
   try {
+    final accessKey = await credentialStore.readAccessKey();
     final cookie = await credentialStore.readSessionCookie();
-    return cookie == null
+    return normalizeAccessKey(accessKey ?? '') == null ||
+            cookie == null ||
+            cookie.trim().isEmpty
         ? _CredentialPresence.absent
         : _CredentialPresence.present;
   } on Object {

@@ -9,6 +9,7 @@ final class FlutterSecureCredentialStore implements CredentialStore {
     : _storage = storage ?? _defaultStorage;
 
   static const _sessionCookieKey = 'leb2_watch.session_cookie.v1';
+  static const _accessKeyKey = 'leb2_watch.access_key.v1';
   static const _storedCredentialsKey = 'leb2_watch.stored_credentials.v1';
   static const _androidStorageNamespace = 'leb2_watch_credentials_v1';
   static const _appleService = 'dev.oangsa.leb2watch.credentials';
@@ -32,6 +33,24 @@ final class FlutterSecureCredentialStore implements CredentialStore {
   );
 
   final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> readAccessKey() => _runStorage(
+    CredentialStoreOperation.readAccessKey,
+    () => _storage.read(key: _accessKeyKey),
+  );
+
+  @override
+  Future<void> saveAccessKey(String value) => _runStorage(
+    CredentialStoreOperation.saveAccessKey,
+    () => _storage.write(key: _accessKeyKey, value: value),
+  );
+
+  @override
+  Future<void> deleteAccessKey() => _runStorage(
+    CredentialStoreOperation.deleteAccessKey,
+    () => _storage.delete(key: _accessKeyKey),
+  );
 
   @override
   Future<String?> readSessionCookie() => _runStorage(
@@ -89,6 +108,12 @@ final class FlutterSecureCredentialStore implements CredentialStore {
   @override
   Future<void> clear() async {
     var failed = false;
+
+    try {
+      await _storage.delete(key: _accessKeyKey);
+    } on Object {
+      failed = true;
+    }
 
     try {
       await _storage.delete(key: _sessionCookieKey);

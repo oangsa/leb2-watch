@@ -26,6 +26,29 @@ final class SessionExpiredFailure extends SyncFailure {
   bool get isRetryEligible => false;
 }
 
+enum AccessKeyFailureReason {
+  missing,
+  invalid,
+  notActivated,
+  alreadyAssigned,
+  identityMismatch,
+  reauthenticationRequired,
+  identityConflict,
+  storeUnavailable,
+}
+
+final class AccessKeyFailure extends SyncFailure {
+  const AccessKeyFailure(this.reason);
+
+  final AccessKeyFailureReason reason;
+
+  @override
+  bool get isRetryEligible => reason == AccessKeyFailureReason.storeUnavailable;
+
+  @override
+  Object get _equalityKey => reason;
+}
+
 final class NetworkUnavailableFailure extends SyncFailure {
   const NetworkUnavailableFailure();
 

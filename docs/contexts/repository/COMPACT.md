@@ -1,5 +1,13 @@
 # Repository — Compacted Context
 
+> **Current contract note (2026-08-02):** Current frontend compatibility comes
+> from `LEB2SCRAPPER-API/docs/api-reference.md` (or this repository's
+> `docs/api-reference.md` fallback). Every non-health request carries the
+> runtime per-user `access-key`; the operator owns Supabase PostgreSQL
+> provisioning and user/key mapping. This frontend still consumes `/Semester`
+> as a sanitized integer-ID list. Older commit pins, cookie-only examples, and
+> no-database/default-branch claims below are immutable historical notes only.
+
 ## Status
 
 Completed.
@@ -54,8 +62,8 @@ report or must not disclose the report there.
 Public documentation is split by reader intent:
 
 - `README.md` — landing page, hosting model, status, and path selection.
-- `docs/self-hosting-backend.md` — pinned backend revision, .NET/Docker/Cloud
-  Run facts, health semantics, and operator responsibilities.
+- `docs/self-hosting-backend.md` — current backend API-reference link, .NET/
+  Docker/Cloud Run facts, health semantics, and operator responsibilities.
 - `docs/configuration-and-builds.md` — compile-time definitions, run/build
   commands, and release ownership.
 - `docs/architecture.md` — local-first layers, data flow, synchronization, and
@@ -82,8 +90,8 @@ This consistency pass updates exactly these public documents:
 - `docs/privacy-and-security.md`
 - `docs/troubleshooting.md`
 
-`docs/self-hosting-backend.md` remains unchanged because its compatible
-backend pin and operator guidance already match the verified backend revision.
+`docs/self-hosting-backend.md` must remain aligned with the current backend API
+reference and operator-owned Supabase mapping.
 
 ### State and control flow
 
@@ -160,8 +168,9 @@ authentication, semester selection, and ready.
 
 For the restart, the first widget/provider graph is removed, its real database
 manager is awaited closed, and production resolution reads the same file. A
-proven active or expired lifecycle with positive revision, verified user, saved
-cookie presence (or temporarily unavailable secure storage), and active
+proven active or expired lifecycle with positive revision, verified user,
+saved access-key and cookie presence (or temporarily unavailable secure
+storage), and active
 semester resolves `ready`. Proven prior users with no selected semester resolve
 semester selection; verifiably missing credentials resolve authentication.
 Missing or inconsistent proof resolves onboarding. After its loading shell,
@@ -341,15 +350,16 @@ guarantee.
 
 ### Contracts and interfaces
 
-Documentation pins the compatible backend to:
+Historical validation snapshot (superseded; retained for audit) pinned the
+compatible backend to:
 
 ```text
 repository: https://github.com/oangsa/LEB2SCRAPPER-API
 commit:     d6e3261537c53507873f36de166f6245bc82fcc4
 ```
 
-The backend default `main` branch is documented as incompatible until a
-verified release changes that fact.
+Current compatibility is determined by the checked-in backend API reference;
+do not infer incompatibility from this historical branch note.
 
 The frontend accepts exactly:
 
@@ -369,6 +379,7 @@ Every backend exchange verifies:
 - the exact HTTP method;
 - the exact verified route;
 - the canonical reserved base URL;
+- the sanitized `access-key` header;
 - the exact placeholder bearer value;
 - the `X-LEB2-USER-ID` header on snapshot requests; and
 - absence of an unexpected request body stream.
@@ -412,10 +423,10 @@ contexts and records only the cross-feature continuation boundary.
 
 ### Contracts and interfaces
 
-No backend API contract or application interface can be verified from the
-current checkout. In particular, authentication behavior, endpoints, response
-models, errors, and timestamp semantics remain unverified and must not be
-invented.
+The current backend API contract is the checked-in API reference. In
+particular, authentication uses the runtime `access-key` plus the documented
+session/user headers; endpoint, response, error, and retry details must be
+verified there rather than inferred from historical compact notes.
 
 Flutter and Dart are available only after shell initialization. In each newly
 opened terminal that does not already expose them, run:
@@ -444,7 +455,8 @@ command, not before every command.
 
 - Use “publicly visible” and “source-available,” not “open source,” until
   licenses are committed.
-- Pin a commit rather than suggesting an incompatible default-branch clone.
+- Follow the current API reference rather than retaining an obsolete commit
+  pin or default-branch compatibility claim.
 - Make operator ownership/cost prominent rather than burying it in deployment
   details.
 - Document Cloud Run as one optional example, not an official hosting path.
@@ -525,11 +537,11 @@ obligations were not audited.
   requested pull-request-only changes with force-pushes blocked and forks
   enabled; its application and verification remain pending outside this local
   checkout.
-- The compatible backend code is not on its current default branch or tagged
-  release. This is a release blocker because an unqualified clone is
-  incompatible with the frontend.
-- The frontend implementation was not on its public default branch at research
-  time.
+- Historical validation notes below mention an unqualified branch and an old
+  commit pin; current compatibility must be checked against the backend API
+  reference before deployment.
+- Historical research note: the frontend implementation was not on its public
+  default branch at that time; this does not describe current compatibility.
 - No fresh backend build, Docker build, server run, or Cloud Run deployment was
   performed by this frontend documentation feature.
 - Android has bounded sanitized Release/API 36 emulator evidence, but

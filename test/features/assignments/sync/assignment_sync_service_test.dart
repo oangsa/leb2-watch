@@ -535,6 +535,8 @@ void main() {
       const RateLimitedFailure(),
       const RateLimitedFailure(retryAfter: Duration(minutes: 2)),
       const InvalidResponseFailure(),
+      for (final reason in AccessKeyFailureReason.values)
+        AccessKeyFailure(reason),
       for (final reason in UnknownSyncFailureReason.values)
         UnknownSyncFailure(reason),
     ];
@@ -564,6 +566,12 @@ void main() {
         const UnknownSyncFailure(UnknownSyncFailureReason.persistenceFailed),
       ).historyCategory,
       'persistenceFailed',
+    );
+    expect(
+      encodeFailure(
+        const AccessKeyFailure(AccessKeyFailureReason.invalid),
+      ).historyCategory,
+      'accessKey.invalid',
     );
   });
 

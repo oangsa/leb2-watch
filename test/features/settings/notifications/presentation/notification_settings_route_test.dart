@@ -261,6 +261,15 @@ final class _CacheCleanup implements LocalApplicationCacheCleanup {
 
 final class _CredentialStore implements CredentialStore {
   @override
+  Future<String?> readAccessKey() async => null;
+
+  @override
+  Future<void> saveAccessKey(String value) async {}
+
+  @override
+  Future<void> deleteAccessKey() async {}
+
+  @override
   Future<void> clear() async {}
 
   @override

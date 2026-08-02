@@ -489,9 +489,7 @@ final semesterSelectionServiceProvider =
         cancellation,
       }) async {
         final client = ref.read(backendApiClientProvider);
-        return (await client.getSemesters(
-          cancellation: cancellation,
-        )).map((semester) => semester.id).toList(growable: false);
+        return client.getSemesters(cancellation: cancellation);
       });
     });
 

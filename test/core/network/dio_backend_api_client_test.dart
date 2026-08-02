@@ -117,6 +117,7 @@ void main() {
         await client.getSemesterSnapshot(semesterId: 101, userId: 2001);
 
         expect(credentials.sessionReadCount, 3);
+        expect(credentials.accessKeyReadCount, 3);
         expect(adapter.requests.map((request) => request.path), [
           '/Semester',
           '/Class/101',
@@ -132,6 +133,10 @@ void main() {
           expect(request.maxRedirects, 0);
           expect(request.validateStatus(500), isTrue);
           expect(request.headers[Headers.acceptHeader], 'application/json');
+          expect(
+            request.headers['access-key'],
+            '00000000-0000-4000-8000-000000000001',
+          );
           expect(request.headers['Authorization'], 'Bearer <SESSION_COOKIE>');
         }
         expect(adapter.requests[0].headers, isNot(contains('X-LEB2-USER-ID')));
@@ -151,6 +156,23 @@ void main() {
         adapter,
         credentials: MemoryCredentialStore(sessionCookie: cookie),
       ).getSemesters();
+    });
+
+    test('rejects a whitespace cookie before adapter dispatch', () async {
+      final adapter = CallbackHttpClientAdapter(
+        (_, _, _) => throw StateError('Adapter must not run.'),
+      );
+
+      await expectLater(
+        _client(
+          adapter,
+          credentials: MemoryCredentialStore(sessionCookie: '   '),
+        ).getSemesters(),
+        throwsA(
+          _transportFailure(BackendTransportFailureKind.missingCredential),
+        ),
+      );
+      expect(adapter.requests, isEmpty);
     });
 
     test('missing credentials reject before the adapter', () async {
@@ -229,13 +251,54 @@ void main() {
       final semesters = await client.getSemesters();
       final courses = await client.getCourses(semesterId: 101);
 
-      expect(semesters.map((value) => value.id), [101, 102]);
+      expect(semesters.map((value) => (value.id, value.name)), [
+        (101, '1/2026'),
+        (102, '3/2025'),
+      ]);
       expect(courses.map((value) => (value.semesterId, value.id, value.name)), [
         (101, 3001, 'Example Course'),
         (101, 3002, 'Another Course'),
       ]);
       expect(semesters.toString(), isNot(contains('Example Course')));
       expect(adapter.requests, hasLength(2));
+    });
+
+    test('rejects malformed structured semester responses', () async {
+      final cases = <Object>[
+        [101],
+        [
+          {'name': '1/2026'},
+        ],
+        [
+          {'id': 101},
+        ],
+        [
+          {'id': 1.5, 'name': '1/2026'},
+        ],
+        [
+          {'id': 0, 'name': '1/2026'},
+        ],
+        [
+          {'id': 101, 'name': '   '},
+        ],
+        [
+          {'id': 101, 'name': '1/2026'},
+          {'id': 101, 'name': 'duplicate'},
+        ],
+      ];
+
+      for (final response in cases) {
+        final adapter = CallbackHttpClientAdapter(
+          (_, _, _) => jsonResponse(response),
+        );
+        await expectLater(
+          _client(adapter).getSemesters(),
+          throwsA(
+            _transportFailure(BackendTransportFailureKind.invalidResponse),
+          ),
+        );
+        expect(adapter.requests, hasLength(1));
+      }
     });
 
     test(
@@ -493,7 +556,9 @@ void main() {
         'Application/vnd.leb2+JSON; charset="utf-8"',
       ]) {
         final adapter = CallbackHttpClientAdapter(
-          (_, _, _) => jsonResponse(const <int>[101], contentType: contentType),
+          (_, _, _) => jsonResponse(const [
+            <String, Object?>{'id': 101, 'name': '1/2026'},
+          ], contentType: contentType),
         );
         expect((await _client(adapter).getSemesters()).single.id, 101);
       }
@@ -503,8 +568,9 @@ void main() {
       'rejects a structured JSON suffix with an empty subtype prefix',
       () async {
         final adapter = CallbackHttpClientAdapter(
-          (_, _, _) =>
-              jsonResponse(const <int>[101], contentType: 'application/+json'),
+          (_, _, _) => jsonResponse(const [
+            <String, Object?>{'id': 101, 'name': '1/2026'},
+          ], contentType: 'application/+json'),
         );
 
         final failure = await _captureTransportFailure(
@@ -661,7 +727,9 @@ void main() {
           );
 
           return switch (index) {
-            0 => jsonResponse(const <int>[101]),
+            0 => jsonResponse(const [
+              <String, Object?>{'id': 101, 'name': '1/2026'},
+            ]),
             1 => throw DioException(
               requestOptions: options,
               type: DioExceptionType.connectionError,
@@ -716,7 +784,9 @@ void main() {
             }),
           );
           if (index == 0) {
-            return jsonResponse(const <int>[101]);
+            return jsonResponse(const [
+              <String, Object?>{'id': 101, 'name': '1/2026'},
+            ]);
           }
           secondStarted.complete();
           await cancelFuture;
@@ -798,7 +868,9 @@ void main() {
             requestCancelled = true;
           }),
         );
-        return jsonResponse(const <int>[101]);
+        return jsonResponse(const [
+          <String, Object?>{'id': 101, 'name': '1/2026'},
+        ]);
       });
       final client = _client(adapter, eventSink: (_) => cancellation.cancel());
 
@@ -1053,7 +1125,9 @@ void main() {
       'a throwing development sink cannot change request behavior',
       () async {
         final adapter = CallbackHttpClientAdapter(
-          (_, _, _) => jsonResponse(const <int>[101]),
+          (_, _, _) => jsonResponse(const [
+            <String, Object?>{'id': 101, 'name': '1/2026'},
+          ]),
         );
         final client = _client(
           adapter,

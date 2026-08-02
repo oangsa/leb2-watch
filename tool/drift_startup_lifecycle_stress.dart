@@ -147,6 +147,20 @@ Future<void> _expectDeletionGateQuiescence(LocalDatabaseStorage storage) async {
 }
 
 final class _DiagnosticCredentialStore implements CredentialStore {
+  @override
+  Future<String?> readAccessKey() async =>
+      '00000000-0000-4000-8000-000000000001';
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    mutationCount += 1;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async {
+    mutationCount += 1;
+  }
+
   int readCount = 0;
   int mutationCount = 0;
 

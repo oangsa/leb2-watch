@@ -11,10 +11,26 @@ import 'package:leb2_watch/src/platform/background/background_scheduler_platform
 import 'package:path/path.dart' as path;
 
 final class IntegrationCredentialStore implements CredentialStore {
+  String? accessKey;
   String? sessionCookie;
   StoredCredentials? credentials;
   int mutationCount = 0;
   int clearCount = 0;
+
+  @override
+  Future<String?> readAccessKey() async => accessKey;
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    accessKey = value;
+    mutationCount += 1;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async {
+    accessKey = null;
+    mutationCount += 1;
+  }
 
   @override
   Future<String?> readSessionCookie() async => sessionCookie;
@@ -48,6 +64,7 @@ final class IntegrationCredentialStore implements CredentialStore {
 
   @override
   Future<void> clear() async {
+    accessKey = null;
     sessionCookie = null;
     credentials = null;
     clearCount += 1;

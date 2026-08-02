@@ -332,6 +332,16 @@ final class _CredentialStore implements CredentialStore {
   int mutationCount = 0;
 
   @override
+  Future<String?> readAccessKey() async =>
+      '00000000-0000-4000-8000-000000000001';
+
+  @override
+  Future<void> saveAccessKey(String value) async {}
+
+  @override
+  Future<void> deleteAccessKey() async {}
+
+  @override
   Future<String?> readSessionCookie() async {
     readCount += 1;
     final failure = readFailure;

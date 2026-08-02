@@ -87,7 +87,8 @@ the UI separately observes the current attempt through the local Drift watch.
 
 ### Architecture
 
-`CredentialStore` is the external seam. It exposes only the seven operations
+`CredentialStore` is the external seam. It exposes the access-key, session
+cookie, optional-credential, and clear operations
 required by the product. `FlutterSecureCredentialStore` is the adapter at that
 seam and hides platform configuration, key names, JSON encoding, plugin
 exceptions, and bounded deletion.
@@ -116,7 +117,8 @@ restore secrets after credential deletion completes.
 
 ### State and control flow
 
-Session-cookie reads and writes go directly through one private key. Optional
+Access-key and session-cookie reads and writes go directly through dedicated
+private keys. Optional
 credential reads first obtain the encrypted payload, then decode and validate
 its shape and schema outside the plugin-failure wrapper.
 
@@ -126,12 +128,13 @@ Reading a structurally versioned but unknown schema returns
 `unsupportedSchemaVersion`. Neither condition silently deletes the stored
 payload.
 
-`clear()` attempts both application-owned key deletions in order even if the
-first fails. It reports one fixed `clear/secureStorageUnavailable` failure if
-either delete fails.
+`clear()` attempts all three application-owned secret deletions in order even
+if an earlier delete fails. It reports one fixed
+`clear/secureStorageUnavailable` failure if any delete fails.
 
-Session setup reads both prior secure values before verification. It writes the
-verified cookie first, then either saves the explicitly opted-in credential
+Session setup reads the prior access key, cookie, and optional credentials
+before verification. It writes the verified access key and cookie only after
+candidate verification, then either saves the explicitly opted-in credential
 payload or deletes prior optional credentials. If that or the following
 non-secret identity write fails, it attempts to restore the prior cookie and
 credential payload rather than leaving an intentionally mixed session.
@@ -206,9 +209,10 @@ Recovery:
 
 `BackendSessionClient` is the session-transport seam beside
 `BackendApiClient`. `DioBackendApiClient` implements both interfaces, but uses
-a separate unauthenticated Dio pipeline for candidate verification and
-credential routes so the persisted-cookie interceptor cannot replace a
-candidate or attach a saved secret.
+a separate candidate/session Dio pipeline for candidate verification and
+credential routes. It receives explicit candidate access-key/cookie values so
+the persisted-credential interceptor cannot replace a candidate or attach a
+saved secret.
 
 `SessionIdentityStore` owns the non-secret numeric LEB2 user ID in the singleton
 `app_settings` row. `SessionLifecycleStore` owns durable active/expired state
@@ -424,6 +428,10 @@ The public interface is:
 
 ```dart
 abstract interface class CredentialStore {
+  Future<String?> readAccessKey();
+  Future<void> saveAccessKey(String value);
+  Future<void> deleteAccessKey();
+
   Future<String?> readSessionCookie();
   Future<void> saveSessionCookie(String value);
   Future<void> deleteSessionCookie();
@@ -486,11 +494,13 @@ abstract interface class SessionSetupService {
     SessionSetupCancellation? cancellation,
   });
   Future<SessionSetupResult> connectWithCookie({
+    String? accessKey,
     required String sessionCookie,
     required int userId,
     SessionSetupCancellation? cancellation,
   });
   Future<SessionSetupResult> connectWithCredentials({
+    String? accessKey,
     required String username,
     required String password,
     required bool enableAutomaticReauthentication,
@@ -559,7 +569,11 @@ Candidate verification sends:
 
 ### Decisions
 
-- Make cookie entry the default because it minimizes credential exposure.
+- Make Username/password setup the default because it can activate a newly
+  provisioned access key; retain manual-cookie setup for an already activated
+  key.
+- Require an access key for either setup method and keep it independent from
+  optional saved username/password.
 - Require the user ID beside a manual cookie because the verified snapshot
   route requires it and the cookie has no identity contract.
 - Keep the user ID in SQLite because it is request context, not a credential.
@@ -569,8 +583,9 @@ Candidate verification sends:
   user enables it.
 - Reject a known different account until the dedicated delete-local-data flow
   removes account-scoped cache.
-- Share one composed transport adapter but isolate unauthenticated calls in a
-  separate Dio pipeline.
+- Share one composed transport adapter but isolate candidate calls in a
+  separate Dio pipeline; login/cookie send access-key only, while verification
+  sends candidate access-key plus cookie.
 
 ## Known Limitations
 
@@ -683,12 +698,12 @@ Candidate verification sends:
 The 28 focused tests cover:
 
 - Default schema, JSON round trip, and redacted model output.
-- Exact session-cookie save/read/delete and missing-key behavior.
+- Exact access-key and session-cookie save/read/delete and missing-key behavior.
 - Single-payload credential save/read/delete and missing-key behavior.
 - Unsupported schema rejection before write.
 - Malformed JSON, non-object data, missing fields, wrong field types, and
   unknown stored schemas without silent deletion.
-- Exact two-key clear behavior, no `deleteAll`, and second-delete execution
+- Exact three-key clear behavior, no `deleteAll`, and later-delete execution
   after a first-delete failure.
 - Safe plugin failure mapping for every public read, write, and delete
   operation.
@@ -764,7 +779,7 @@ Focused behavior covers:
 
 - exact candidate authorization without saved-store access or mutation;
 - strict profile, cookie, semester, content-type, JSON, and error validation;
-- exact unauthenticated login/cookie POST bodies and redacted events;
+- exact access-key-only login/cookie POST bodies and redacted events;
 - saved-session summaries and verification without value exposure;
 - saved-session exact expiration, candidate-expiration isolation, active
   revision advancement, and lifecycle compensation;

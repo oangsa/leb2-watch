@@ -138,6 +138,7 @@ final class LocalAssignmentDashboardService
       BackendUnavailableFailure() => 'backendUnavailable',
       RateLimitedFailure() => 'rateLimited',
       InvalidResponseFailure() => 'invalidResponse',
+      AccessKeyFailure(:final reason) => 'accessKey.${reason.name}',
       UnknownSyncFailure(:final reason) => reason.name,
     };
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
@@ -277,6 +278,43 @@ void main() {
       expect(cache.latestAttempt, isNull);
     },
   );
+
+  for (final category in const [
+    'accessKey.invalid',
+    'accessKey.storeUnavailable',
+  ]) {
+    test('reopens durable $category status for the dashboard', () async {
+      await database.close();
+      final directory = await Directory.systemTemp.createTemp(
+        'leb2-watch-dashboard-access-key-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/leb2_watch.sqlite');
+      final first = AppDatabase.forTesting(NativeDatabase(file));
+      await _seedTarget(first, semesterId: 101);
+      await first
+          .into(first.syncRuns)
+          .insert(
+            SyncRunsCompanion.insert(
+              semesterId: 101,
+              reason: 'manualRefresh',
+              outcome: 'failure',
+              startedAtUtc: DateTime.utc(2026, 8, 2, 12),
+              completedAtUtc: drift.Value(DateTime.utc(2026, 8, 2, 12, 1)),
+              failureCategory: drift.Value(category),
+            ),
+          );
+      await first.close();
+
+      final reopened = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(reopened.close);
+      final cache = await DriftAssignmentDashboardStore(
+        reopened,
+      ).watchActiveCache().first;
+
+      expect(cache.latestAttempt?.failureCategory, category);
+    });
+  }
 
   test(
     'committed writes emit one coherent replacement and rollback does not',

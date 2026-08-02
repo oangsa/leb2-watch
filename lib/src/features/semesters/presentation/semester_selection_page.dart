@@ -9,6 +9,7 @@ import '../../../app/design_system/app_breakpoints.dart';
 import '../../../app/design_system/app_tokens.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
+import '../../../core/network/domain/backend_models.dart';
 import '../../../core/network/domain/sync_failure.dart';
 import '../../../core/session/session_lifecycle.dart';
 import '../application/semester_selection_service.dart';
@@ -273,7 +274,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
             horizontalPadding,
             AppSpacing.lg,
           ),
-          itemCount: catalog.semesterIds.length + 1,
+          itemCount: catalog.semesters.length + 1,
           separatorBuilder: (_, index) => index == 0
               ? const SizedBox(height: AppSpacing.md)
               : const Divider(),
@@ -288,8 +289,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Choose one for assignments and monitoring. IDs are '
-                    'listed in descending numeric order.',
+                    'Choose one for assignments and monitoring.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -308,16 +308,16 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
                 ],
               );
             }
-            final semesterId = catalog.semesterIds[index - 1];
+            final semester = catalog.semesters[index - 1];
             return _SemesterRow(
-              semesterId: semesterId,
-              selected: catalog.activeSemesterId == semesterId,
-              loading: _selectingSemesterId == semesterId,
+              semester: semester,
+              selected: catalog.activeSemesterId == semester.id,
+              loading: _selectingSemesterId == semester.id,
               enabled:
                   _selectingSemesterId == null &&
                   !_navigationInFlight &&
                   !_navigationPending,
-              onPressed: () => _select(semesterId),
+              onPressed: () => _select(semester.id),
             );
           },
         ),
@@ -355,6 +355,53 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
         onAction: _refresh,
       );
     }
+    if (_refreshFailure case AccessKeyFailure(:final reason)) {
+      return switch (reason) {
+        AccessKeyFailureReason.storeUnavailable => AppStatusBanner.stale(
+          key: Key('semester-access-key-banner'),
+          message:
+              'Access-key verification is temporarily unavailable. Try again later.',
+          actionLabel: 'Retry',
+          onAction: _refresh,
+        ),
+        AccessKeyFailureReason.missing ||
+        AccessKeyFailureReason.invalid => AppStatusBanner.stale(
+          key: const Key('semester-access-key-banner'),
+          message:
+              'This access key is missing or no longer valid. Reconnect '
+              'with a key from your backend operator.',
+          actionLabel: 'Reconnect',
+          onAction: widget.onReconnect,
+        ),
+        AccessKeyFailureReason.notActivated => AppStatusBanner.stale(
+          key: const Key('semester-access-key-banner'),
+          message:
+              'This access key has not been activated. Use Username / '
+              'password once to activate it.',
+          actionLabel: 'Reconnect',
+          onAction: widget.onReconnect,
+        ),
+        AccessKeyFailureReason.reauthenticationRequired =>
+          AppStatusBanner.stale(
+            key: const Key('semester-access-key-banner'),
+            message:
+                'This access key needs Username / password reauthentication. '
+                'Reconnect manually.',
+            actionLabel: 'Reconnect',
+            onAction: widget.onReconnect,
+          ),
+        AccessKeyFailureReason.alreadyAssigned ||
+        AccessKeyFailureReason.identityMismatch ||
+        AccessKeyFailureReason.identityConflict => AppStatusBanner.stale(
+          key: const Key('semester-access-key-banner'),
+          message:
+              'This access key cannot be used with this LEB2 account. '
+              'Reconnect with the correct key.',
+          actionLabel: 'Reconnect',
+          onAction: widget.onReconnect,
+        ),
+      };
+    }
     if (_refreshFailure != null || !_isFresh) {
       return AppStatusBanner.stale(
         key: const Key('semester-stale-banner'),
@@ -373,14 +420,14 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
 
 class _SemesterRow extends StatelessWidget {
   const _SemesterRow({
-    required this.semesterId,
+    required this.semester,
     required this.selected,
     required this.loading,
     required this.enabled,
     required this.onPressed,
   });
 
-  final int semesterId;
+  final Semester semester;
   final bool selected;
   final bool loading;
   final bool enabled;
@@ -389,9 +436,12 @@ class _SemesterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final displayName = semester.name;
     return Semantics(
-      key: Key('semester-row-$semesterId'),
-      label: 'Semester $semesterId',
+      key: Key('semester-row-${semester.id}'),
+      label: displayName.startsWith('Semester ')
+          ? displayName
+          : 'Semester $displayName',
       value: selected ? 'Selected on this device' : null,
       button: true,
       selected: selected,
@@ -421,7 +471,7 @@ class _SemesterRow extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Semester $semesterId',
+                            displayName,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           if (selected) ...[

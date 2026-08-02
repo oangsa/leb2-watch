@@ -248,6 +248,37 @@ DiagnosticsFailureCategory _decodeFailureCategory(
     'backendUnavailable' => DiagnosticsFailureCategory.backendUnavailable,
     'rateLimited' => DiagnosticsFailureCategory.rateLimited,
     'invalidResponse' => DiagnosticsFailureCategory.invalidResponse,
+    'accessKey.missing' => DiagnosticsFailureCategory.accessKeyMissing,
+    'accessKey.invalid' => DiagnosticsFailureCategory.accessKeyInvalid,
+    'accessKey.notActivated' =>
+      DiagnosticsFailureCategory.accessKeyNotActivated,
+    'accessKey.alreadyAssigned' =>
+      DiagnosticsFailureCategory.accessKeyAlreadyAssigned,
+    'accessKey.identityMismatch' =>
+      DiagnosticsFailureCategory.accessKeyIdentityMismatch,
+    'accessKey.reauthenticationRequired' =>
+      DiagnosticsFailureCategory.accessKeyReauthenticationRequired,
+    'accessKey.identityConflict' =>
+      DiagnosticsFailureCategory.accessKeyIdentityConflict,
+    'accessKey.storeUnavailable' =>
+      DiagnosticsFailureCategory.accessKeyStoreUnavailable,
+    'accessKey' when detail == 'missing' =>
+      DiagnosticsFailureCategory.accessKeyMissing,
+    'accessKey' when detail == 'invalid' =>
+      DiagnosticsFailureCategory.accessKeyInvalid,
+    'accessKey' when detail == 'notActivated' =>
+      DiagnosticsFailureCategory.accessKeyNotActivated,
+    'accessKey' when detail == 'alreadyAssigned' =>
+      DiagnosticsFailureCategory.accessKeyAlreadyAssigned,
+    'accessKey' when detail == 'identityMismatch' =>
+      DiagnosticsFailureCategory.accessKeyIdentityMismatch,
+    'accessKey' when detail == 'reauthenticationRequired' =>
+      DiagnosticsFailureCategory.accessKeyReauthenticationRequired,
+    'accessKey' when detail == 'identityConflict' =>
+      DiagnosticsFailureCategory.accessKeyIdentityConflict,
+    'accessKey' when detail == 'storeUnavailable' =>
+      DiagnosticsFailureCategory.accessKeyStoreUnavailable,
+    'accessKey' => DiagnosticsFailureCategory.accessKeyUnknown,
     'persistenceFailed' => DiagnosticsFailureCategory.persistenceFailed,
     'unknown' when detail == 'persistenceFailed' =>
       DiagnosticsFailureCategory.persistenceFailed,

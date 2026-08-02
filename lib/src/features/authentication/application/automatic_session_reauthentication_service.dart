@@ -180,6 +180,13 @@ final class LocalAutomaticSessionReauthenticationService
         return initial.result!;
       }
       final current = initial.state!;
+      final accessKey = current.accessKey;
+      if (accessKey == null || normalizeAccessKey(accessKey) == null) {
+        return _finishFailure(
+          attempt.sessionRevision,
+          AutomaticReauthenticationFailureKind.accessKeyMissing,
+        );
+      }
       final credentials = current.credentials;
       if (credentials == null) {
         return _finishFailure(
@@ -191,6 +198,7 @@ final class LocalAutomaticSessionReauthenticationService
       final BackendUserIdentity identity;
       try {
         identity = await _backendSessionClient.authenticateUser(
+          accessKey: accessKey,
           username: credentials.username,
           password: credentials.password,
           cancellation: cancellation._transport,
@@ -229,6 +237,7 @@ final class LocalAutomaticSessionReauthenticationService
       final BackendSessionCookie candidate;
       try {
         candidate = await _backendSessionClient.acquireSessionCookie(
+          accessKey: accessKey,
           username: credentials.username,
           password: credentials.password,
           cancellation: cancellation._transport,
@@ -255,6 +264,7 @@ final class LocalAutomaticSessionReauthenticationService
 
       try {
         await _backendSessionClient.verifySessionCookie(
+          accessKey: accessKey,
           candidateCookie: candidate.value,
           cancellation: cancellation._transport,
         );
@@ -281,6 +291,7 @@ final class LocalAutomaticSessionReauthenticationService
       return await _commitCandidate(
         attempt: attempt,
         expected: current,
+        candidateAccessKey: accessKey,
         candidateCookie: candidate.value,
         cancellation: cancellation,
       );
@@ -338,6 +349,7 @@ final class LocalAutomaticSessionReauthenticationService
       return _CurrentRecoveryRead(
         state: _CurrentRecoveryState(
           lifecycle: lifecycle,
+          accessKey: await _credentialStore.readAccessKey(),
           cookie: cookie,
           credentials: credentials,
           userId: userId,
@@ -403,6 +415,7 @@ final class LocalAutomaticSessionReauthenticationService
   Future<AutomaticSessionReauthenticationResult> _commitCandidate({
     required AutomaticReauthenticationAttempt attempt,
     required _CurrentRecoveryState expected,
+    required String candidateAccessKey,
     required String candidateCookie,
     required AutomaticSessionReauthenticationCancellation cancellation,
   }) async {
@@ -416,6 +429,7 @@ final class LocalAutomaticSessionReauthenticationService
         final state = current.state!;
         if (state.lifecycle != expected.lifecycle ||
             state.userId != expected.userId ||
+            state.accessKey != expected.accessKey ||
             state.cookie != expected.cookie ||
             state.credentials != expected.credentials) {
           return _finishFailure(
@@ -429,10 +443,11 @@ final class LocalAutomaticSessionReauthenticationService
           return beforeSave;
         }
         try {
+          await _credentialStore.saveAccessKey(candidateAccessKey);
           await _credentialStore.saveSessionCookie(candidateCookie);
           candidateStored = true;
         } on Object {
-          final restored = await _restoreCookie(expected.cookie);
+          final restored = await _restoreCandidateState(expected);
           return _finishFailure(
             attempt.sessionRevision,
             restored
@@ -443,7 +458,7 @@ final class LocalAutomaticSessionReauthenticationService
 
         final beforeActivation = await _checkBoundary(attempt, cancellation);
         if (beforeActivation != null) {
-          final restored = await _restoreCookie(expected.cookie);
+          final restored = await _restoreCandidateState(expected);
           if (!restored) {
             return _finishFailure(
               attempt.sessionRevision,
@@ -466,7 +481,7 @@ final class LocalAutomaticSessionReauthenticationService
           );
         }
         if (activated == null) {
-          final restored = await _restoreCookie(expected.cookie);
+          final restored = await _restoreCandidateState(expected);
           return _finishFailure(
             attempt.sessionRevision,
             restored
@@ -485,7 +500,7 @@ final class LocalAutomaticSessionReauthenticationService
       );
     } on Object {
       if (candidateStored) {
-        await _restoreCookie(expected.cookie);
+        await _restoreCandidateState(expected);
       }
       return _finishFailure(
         attempt.sessionRevision,
@@ -601,6 +616,25 @@ final class LocalAutomaticSessionReauthenticationService
     }
   }
 
+  Future<bool> _restoreAccessKey(String? value) async {
+    try {
+      if (value == null) {
+        await _credentialStore.deleteAccessKey();
+      } else {
+        await _credentialStore.saveAccessKey(value);
+      }
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  Future<bool> _restoreCandidateState(_CurrentRecoveryState expected) async {
+    final cookieRestored = await _restoreCookie(expected.cookie);
+    final accessKeyRestored = await _restoreAccessKey(expected.accessKey);
+    return cookieRestored && accessKeyRestored;
+  }
+
   Future<AutomaticSessionReauthenticationResult> _reconcileActivationException({
     required AutomaticReauthenticationAttempt attempt,
     required _CurrentRecoveryState expected,
@@ -630,7 +664,7 @@ final class LocalAutomaticSessionReauthenticationService
         lifecycle.revision == attempt.sessionRevision &&
         storedAttempt?.state != AutomaticReauthenticationAttemptState.succeeded;
     if (durablyUncommitted) {
-      final restored = await _restoreCookie(expected.cookie);
+      final restored = await _restoreCandidateState(expected);
       if (!restored) {
         return _finishFailure(
           attempt.sessionRevision,
@@ -793,6 +827,18 @@ AutomaticReauthenticationFailureKind _mapTransportFailure(
       AutomaticReauthenticationFailureKind.rateLimited,
     SessionTransportFailureKind.backendUnavailable =>
       AutomaticReauthenticationFailureKind.backendUnavailable,
+    SessionTransportFailureKind.accessKeyMissing =>
+      AutomaticReauthenticationFailureKind.accessKeyMissing,
+    SessionTransportFailureKind.accessKeyInvalid =>
+      AutomaticReauthenticationFailureKind.accessKeyInvalid,
+    SessionTransportFailureKind.accessKeyNotActivated =>
+      AutomaticReauthenticationFailureKind.accessKeyNotActivated,
+    SessionTransportFailureKind.accessKeyAccountMismatch =>
+      AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
+    SessionTransportFailureKind.accessKeyReauthenticationRequired =>
+      AutomaticReauthenticationFailureKind.accessKeyReauthenticationRequired,
+    SessionTransportFailureKind.accessKeyStoreUnavailable =>
+      AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable,
     SessionTransportFailureKind.unexpected =>
       AutomaticReauthenticationFailureKind.unexpected,
   };
@@ -801,12 +847,14 @@ AutomaticReauthenticationFailureKind _mapTransportFailure(
 final class _CurrentRecoveryState {
   const _CurrentRecoveryState({
     required this.lifecycle,
+    required this.accessKey,
     required this.cookie,
     required this.credentials,
     required this.userId,
   });
 
   final SessionLifecycleSnapshot lifecycle;
+  final String? accessKey;
   final String? cookie;
   final StoredCredentials? credentials;
   final int userId;

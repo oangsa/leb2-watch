@@ -4,12 +4,16 @@ import 'utc_date_time_converter.dart';
 
 class Semesters extends Table {
   IntColumn get semesterId => integer()();
+  TextColumn get name => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {semesterId};
 
   @override
-  List<String> get customConstraints => const ['CHECK (semester_id > 0)'];
+  List<String> get customConstraints => const [
+    'CHECK (semester_id > 0)',
+    'CHECK (name IS NULL OR length(trim(name)) > 0)',
+  ];
 }
 
 class Courses extends Table {
@@ -426,13 +430,21 @@ class SyncOperations extends Table {
     'CHECK (result_activity_count IS NULL OR result_activity_count >= 0)',
     "CHECK (result_failure_kind IS NULL OR result_failure_kind IN ("
         "'sessionExpired', 'networkUnavailable', 'requestTimeout', "
-        "'backendUnavailable', 'rateLimited', 'invalidResponse', 'unknown'))",
+        "'backendUnavailable', 'rateLimited', 'invalidResponse', 'accessKey', "
+        "'unknown'))",
     "CHECK ((result_failure_kind IS NULL AND result_failure_detail IS NULL "
         'AND result_retry_after_milliseconds IS NULL) OR '
         "(result_failure_kind = 'requestTimeout' AND "
         'result_failure_detail IS NOT NULL AND '
         "result_failure_detail IN ('connection', 'send', 'receive', "
         "'transform', 'server') AND "
+        'result_retry_after_milliseconds IS NULL) OR '
+        "(result_failure_kind = 'accessKey' AND "
+        'result_failure_detail IS NOT NULL AND '
+        'result_failure_detail IN ('
+        "'missing', 'invalid', 'notActivated', 'alreadyAssigned', "
+        "'identityMismatch', 'reauthenticationRequired', "
+        "'identityConflict', 'storeUnavailable') AND "
         'result_retry_after_milliseconds IS NULL) OR '
         "(result_failure_kind = 'unknown' AND "
         'result_failure_detail IS NOT NULL AND '
@@ -548,11 +560,18 @@ class SyncBackoffStates extends Table {
         'last_retry_after_milliseconds >= 0)',
     "CHECK (last_failure_kind IN ('sessionExpired', 'networkUnavailable', "
         "'requestTimeout', 'backendUnavailable', 'rateLimited', "
-        "'invalidResponse', 'unknown'))",
+        "'invalidResponse', 'accessKey', 'unknown'))",
     "CHECK ((last_failure_kind = 'requestTimeout' AND "
         'last_failure_detail IS NOT NULL AND '
         "last_failure_detail IN ('connection', 'send', 'receive', "
         "'transform', 'server') AND "
+        'last_retry_after_milliseconds IS NULL) OR '
+        "(last_failure_kind = 'accessKey' AND "
+        'last_failure_detail IS NOT NULL AND '
+        'last_failure_detail IN ('
+        "'missing', 'invalid', 'notActivated', 'alreadyAssigned', "
+        "'identityMismatch', 'reauthenticationRequired', "
+        "'identityConflict', 'storeUnavailable') AND "
         'last_retry_after_milliseconds IS NULL) OR '
         "(last_failure_kind = 'unknown' AND "
         'last_failure_detail IS NOT NULL AND '
@@ -575,13 +594,19 @@ class SyncBackoffStates extends Table {
         "last_failure_kind IN ('networkUnavailable', 'requestTimeout', "
         "'backendUnavailable', 'rateLimited') OR "
         "(last_failure_kind = 'unknown' AND last_failure_detail IN "
-        "('unexpectedServerFailure', 'unexpectedTransportFailure')))",
+        "('unexpectedServerFailure', 'unexpectedTransportFailure')) OR "
+        "(last_failure_kind = 'accessKey' AND "
+        "last_failure_detail = 'storeUnavailable'))",
     "CHECK (state != 'blocked' OR "
         "last_failure_kind IN ('sessionExpired', 'invalidResponse') OR "
         "(last_failure_kind = 'unknown' AND last_failure_detail IN "
         "('missingCredential', 'credentialAccessFailed', 'badCertificate', "
         "'authenticationRequired', 'invalidRequest', 'resourceNotFound', "
-        "'unexpectedHttpResponse', 'persistenceFailed')))",
+        "'unexpectedHttpResponse', 'persistenceFailed')) OR "
+        "(last_failure_kind = 'accessKey' AND last_failure_detail IN "
+        "('missing', 'invalid', 'notActivated', 'alreadyAssigned', "
+        "'identityMismatch', 'reauthenticationRequired', "
+        "'identityConflict')))",
     'FOREIGN KEY (semester_id) REFERENCES semesters (semester_id) '
         'ON DELETE CASCADE',
   ];
@@ -682,7 +707,10 @@ class AutomaticSessionReauthenticationAttempts extends Table {
         "(state IN ('failed', 'cancelled') AND completed_at_utc IS NOT NULL "
         'AND failure_kind IS NOT NULL))',
     "CHECK (failure_kind IS NULL OR failure_kind IN "
-        "('notEnabled', 'invalidCredentials', 'identityMismatch', "
+        "('notEnabled', 'accessKeyMissing', 'accessKeyInvalid', "
+        "'accessKeyNotActivated', 'accessKeyAccountMismatch', "
+        "'accessKeyReauthenticationRequired', 'accessKeyStoreUnavailable', "
+        "'invalidCredentials', 'identityMismatch', "
         "'networkUnavailable', 'requestTimeout', 'backendUnavailable', "
         "'rateLimited', 'invalidResponse', 'secureStorageUnavailable', "
         "'localStorageUnavailable', 'cancelled', 'timedOut', 'superseded', "

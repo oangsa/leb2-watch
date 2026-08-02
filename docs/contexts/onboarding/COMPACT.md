@@ -96,9 +96,9 @@ not restart at onboarding.
 
 ### Architecture
 
-`DriftSemesterSelectionStore` owns transactional catalog reads, insert-only
-merges, and active-selection persistence. `LocalSemesterSelectionService`
-coordinates a narrow lazy semester-ID refresh invoker, session lifecycle,
+`DriftSemesterSelectionStore` owns transactional catalog reads, ID/name
+upserts, and active-selection persistence. `LocalSemesterSelectionService`
+coordinates a narrow lazy structured-semester refresh invoker, session lifecycle,
 failure mapping, cancellation, and per-instance single-flight refresh.
 Widgets depend only on the application-owned service and redacted result
 values.
@@ -299,13 +299,13 @@ abstract interface class SemesterSelectionService {
 Its only remote capability is:
 
 ```dart
-typedef SemesterIdRefreshInvoker =
-    Future<List<int>> Function({
+typedef SemesterRefreshInvoker =
+    Future<List<Semester>> Function({
       BackendRequestCancellation? cancellation,
     });
 ```
 
-The invoker deliberately returns only verified numeric IDs. It is not resolved
+The invoker returns verified semester IDs and backend display names. It is not resolved
 by `readCached`, `select`, service construction, or a pre-expired refresh.
 
 The store is:
@@ -356,17 +356,17 @@ The store is:
   local state.
 - Compose local cache and selection without the backend client so missing or
   malformed self-hosting configuration cannot disable readable local data.
-- Inject one lazy ID-only invoker rather than deferring Dio validation
+- Inject one lazy structured-semester invoker rather than deferring Dio validation
   globally or exposing the complete backend client to the service.
 - Treat an empty response as invalid rather than authoritative because the
   verified backend evidence is ambiguous.
-- Use insert-only merge because deleting a semester would cascade into
+- Upsert IDs and display names without deleting absent semesters because deleting a semester would cascade into
   courses, assignments, notification history, synchronization history,
   baselines, and other local state.
 - Fence persistence inside the same Drift transaction as the merge so a
   session revision or state change cannot commit stale network data.
 - Keep selection local so offline users can change among cached semesters.
-- Use stable numeric IDs as the only labels because no verified descriptive
+- Use stable numeric IDs for routing and backend-provided names for labels; legacy rows use a temporary ID fallback.
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 
@@ -519,7 +519,7 @@ No issues found.
 Store coverage verifies:
 
 - deterministic read and descending numeric order;
-- insert-only merge;
+- structured semester ID/name upsert without pruning omitted rows;
 - preservation of courses, activities, seen state, fingerprints, reminders,
   notification history, synchronization runs and operations, baselines,
   changes, backoff, active selection, and unrelated settings;

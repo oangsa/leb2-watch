@@ -83,6 +83,58 @@ void main() {
     }
   });
 
+  for (final testCase
+      in <({AccessKeyFailureReason reason, String message, String action})>[
+        (
+          reason: AccessKeyFailureReason.invalid,
+          message: 'missing or no longer valid',
+          action: 'Reconnect',
+        ),
+        (
+          reason: AccessKeyFailureReason.notActivated,
+          message: 'has not been activated',
+          action: 'Reconnect',
+        ),
+        (
+          reason: AccessKeyFailureReason.identityMismatch,
+          message: 'cannot be used with this LEB2 account',
+          action: 'Reconnect',
+        ),
+        (
+          reason: AccessKeyFailureReason.reauthenticationRequired,
+          message: 'needs Username / password reauthentication',
+          action: 'Reconnect',
+        ),
+        (
+          reason: AccessKeyFailureReason.storeUnavailable,
+          message: 'temporarily unavailable. Try again later.',
+          action: 'Retry',
+        ),
+      ]) {
+    testWidgets(
+      'access-key ${testCase.reason.name} keeps cached rows and guidance',
+      (tester) async {
+        final service = _FakeSemesterSelectionService(
+          refreshResult: SemesterRefreshFailure(
+            AccessKeyFailure(testCase.reason),
+          ),
+        );
+        await _pumpPage(tester, service: service);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('semester-access-key-banner')),
+          findsOneWidget,
+        );
+        expect(find.textContaining(testCase.message), findsOneWidget);
+        expect(find.text(testCase.action), findsOneWidget);
+        expect(find.text('Semester 202'), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
   testWidgets('manual refresh is accessible and rapid taps do not duplicate', (
     tester,
   ) async {

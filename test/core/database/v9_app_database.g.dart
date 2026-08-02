@@ -20,8 +20,17 @@ class $SemestersTable extends Semesters
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
-  List<GeneratedColumn> get $columns => [semesterId];
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [semesterId, name];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -40,6 +49,12 @@ class $SemestersTable extends Semesters
         semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
       );
     }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    }
     return context;
   }
 
@@ -53,6 +68,10 @@ class $SemestersTable extends Semesters
         DriftSqlType.int,
         data['${effectivePrefix}semester_id'],
       )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      ),
     );
   }
 
@@ -64,16 +83,23 @@ class $SemestersTable extends Semesters
 
 class Semester extends DataClass implements Insertable<Semester> {
   final int semesterId;
-  const Semester({required this.semesterId});
+  final String? name;
+  const Semester({required this.semesterId, this.name});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['semester_id'] = Variable<int>(semesterId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
     return map;
   }
 
   SemestersCompanion toCompanion(bool nullToAbsent) {
-    return SemestersCompanion(semesterId: Value(semesterId));
+    return SemestersCompanion(
+      semesterId: Value(semesterId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+    );
   }
 
   factory Semester.fromJson(
@@ -81,52 +107,81 @@ class Semester extends DataClass implements Insertable<Semester> {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return Semester(semesterId: serializer.fromJson<int>(json['semesterId']));
+    return Semester(
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      name: serializer.fromJson<String?>(json['name']),
+    );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{'semesterId': serializer.toJson<int>(semesterId)};
+    return <String, dynamic>{
+      'semesterId': serializer.toJson<int>(semesterId),
+      'name': serializer.toJson<String?>(name),
+    };
   }
 
-  Semester copyWith({int? semesterId}) =>
-      Semester(semesterId: semesterId ?? this.semesterId);
+  Semester copyWith({
+    int? semesterId,
+    Value<String?> name = const Value.absent(),
+  }) => Semester(
+    semesterId: semesterId ?? this.semesterId,
+    name: name.present ? name.value : this.name,
+  );
   Semester copyWithCompanion(SemestersCompanion data) {
     return Semester(
       semesterId: data.semesterId.present
           ? data.semesterId.value
           : this.semesterId,
+      name: data.name.present ? data.name.value : this.name,
     );
   }
 
   @override
   String toString() {
     return (StringBuffer('Semester(')
-          ..write('semesterId: $semesterId')
+          ..write('semesterId: $semesterId, ')
+          ..write('name: $name')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => semesterId.hashCode;
+  int get hashCode => Object.hash(semesterId, name);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is Semester && other.semesterId == this.semesterId);
+      (other is Semester &&
+          other.semesterId == this.semesterId &&
+          other.name == this.name);
 }
 
 class SemestersCompanion extends UpdateCompanion<Semester> {
   final Value<int> semesterId;
-  const SemestersCompanion({this.semesterId = const Value.absent()});
-  SemestersCompanion.insert({this.semesterId = const Value.absent()});
-  static Insertable<Semester> custom({Expression<int>? semesterId}) {
+  final Value<String?> name;
+  const SemestersCompanion({
+    this.semesterId = const Value.absent(),
+    this.name = const Value.absent(),
+  });
+  SemestersCompanion.insert({
+    this.semesterId = const Value.absent(),
+    this.name = const Value.absent(),
+  });
+  static Insertable<Semester> custom({
+    Expression<int>? semesterId,
+    Expression<String>? name,
+  }) {
     return RawValuesInsertable({
       if (semesterId != null) 'semester_id': semesterId,
+      if (name != null) 'name': name,
     });
   }
 
-  SemestersCompanion copyWith({Value<int>? semesterId}) {
-    return SemestersCompanion(semesterId: semesterId ?? this.semesterId);
+  SemestersCompanion copyWith({Value<int>? semesterId, Value<String?>? name}) {
+    return SemestersCompanion(
+      semesterId: semesterId ?? this.semesterId,
+      name: name ?? this.name,
+    );
   }
 
   @override
@@ -135,13 +190,17 @@ class SemestersCompanion extends UpdateCompanion<Semester> {
     if (semesterId.present) {
       map['semester_id'] = Variable<int>(semesterId.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
     return map;
   }
 
   @override
   String toString() {
     return (StringBuffer('SemestersCompanion(')
-          ..write('semesterId: $semesterId')
+          ..write('semesterId: $semesterId, ')
+          ..write('name: $name')
           ..write(')'))
         .toString();
   }
@@ -8798,6 +8857,10 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
     'scheduled_reminders_by_scheduled_time',
     'CREATE INDEX scheduled_reminders_by_scheduled_time ON scheduled_reminders (scheduled_for_utc)',
   );
+  late final Index scheduledRemindersEventVersion = Index(
+    'scheduled_reminders_event_version',
+    'CREATE UNIQUE INDEX scheduled_reminders_event_version ON scheduled_reminders (notification_id, semester_id, identity_key, offset_minutes, deadline_at_utc, scheduled_for_utc)',
+  );
   late final Index scheduledRemindersPendingReconciliation = Index(
     'scheduled_reminders_pending_reconciliation',
     'CREATE INDEX scheduled_reminders_pending_reconciliation ON scheduled_reminders (semester_id, identity_key) WHERE needs_reconciliation = 1',
@@ -8862,6 +8925,7 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
     activityFingerprintsByValue,
     scheduledRemindersByAssignmentOffset,
     scheduledRemindersByScheduledTime,
+    scheduledRemindersEventVersion,
     scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
     syncRunsByStartedTime,
@@ -8875,9 +8939,9 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
 }
 
 typedef $$SemestersTableCreateCompanionBuilder =
-    SemestersCompanion Function({Value<int> semesterId});
+    SemestersCompanion Function({Value<int> semesterId, Value<String?> name});
 typedef $$SemestersTableUpdateCompanionBuilder =
-    SemestersCompanion Function({Value<int> semesterId});
+    SemestersCompanion Function({Value<int> semesterId, Value<String?> name});
 
 class $$SemestersTableFilterComposer
     extends Composer<_$V9AppDatabase, $SemestersTable> {
@@ -8890,6 +8954,11 @@ class $$SemestersTableFilterComposer
   });
   ColumnFilters<int> get semesterId => $composableBuilder(
     column: $table.semesterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8907,6 +8976,11 @@ class $$SemestersTableOrderingComposer
     column: $table.semesterId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SemestersTableAnnotationComposer
@@ -8922,6 +8996,9 @@ class $$SemestersTableAnnotationComposer
     column: $table.semesterId,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
 }
 
 class $$SemestersTableTableManager
@@ -8954,11 +9031,16 @@ class $$SemestersTableTableManager
           createComputedFieldComposer: () =>
               $$SemestersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
-              ({Value<int> semesterId = const Value.absent()}) =>
-                  SemestersCompanion(semesterId: semesterId),
+              ({
+                Value<int> semesterId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+              }) => SemestersCompanion(semesterId: semesterId, name: name),
           createCompanionCallback:
-              ({Value<int> semesterId = const Value.absent()}) =>
-                  SemestersCompanion.insert(semesterId: semesterId),
+              ({
+                Value<int> semesterId = const Value.absent(),
+                Value<String?> name = const Value.absent(),
+              }) =>
+                  SemestersCompanion.insert(semesterId: semesterId, name: name),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),

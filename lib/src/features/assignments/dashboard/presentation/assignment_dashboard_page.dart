@@ -1270,6 +1270,33 @@ Widget? _statusBanner(
           'available data.',
     );
   }
+  final failureCategory = switch (refreshResult) {
+    AssignmentDashboardRefreshFailure(:final category) => category,
+    _ => cache.latestAttempt?.failureCategory,
+  };
+  final accessKeyMessage = switch (failureCategory) {
+    'accessKey.missing' || 'accessKey.invalid' =>
+      'This access key is missing or no longer valid. Reconnect with a key '
+          'from your backend operator. Showing saved assignments.',
+    'accessKey.notActivated' || 'accessKey.reauthenticationRequired' =>
+      'This access key needs activation. Use Username / password in '
+          'connection setup. Showing saved assignments.',
+    'accessKey.alreadyAssigned' ||
+    'accessKey.identityMismatch' ||
+    'accessKey.identityConflict' =>
+      'This access key cannot be used with this LEB2 account. Reconnect with '
+          'the correct key. Showing saved assignments.',
+    'accessKey.storeUnavailable' =>
+      'Access-key verification is temporarily unavailable. Try again later. '
+          'Showing saved assignments.',
+    _ => null,
+  };
+  if (accessKeyMessage != null) {
+    return AppStatusBanner.stale(
+      key: const Key('assignment-access-key-banner'),
+      message: accessKeyMessage,
+    );
+  }
   final latestAttempt = cache.latestAttempt;
   if (latestAttempt?.outcome == AssignmentDashboardSyncOutcome.failure &&
       latestAttempt?.failureCategory == 'networkUnavailable') {

@@ -12,6 +12,7 @@ final class ScriptedBackendExchange {
   ScriptedBackendExchange({
     required this.method,
     required this.path,
+    required this.accessKey,
     required this.authorization,
     required this.body,
     this.requestBody,
@@ -23,6 +24,7 @@ final class ScriptedBackendExchange {
 
   final String method;
   final String path;
+  final String accessKey;
   final String? authorization;
   final String? userId;
   final Object body;
@@ -61,6 +63,10 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
       );
       _require(options.method == exchange.method, 'Unexpected request method.');
       _require(options.path == exchange.path, 'Unexpected request route.');
+      _require(
+        options.headers['access-key'] == exchange.accessKey,
+        'Unexpected access-key header.',
+      );
       _require(
         options.headers['Authorization'] == exchange.authorization,
         'Unexpected authorization placeholder.',

@@ -44,6 +44,12 @@ enum SessionSetupFailureKind {
   secureStorageUnavailable,
   localStorageUnavailable,
   differentAccountData,
+  accessKeyMissing,
+  accessKeyInvalid,
+  accessKeyNotActivated,
+  accessKeyAccountMismatch,
+  accessKeyReauthenticationRequired,
+  accessKeyStoreUnavailable,
   persistenceUncertain,
   cancelled,
   busy,
@@ -81,12 +87,14 @@ abstract interface class SessionSetupService {
   });
 
   Future<SessionSetupResult> connectWithCookie({
+    String? accessKey,
     required String sessionCookie,
     required int userId,
     SessionSetupCancellation? cancellation,
   });
 
   Future<SessionSetupResult> connectWithCredentials({
+    String? accessKey,
     required String username,
     required String password,
     required bool enableAutomaticReauthentication,
@@ -148,9 +156,11 @@ final class LocalSessionSetupService implements SessionSetupService {
 
   @override
   Future<SavedSessionSummary> readSavedSessionSummary() async {
+    final String? accessKey;
     final String? cookie;
     final StoredCredentials? credentials;
     try {
+      accessKey = await _credentialStore.readAccessKey();
       cookie = await _credentialStore.readSessionCookie();
       credentials = await _credentialStore.readCredentials();
     } on Object {
@@ -170,11 +180,12 @@ final class LocalSessionSetupService implements SessionSetupService {
       );
     }
 
+    final hasAccessKey = normalizeAccessKey(accessKey ?? '') != null;
     final hasCookie = cookie != null && cookie.trim().isNotEmpty;
-    final hasIdentity = userId != null;
-    final state = switch ((hasCookie, hasIdentity, credentials != null)) {
+    final hasIdentity = userId != null && userId > 0;
+    final state = switch ((hasAccessKey, hasCookie, hasIdentity)) {
       (false, false, false) => SavedSessionState.none,
-      (true, true, _) => SavedSessionState.ready,
+      (true, true, true) => SavedSessionState.ready,
       _ => SavedSessionState.incomplete,
     };
     return SavedSessionSummary(
@@ -197,7 +208,9 @@ final class LocalSessionSetupService implements SessionSetupService {
       if (cancellation?.isCancelled ?? false) {
         return const SessionSetupFailure(SessionSetupFailureKind.cancelled);
       }
-      if (prior.cookie == null || prior.userId == null) {
+      if (prior.accessKey == null ||
+          prior.cookie == null ||
+          prior.userId == null) {
         return const SessionSetupFailure(
           SessionSetupFailureKind.incompleteSavedSession,
         );
@@ -211,6 +224,7 @@ final class LocalSessionSetupService implements SessionSetupService {
       SessionSetupResult verification;
       try {
         await _backendSessionClient.verifySessionCookie(
+          accessKey: prior.accessKey!,
           candidateCookie: prior.cookie!,
           cancellation: cancellation?._transport,
         );
@@ -263,11 +277,16 @@ final class LocalSessionSetupService implements SessionSetupService {
 
   @override
   Future<SessionSetupResult> connectWithCookie({
+    String? accessKey,
     required String sessionCookie,
     required int userId,
     SessionSetupCancellation? cancellation,
   }) {
-    if (sessionCookie.trim().isEmpty || userId <= 0 || userId > _maximumInt32) {
+    final candidateAccessKey = normalizeAccessKey(accessKey ?? '');
+    if (candidateAccessKey == null ||
+        sessionCookie.trim().isEmpty ||
+        userId <= 0 ||
+        userId > _maximumInt32) {
       return Future.value(
         const SessionSetupFailure(SessionSetupFailureKind.invalidInput),
       );
@@ -295,6 +314,7 @@ final class LocalSessionSetupService implements SessionSetupService {
       }
 
       final verification = await _verifyCandidate(
+        candidateAccessKey,
         sessionCookie,
         cancellation: cancellation,
       );
@@ -307,6 +327,7 @@ final class LocalSessionSetupService implements SessionSetupService {
 
       return _commit(
         prior: prior,
+        candidateAccessKey: candidateAccessKey,
         candidateCookie: sessionCookie,
         candidateCredentials: null,
         candidateUserId: userId,
@@ -316,12 +337,16 @@ final class LocalSessionSetupService implements SessionSetupService {
 
   @override
   Future<SessionSetupResult> connectWithCredentials({
+    String? accessKey,
     required String username,
     required String password,
     required bool enableAutomaticReauthentication,
     SessionSetupCancellation? cancellation,
   }) {
-    if (username.trim().isEmpty || password.trim().isEmpty) {
+    final candidateAccessKey = normalizeAccessKey(accessKey ?? '');
+    if (candidateAccessKey == null ||
+        username.trim().isEmpty ||
+        password.trim().isEmpty) {
       return Future.value(
         const SessionSetupFailure(SessionSetupFailureKind.invalidInput),
       );
@@ -346,6 +371,7 @@ final class LocalSessionSetupService implements SessionSetupService {
       final BackendUserIdentity identity;
       try {
         identity = await _backendSessionClient.authenticateUser(
+          accessKey: candidateAccessKey,
           username: username,
           password: password,
           cancellation: cancellation?._transport,
@@ -368,6 +394,7 @@ final class LocalSessionSetupService implements SessionSetupService {
       final BackendSessionCookie candidate;
       try {
         candidate = await _backendSessionClient.acquireSessionCookie(
+          accessKey: candidateAccessKey,
           username: username,
           password: password,
           cancellation: cancellation?._transport,
@@ -385,6 +412,7 @@ final class LocalSessionSetupService implements SessionSetupService {
       }
 
       final verification = await _verifyCandidate(
+        candidateAccessKey,
         candidate.value,
         cancellation: cancellation,
       );
@@ -397,6 +425,7 @@ final class LocalSessionSetupService implements SessionSetupService {
 
       return _commit(
         prior: prior,
+        candidateAccessKey: candidateAccessKey,
         candidateCookie: candidate.value,
         candidateCredentials: enableAutomaticReauthentication
             ? StoredCredentials(username: username, password: password)
@@ -431,9 +460,11 @@ final class LocalSessionSetupService implements SessionSetupService {
   }
 
   Future<_PriorSession?> _readPriorSession() async {
+    final String? accessKey;
     final String? cookie;
     final StoredCredentials? credentials;
     try {
+      accessKey = await _credentialStore.readAccessKey();
       cookie = await _credentialStore.readSessionCookie();
       credentials = await _credentialStore.readCredentials();
     } on Object {
@@ -442,6 +473,7 @@ final class LocalSessionSetupService implements SessionSetupService {
 
     try {
       return _PriorSession(
+        accessKey: accessKey,
         cookie: cookie,
         credentials: credentials,
         userId: await _identityStore.readUserId(),
@@ -453,11 +485,13 @@ final class LocalSessionSetupService implements SessionSetupService {
   }
 
   Future<SessionSetupResult> _verifyCandidate(
+    String accessKey,
     String candidate, {
     SessionSetupCancellation? cancellation,
   }) async {
     try {
       await _backendSessionClient.verifySessionCookie(
+        accessKey: accessKey,
         candidateCookie: candidate,
         cancellation: cancellation?._transport,
       );
@@ -471,6 +505,7 @@ final class LocalSessionSetupService implements SessionSetupService {
 
   Future<SessionSetupResult> _commit({
     required _PriorSession prior,
+    required String candidateAccessKey,
     required String candidateCookie,
     required StoredCredentials? candidateCredentials,
     required int candidateUserId,
@@ -483,11 +518,17 @@ final class LocalSessionSetupService implements SessionSetupService {
               SessionSetupFailureKind.secureStorageUnavailable,
             );
           }
-          if (!_canCommitManualCandidate(prior, current, candidateUserId)) {
+          if (!_canCommitManualCandidate(
+            prior,
+            current,
+            candidateAccessKey,
+            candidateUserId,
+          )) {
             return const SessionSetupFailure(SessionSetupFailureKind.busy);
           }
           return _commitInsideGate(
             prior: current,
+            candidateAccessKey: candidateAccessKey,
             candidateCookie: candidateCookie,
             candidateCredentials: candidateCredentials,
             candidateUserId: candidateUserId,
@@ -502,6 +543,7 @@ final class LocalSessionSetupService implements SessionSetupService {
 
   Future<SessionSetupResult> _commitInsideGate({
     required _PriorSession prior,
+    required String candidateAccessKey,
     required String candidateCookie,
     required StoredCredentials? candidateCredentials,
     required int candidateUserId,
@@ -509,6 +551,7 @@ final class LocalSessionSetupService implements SessionSetupService {
     SessionSetupFailureKind? commitFailure;
 
     try {
+      await _credentialStore.saveAccessKey(candidateAccessKey);
       await _credentialStore.saveSessionCookie(candidateCookie);
       if (candidateCredentials == null) {
         await _credentialStore.deleteCredentials();
@@ -551,16 +594,19 @@ final class LocalSessionSetupService implements SessionSetupService {
   bool _canCommitManualCandidate(
     _PriorSession captured,
     _PriorSession current,
+    String candidateAccessKey,
     int candidateUserId,
   ) {
     if (current.lifecycle == captured.lifecycle) {
       return current.userId == captured.userId &&
+          current.accessKey == captured.accessKey &&
           current.cookie == captured.cookie &&
           current.credentials == captured.credentials;
     }
     return current.lifecycle.state == SessionLifecycleState.active &&
         current.lifecycle.revision == captured.lifecycle.revision + 1 &&
-        current.userId == candidateUserId;
+        current.userId == candidateUserId &&
+        current.accessKey == candidateAccessKey;
   }
 
   Future<bool> _supersedeAutomaticRecovery(_PriorSession prior) async {
@@ -589,6 +635,14 @@ final class LocalSessionSetupService implements SessionSetupService {
           return cookie == null
               ? _credentialStore.deleteSessionCookie()
               : _credentialStore.saveSessionCookie(cookie);
+        }) &&
+        restored;
+    restored =
+        await _attempt(() {
+          final accessKey = prior.accessKey;
+          return accessKey == null
+              ? _credentialStore.deleteAccessKey()
+              : _credentialStore.saveAccessKey(accessKey);
         }) &&
         restored;
     restored =
@@ -653,6 +707,18 @@ SessionSetupFailure _mapTransportFailure(
       SessionSetupFailureKind.rateLimited,
     SessionTransportFailureKind.backendUnavailable =>
       SessionSetupFailureKind.backendUnavailable,
+    SessionTransportFailureKind.accessKeyMissing =>
+      SessionSetupFailureKind.accessKeyMissing,
+    SessionTransportFailureKind.accessKeyInvalid =>
+      SessionSetupFailureKind.accessKeyInvalid,
+    SessionTransportFailureKind.accessKeyNotActivated =>
+      SessionSetupFailureKind.accessKeyNotActivated,
+    SessionTransportFailureKind.accessKeyAccountMismatch =>
+      SessionSetupFailureKind.accessKeyAccountMismatch,
+    SessionTransportFailureKind.accessKeyReauthenticationRequired =>
+      SessionSetupFailureKind.accessKeyReauthenticationRequired,
+    SessionTransportFailureKind.accessKeyStoreUnavailable =>
+      SessionSetupFailureKind.accessKeyStoreUnavailable,
     SessionTransportFailureKind.unexpected =>
       SessionSetupFailureKind.unexpected,
   };
@@ -661,12 +727,14 @@ SessionSetupFailure _mapTransportFailure(
 
 final class _PriorSession {
   const _PriorSession({
+    required this.accessKey,
     required this.cookie,
     required this.credentials,
     required this.userId,
     required this.lifecycle,
   });
 
+  final String? accessKey;
   final String? cookie;
   final StoredCredentials? credentials;
   final int? userId;

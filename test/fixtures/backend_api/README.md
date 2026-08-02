@@ -6,6 +6,9 @@ credentials, user data, or production response content.
 
 Future fake-adapter tests must attach HTTP metadata separately:
 
+`semesters_success.json` follows the structured `/Semester` response: each
+entry contains numeric `id` and human-readable `name`.
+
 | Fixture | Status | Required response headers |
 | --- | --- | --- |
 | `snapshot_success.json` | 200 | `Content-Type: application/json` |

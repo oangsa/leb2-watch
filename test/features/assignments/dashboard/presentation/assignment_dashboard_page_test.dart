@@ -876,6 +876,93 @@ void main() {
     expect(find.text('Graph traversal'), findsOneWidget);
   });
 
+  testWidgets('invalid access key keeps cached rows and gives safe guidance', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      refreshResult: const AssignmentDashboardRefreshFailure(
+        AssignmentDashboardTargetKey(semesterId: 101, sessionRevision: 4),
+        category: 'accessKey.invalid',
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('assignment-access-key-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Reconnect with a key from your backend operator.'),
+      findsOneWidget,
+    );
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(find.textContaining('expired'), findsNothing);
+  });
+
+  testWidgets('access-key store outage keeps cached rows and suggests retry', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      refreshResult: const AssignmentDashboardRefreshFailure(
+        AssignmentDashboardTargetKey(semesterId: 101, sessionRevision: 4),
+        category: 'accessKey.storeUnavailable',
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('assignment-access-key-banner')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Try again later.'), findsOneWidget);
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(find.textContaining('expired'), findsNothing);
+  });
+
+  for (final testCase in const [
+    (
+      category: 'accessKey.invalid',
+      message: 'Reconnect with a key from your backend operator.',
+    ),
+    (
+      category: 'accessKey.storeUnavailable',
+      message: 'Access-key verification is temporarily unavailable.',
+    ),
+  ]) {
+    testWidgets(
+      'durable ${testCase.category} status remains actionable after reopen',
+      (tester) async {
+        final service = FakeAssignmentDashboardService(
+          initialCache: dashboardCache(
+            latestAttempt: AssignmentDashboardSyncRun(
+              outcome: AssignmentDashboardSyncOutcome.failure,
+              startedAtUtc: DateTime.utc(2026, 8, 2, 12),
+              completedAtUtc: DateTime.utc(2026, 8, 2, 12, 1),
+              failureCategory: testCase.category,
+            ),
+          ),
+        );
+        addTearDown(service.close);
+
+        await _pumpPage(tester, service);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const Key('assignment-access-key-banner')),
+          findsOneWidget,
+        );
+        expect(find.textContaining(testCase.message), findsOneWidget);
+        expect(find.text('Graph traversal'), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets('stream failure preserves rendered cache with bounded copy', (
     tester,
   ) async {

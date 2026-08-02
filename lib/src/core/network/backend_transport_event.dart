@@ -11,6 +11,9 @@ enum BackendTransportRoute {
 
 enum BackendTransportOutcome {
   success,
+  missingAccessKey,
+  invalidAccessKey,
+  accessKeyStoreUnavailable,
   missingCredential,
   credentialAccessFailed,
   cancelled,

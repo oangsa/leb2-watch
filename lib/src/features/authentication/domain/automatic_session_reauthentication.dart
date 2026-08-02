@@ -7,6 +7,12 @@ enum AutomaticReauthenticationAttemptState {
 
 enum AutomaticReauthenticationFailureKind {
   notEnabled,
+  accessKeyMissing,
+  accessKeyInvalid,
+  accessKeyNotActivated,
+  accessKeyAccountMismatch,
+  accessKeyReauthenticationRequired,
+  accessKeyStoreUnavailable,
   invalidCredentials,
   identityMismatch,
   networkUnavailable,

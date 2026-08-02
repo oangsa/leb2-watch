@@ -567,6 +567,21 @@ String _failureLabel(DiagnosticsFailureCategory category) => switch (category) {
   DiagnosticsFailureCategory.backendUnavailable => 'Backend unavailable',
   DiagnosticsFailureCategory.rateLimited => 'Rate limited',
   DiagnosticsFailureCategory.invalidResponse => 'Invalid response',
+  DiagnosticsFailureCategory.accessKeyMissing => 'Access key missing',
+  DiagnosticsFailureCategory.accessKeyInvalid => 'Access key invalid',
+  DiagnosticsFailureCategory.accessKeyNotActivated =>
+    'Access key needs activation',
+  DiagnosticsFailureCategory.accessKeyAlreadyAssigned =>
+    'Access key already assigned',
+  DiagnosticsFailureCategory.accessKeyIdentityMismatch =>
+    'Access key/account mismatch',
+  DiagnosticsFailureCategory.accessKeyReauthenticationRequired =>
+    'Access key needs reauthentication',
+  DiagnosticsFailureCategory.accessKeyIdentityConflict =>
+    'Access key/account conflict',
+  DiagnosticsFailureCategory.accessKeyStoreUnavailable =>
+    'Access-key verification unavailable',
+  DiagnosticsFailureCategory.accessKeyUnknown => 'Access-key failure',
   DiagnosticsFailureCategory.persistenceFailed => 'Local storage failure',
   DiagnosticsFailureCategory.unknown => 'Unknown failure',
 };

@@ -25,6 +25,11 @@ The app reads exactly:
 | `APP_ENV` | `development` or `production`; empty defaults to development |
 | `BACKEND_BASE_URL` | Absolute HTTP/HTTPS root origin |
 
+The access key is not compile-time configuration. The backend operator
+provisions one key per user; the user enters it during session setup, and the
+app stores it only in OS secure storage. Do not add an access key to
+`AppConfiguration`, `.env` files, or `--dart-define` arguments.
+
 `BACKEND_BASE_URL` must:
 
 - include `http` or `https` and a host;

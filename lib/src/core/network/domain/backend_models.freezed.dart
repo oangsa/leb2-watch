@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Semester {
 
- int get id;
+ int get id; String get name;
 /// Create a copy of Semester
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,12 +25,12 @@ $SemesterCopyWith<Semester> get copyWith => _$SemesterCopyWithImpl<Semester>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Semester&&(identical(other.id, id) || other.id == id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Semester&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode => Object.hash(runtimeType,id,name);
 
 
 
@@ -41,7 +41,7 @@ abstract mixin class $SemesterCopyWith<$Res>  {
   factory $SemesterCopyWith(Semester value, $Res Function(Semester) _then) = _$SemesterCopyWithImpl;
 @useResult
 $Res call({
- int id
+ int id, String name
 });
 
 
@@ -58,10 +58,11 @@ class _$SemesterCopyWithImpl<$Res>
 
 /// Create a copy of Semester
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -146,10 +147,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String name)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Semester() when $default != null:
-return $default(_that.id);case _:
+return $default(_that.id,_that.name);case _:
   return orElse();
 
 }
@@ -167,10 +168,10 @@ return $default(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String name)  $default,) {final _that = this;
 switch (_that) {
 case _Semester():
-return $default(_that.id);case _:
+return $default(_that.id,_that.name);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -187,10 +188,10 @@ return $default(_that.id);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String name)?  $default,) {final _that = this;
 switch (_that) {
 case _Semester() when $default != null:
-return $default(_that.id);case _:
+return $default(_that.id,_that.name);case _:
   return null;
 
 }
@@ -202,10 +203,11 @@ return $default(_that.id);case _:
 
 
 class _Semester extends Semester {
-  const _Semester({required this.id}): super._();
+  const _Semester({required this.id, required this.name}): super._();
   
 
 @override final  int id;
+@override final  String name;
 
 /// Create a copy of Semester
 /// with the given fields replaced by the non-null parameter values.
@@ -217,12 +219,12 @@ _$SemesterCopyWith<_Semester> get copyWith => __$SemesterCopyWithImpl<_Semester>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Semester&&(identical(other.id, id) || other.id == id));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Semester&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id);
+int get hashCode => Object.hash(runtimeType,id,name);
 
 
 
@@ -233,7 +235,7 @@ abstract mixin class _$SemesterCopyWith<$Res> implements $SemesterCopyWith<$Res>
   factory _$SemesterCopyWith(_Semester value, $Res Function(_Semester) _then) = __$SemesterCopyWithImpl;
 @override @useResult
 $Res call({
- int id
+ int id, String name
 });
 
 
@@ -250,10 +252,11 @@ class __$SemesterCopyWithImpl<$Res>
 
 /// Create a copy of Semester
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,}) {
   return _then(_Semester(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,
+as int,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

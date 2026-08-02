@@ -21,6 +21,9 @@ final class BackendApiConfigurationException implements Exception {
 }
 
 enum BackendTransportFailureKind {
+  missingAccessKey,
+  invalidAccessKey,
+  accessKeyStoreUnavailable,
   missingCredential,
   credentialAccessFailed,
   cancelled,

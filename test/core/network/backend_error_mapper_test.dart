@@ -160,7 +160,7 @@ void main() {
     });
 
     test('maps every valid status from the fixed-code contract table', () {
-      expect(_knownCodeContracts, hasLength(9));
+      expect(_knownCodeContracts, hasLength(17));
       expect(
         _knownCodeContracts.map((contract) => contract.responseCode).toSet(),
         hasLength(_knownCodeContracts.length),
@@ -189,6 +189,29 @@ void main() {
           const UnknownSyncFailure(UnknownSyncFailureReason.invalidRequest),
         );
       }
+    });
+
+    test('access-key failures stay distinct from session expiry', () {
+      expect(
+        _mapHttp(401, 'ACCESS_KEY_INVALID'),
+        const AccessKeyFailure(AccessKeyFailureReason.invalid),
+      );
+      expect(
+        _mapHttp(401, 'ACCESS_KEY_REQUIRED'),
+        const AccessKeyFailure(AccessKeyFailureReason.missing),
+      );
+      expect(
+        _mapHttp(401, 'ACCESS_KEY_INVALID'),
+        isNot(isA<SessionExpiredFailure>()),
+      );
+      expect(
+        _mapHttp(503, 'ACCESS_KEY_STORE_UNAVAILABLE'),
+        const AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+      );
+      expect(
+        _mapHttp(503, 'ACCESS_KEY_STORE_UNAVAILABLE').isRetryEligible,
+        isTrue,
+      );
     });
 
     test(
@@ -345,6 +368,14 @@ void main() {
     test('redacts all debug representations and mapped HTTP evidence', () {
       const failures = <SyncFailure>[
         SessionExpiredFailure(),
+        AccessKeyFailure(AccessKeyFailureReason.missing),
+        AccessKeyFailure(AccessKeyFailureReason.invalid),
+        AccessKeyFailure(AccessKeyFailureReason.notActivated),
+        AccessKeyFailure(AccessKeyFailureReason.alreadyAssigned),
+        AccessKeyFailure(AccessKeyFailureReason.identityMismatch),
+        AccessKeyFailure(AccessKeyFailureReason.reauthenticationRequired),
+        AccessKeyFailure(AccessKeyFailureReason.identityConflict),
+        AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
         NetworkUnavailableFailure(),
         RequestTimeoutFailure(RequestTimeoutPhase.receive),
         BackendUnavailableFailure(retryAfter: Duration(hours: 4)),
@@ -447,6 +478,88 @@ final class _KnownCodeContract {
 }
 
 const _knownCodeContracts = <_KnownCodeContract>[
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_REQUIRED',
+    validCases: [
+      (
+        statusCode: 401,
+        failure: AccessKeyFailure(AccessKeyFailureReason.missing),
+      ),
+    ],
+    wrongStatusCode: 403,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_INVALID',
+    validCases: [
+      (
+        statusCode: 401,
+        failure: AccessKeyFailure(AccessKeyFailureReason.invalid),
+      ),
+    ],
+    wrongStatusCode: 403,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_NOT_ACTIVATED',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: AccessKeyFailure(AccessKeyFailureReason.notActivated),
+      ),
+    ],
+    wrongStatusCode: 401,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_ALREADY_ASSIGNED',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: AccessKeyFailure(AccessKeyFailureReason.alreadyAssigned),
+      ),
+    ],
+    wrongStatusCode: 409,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_IDENTITY_MISMATCH',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: AccessKeyFailure(AccessKeyFailureReason.identityMismatch),
+      ),
+    ],
+    wrongStatusCode: 409,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_REAUTHENTICATION_REQUIRED',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: AccessKeyFailure(
+          AccessKeyFailureReason.reauthenticationRequired,
+        ),
+      ),
+    ],
+    wrongStatusCode: 401,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_IDENTITY_CONFLICT',
+    validCases: [
+      (
+        statusCode: 409,
+        failure: AccessKeyFailure(AccessKeyFailureReason.identityConflict),
+      ),
+    ],
+    wrongStatusCode: 403,
+  ),
+  _KnownCodeContract(
+    responseCode: 'ACCESS_KEY_STORE_UNAVAILABLE',
+    validCases: [
+      (
+        statusCode: 503,
+        failure: AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+      ),
+    ],
+    wrongStatusCode: 500,
+  ),
   _KnownCodeContract(
     responseCode: 'SESSION_EXPIRED',
     validCases: [(statusCode: 401, failure: SessionExpiredFailure())],

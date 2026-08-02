@@ -14,7 +14,7 @@ void main() {
     await database.close();
   });
 
-  group('schema version 14', () {
+  group('schema version 17', () {
     test(
       'creates exactly the owned tables with foreign keys enabled',
       () async {
@@ -29,7 +29,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 14);
+        expect(database.schemaVersion, 17);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -54,7 +54,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 14);
+        expect(await _pragmaInt(database, 'user_version'), 17);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -227,6 +227,17 @@ void main() {
           .insert(
             SemestersCompanion.insert(semesterId: const drift.Value(101)),
           );
+      await expectLater(
+        database
+            .into(database.semesters)
+            .insert(
+              SemestersCompanion.insert(
+                semesterId: const drift.Value(102),
+                name: const drift.Value('   '),
+              ),
+            ),
+        throwsException,
+      );
       await database
           .into(database.syncOperations)
           .insert(

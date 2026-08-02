@@ -1,8 +1,9 @@
 # Architecture
 
 LEB2 Watch is local-first: the interface reads durable device state first,
-then synchronization updates that state asynchronously. The self-hosted backend
-is a transport/scraping boundary with no durable per-user store. It can retain
+then synchronization updates that state asynchronously. The backend is a
+transport/scraping boundary plus an operator-owned Supabase PostgreSQL store
+for access-key provisioning and local user/key identity mapping. It can retain
 short-lived process-local cache, throttle, backoff, health, and correlation
 state; none of that is the application's database.
 
@@ -37,8 +38,9 @@ background scheduling, and desktop behavior.
 
 Production bootstrap resolves the initial application-flow stage from local
 evidence before attaching the first product frame. It reads only the
-app-settings/session lifecycle, active-semester selection, and whether a
-secure session cookie is present. It performs no backend request and reuses the
+app-settings/session lifecycle, active-semester selection, and whether all
+required secure session values (access key and session cookie) are present. It
+performs no backend request and reuses the
 same database and credential boundaries when it constructs the Riverpod graph.
 
 A proven prior session and selected semester can therefore open the dashboard
@@ -79,17 +81,19 @@ JSON transport models.
 
 | Data | Owner | Persistence |
 | --- | --- | --- |
+| Backend access key | Credential store | OS secure storage |
 | Session cookie | Credential store | OS secure storage |
 | Optional username/password | Credential store, only after explicit automatic-reauthentication opt-in | OS secure storage |
 | Semesters, courses, activities | Assignment database | Local SQLite |
 | Seen identities and fingerprints | Synchronization/diff engine | Local SQLite |
 | Notification/reminder ownership and history | Notification application layer | Local SQLite |
 | Preferences, session lifecycle, diagnostics, backoff | Feature stores | Local SQLite |
-| Backend request/cache state | Self-hosted backend | Request scope and short-lived process memory only |
+| Backend access-key provisioning and user/key mapping | Operator backend | Supabase PostgreSQL |
+| Backend request/cache state | Self-hosted backend | Request scope and short-lived process memory |
 
-Credentials are deliberately absent from SQLite. The application has no cloud
-database, analytics, advertising, push-token registration, or remote crash
-reporting.
+Credentials are deliberately absent from SQLite. The application has no direct
+Supabase connection, analytics, advertising, push-token registration, or remote
+crash reporting.
 
 ## Synchronization flow
 

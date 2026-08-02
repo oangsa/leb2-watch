@@ -19,6 +19,7 @@ import 'support/scripted_backend_adapter.dart';
 
 const _cookieA = '<SESSION_COOKIE_A>';
 const _cookieB = '<SESSION_COOKIE_B>';
+const _accessKey = '00000000-0000-4000-8000-000000000001';
 const _baselineCardKey = Key('assignment-card-101-backend:1001');
 const _newAssignmentCardKey = Key('assignment-card-101-backend:1002');
 
@@ -34,6 +35,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/login',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedUserProfileFixture,
@@ -41,6 +43,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/cookie',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedCookieFixture(_cookieA),
@@ -48,18 +51,21 @@ void main() {
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Semester',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Semester',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Activity/101/snapshot',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
           body: sanitizedSnapshotFixture(includeNewAssignment: false),
@@ -67,6 +73,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Activity/101/snapshot',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
           body: sanitizedSnapshotFixture(includeNewAssignment: true),
@@ -75,6 +82,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Activity/101/snapshot',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
           body: sanitizedSessionExpiredFixture,
@@ -86,6 +94,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/login',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedUserProfileFixture,
@@ -94,6 +103,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/cookie',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedCookieFixture(_cookieB),
@@ -101,12 +111,14 @@ void main() {
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Semester',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
           path: '/Activity/101/snapshot',
+          accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           userId: '2001',
           body: sanitizedSnapshotFixture(includeNewAssignment: true),
@@ -164,6 +176,10 @@ void main() {
       await tester.tap(find.text('Username / password'));
       await tester.pump();
       await tester.enterText(
+        find.byKey(const Key('session-access-key-field')),
+        _accessKey,
+      );
+      await tester.enterText(
         find.byKey(const Key('session-username-field')),
         '<USERNAME>',
       );
@@ -192,6 +208,7 @@ void main() {
         reason: 'The strict backend adapter rejected a session request.',
       );
       expect(adapter.requestCount, 4);
+      expect(harness.credentials.accessKey, _accessKey);
       expect(harness.credentials.sessionCookie, _cookieA);
       expect(
         harness.credentials.credentials,
@@ -435,6 +452,7 @@ void main() {
       );
 
       expect(harness.credentials.sessionCookie, isNull);
+      expect(harness.credentials.accessKey, isNull);
       expect(harness.credentials.credentials, isNull);
       expect(harness.credentials.clearCount, 1);
       expect(harness.notifications.cancelAllCount, 1);
@@ -496,6 +514,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/login',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedUserProfileFixture,
@@ -503,6 +522,7 @@ void main() {
         ScriptedBackendExchange(
           method: 'POST',
           path: '/User/cookie',
+          accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
           body: sanitizedCookieFixture(_cookieB),
@@ -528,6 +548,7 @@ void main() {
           );
       await seed.close();
       harness.credentials
+        ..accessKey = _accessKey
         ..sessionCookie = _cookieA
         ..credentials = const StoredCredentials(
           username: '<USERNAME>',

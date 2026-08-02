@@ -11,6 +11,7 @@ class _MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
 
 void main() {
   const sessionCookie = '<SESSION_COOKIE>';
+  const accessKey = '00000000-0000-4000-8000-000000000001';
   const username = '<USERNAME>';
   const password = '<PASSWORD>';
   const credentials = StoredCredentials(username: username, password: password);
@@ -72,6 +73,39 @@ void main() {
       verify(
         () => storage.delete(key: 'leb2_watch.session_cookie.v1'),
       ).called(1);
+      verifyNoMoreInteractions(storage);
+    });
+  });
+
+  group('access key', () {
+    test('saves the exact value under its dedicated key', () async {
+      when(
+        () => storage.write(
+          key: any(named: 'key'),
+          value: any(named: 'value'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await store.saveAccessKey(accessKey);
+
+      verify(
+        () => storage.write(key: 'leb2_watch.access_key.v1', value: accessKey),
+      ).called(1);
+    });
+
+    test('reads and deletes only the dedicated key', () async {
+      when(
+        () => storage.read(key: 'leb2_watch.access_key.v1'),
+      ).thenAnswer((_) async => accessKey);
+      when(
+        () => storage.delete(key: 'leb2_watch.access_key.v1'),
+      ).thenAnswer((_) async {});
+
+      expect(await store.readAccessKey(), accessKey);
+      await store.deleteAccessKey();
+
+      verify(() => storage.read(key: 'leb2_watch.access_key.v1')).called(1);
+      verify(() => storage.delete(key: 'leb2_watch.access_key.v1')).called(1);
       verifyNoMoreInteractions(storage);
     });
   });
@@ -242,7 +276,7 @@ void main() {
   });
 
   group('clear', () {
-    test('deletes exactly both application-owned keys', () async {
+    test('deletes exactly all application-owned keys', () async {
       when(
         () => storage.delete(key: any(named: 'key')),
       ).thenAnswer((_) async {});
@@ -250,6 +284,7 @@ void main() {
       await store.clear();
 
       verifyInOrder([
+        () => storage.delete(key: 'leb2_watch.access_key.v1'),
         () => storage.delete(key: 'leb2_watch.session_cookie.v1'),
         () => storage.delete(key: 'leb2_watch.stored_credentials.v1'),
       ]);
@@ -275,10 +310,44 @@ void main() {
         ),
       );
       verifyInOrder([
+        () => storage.delete(key: 'leb2_watch.access_key.v1'),
         () => storage.delete(key: 'leb2_watch.session_cookie.v1'),
         () => storage.delete(key: 'leb2_watch.stored_credentials.v1'),
       ]);
       verifyNever(() => storage.deleteAll());
+    });
+
+    test('attempts every owned key after any deletion fails', () async {
+      const keys = [
+        'leb2_watch.access_key.v1',
+        'leb2_watch.session_cookie.v1',
+        'leb2_watch.stored_credentials.v1',
+      ];
+
+      for (final failingKey in keys) {
+        reset(storage);
+        when(
+          () => storage.delete(key: any(named: 'key')),
+        ).thenAnswer((_) async {});
+        when(
+          () => storage.delete(key: failingKey),
+        ).thenThrow(Exception('delete failed'));
+
+        await expectLater(
+          store.clear(),
+          throwsA(
+            _credentialFailure(
+              CredentialStoreOperation.clear,
+              CredentialStoreFailureReason.secureStorageUnavailable,
+            ),
+          ),
+        );
+        verifyInOrder([
+          () => storage.delete(key: keys[0]),
+          () => storage.delete(key: keys[1]),
+          () => storage.delete(key: keys[2]),
+        ]);
+      }
     });
   });
 
@@ -302,6 +371,15 @@ void main() {
         throwsA(
           _credentialFailure(
             CredentialStoreOperation.readCredentials,
+            CredentialStoreFailureReason.secureStorageUnavailable,
+          ),
+        ),
+      );
+      await expectLater(
+        store.readAccessKey(),
+        throwsA(
+          _credentialFailure(
+            CredentialStoreOperation.readAccessKey,
             CredentialStoreFailureReason.secureStorageUnavailable,
           ),
         ),
@@ -334,6 +412,15 @@ void main() {
           ),
         ),
       );
+      await expectLater(
+        store.saveAccessKey(accessKey),
+        throwsA(
+          _credentialFailure(
+            CredentialStoreOperation.saveAccessKey,
+            CredentialStoreFailureReason.secureStorageUnavailable,
+          ),
+        ),
+      );
     });
 
     test('maps delete failures', () async {
@@ -359,6 +446,15 @@ void main() {
           ),
         ),
       );
+      await expectLater(
+        store.deleteAccessKey(),
+        throwsA(
+          _credentialFailure(
+            CredentialStoreOperation.deleteAccessKey,
+            CredentialStoreFailureReason.secureStorageUnavailable,
+          ),
+        ),
+      );
     });
 
     test('does not retain plugin messages or credential values', () async {
@@ -367,10 +463,11 @@ void main() {
       ).thenThrow(Exception('plugin failure detail: $sessionCookie $password'));
 
       try {
-        await store.readSessionCookie();
+        await store.readAccessKey();
         fail('Expected a CredentialStoreException.');
       } on CredentialStoreException catch (error) {
         expect(error.toString(), isNot(contains(sessionCookie)));
+        expect(error.toString(), isNot(contains(accessKey)));
         expect(error.toString(), isNot(contains(password)));
         expect(error.toString(), isNot(contains('plugin failure detail')));
       }

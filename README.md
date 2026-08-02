@@ -15,10 +15,9 @@ build the app with that server's HTTPS origin. You control the deployment and
 are responsible for its security, availability, quotas, monitoring, and
 hosting costs. There is no hosted-service SLA.
 
-The backend default branch is not currently compatible with this frontend.
-Self-hosters must use backend commit
-`d6e3261537c53507873f36de166f6245bc82fcc4` until a compatible release is
-published. See [Self-hosting the backend](docs/self-hosting-backend.md).
+This frontend targets the current `dev` contract in the backend repository.
+Check the backend's current release or `dev` revision before deployment. See
+[Self-hosting the backend](docs/self-hosting-backend.md).
 
 ## How it works
 
@@ -26,16 +25,22 @@ published. See [Self-hosting the backend](docs/self-hosting-backend.md).
                          HTTPS
 Flutter application --------------> self-hosted LEB2SCRAPPER API ----> LEB2
        |
-       +-- OS secure storage: session cookie and optional sign-in credentials
+       +-- OS secure storage: access key, session cookie, optional sign-in credentials
        +-- local SQLite: cached assignments, settings, and synchronization state
        +-- OS services: local notifications and best-effort background work
 ```
 
-Cached data renders before network synchronization. The backend has no durable
-per-user database, but sensitive request data and short-lived caches exist in
+Cached data renders before network synchronization. The backend uses an
+operator-owned Supabase PostgreSQL store for access-key provisioning and local
+user/key mapping; sensitive request data and short-lived caches also exist in
 its process while requests are handled. Read
 [Privacy and security](docs/privacy-and-security.md) before operating a public
 server.
+
+The backend operator provisions one access key per user and gives it to that
+user out of band. Enter the key at runtime during setup; it is never a
+`--dart-define` or part of `AppConfiguration`, and the app stores it only in OS
+secure storage.
 
 ## Current capabilities
 
@@ -74,7 +79,7 @@ operator's responsibility. See [Platform support](docs/platform-support.md).
 
 ### I want to run LEB2 Watch
 
-1. Deploy the [compatible backend](docs/self-hosting-backend.md).
+1. Deploy the [current backend contract](docs/self-hosting-backend.md).
 2. Install Flutter `3.44.8` with Dart `3.12.2`.
 3. Install dependencies and generate committed sources:
 
@@ -99,7 +104,7 @@ a release.
 ### I need to host the backend
 
 Start with [Self-hosting the backend](docs/self-hosting-backend.md). It covers
-the pinned compatible revision, .NET 9, Docker, the health response, the
+the current backend API reference, .NET 9, Docker, the health response, the
 optional Cloud Run example, and production exposure responsibilities.
 
 ### I want to contribute

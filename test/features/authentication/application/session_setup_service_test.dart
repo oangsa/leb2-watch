@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/features/authentication/data/session_identity_sto
 
 const _oldCookie = '<OLD_SESSION>';
 const _newCookie = '<NEW_SESSION>';
+const _testAccessKey = '00000000-0000-4000-8000-000000000001';
 const _username = '<USERNAME>';
 const _password = '<PASSWORD>';
 const _oldCredentials = StoredCredentials(
@@ -33,7 +34,7 @@ void main() {
     test(
       'reports no, incomplete, ready, and automatic states without values',
       () async {
-        final noSession = _fixture();
+        final noSession = _fixture(accessKey: null);
         expect(
           (await noSession.service.readSavedSessionSummary()).state,
           SavedSessionState.none,
@@ -159,6 +160,7 @@ void main() {
         (_newCookie, 2147483648),
       ]) {
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: input.$1,
           userId: input.$2,
         );
@@ -171,6 +173,20 @@ void main() {
           ),
         );
       }
+
+      final missingAccessKey = await fixture.service.connectWithCookie(
+        accessKey: '  ',
+        sessionCookie: _newCookie,
+        userId: 2001,
+      );
+      expect(
+        missingAccessKey,
+        isA<SessionSetupFailure>().having(
+          (value) => value.kind,
+          'kind',
+          SessionSetupFailureKind.invalidInput,
+        ),
+      );
 
       expect(fixture.backend.calls, isEmpty);
       expect(fixture.credentials.reads, isEmpty);
@@ -192,6 +208,7 @@ void main() {
         );
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -199,6 +216,7 @@ void main() {
         expect(result, isA<SessionSetupSuccess>());
         expect(fixture.backend.calls, ['verify']);
         expect(fixture.backend.lastCandidate, _newCookie);
+        expect(fixture.backend.lastAccessKey, _testAccessKey);
         expect(fixture.credentials.cookie, _newCookie);
         expect(fixture.credentials.credentials, isNull);
         expect(fixture.identity.userId, 2001);
@@ -210,15 +228,18 @@ void main() {
           ),
         );
         expect(fixture.combinedLog, [
+          'secure:readAccessKey',
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
           'lifecycle:read',
           'backend:verify',
+          'secure:readAccessKey',
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
           'lifecycle:read',
+          'secure:saveAccessKey',
           'secure:saveCookie',
           'secure:deleteCredentials',
           'identity:save',
@@ -233,6 +254,7 @@ void main() {
         final fixture = _fixture(cookie: _oldCookie, userId: 2001);
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2002,
         );
@@ -261,6 +283,7 @@ void main() {
         );
 
         final result = await fixture.service.connectWithCredentials(
+          accessKey: _testAccessKey,
           username: _username,
           password: _password,
           enableAutomaticReauthentication: true,
@@ -268,6 +291,11 @@ void main() {
 
         expect(result, isA<SessionSetupSuccess>());
         expect(fixture.backend.calls, ['login', 'cookie', 'verify']);
+        expect(fixture.backend.accessKeys, [
+          _testAccessKey,
+          _testAccessKey,
+          _testAccessKey,
+        ]);
         expect(fixture.credentials.cookie, _newCookie);
         expect(
           fixture.credentials.credentials,
@@ -275,6 +303,7 @@ void main() {
         );
         expect(fixture.identity.userId, 2001);
         expect(fixture.combinedLog, [
+          'secure:readAccessKey',
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
@@ -282,10 +311,12 @@ void main() {
           'backend:login',
           'backend:cookie',
           'backend:verify',
+          'secure:readAccessKey',
           'secure:readCookie',
           'secure:readCredentials',
           'identity:read',
           'lifecycle:read',
+          'secure:saveAccessKey',
           'secure:saveCookie',
           'secure:saveCredentials',
           'identity:save',
@@ -305,6 +336,7 @@ void main() {
 
         expect(
           await fixture.service.connectWithCredentials(
+            accessKey: _testAccessKey,
             username: _username,
             password: _password,
             enableAutomaticReauthentication: false,
@@ -324,6 +356,7 @@ void main() {
       final fixture = _fixture(cookie: _oldCookie, userId: 2002);
 
       final result = await fixture.service.connectWithCredentials(
+        accessKey: _testAccessKey,
         username: _username,
         password: _password,
         enableAutomaticReauthentication: true,
@@ -433,6 +466,102 @@ void main() {
           ),
           SessionSetupFailureKind.invalidResponse,
         ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 401,
+              responseCode: 'ACCESS_KEY_REQUIRED',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyMissing,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 401,
+              responseCode: 'ACCESS_KEY_INVALID',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyInvalid,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 403,
+              responseCode: 'ACCESS_KEY_NOT_ACTIVATED',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyNotActivated,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 403,
+              responseCode: 'ACCESS_KEY_ALREADY_ASSIGNED',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyAccountMismatch,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 403,
+              responseCode: 'ACCESS_KEY_IDENTITY_MISMATCH',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyAccountMismatch,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 403,
+              responseCode: 'ACCESS_KEY_REAUTHENTICATION_REQUIRED',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyReauthenticationRequired,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 409,
+              responseCode: 'ACCESS_KEY_IDENTITY_CONFLICT',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyAccountMismatch,
+        ),
+        (
+          const BackendTransportException(
+            kind: BackendTransportFailureKind.httpResponse,
+            httpError: BackendHttpErrorEvidence(
+              statusCode: 503,
+              responseCode: 'ACCESS_KEY_STORE_UNAVAILABLE',
+              envelopeKind: BackendErrorEnvelopeKind.standard,
+              hasBearerChallenge: false,
+            ),
+          ),
+          SessionSetupFailureKind.accessKeyStoreUnavailable,
+        ),
       ];
 
       for (final (error, expected) in cases) {
@@ -447,6 +576,7 @@ void main() {
         )..backend.verifyFailure = error;
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -491,6 +621,7 @@ void main() {
         expect(
           _failureKind(
             await login.service.connectWithCredentials(
+              accessKey: _testAccessKey,
               username: _username,
               password: _password,
               enableAutomaticReauthentication: false,
@@ -504,6 +635,7 @@ void main() {
         expect(
           _failureKind(
             await cookie.service.connectWithCredentials(
+              accessKey: _testAccessKey,
               username: _username,
               password: _password,
               enableAutomaticReauthentication: false,
@@ -524,6 +656,7 @@ void main() {
         expect(
           _failureKind(
             await secure.service.connectWithCookie(
+              accessKey: _testAccessKey,
               sessionCookie: _newCookie,
               userId: 2001,
             ),
@@ -536,6 +669,7 @@ void main() {
         expect(
           _failureKind(
             await local.service.connectWithCookie(
+              accessKey: _testAccessKey,
               sessionCookie: _newCookie,
               userId: 2001,
             ),
@@ -557,6 +691,7 @@ void main() {
       )..credentials.failOnCalls['saveCookie'] = {1};
 
       final result = await fixture.service.connectWithCookie(
+        accessKey: _testAccessKey,
         sessionCookie: _newCookie,
         userId: 2001,
       );
@@ -578,6 +713,7 @@ void main() {
       )..credentials.failOnCalls['saveCredentials'] = {1};
 
       final result = await fixture.service.connectWithCredentials(
+        accessKey: _testAccessKey,
         username: _username,
         password: _password,
         enableAutomaticReauthentication: true,
@@ -601,6 +737,7 @@ void main() {
       )..credentials.failOnCalls['deleteCredentials'] = {1};
 
       final result = await fixture.service.connectWithCookie(
+        accessKey: _testAccessKey,
         sessionCookie: _newCookie,
         userId: 2001,
       );
@@ -624,6 +761,7 @@ void main() {
         )..identity.failOnCalls['saveIdentity'] = {1};
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -653,6 +791,7 @@ void main() {
         )..lifecycle.failAlways.add('activate');
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -683,6 +822,7 @@ void main() {
         )..lifecycle.failAfterActivate = true;
 
         final result = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -743,6 +883,7 @@ void main() {
           final fixture = fixtureFactory();
 
           final result = await fixture.service.connectWithCookie(
+            accessKey: _testAccessKey,
             sessionCookie: _newCookie,
             userId: 2001,
           );
@@ -768,6 +909,7 @@ void main() {
         )..backend.verifyGate = gate;
         final token = SessionSetupCancellation();
         final operation = fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
           cancellation: token,
@@ -795,6 +937,7 @@ void main() {
         ..backend.loginGate = gate;
       final token = SessionSetupCancellation();
       final operation = fixture.service.connectWithCredentials(
+        accessKey: _testAccessKey,
         username: _username,
         password: _password,
         enableAutomaticReauthentication: false,
@@ -819,6 +962,7 @@ void main() {
           ..backend.cookieGate = gate;
         final token = SessionSetupCancellation();
         final operation = fixture.service.connectWithCredentials(
+          accessKey: _testAccessKey,
           username: _username,
           password: _password,
           enableAutomaticReauthentication: false,
@@ -851,6 +995,7 @@ void main() {
         expect(
           _failureKind(
             await before.service.connectWithCookie(
+              accessKey: _testAccessKey,
               sessionCookie: _newCookie,
               userId: 2001,
               cancellation: cancelled,
@@ -869,6 +1014,7 @@ void main() {
           };
         final token = SessionSetupCancellation();
         final operation = after.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
           cancellation: token,
@@ -890,12 +1036,14 @@ void main() {
         final fixture = _fixture(cookie: _oldCookie, userId: 2001)
           ..backend.verifyGate = gate;
         final first = fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
         await fixture.backend.verifyEntered.future;
 
         final second = await fixture.service.connectWithCookie(
+          accessKey: _testAccessKey,
           sessionCookie: _newCookie,
           userId: 2001,
         );
@@ -935,6 +1083,7 @@ SessionSetupFailureKind _failureKind(SessionSetupResult result) {
 }
 
 _Fixture _fixture({
+  String? accessKey = _testAccessKey,
   String? cookie,
   StoredCredentials? credentials,
   int? userId,
@@ -944,6 +1093,7 @@ _Fixture _fixture({
   final backend = _FakeBackendSessionClient(log);
   final credentialStore = _MemoryCredentialStore(
     log,
+    accessKey: accessKey,
     cookie: cookie,
     credentials: credentials,
   );
@@ -987,6 +1137,7 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 
   final List<String> _log;
   final List<String> calls = [];
+  final List<String> accessKeys = [];
   final Completer<void> loginEntered = Completer<void>();
   final Completer<void> cookieEntered = Completer<void>();
   final Completer<void> verifyEntered = Completer<void>();
@@ -997,15 +1148,20 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
   Completer<void>? cookieGate;
   Completer<void>? verifyGate;
   String? lastCandidate;
+  String? lastAccessKey;
   int identityId = 2001;
 
   @override
+  // ignore: unused_element_parameter
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('login');
+    accessKeys.add(accessKey);
+    lastAccessKey = accessKey;
     _log.add('backend:login');
     if (!loginEntered.isCompleted) {
       loginEntered.complete();
@@ -1023,11 +1179,14 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 
   @override
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('cookie');
+    accessKeys.add(accessKey);
+    lastAccessKey = accessKey;
     _log.add('backend:cookie');
     if (!cookieEntered.isCompleted) {
       cookieEntered.complete();
@@ -1045,10 +1204,13 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 
   @override
   Future<List<Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('verify');
+    accessKeys.add(accessKey);
+    lastAccessKey = accessKey;
     _log.add('backend:verify');
     lastCandidate = candidateCookie;
     if (!verifyEntered.isCompleted) {
@@ -1062,7 +1224,7 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
     if (failure != null) {
       throw failure;
     }
-    return const [Semester(id: 101)];
+    return const [Semester(id: 101, name: '1/2026')];
   }
 
   @override
@@ -1070,7 +1232,14 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
-  _MemoryCredentialStore(this._log, {this.cookie, this.credentials});
+  // ignore: unused_element_parameter
+  _MemoryCredentialStore(
+    this._log, {
+    // ignore: unused_element_parameter
+    this.accessKey = _testAccessKey,
+    this.cookie,
+    this.credentials,
+  });
 
   final List<String> _log;
   final List<String> reads = [];
@@ -1078,6 +1247,7 @@ final class _MemoryCredentialStore implements CredentialStore {
   final Set<String> failAlways = {};
   final Map<String, Set<int>> failOnCalls = {};
   final Map<String, int> _callCounts = {};
+  String? accessKey;
   String? cookie;
   StoredCredentials? credentials;
   Future<void> Function()? beforeSaveCookie;
@@ -1096,6 +1266,7 @@ final class _MemoryCredentialStore implements CredentialStore {
   @override
   Future<void> clear() async {
     _record('clear', mutation: true);
+    accessKey = null;
     cookie = null;
     credentials = null;
   }
@@ -1104,6 +1275,12 @@ final class _MemoryCredentialStore implements CredentialStore {
   Future<void> deleteCredentials() async {
     _record('deleteCredentials', mutation: true);
     credentials = null;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async {
+    _record('deleteAccessKey', mutation: true);
+    accessKey = null;
   }
 
   @override
@@ -1119,6 +1296,12 @@ final class _MemoryCredentialStore implements CredentialStore {
   }
 
   @override
+  Future<String?> readAccessKey() async {
+    _record('readAccessKey', mutation: false);
+    return accessKey;
+  }
+
+  @override
   Future<String?> readSessionCookie() async {
     _record('readCookie', mutation: false);
     return cookie;
@@ -1128,6 +1311,12 @@ final class _MemoryCredentialStore implements CredentialStore {
   Future<void> saveCredentials(StoredCredentials value) async {
     _record('saveCredentials', mutation: true);
     credentials = value;
+  }
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    _record('saveAccessKey', mutation: true);
+    accessKey = value;
   }
 
   @override

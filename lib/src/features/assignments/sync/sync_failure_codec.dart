@@ -42,6 +42,11 @@ EncodedSyncFailure encodeFailure(SyncFailure failure) => switch (failure) {
     kind: 'invalidResponse',
     historyCategory: 'invalidResponse',
   ),
+  AccessKeyFailure(:final reason) => EncodedSyncFailure(
+    kind: 'accessKey',
+    detail: reason.name,
+    historyCategory: 'accessKey.${reason.name}',
+  ),
   UnknownSyncFailure(:final reason) => EncodedSyncFailure(
     kind: 'unknown',
     detail: reason.name,
@@ -75,6 +80,11 @@ SyncFailure decodeFailure({
     ),
     'invalidResponse' when detail == null && retryAfter == null =>
       const InvalidResponseFailure(),
+    'accessKey' when retryAfter == null => AccessKeyFailure(
+      AccessKeyFailureReason.values
+          .where((value) => value.name == detail)
+          .single,
+    ),
     'unknown' when retryAfter == null => UnknownSyncFailure(
       UnknownSyncFailureReason.values
           .where((value) => value.name == detail)

@@ -6,6 +6,15 @@ part of 'backend_dtos.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+SemesterDto _$SemesterDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('SemesterDto', json, ($checkedConvert) {
+      final val = SemesterDto(
+        id: $checkedConvert('id', (v) => _requiredInt(v)),
+        name: $checkedConvert('name', (v) => v as String),
+      );
+      return val;
+    });
+
 Map<String, dynamic> _$BackendCredentialsRequestDtoToJson(
   BackendCredentialsRequestDto instance,
 ) => <String, dynamic>{

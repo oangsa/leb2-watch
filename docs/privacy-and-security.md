@@ -8,6 +8,7 @@ and server boundaries before deploying or distributing the app.
 
 | Data | Storage | Notes |
 | --- | --- | --- |
+| Backend access key | OS secure storage | Per-user secret supplied by the backend operator; sent as `access-key` on every non-health backend request |
 | LEB2 session cookie | OS secure storage | Opaque secret used on protected backend requests |
 | Username/password | OS secure storage | Saved only after explicit automatic-reauthentication opt-in |
 | Credential schema version | OS secure storage | Version for the optional credential payload |
@@ -35,7 +36,7 @@ push-token registration, or remote crash-reporting dependency.
 - **Linux:** the libsecret adapter requires an available, unlocked Secret
   Service keyring.
 
-Application clearing deletes only LEB2 Watch's two secure entries; it does not
+Application clearing deletes only LEB2 Watch's three secure entries; it does not
 call a keyring-wide `deleteAll`.
 
 ## Automatic reauthentication
@@ -55,6 +56,8 @@ cached assignments available and falls back to the manual reconnect flow.
 
 Depending on the setup path, the app sends:
 
+- the operator-provided access key in the `access-key` header on every route
+  except `/health/leb2`;
 - username and password to `/User/login` and `/User/cookie`;
 - the full session cookie in
   `Authorization: Bearer <LEB2-session-cookie>` on protected
@@ -65,9 +68,11 @@ The backend then communicates with LEB2. Production application builds require
 HTTPS, but the operator owns DNS, TLS termination, certificates, renewal, and
 the security of every intermediary.
 
-The backend has no durable per-user database or credential persistence, but
-request data and short-lived caches/fingerprints exist transiently in the
-backend process while it handles and coalesces requests.
+The operator backend uses Supabase PostgreSQL for access-key provisioning,
+assignment, local user/key identity mapping (including documented student and
+LEB2 identity fields), and audit metadata. It does not store the LEB2 password
+or session cookie. Request data and short-lived caches/fingerprints still exist
+transiently in the backend process while it handles and coalesces requests.
 
 Default backend memory caches retain structure results for about 60 seconds and
 activity results for about 30 seconds. Cache, throttle, health, backoff, and
@@ -92,9 +97,9 @@ Operators must:
 - configure cost controls, quotas, alerts, and retention; and
 - test deletion and session-expiration behavior with sanitized data.
 
-The current frontend cannot send an extra API key, Basic-auth credential,
-Cloud Run IAM identity token, or generic proxy-authentication header. Requiring
-one needs a corresponding frontend contract change.
+The frontend does not connect directly to Supabase and sends no credentials
+other than the documented access key, LEB2 credentials during setup, and opaque
+session cookie.
 
 ## Local notifications and diagnostics
 
@@ -119,7 +124,7 @@ Settings provides three confirmed actions:
   notification history, and synchronization history. Credentials and global
   preferences remain.
 - **Delete saved credentials** stops app-owned periodic scheduling, clears the
-  saved session and optional credentials, marks the local session expired, and
+  access key, saved session, and optional credentials, marks the local session expired, and
   preserves cached assignments.
 - **Delete all local data** attempts to cancel app-owned background work and
   supported notifications, disable desktop autostart, clear credentials,

@@ -1,5 +1,15 @@
 # LEB2 Watch Continuation Handoff
 
+> **Current contract note (2026-08-02):** The live frontend targets the
+> current `LEB2SCRAPPER-API/docs/api-reference.md` contract (or this checkout's
+> `docs/api-reference.md` fallback), not the historical commit references below.
+> Non-health backend requests require the user-supplied `access-key`; the
+> operator provisions per-user keys and persists their assignment/mapping in
+> Supabase PostgreSQL. `/Semester` remains a sanitized integer-ID list in this
+> frontend contract. Historical checkpoints that mention cookie-only requests,
+> no durable backend mapping, or an incompatible default branch are retained
+> only as immutable validation history.
+
 ## Pause point
 
 This is the permanent account-switch handoff for the LEB2 Watch frontend. It is
@@ -704,6 +714,7 @@ The protected snapshot request is:
 
 ```http
 GET /Activity/{semesterId}/snapshot
+access-key: <per-user-access-key>
 Authorization: Bearer <LEB2-session-cookie>
 X-LEB2-USER-ID: <positive-int32>
 ```
@@ -734,21 +745,24 @@ replace `http://localhost:5015` with the operator's real HTTPS origin using
 `--dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>`. Never ship a
 localhost or `example.invalid` backend origin.
 
-Use the compatible backend revision:
+Historical validation snapshot (superseded; do not use as current compatibility
+guidance):
 
 ```text
 d6e3261537c53507873f36de166f6245bc82fcc4
 ```
 
-The backend default/main line is not compatible with the frontend snapshot,
-Bearer, and resilience contract. No compatible backend tag or release is
-present in the inspected local refs or documented repository state; current
-remote tag/release state is unverified. There is no documented
-contract-version endpoint.
+Current compatibility is determined by the checked-in backend API reference,
+not by this historical SHA or an unverified branch claim. Verify the supported
+backend branch/release against that reference before deployment. There is no
+documented contract-version endpoint.
 
-The backend has no durable per-user database, but request data and bounded
-short-lived caches/fingerprints can exist in process memory. Operators are
-responsible for reverse-proxy, provider, APM, and application logging.
+The operator backend uses Supabase PostgreSQL for access-key provisioning,
+assignment, documented local user/key identity mapping, and audit metadata.
+It does not store LEB2 passwords or session cookies unless its current API
+reference explicitly states otherwise. Request data and bounded short-lived
+caches/fingerprints can exist in process memory; operators own reverse-proxy,
+provider, APM, and application logging.
 
 [`self-hosting-backend.md`](self-hosting-backend.md) covers .NET 9,
 Selenium/Chromium, Docker, health semantics, root-relative routes, Cloud Run
@@ -909,15 +923,15 @@ tag, or publish. Remote mutation is not authorized by this handoff alone.
 
 **Atomic features:**
 
-1. **21.1 — Release candidate verification:** check out exact compatible
-   revision `d6e3261537c53507873f36de166f6245bc82fcc4` or its approved descendant;
-   review contract drift; run restore, build, and tests at that exact revision.
+1. **21.1 — Release candidate verification:** select the operator-approved
+   backend revision whose checked-in API reference matches this frontend; review
+   contract drift and run restore, build, and tests at that exact revision.
 2. **21.2 — Immutable publication:** merge or publish only the verified
    contract, create the approved tag/release, and record branch, commit, tag,
    test results, and release URL. Do not publish from unreviewed local changes.
 3. **21.3 — Frontend release reference:** update self-hosting and build docs
-   from the raw commit pin to the supported release while retaining exact root
-   route, opaque-cookie authentication, user-header, health, quota, and
+   from any historical raw commit pin to the supported release while retaining
+   the `access-key`, opaque-cookie, user-header, health, quota, and
    operator-responsibility boundaries.
 
 **Exit gate:** an immutable compatible backend release is externally reachable,
@@ -1162,12 +1176,12 @@ xcodebuild test -workspace ios/Runner.xcworkspace \
 Use the exact device matrix in the
 [platform validation compact](contexts/platform-validation/COMPACT.md#validation-evidence).
 
-### Compatible backend
+### Compatible backend (historical command; current ref must be verified)
 
 ```bash
 git clone https://github.com/oangsa/LEB2SCRAPPER-API.git
 cd LEB2SCRAPPER-API
-git checkout d6e3261537c53507873f36de166f6245bc82fcc4
+git checkout <supported-backend-ref-from-api-reference>
 dotnet restore LEB2SCRAPPER.sln
 dotnet build LEB2SCRAPPER.sln
 dotnet test LEB2SCRAPPER.sln

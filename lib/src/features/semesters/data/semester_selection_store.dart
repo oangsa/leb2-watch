@@ -1,33 +1,46 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/network/domain/backend_models.dart' as backend;
 import '../../../core/session/session_lifecycle.dart';
 
 const _maximumSemesterId = 2147483647;
 
 final class SemesterCatalog {
   SemesterCatalog({
-    required Iterable<int> semesterIds,
+    Iterable<backend.Semester>? semesters,
+    Iterable<int>? semesterIds,
     required this.activeSemesterId,
-  }) : semesterIds = List<int>.unmodifiable(semesterIds);
+  }) : assert(
+         semesters == null || semesterIds == null,
+         'Provide semesters or semesterIds, not both.',
+       ),
+       semesters = List<backend.Semester>.unmodifiable(
+         semesters ??
+             (semesterIds ?? const <int>[]).map(
+               (id) => backend.Semester(id: id, name: 'Semester $id'),
+             ),
+       );
 
   factory SemesterCatalog.empty() =>
-      SemesterCatalog(semesterIds: const [], activeSemesterId: null);
+      SemesterCatalog(semesters: const [], activeSemesterId: null);
 
-  final List<int> semesterIds;
+  final List<backend.Semester> semesters;
   final int? activeSemesterId;
+
+  List<int> get semesterIds =>
+      List<int>.unmodifiable(semesters.map((semester) => semester.id));
 
   bool get isEmpty => semesterIds.isEmpty;
 
   @override
   bool operator ==(Object other) =>
       other is SemesterCatalog &&
-      _listsEqual(other.semesterIds, semesterIds) &&
+      _listsEqual(other.semesters, semesters) &&
       other.activeSemesterId == activeSemesterId;
 
   @override
-  int get hashCode =>
-      Object.hash(Object.hashAll(semesterIds), activeSemesterId);
+  int get hashCode => Object.hash(Object.hashAll(semesters), activeSemesterId);
 
   @override
   String toString() => 'SemesterCatalog(redacted: true)';
@@ -57,7 +70,7 @@ abstract interface class SemesterSelectionStore {
   Future<SemesterCatalog> read();
 
   Future<SemesterCatalogMergeResult> mergeIfSessionCurrent(
-    Iterable<int> semesterIds, {
+    Iterable<backend.Semester> semesters, {
     required SessionLifecycleSnapshot expectedSession,
   });
 
@@ -92,19 +105,26 @@ final class DriftSemesterSelectionStore implements SemesterSelectionStore {
 
   @override
   Future<SemesterCatalogMergeResult> mergeIfSessionCurrent(
-    Iterable<int> semesterIds, {
+    Iterable<backend.Semester> semesters, {
     required SessionLifecycleSnapshot expectedSession,
   }) {
-    final ids = semesterIds.toSet();
-    if (ids.isEmpty) {
+    final values = semesters.toSet();
+    if (values.isEmpty) {
       throw ArgumentError.value(
-        semesterIds,
-        'semesterIds',
+        semesters,
+        'semesters',
         'Must contain at least one semester.',
       );
     }
-    for (final id in ids) {
-      _validateSemesterId(id);
+    for (final semester in values) {
+      _validateSemesterId(semester.id);
+      if (semester.name.trim().isEmpty) {
+        throw ArgumentError.value(
+          semester.name,
+          'semester.name',
+          'Must not be blank.',
+        );
+      }
     }
 
     return _run(
@@ -117,12 +137,14 @@ final class DriftSemesterSelectionStore implements SemesterSelectionStore {
           return const SemesterCatalogMergeDiscarded();
         }
 
-        for (final id in ids) {
+        for (final semester in values) {
           await _database
               .into(_database.semesters)
-              .insert(
-                SemestersCompanion.insert(semesterId: Value(id)),
-                mode: InsertMode.insertOrIgnore,
+              .insertOnConflictUpdate(
+                SemestersCompanion.insert(
+                  semesterId: Value(semester.id),
+                  name: Value(semester.name.trim()),
+                ),
               );
         }
         return SemesterCatalogMerged(await _readCatalog());
@@ -166,7 +188,14 @@ final class DriftSemesterSelectionStore implements SemesterSelectionStore {
         .select(_database.appSettings)
         .getSingleOrNull();
     return SemesterCatalog(
-      semesterIds: rows.map((row) => row.semesterId),
+      semesters: rows.map(
+        (row) => backend.Semester(
+          id: row.semesterId,
+          name: row.name?.trim().isNotEmpty == true
+              ? row.name!.trim()
+              : 'Semester ${row.semesterId}',
+        ),
+      ),
       activeSemesterId: settings?.activeSemesterId,
     );
   }
@@ -198,7 +227,7 @@ final class DriftSemesterSelectionStore implements SemesterSelectionStore {
   String toString() => 'DriftSemesterSelectionStore(redacted: true)';
 }
 
-bool _listsEqual(List<int> first, List<int> second) {
+bool _listsEqual(List<backend.Semester> first, List<backend.Semester> second) {
   if (first.length != second.length) {
     return false;
   }

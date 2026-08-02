@@ -8,78 +8,80 @@ import 'package:leb2_watch/src/features/authentication/presentation/session_setu
 
 const _secretCookie = '<SECRET_COOKIE_VALUE>';
 const _secretPassword = '<SECRET_PASSWORD_VALUE>';
+const _secretAccessKey = '00000000-0000-4000-8000-000000000001';
 
 void main() {
-  testWidgets('renders cookie-first privacy flow and redacted saved summary', (
-    tester,
-  ) async {
-    final service = _FakeSessionSetupService(
-      summary: const SavedSessionSummary(
-        state: SavedSessionState.ready,
-        automaticReauthenticationEnabled: true,
-      ),
-    );
-    await _pumpPage(tester, service: service);
+  testWidgets(
+    'renders credential-first privacy flow and redacted saved summary',
+    (tester) async {
+      final service = _FakeSessionSetupService(
+        summary: const SavedSessionSummary(
+          state: SavedSessionState.ready,
+          automaticReauthenticationEnabled: true,
+        ),
+      );
+      await _pumpPage(tester, service: service);
 
-    expect(find.text('Connect LEB2'), findsOneWidget);
-    expect(find.textContaining('independent third-party'), findsOneWidget);
-    expect(
-      find.text(
-        'LEB2 Watch is an independent third-party application. Your '
-        'username and password are sent only when you sign in and, if you '
-        'opt in, for automatic reauthentication.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Your saved session cookie is kept at rest in operating-system secure '
-        'storage. Protected backend requests temporarily send that cookie and '
-        'your numeric LEB2 user ID. The ID stays in local SQLite between '
-        'requests.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Session cookie'), findsOneWidget);
-    expect(find.byKey(const Key('cookie-method-fields')), findsOneWidget);
-    expect(find.byKey(const Key('credential-method-fields')), findsNothing);
-    expect(find.text('Saved session ready to verify'), findsOneWidget);
-    expect(
-      find.textContaining('Automatic reauthentication is enabled'),
-      findsOneWidget,
-    );
-    expect(find.textContaining(_secretCookie), findsNothing);
-    expect(find.textContaining(_secretPassword), findsNothing);
-  });
+      expect(find.text('Connect LEB2'), findsOneWidget);
+      expect(find.textContaining('independent third-party'), findsOneWidget);
+      expect(
+        find.text(
+          'LEB2 Watch is an independent third-party application. Your '
+          'username and password are sent only when you sign in and, if you '
+          'opt in, for automatic reauthentication.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Your access key and saved session cookie stay in operating-system '
+          'secure storage. Protected backend requests temporarily send both '
+          'values and your numeric LEB2 user ID. The ID stays in local SQLite '
+          'between requests.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Username / password'), findsOneWidget);
+      expect(find.byKey(const Key('session-access-key-field')), findsOneWidget);
+      expect(find.byKey(const Key('credential-method-fields')), findsOneWidget);
+      expect(find.byKey(const Key('cookie-method-fields')), findsNothing);
+      expect(find.text('Saved session ready to verify'), findsOneWidget);
+      expect(
+        find.textContaining('Automatic reauthentication is enabled'),
+        findsOneWidget,
+      );
+      expect(find.textContaining(_secretCookie), findsNothing);
+      expect(find.textContaining(_secretPassword), findsNothing);
+    },
+  );
 
   testWidgets('secret fields are hardened, obscure, reveal, and re-hide', (
     tester,
   ) async {
     await _pumpPage(tester);
 
-    var cookie = tester.widget<TextField>(
-      find.byKey(const Key('session-cookie-field')),
+    var accessKey = tester.widget<TextField>(
+      find.byKey(const Key('session-access-key-field')),
     );
-    expect(cookie.obscureText, isTrue);
-    _expectSecretInputHardening(cookie);
+    expect(accessKey.obscureText, isTrue);
+    _expectSecretInputHardening(accessKey);
 
-    await _tapVisible(tester, find.byTooltip('Show secret'));
+    await _tapSecretVisibility(tester, const Key('session-access-key-field'));
     await tester.pump();
-    cookie = tester.widget(find.byKey(const Key('session-cookie-field')));
-    expect(cookie.obscureText, isFalse);
-    expect(find.byTooltip('Hide secret'), findsOneWidget);
+    accessKey = tester.widget(
+      find.byKey(const Key('session-access-key-field')),
+    );
+    expect(accessKey.obscureText, isFalse);
 
-    await _tapVisible(tester, find.byTooltip('Hide secret'));
+    await _tapSecretVisibility(tester, const Key('session-access-key-field'));
     await tester.pump();
     expect(
       tester
-          .widget<TextField>(find.byKey(const Key('session-cookie-field')))
+          .widget<TextField>(find.byKey(const Key('session-access-key-field')))
           .obscureText,
       isTrue,
     );
 
-    await tester.tap(find.text('Username / password'));
-    await tester.pump();
     var password = tester.widget<TextField>(
       find.byKey(const Key('session-password-field')),
     );
@@ -90,7 +92,7 @@ void main() {
       findsWidgets,
     );
 
-    await _tapVisible(tester, find.byTooltip('Show secret'));
+    await _tapSecretVisibility(tester, const Key('session-password-field'));
     await tester.pump();
     password = tester.widget(find.byKey(const Key('session-password-field')));
     expect(password.obscureText, isFalse);
@@ -104,27 +106,91 @@ void main() {
     await _tapVisible(tester, find.byKey(const Key('session-submit')));
     await tester.pump();
 
-    final cookie = tester.widget<TextField>(
-      find.byKey(const Key('session-cookie-field')),
+    final accessKey = tester.widget<TextField>(
+      find.byKey(const Key('session-access-key-field')),
     );
-    expect(cookie.focusNode?.hasFocus, isTrue);
+    expect(accessKey.focusNode?.hasFocus, isTrue);
     expect(
-      find.text('Enter your current LEB2 session cookie.'),
+      find.text('Enter the UUID access key provided by your backend operator.'),
       findsOneWidget,
     );
 
     await tester.enterText(
-      find.byKey(const Key('session-cookie-field')),
-      _secretCookie,
+      find.byKey(const Key('session-access-key-field')),
+      _secretAccessKey,
     );
     await _tapVisible(tester, find.byKey(const Key('session-submit')));
     await tester.pump();
 
-    final userId = tester.widget<TextField>(
-      find.byKey(const Key('session-user-id-field')),
+    final username = tester.widget<TextField>(
+      find.byKey(const Key('session-username-field')),
     );
-    expect(userId.focusNode?.hasFocus, isTrue);
-    expect(find.text('Enter a positive numeric LEB2 user ID.'), findsOneWidget);
+    expect(username.focusNode?.hasFocus, isTrue);
+    expect(find.text('Enter your LEB2 username.'), findsOneWidget);
+  });
+
+  testWidgets('rejects blank, malformed, all-zero, and multiple access keys', (
+    tester,
+  ) async {
+    for (final value in [
+      '',
+      'not-a-uuid',
+      '00000000-0000-0000-0000-000000000000',
+      '$_secretAccessKey $_secretAccessKey',
+    ]) {
+      final service = _FakeSessionSetupService();
+      await _pumpPage(tester, service: service);
+      await tester.enterText(
+        find.byKey(const Key('session-access-key-field')),
+        value,
+      );
+      await _tapVisible(tester, find.byKey(const Key('session-submit')));
+      await tester.pump();
+      expect(
+        find.text(
+          'Enter the UUID access key provided by your backend operator.',
+        ),
+        findsOneWidget,
+      );
+      expect(service.credentialCalls, 0);
+      final errorText = tester
+          .widget<TextField>(find.byKey(const Key('session-access-key-field')))
+          .decoration
+          ?.errorText;
+      if (value.isNotEmpty) {
+        expect(errorText, isNot(contains(value)));
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
+  testWidgets('trims valid access key before forwarding and never echoes it', (
+    tester,
+  ) async {
+    final service = _FakeSessionSetupService();
+    await _pumpPage(tester, service: service);
+    await tester.enterText(
+      find.byKey(const Key('session-access-key-field')),
+      '  $_secretAccessKey  ',
+    );
+    await tester.enterText(
+      find.byKey(const Key('session-username-field')),
+      '<USERNAME>',
+    );
+    await tester.enterText(
+      find.byKey(const Key('session-password-field')),
+      _secretPassword,
+    );
+    await _tapVisible(tester, find.byKey(const Key('session-submit')));
+    await tester.pump();
+
+    expect(service.lastAccessKey, _secretAccessKey);
+    final errorText = tester
+        .widget<TextField>(find.byKey(const Key('session-access-key-field')))
+        .decoration
+        ?.errorText;
+    expect(errorText, isNot(contains(_secretAccessKey)));
+    expect(service.credentialCalls, 1);
   });
 
   testWidgets(
@@ -133,6 +199,8 @@ void main() {
       final gate = Completer<SessionSetupResult>();
       final service = _FakeSessionSetupService(cookieGate: gate);
       await _pumpPage(tester, service: service);
+      await _selectCookieMethod(tester);
+      await _enterAccessKey(tester);
       await tester.enterText(
         find.byKey(const Key('session-cookie-field')),
         _secretCookie,
@@ -191,6 +259,8 @@ void main() {
     final gate = Completer<SessionSetupResult>();
     final service = _FakeSessionSetupService(cookieGate: gate);
     await _pumpPage(tester, service: service);
+    await _selectCookieMethod(tester);
+    await _enterAccessKey(tester);
     await tester.enterText(
       find.byKey(const Key('session-cookie-field')),
       _secretCookie,
@@ -220,6 +290,8 @@ void main() {
       service: service,
       onCompleted: () => completions += 1,
     );
+    await _selectCookieMethod(tester);
+    await _enterAccessKey(tester);
     await tester.enterText(
       find.byKey(const Key('session-cookie-field')),
       _secretCookie,
@@ -252,6 +324,8 @@ void main() {
         }
       },
     );
+    await _selectCookieMethod(tester);
+    await _enterAccessKey(tester);
     await tester.enterText(
       find.byKey(const Key('session-cookie-field')),
       _secretCookie,
@@ -298,7 +372,7 @@ void main() {
     expect(service.savedCalls, 1);
     expect(
       tester
-          .widget<TextField>(find.byKey(const Key('session-cookie-field')))
+          .widget<TextField>(find.byKey(const Key('session-access-key-field')))
           .controller
           ?.text,
       isEmpty,
@@ -314,8 +388,7 @@ void main() {
   ) async {
     final service = _FakeSessionSetupService();
     await _pumpPage(tester, service: service);
-    await tester.tap(find.text('Username / password'));
-    await tester.pump();
+    await _enterAccessKey(tester);
     await tester.enterText(
       find.byKey(const Key('session-username-field')),
       '<USERNAME>',
@@ -398,6 +471,38 @@ void main() {
         'Delete local data before connecting a different account.',
       ),
       (
+        const SessionSetupFailure(SessionSetupFailureKind.accessKeyMissing),
+        'This access key is missing or no longer valid.',
+      ),
+      (
+        const SessionSetupFailure(SessionSetupFailureKind.accessKeyInvalid),
+        'This access key is missing or no longer valid.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.accessKeyNotActivated,
+        ),
+        'This access key has not been activated.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.accessKeyAccountMismatch,
+        ),
+        'This access key cannot be used with this LEB2 account.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.accessKeyReauthenticationRequired,
+        ),
+        'Sign in with Username / password to finish initializing this access key.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.accessKeyStoreUnavailable,
+        ),
+        'Access-key verification is temporarily unavailable.',
+      ),
+      (
         const SessionSetupFailure(SessionSetupFailureKind.persistenceUncertain),
         'Saving could not be completed or safely restored.',
       ),
@@ -424,6 +529,8 @@ void main() {
         tester,
         service: _FakeSessionSetupService(cookieResult: failure),
       );
+      await _selectCookieMethod(tester);
+      await _enterAccessKey(tester);
       await tester.enterText(
         find.byKey(const Key('session-cookie-field')),
         _secretCookie,
@@ -484,6 +591,28 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+}
+
+Future<void> _selectCookieMethod(WidgetTester tester) async {
+  await _tapVisible(tester, find.text('Session cookie'));
+  await tester.pump();
+}
+
+Future<void> _enterAccessKey(WidgetTester tester) async {
+  await tester.enterText(
+    find.byKey(const Key('session-access-key-field')),
+    _secretAccessKey,
+  );
+}
+
+Future<void> _tapSecretVisibility(WidgetTester tester, Key fieldKey) async {
+  await _tapVisible(
+    tester,
+    find.descendant(
+      of: find.byKey(fieldKey),
+      matching: find.byType(IconButton),
+    ),
+  );
 }
 
 void _expectSecretInputHardening(TextField field) {
@@ -564,26 +693,35 @@ final class _FakeSessionSetupService implements SessionSetupService {
   int credentialCalls = 0;
   bool? lastAutomaticReauthentication;
   SessionSetupCancellation? lastCancellation;
+  String? lastAccessKey;
+  String? lastSessionCookie;
+  String? lastUsername;
 
   @override
   Future<SessionSetupResult> connectWithCookie({
+    String? accessKey,
     required String sessionCookie,
     required int userId,
     SessionSetupCancellation? cancellation,
   }) async {
     cookieCalls += 1;
+    lastAccessKey = accessKey;
+    lastSessionCookie = sessionCookie;
     lastCancellation = cancellation;
     return cookieGate?.future ?? cookieResult;
   }
 
   @override
   Future<SessionSetupResult> connectWithCredentials({
+    String? accessKey,
     required String username,
     required String password,
     required bool enableAutomaticReauthentication,
     SessionSetupCancellation? cancellation,
   }) async {
     credentialCalls += 1;
+    lastAccessKey = accessKey;
+    lastUsername = username;
     lastAutomaticReauthentication = enableAutomaticReauthentication;
     lastCancellation = cancellation;
     return const SessionSetupFailure(

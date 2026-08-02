@@ -169,6 +169,22 @@ String? _automaticReconnectMessage(AutomaticReauthenticationAttempt? attempt) {
     AutomaticReauthenticationFailureKind.notEnabled =>
       'Automatic reconnect is not enabled. Reconnect manually. '
           'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.accessKeyMissing ||
+    AutomaticReauthenticationFailureKind.accessKeyInvalid =>
+      'Automatic reconnect has no valid access key. Reconnect manually. '
+          'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.accessKeyNotActivated =>
+      'This access key is not activated. Use Username / password once, then '
+          'reconnect. Saved data remains available.',
+    AutomaticReauthenticationFailureKind.accessKeyAccountMismatch =>
+      'This access key cannot be used with this LEB2 account. Reconnect with '
+          'the correct key. Saved data remains available.',
+    AutomaticReauthenticationFailureKind.accessKeyReauthenticationRequired =>
+      'This access key needs Username / password reauthentication. Reconnect '
+          'manually. Saved data remains available.',
+    AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable =>
+      'Access-key verification is temporarily unavailable. Try again later. '
+          'Saved data remains available.',
     AutomaticReauthenticationFailureKind.cancelled ||
     AutomaticReauthenticationFailureKind.timedOut ||
     AutomaticReauthenticationFailureKind.superseded =>

@@ -6,7 +6,7 @@ part 'backend_models.freezed.dart';
 abstract class Semester with _$Semester {
   const Semester._();
 
-  const factory Semester({required int id}) = _Semester;
+  const factory Semester({required int id, required String name}) = _Semester;
 
   @override
   String toString() => 'Semester(redacted: true)';

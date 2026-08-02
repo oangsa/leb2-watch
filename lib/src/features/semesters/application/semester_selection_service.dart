@@ -1,6 +1,7 @@
 import '../../../core/network/backend_api_client.dart';
 import '../../../core/network/backend_error_mapper.dart';
 import '../../../core/network/backend_transport_failure.dart';
+import '../../../core/network/domain/backend_models.dart' as backend;
 import '../../../core/network/domain/sync_failure.dart';
 import '../../../core/session/session_lifecycle.dart';
 import '../data/semester_selection_store.dart';
@@ -15,8 +16,10 @@ abstract interface class SemesterSelectionService {
   Future<SemesterSelectionResult> select(int semesterId);
 }
 
-typedef SemesterIdRefreshInvoker =
-    Future<List<int>> Function({BackendRequestCancellation? cancellation});
+typedef SemesterRefreshInvoker =
+    Future<List<backend.Semester>> Function({
+      BackendRequestCancellation? cancellation,
+    });
 
 final class SemesterRefreshCancellation {
   final BackendRequestCancellation _requestCancellation =
@@ -83,12 +86,12 @@ final class LocalSemesterSelectionService implements SemesterSelectionService {
   LocalSemesterSelectionService(
     this._store,
     this._lifecycleStore,
-    this._refreshSemesterIds,
+    this._refreshSemesters,
   );
 
   final SemesterSelectionStore _store;
   final SessionLifecycleStore _lifecycleStore;
-  final SemesterIdRefreshInvoker _refreshSemesterIds;
+  final SemesterRefreshInvoker _refreshSemesters;
 
   Future<SemesterRefreshResult>? _inFlightRefresh;
 
@@ -134,9 +137,9 @@ final class LocalSemesterSelectionService implements SemesterSelectionService {
         );
       }
 
-      late final List<int> semesterIds;
+      late final List<backend.Semester> semesters;
       try {
-        semesterIds = await _refreshSemesterIds(
+        semesters = await _refreshSemesters(
           cancellation: cancellation?._requestCancellation,
         );
       } on BackendTransportException catch (error) {
@@ -163,12 +166,12 @@ final class LocalSemesterSelectionService implements SemesterSelectionService {
           UnknownSyncFailure(UnknownSyncFailureReason.cancelled),
         );
       }
-      if (semesterIds.isEmpty) {
+      if (semesters.isEmpty) {
         return const SemesterRefreshFailure(InvalidResponseFailure());
       }
 
       final merge = await _store.mergeIfSessionCurrent(
-        semesterIds,
+        semesters,
         expectedSession: capturedSession,
       );
       return switch (merge) {

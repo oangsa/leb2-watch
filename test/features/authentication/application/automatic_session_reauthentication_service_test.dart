@@ -19,6 +19,7 @@ import 'package:leb2_watch/src/features/authentication/data/session_identity_sto
 import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 
 const _oldCookie = '<SESSION_COOKIE_OLD>';
+const _testAccessKey = '00000000-0000-4000-8000-000000000001';
 const _newCookie = '<SESSION_COOKIE_NEW>';
 const _username = '<USERNAME>';
 const _password = '<PASSWORD>';
@@ -44,6 +45,11 @@ void main() {
 
       expect(result, isA<AutomaticSessionReauthenticationRecovered>());
       expect(fixture.backend.calls, ['login', 'cookie', 'verify']);
+      expect(fixture.backend.accessKeys, [
+        _testAccessKey,
+        _testAccessKey,
+        _testAccessKey,
+      ]);
       expect(fixture.credentials.cookie, _newCookie);
       expect(fixture.credentials.credentials, _credentials);
       expect(
@@ -76,6 +82,96 @@ void main() {
     );
     expect(fixture.backend.calls, isEmpty);
     expect(fixture.credentials.cookie, _oldCookie);
+  });
+
+  test(
+    'missing access key makes recovery terminal without a request',
+    () async {
+      final fixture = await _fixture(accessKey: null);
+      addTearDown(fixture.database.close);
+
+      final result = await fixture.service.reauthenticate(
+        expectedExpiredRevision: 7,
+      );
+
+      expect(
+        result,
+        isA<AutomaticSessionReauthenticationFailed>().having(
+          (value) => value.kind,
+          'kind',
+          AutomaticReauthenticationFailureKind.accessKeyMissing,
+        ),
+      );
+      expect(fixture.backend.calls, isEmpty);
+      expect(fixture.credentials.credentials, _credentials);
+      expect(fixture.credentials.cookie, _oldCookie);
+    },
+  );
+
+  test('access-key failures never delete saved LEB2 credentials', () async {
+    const cases = <(int, String, AutomaticReauthenticationFailureKind)>[
+      (
+        401,
+        'ACCESS_KEY_REQUIRED',
+        AutomaticReauthenticationFailureKind.accessKeyMissing,
+      ),
+      (
+        401,
+        'ACCESS_KEY_INVALID',
+        AutomaticReauthenticationFailureKind.accessKeyInvalid,
+      ),
+      (
+        403,
+        'ACCESS_KEY_NOT_ACTIVATED',
+        AutomaticReauthenticationFailureKind.accessKeyNotActivated,
+      ),
+      (
+        403,
+        'ACCESS_KEY_ALREADY_ASSIGNED',
+        AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
+      ),
+      (
+        403,
+        'ACCESS_KEY_IDENTITY_MISMATCH',
+        AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
+      ),
+      (
+        403,
+        'ACCESS_KEY_REAUTHENTICATION_REQUIRED',
+        AutomaticReauthenticationFailureKind.accessKeyReauthenticationRequired,
+      ),
+      (
+        409,
+        'ACCESS_KEY_IDENTITY_CONFLICT',
+        AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
+      ),
+      (
+        503,
+        'ACCESS_KEY_STORE_UNAVAILABLE',
+        AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable,
+      ),
+    ];
+
+    for (final (statusCode, responseCode, expected) in cases) {
+      final fixture = await _fixture();
+      try {
+        fixture.backend.loginFailure = _httpFailure(statusCode, responseCode);
+        expect(
+          await fixture.service.reauthenticate(expectedExpiredRevision: 7),
+          isA<AutomaticSessionReauthenticationFailed>().having(
+            (value) => value.kind,
+            'kind',
+            expected,
+          ),
+          reason: responseCode,
+        );
+        expect(fixture.backend.calls, ['login']);
+        expect(fixture.credentials.credentials, _credentials);
+        expect(fixture.credentials.cookie, _oldCookie);
+      } finally {
+        await fixture.database.close();
+      }
+    }
   });
 
   test(
@@ -673,6 +769,33 @@ void main() {
   );
 
   test(
+    'failed activation and access-key restoration report persistence uncertainty',
+    () async {
+      final fixture = await _fixture(
+        attemptStoreBuilder: (store) =>
+            _FaultingAttemptStore(store, throwActivate: true),
+      );
+      addTearDown(fixture.database.close);
+      fixture.credentials.throwOnAccessKeyRestore = true;
+
+      final result = await fixture.service.reauthenticate(
+        expectedExpiredRevision: 7,
+      );
+
+      expect(
+        result,
+        const AutomaticSessionReauthenticationFailed(
+          AutomaticReauthenticationFailureKind.unexpected,
+        ),
+      );
+      expect(
+        (await fixture.attempts.read(7))?.failureKind,
+        AutomaticReauthenticationFailureKind.unexpected,
+      );
+    },
+  );
+
+  test(
     'terminal-store failure reports unavailable instead of success',
     () async {
       final fixture = await _fixture(
@@ -778,6 +901,7 @@ void main() {
 }
 
 Future<_Fixture> _fixture({
+  String? accessKey = _testAccessKey,
   StoredCredentials? credentials = _credentials,
   Duration attemptTimeout = const Duration(seconds: 90),
   SessionMutationGate mutationGate = const _ImmediateSessionMutationGate(),
@@ -801,6 +925,7 @@ Future<_Fixture> _fixture({
   final attempts = DriftAutomaticSessionReauthenticationStore(database);
   final serviceAttempts = attemptStoreBuilder?.call(attempts) ?? attempts;
   final secure = _MemoryCredentialStore(
+    accessKey: accessKey,
     cookie: _oldCookie,
     credentials: credentials,
   );
@@ -854,16 +979,42 @@ final class _ImmediateSessionMutationGate implements SessionMutationGate {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
-  _MemoryCredentialStore({this.cookie, this.credentials});
+  _MemoryCredentialStore({
+    this.accessKey = _testAccessKey,
+    this.cookie,
+    this.credentials,
+  });
 
+  String? accessKey;
   String? cookie;
   StoredCredentials? credentials;
   bool throwAfterCandidateSave = false;
   bool throwOnCookieRestore = false;
+  bool throwOnAccessKeyRestore = false;
   bool throwAfterCredentialDelete = false;
+  var accessKeySaveCount = 0;
+
+  @override
+  Future<String?> readAccessKey() async => accessKey;
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    accessKeySaveCount += 1;
+    if (throwOnAccessKeyRestore && accessKeySaveCount > 1) {
+      throw const CredentialStoreException(
+        operation: CredentialStoreOperation.saveAccessKey,
+        reason: CredentialStoreFailureReason.secureStorageUnavailable,
+      );
+    }
+    accessKey = value;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async => accessKey = null;
 
   @override
   Future<void> clear() async {
+    accessKey = null;
     cookie = null;
     credentials = null;
   }
@@ -1079,6 +1230,7 @@ final class _FaultingAttemptStore extends _DelayedClaimStore {
 
 final class _FakeBackendSessionClient implements BackendSessionClient {
   final calls = <String>[];
+  final accessKeys = <String>[];
   final cookieEntered = Completer<void>();
   BackendTransportException? loginFailure;
   BackendTransportException? cookieFailure;
@@ -1090,12 +1242,15 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
   int identityId = 2001;
 
   @override
+  // ignore: unused_element_parameter
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('login');
+    accessKeys.add(accessKey);
     if (!loginEntered.isCompleted) {
       loginEntered.complete();
     }
@@ -1109,11 +1264,13 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 
   @override
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('cookie');
+    accessKeys.add(accessKey);
     if (!cookieEntered.isCompleted) {
       cookieEntered.complete();
     }
@@ -1127,16 +1284,18 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 
   @override
   Future<List<backend.Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) async {
     calls.add('verify');
+    accessKeys.add(accessKey);
     beforeVerify?.call();
     final failure = verifyFailure;
     if (failure != null) {
       throw failure;
     }
-    return const [backend.Semester(id: 101)];
+    return const [backend.Semester(id: 101, name: '1/2026')];
   }
 
   Future<void> _waitForGate(
@@ -1159,6 +1318,17 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
     }
   }
 }
+
+BackendTransportException _httpFailure(int statusCode, String responseCode) =>
+    BackendTransportException(
+      kind: BackendTransportFailureKind.httpResponse,
+      httpError: BackendHttpErrorEvidence(
+        statusCode: statusCode,
+        responseCode: responseCode,
+        envelopeKind: BackendErrorEnvelopeKind.standard,
+        hasBearerChallenge: false,
+      ),
+    );
 
 QueryExecutor _fileConnection(File file) {
   return NativeDatabase.createInBackground(

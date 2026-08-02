@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
@@ -235,6 +236,61 @@ void main() {
       ),
     );
   });
+
+  final accessKeyCases =
+      <({String category, DiagnosticsFailureCategory expected})>[
+        (
+          category: 'accessKey.invalid',
+          expected: DiagnosticsFailureCategory.accessKeyInvalid,
+        ),
+        (
+          category: 'accessKey.storeUnavailable',
+          expected: DiagnosticsFailureCategory.accessKeyStoreUnavailable,
+        ),
+      ];
+  for (final testCase in accessKeyCases) {
+    test(
+      'reopens ${testCase.category} as actionable diagnostics state',
+      () async {
+        await database.close();
+        final directory = await Directory.systemTemp.createTemp(
+          'leb2-watch-diagnostics-access-key-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final file = File('${directory.path}/leb2_watch.sqlite');
+        final first = AppDatabase.forTesting(NativeDatabase(file));
+        await _seedTarget(first);
+        await first
+            .into(first.syncRuns)
+            .insert(
+              SyncRunsCompanion.insert(
+                semesterId: 101,
+                reason: 'manualRefresh',
+                outcome: 'failure',
+                startedAtUtc: now,
+                completedAtUtc: drift.Value(
+                  now.add(const Duration(minutes: 1)),
+                ),
+                failureCategory: drift.Value(testCase.category),
+              ),
+            );
+        await first.close();
+
+        final reopened = AppDatabase.forTesting(NativeDatabase(file));
+        addTearDown(reopened.close);
+        final snapshot = await DriftSynchronizationDiagnosticsStore(
+          reopened,
+          utcNow: () => now,
+        ).read();
+
+        expect(snapshot.lastFailureCategory, testCase.expected);
+        expect(
+          snapshot.lastFailureCategory,
+          isNot(DiagnosticsFailureCategory.unknown),
+        );
+      },
+    );
+  }
 }
 
 Future<void> _seedTarget(AppDatabase database) async {

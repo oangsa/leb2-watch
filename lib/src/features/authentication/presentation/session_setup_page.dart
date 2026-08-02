@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/design_system/app_tokens.dart';
+import '../../../core/security/credential_store.dart';
 import '../application/session_setup_service.dart';
 
 enum SessionSetupMethod { sessionCookie, credentials }
@@ -32,18 +33,21 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   static const _maximumWideTextScale = 1.5;
 
   final _cookieController = TextEditingController();
+  final _accessKeyController = TextEditingController();
   final _userIdController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _cookieFocus = FocusNode();
+  final _accessKeyFocus = FocusNode();
   final _userIdFocus = FocusNode();
   final _usernameFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
-  SessionSetupMethod _method = SessionSetupMethod.sessionCookie;
+  SessionSetupMethod _method = SessionSetupMethod.credentials;
   SavedSessionSummary? _savedSummary;
   SessionSetupCancellation? _cancellation;
   String? _cookieError;
+  String? _accessKeyError;
   String? _userIdError;
   String? _usernameError;
   String? _passwordError;
@@ -52,6 +56,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   bool _busy = false;
   bool _summaryLoading = true;
   bool _showCookie = false;
+  bool _showAccessKey = false;
   bool _showPassword = false;
   bool _automaticReauthentication = false;
   bool _navigationPending = false;
@@ -81,6 +86,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     if (!_validateCurrentMethod()) {
       return;
     }
+    final accessKey = normalizeAccessKey(_accessKeyController.text)!;
 
     final operationId = ++_operationId;
     final cancellation = SessionSetupCancellation();
@@ -94,12 +100,14 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     final SessionSetupResult result;
     if (_method == SessionSetupMethod.sessionCookie) {
       result = await widget.service.connectWithCookie(
+        accessKey: accessKey,
         sessionCookie: _cookieController.text,
         userId: int.parse(_userIdController.text),
         cancellation: cancellation,
       );
     } else {
       result = await widget.service.connectWithCredentials(
+        accessKey: accessKey,
         username: _usernameController.text,
         password: _passwordController.text,
         enableAutomaticReauthentication: _automaticReauthentication,
@@ -131,6 +139,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   bool _validateCurrentMethod() {
     setState(() {
       _cookieError = null;
+      _accessKeyError = null;
       _userIdError = null;
       _usernameError = null;
       _passwordError = null;
@@ -139,6 +148,9 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     });
 
     if (_method == SessionSetupMethod.sessionCookie) {
+      if (!_validateAccessKey()) {
+        return false;
+      }
       if (_cookieController.text.trim().isEmpty) {
         setState(() {
           _cookieError = 'Enter your current LEB2 session cookie.';
@@ -157,6 +169,9 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       return true;
     }
 
+    if (!_validateAccessKey()) {
+      return false;
+    }
     if (_usernameController.text.trim().isEmpty) {
       setState(() {
         _usernameError = 'Enter your LEB2 username.';
@@ -169,6 +184,18 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         _passwordError = 'Enter your LEB2 password.';
       });
       _passwordFocus.requestFocus();
+      return false;
+    }
+    return true;
+  }
+
+  bool _validateAccessKey() {
+    if (normalizeAccessKey(_accessKeyController.text) == null) {
+      setState(() {
+        _accessKeyError =
+            'Enter the UUID access key provided by your backend operator.';
+      });
+      _accessKeyFocus.requestFocus();
       return false;
     }
     return true;
@@ -253,6 +280,17 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         'Local session settings could not be saved.',
       SessionSetupFailureKind.differentAccountData =>
         'This device has data for another LEB2 account. Delete local data before connecting a different account.',
+      SessionSetupFailureKind.accessKeyMissing ||
+      SessionSetupFailureKind.accessKeyInvalid =>
+        'This access key is missing or no longer valid. Enter a key provided by your backend operator.',
+      SessionSetupFailureKind.accessKeyNotActivated =>
+        'This access key has not been activated. Sign in with Username / password once to activate it.',
+      SessionSetupFailureKind.accessKeyAccountMismatch =>
+        'This access key cannot be used with this LEB2 account.',
+      SessionSetupFailureKind.accessKeyReauthenticationRequired =>
+        'Sign in with Username / password to finish initializing this access key.',
+      SessionSetupFailureKind.accessKeyStoreUnavailable =>
+        'Access-key verification is temporarily unavailable. Try again later.',
       SessionSetupFailureKind.persistenceUncertain =>
         'Saving could not be completed or safely restored. Review the saved-session status before trying again.',
       SessionSetupFailureKind.cancelled => 'Connection check cancelled.',
@@ -374,6 +412,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
                       setState(() {
                         _method = selection.single;
                         _cookieError = null;
+                        _accessKeyError = null;
                         _userIdError = null;
                         _usernameError = null;
                         _passwordError = null;
@@ -383,6 +422,8 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
                     },
             ),
             const SizedBox(height: AppSpacing.lg),
+            _accessKeyField(),
+            const SizedBox(height: AppSpacing.md),
             if (_method == SessionSetupMethod.sessionCookie)
               _cookieFields()
             else
@@ -459,6 +500,34 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _accessKeyField() {
+    return TextField(
+      key: const Key('session-access-key-field'),
+      controller: _accessKeyController,
+      focusNode: _accessKeyFocus,
+      enabled: !_busy && !_navigationPending,
+      obscureText: !_showAccessKey,
+      autocorrect: false,
+      enableSuggestions: false,
+      smartDashesType: SmartDashesType.disabled,
+      smartQuotesType: SmartQuotesType.disabled,
+      enableIMEPersonalizedLearning: false,
+      keyboardType: TextInputType.visiblePassword,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: 'Access key',
+        helperText: 'Provided by your LEB2 Watch backend operator.',
+        errorText: _accessKeyError,
+        suffixIcon: _SecretVisibilityButton(
+          visible: _showAccessKey,
+          onPressed: _busy
+              ? null
+              : () => setState(() => _showAccessKey = !_showAccessKey),
+        ),
+      ),
     );
   }
 
@@ -624,13 +693,16 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   void dispose() {
     _cancellation?.cancel();
     _cookieController.clear();
+    _accessKeyController.clear();
     _usernameController.clear();
     _passwordController.clear();
     _cookieController.dispose();
+    _accessKeyController.dispose();
     _userIdController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     _cookieFocus.dispose();
+    _accessKeyFocus.dispose();
     _userIdFocus.dispose();
     _usernameFocus.dispose();
     _passwordFocus.dispose();
@@ -680,10 +752,10 @@ class _ConnectionIntroduction extends StatelessWidget {
             ),
           ),
           child: Text(
-            'Your saved session cookie is kept at rest in operating-system '
-            'secure storage. Protected backend requests temporarily send that '
-            'cookie and your numeric LEB2 user ID. The ID stays in local '
-            'SQLite between requests.',
+            'Your access key and saved session cookie stay in operating-system '
+            'secure storage. Protected backend requests temporarily send both '
+            'values and your numeric LEB2 user ID. The ID stays in local SQLite '
+            'between requests.',
             style: textTheme.bodyLarge,
           ),
         ),

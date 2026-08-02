@@ -283,13 +283,25 @@ final class _ImmediateGate implements SessionMutationGate {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
-  _MemoryCredentialStore({this.cookie, this.credentials});
+  // ignore: unused_element_parameter
+  _MemoryCredentialStore({this.accessKey, this.cookie, this.credentials});
 
+  String? accessKey;
   String? cookie;
   StoredCredentials? credentials;
 
   @override
+  Future<String?> readAccessKey() async => accessKey;
+
+  @override
+  Future<void> saveAccessKey(String value) async => accessKey = value;
+
+  @override
+  Future<void> deleteAccessKey() async => accessKey = null;
+
+  @override
   Future<void> clear() async {
+    accessKey = null;
     cookie = null;
     credentials = null;
   }
@@ -324,7 +336,9 @@ final class _BackendSessionClient implements BackendSessionClient {
   final cookieEntered = Completer<void>();
 
   @override
+  // ignore: unused_element_parameter
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -338,6 +352,7 @@ final class _BackendSessionClient implements BackendSessionClient {
 
   @override
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -345,10 +360,11 @@ final class _BackendSessionClient implements BackendSessionClient {
 
   @override
   Future<List<backend.Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) async {
     await beforeVerify?.call();
-    return const [backend.Semester(id: 101)];
+    return const [backend.Semester(id: 101, name: '1/2026')];
   }
 }

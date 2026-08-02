@@ -58,14 +58,16 @@ Map<String, List<String>>? _nullableValidationErrors(Object? value) {
   return Map<String, List<String>>.unmodifiable(result);
 }
 
+@JsonSerializable(checked: true, createToJson: false)
 final class SemesterDto {
-  const SemesterDto(this.id);
+  const SemesterDto({required this.id, required this.name});
 
-  factory SemesterDto.fromJson(Object? json) {
-    return SemesterDto(_requiredInt(json));
-  }
+  factory SemesterDto.fromJson(Map<String, dynamic> json) =>
+      _$SemesterDtoFromJson(json);
 
+  @JsonKey(fromJson: _requiredInt)
   final int id;
+  final String name;
 
   @override
   String toString() => 'SemesterDto(redacted: true)';

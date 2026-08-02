@@ -2,6 +2,7 @@ part of 'backend_api_client.dart';
 
 const _maximumInt32 = 2147483647;
 const _authorizationHeader = 'Authorization';
+const _accessKeyHeader = 'access-key';
 const _userIdHeader = 'X-LEB2-USER-ID';
 
 final class DioBackendApiClient
@@ -58,15 +59,20 @@ final class DioBackendApiClient
 
   @override
   Future<List<Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) {
+    final candidateAccessKey = _requireAccessKey(accessKey);
     _requireNonblankRequest(candidateCookie, 'candidateCookie');
     return _execute(
       dio: _sessionDio,
       route: BackendTransportRoute.sessionVerification,
       path: '/Semester',
-      headers: {_authorizationHeader: 'Bearer $candidateCookie'},
+      headers: {
+        _accessKeyHeader: candidateAccessKey,
+        _authorizationHeader: 'Bearer $candidateCookie',
+      },
       cancellation: cancellation,
       mapSuccess: _mapSemesters,
     );
@@ -74,10 +80,12 @@ final class DioBackendApiClient
 
   @override
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) {
+    final candidateAccessKey = _requireAccessKey(accessKey);
     _requireNonblankRequest(username, 'username');
     _requireNonblankRequest(password, 'password');
     final request = BackendCredentialsRequestDto(
@@ -89,6 +97,7 @@ final class DioBackendApiClient
       method: BackendTransportMethod.post,
       route: BackendTransportRoute.userLogin,
       path: '/User/login',
+      headers: {_accessKeyHeader: candidateAccessKey},
       data: request.toJson(),
       cancellation: cancellation,
       mapSuccess: _mapUserIdentity,
@@ -97,10 +106,12 @@ final class DioBackendApiClient
 
   @override
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
   }) {
+    final candidateAccessKey = _requireAccessKey(accessKey);
     _requireNonblankRequest(username, 'username');
     _requireNonblankRequest(password, 'password');
     final request = BackendCredentialsRequestDto(
@@ -112,6 +123,7 @@ final class DioBackendApiClient
       method: BackendTransportMethod.post,
       route: BackendTransportRoute.sessionCookieAcquisition,
       path: '/User/cookie',
+      headers: {_accessKeyHeader: candidateAccessKey},
       data: request.toJson(),
       cancellation: cancellation,
       mapSuccess: _mapSessionCookie,
@@ -467,6 +479,44 @@ final class _CredentialInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    final String? accessKey;
+    try {
+      accessKey = await _credentialStore.readAccessKey();
+    } on Object {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: const _CredentialFailure(
+            BackendTransportFailureKind.accessKeyStoreUnavailable,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (accessKey == null || accessKey.trim().isEmpty) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: const _CredentialFailure(
+            BackendTransportFailureKind.missingAccessKey,
+          ),
+        ),
+      );
+      return;
+    }
+    if (normalizeAccessKey(accessKey) == null) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: const _CredentialFailure(
+            BackendTransportFailureKind.invalidAccessKey,
+          ),
+        ),
+      );
+      return;
+    }
+
     final String? cookie;
     try {
       cookie = await _credentialStore.readSessionCookie();
@@ -482,7 +532,7 @@ final class _CredentialInterceptor extends Interceptor {
       return;
     }
 
-    if (cookie == null) {
+    if (cookie == null || cookie.trim().isEmpty) {
       handler.reject(
         DioException(
           requestOptions: options,
@@ -494,6 +544,7 @@ final class _CredentialInterceptor extends Interceptor {
       return;
     }
 
+    options.headers[_accessKeyHeader] = accessKey.trim();
     options.headers[_authorizationHeader] = 'Bearer $cookie';
     handler.next(options);
   }
@@ -514,12 +565,14 @@ List<Semester> _mapSemesters(Object? json) {
   final semesters = <Semester>[];
 
   for (final value in values) {
-    final dto = SemesterDto.fromJson(value);
+    final dto = SemesterDto.fromJson(_asJsonObject(value));
     _requireResponsePositiveInt32(dto.id);
+    final name = dto.name.trim();
+    _requireNonblank(name);
     if (!seen.add(dto.id)) {
       throw const _ResponseInvariantException();
     }
-    semesters.add(Semester(id: dto.id));
+    semesters.add(Semester(id: dto.id, name: name));
   }
   return List<Semester>.unmodifiable(semesters);
 }
@@ -679,6 +732,14 @@ void _requireNonblankRequest(String value, String name) {
   }
 }
 
+String _requireAccessKey(String value) {
+  final normalized = normalizeAccessKey(value);
+  if (normalized == null) {
+    throw ArgumentError('accessKey must be one valid UUID.');
+  }
+  return normalized;
+}
+
 void _requireResponsePositiveInt32(int value) {
   if (value <= 0 || value > _maximumInt32) {
     throw const _ResponseInvariantException();
@@ -768,6 +829,12 @@ Object? _canonicalizeJson(Object? value) {
 
 BackendTransportOutcome _eventOutcome(BackendTransportFailureKind kind) {
   return switch (kind) {
+    BackendTransportFailureKind.missingAccessKey =>
+      BackendTransportOutcome.missingAccessKey,
+    BackendTransportFailureKind.invalidAccessKey =>
+      BackendTransportOutcome.invalidAccessKey,
+    BackendTransportFailureKind.accessKeyStoreUnavailable =>
+      BackendTransportOutcome.accessKeyStoreUnavailable,
     BackendTransportFailureKind.missingCredential =>
       BackendTransportOutcome.missingCredential,
     BackendTransportFailureKind.credentialAccessFailed =>

@@ -513,11 +513,26 @@ Future<void> _waitFor(bool Function() predicate) async {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
+  String? accessKey;
   String? sessionCookie;
   StoredCredentials? credentials;
 
   @override
+  Future<String?> readAccessKey() async => accessKey;
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    accessKey = value;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async {
+    accessKey = null;
+  }
+
+  @override
   Future<void> clear() async {
+    accessKey = null;
     sessionCookie = null;
     credentials = null;
   }
@@ -604,6 +619,7 @@ final class _NoRequestBackendClient
 
   @override
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -613,6 +629,7 @@ final class _NoRequestBackendClient
 
   @override
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -646,6 +663,7 @@ final class _NoRequestBackendClient
 
   @override
   Future<List<backend.Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
   }) {

@@ -62,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration {
@@ -72,7 +72,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 13 || to != 14) {
+        if (from < 1 || from > 16 || to != 17) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -127,7 +127,24 @@ class AppDatabase extends _$AppDatabase {
           );
           await migrator.createTable(deadlineReminderDeliveryOutbox);
         }
-        await migrator.createTable(assignmentDashboardPreferencesRecords);
+        if (from <= 13) {
+          await migrator.createTable(assignmentDashboardPreferencesRecords);
+        }
+        if (from >= 12 && from <= 14) {
+          await _migrateFrom14To15(migrator);
+        }
+        if (from >= 2) {
+          await migrator.alterTable(TableMigration(syncOperations));
+        }
+        if (from >= 4) {
+          await migrator.alterTable(TableMigration(syncBackoffStates));
+        }
+        if (from <= 16) {
+          await customStatement(
+            'ALTER TABLE semesters ADD COLUMN name TEXT NULL '
+            'CHECK (name IS NULL OR length(trim(name)) > 0)',
+          );
+        }
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -150,6 +167,23 @@ class AppDatabase extends _$AppDatabase {
         );
       },
     );
+  }
+
+  Future<void> _migrateFrom14To15(Migrator migrator) async {
+    const legacyTable = 'automatic_session_reauthentication_attempts_schema14';
+    await customStatement(
+      'ALTER TABLE automatic_session_reauthentication_attempts '
+      'RENAME TO $legacyTable',
+    );
+    await migrator.createTable(automaticSessionReauthenticationAttempts);
+    await customStatement(
+      'INSERT INTO automatic_session_reauthentication_attempts '
+      '(session_revision, state, started_at_utc, deadline_at_utc, '
+      'completed_at_utc, failure_kind) '
+      'SELECT session_revision, state, started_at_utc, deadline_at_utc, '
+      'completed_at_utc, failure_kind FROM $legacyTable',
+    );
+    await customStatement('DROP TABLE $legacyTable');
   }
 
   Future<void> _seedSingletons() async {

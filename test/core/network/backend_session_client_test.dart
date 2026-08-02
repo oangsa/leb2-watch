@@ -13,6 +13,7 @@ import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'network_test_support.dart';
 
 const _baseUrl = 'https://example.invalid';
+const _candidateAccessKey = '00000000-0000-4000-8000-000000000001';
 const _candidateCookie = '<CANDIDATE_SESSION>';
 const _username = '<USERNAME>';
 const _password = '<PASSWORD>';
@@ -23,6 +24,7 @@ void main() {
       'uses the candidate directly without reading or mutating storage',
       () async {
         final credentials = MemoryCredentialStore(
+          accessKey: '00000000-0000-4000-8000-000000000002',
           sessionCookie: '<SAVED_SESSION>',
           credentials: const StoredCredentials(
             username: '<SAVED_USERNAME>',
@@ -32,18 +34,21 @@ void main() {
         final adapter = CallbackHttpClientAdapter((options, _, _) {
           expect(options.method, 'GET');
           expect(options.path, '/Semester');
+          expect(options.headers['access-key'], _candidateAccessKey);
           expect(options.headers['Authorization'], 'Bearer $_candidateCookie');
           expect(options.headers, isNot(contains('X-LEB2-USER-ID')));
           return _fixtureResponse('semesters_success.json');
         });
 
-        final semesters = await _client(
-          adapter,
-          credentials: credentials,
-        ).verifySessionCookie(candidateCookie: _candidateCookie);
+        final semesters = await _client(adapter, credentials: credentials)
+            .verifySessionCookie(
+              accessKey: _candidateAccessKey,
+              candidateCookie: _candidateCookie,
+            );
 
         expect(semesters.map((semester) => semester.id), [101, 102]);
         expect(credentials.sessionReadCount, 0);
+        expect(credentials.accessKeyReadCount, 0);
         expect(credentials.credentialReadCount, 0);
         expect(credentials.mutationCount, 0);
         expect(credentials.sessionCookie, '<SAVED_SESSION>');
@@ -55,9 +60,10 @@ void main() {
         (_, _, _) => jsonResponse(const <int>[]),
       );
       expect(
-        await _client(
-          adapter,
-        ).verifySessionCookie(candidateCookie: _candidateCookie),
+        await _client(adapter).verifySessionCookie(
+          accessKey: _candidateAccessKey,
+          candidateCookie: _candidateCookie,
+        ),
         isEmpty,
       );
     });
@@ -69,7 +75,10 @@ void main() {
       final client = _client(adapter);
 
       expect(
-        () => client.verifySessionCookie(candidateCookie: '   '),
+        () => client.verifySessionCookie(
+          accessKey: _candidateAccessKey,
+          candidateCookie: '   ',
+        ),
         throwsArgumentError,
       );
       expect(adapter.requests, isEmpty);
@@ -100,9 +109,10 @@ void main() {
         ]) {
           final adapter = CallbackHttpClientAdapter((_, _, _) => response);
           await expectLater(
-            _client(
-              adapter,
-            ).verifySessionCookie(candidateCookie: _candidateCookie),
+            _client(adapter).verifySessionCookie(
+              accessKey: _candidateAccessKey,
+              candidateCookie: _candidateCookie,
+            ),
             throwsA(_failure(BackendTransportFailureKind.invalidResponse)),
           );
         }
@@ -145,9 +155,10 @@ void main() {
                 _fixtureResponse(fixture, statusCode: status, headers: headers),
           );
           final error = await _capture(
-            _client(
-              adapter,
-            ).verifySessionCookie(candidateCookie: _candidateCookie),
+            _client(adapter).verifySessionCookie(
+              accessKey: _candidateAccessKey,
+              candidateCookie: _candidateCookie,
+            ),
           );
           expect(error.kind, BackendTransportFailureKind.httpResponse);
           expect(error.httpError?.responseCode, code);
@@ -165,6 +176,7 @@ void main() {
       });
       await expectLater(
         _client(beforeAdapter).verifySessionCookie(
+          accessKey: _candidateAccessKey,
           candidateCookie: _candidateCookie,
           cancellation: before,
         ),
@@ -187,6 +199,7 @@ void main() {
       });
       final during = BackendRequestCancellation();
       final operation = _client(duringAdapter).verifySessionCookie(
+        accessKey: _candidateAccessKey,
         candidateCookie: _candidateCookie,
         cancellation: during,
       );
@@ -229,10 +242,12 @@ void main() {
         final client = _client(adapter, credentials: credentials);
 
         final identity = await client.authenticateUser(
+          accessKey: _candidateAccessKey,
           username: _username,
           password: _password,
         );
         final cookie = await client.acquireSessionCookie(
+          accessKey: _candidateAccessKey,
           username: _username,
           password: _password,
         );
@@ -258,9 +273,11 @@ void main() {
         (_, _, _) => jsonResponse(body),
       );
 
-      final identity = await _client(
-        adapter,
-      ).authenticateUser(username: _username, password: _password);
+      final identity = await _client(adapter).authenticateUser(
+        accessKey: _candidateAccessKey,
+        username: _username,
+        password: _password,
+      );
 
       expect(identity.id, 2001);
     });
@@ -293,9 +310,11 @@ void main() {
             (_, _, _) => jsonResponse(body),
           );
           await expectLater(
-            _client(
-              adapter,
-            ).authenticateUser(username: _username, password: _password),
+            _client(adapter).authenticateUser(
+              accessKey: _candidateAccessKey,
+              username: _username,
+              password: _password,
+            ),
             throwsA(_failure(BackendTransportFailureKind.invalidResponse)),
           );
         }
@@ -309,9 +328,11 @@ void main() {
         final validAdapter = CallbackHttpClientAdapter(
           (_, _, _) => jsonResponse(const {'cookie': opaque}),
         );
-        final cookie = await _client(
-          validAdapter,
-        ).acquireSessionCookie(username: _username, password: _password);
+        final cookie = await _client(validAdapter).acquireSessionCookie(
+          accessKey: _candidateAccessKey,
+          username: _username,
+          password: _password,
+        );
         expect(cookie.value, opaque);
 
         for (final body in <Object>[
@@ -324,9 +345,11 @@ void main() {
             (_, _, _) => jsonResponse(body),
           );
           await expectLater(
-            _client(
-              adapter,
-            ).acquireSessionCookie(username: _username, password: _password),
+            _client(adapter).acquireSessionCookie(
+              accessKey: _candidateAccessKey,
+              username: _username,
+              password: _password,
+            ),
             throwsA(_failure(BackendTransportFailureKind.invalidResponse)),
           );
         }
@@ -340,11 +363,19 @@ void main() {
       final client = _client(adapter);
 
       expect(
-        () => client.authenticateUser(username: '', password: _password),
+        () => client.authenticateUser(
+          accessKey: _candidateAccessKey,
+          username: '',
+          password: _password,
+        ),
         throwsArgumentError,
       );
       expect(
-        () => client.acquireSessionCookie(username: _username, password: ' '),
+        () => client.acquireSessionCookie(
+          accessKey: _candidateAccessKey,
+          username: _username,
+          password: ' ',
+        ),
         throwsArgumentError,
       );
       expect(adapter.requests, isEmpty);
@@ -359,10 +390,12 @@ void main() {
       });
       final client = _client(adapter, eventSink: events.add);
       final identity = await client.authenticateUser(
+        accessKey: _candidateAccessKey,
         username: _username,
         password: _password,
       );
       final cookie = await client.acquireSessionCookie(
+        accessKey: _candidateAccessKey,
         username: _username,
         password: _password,
       );

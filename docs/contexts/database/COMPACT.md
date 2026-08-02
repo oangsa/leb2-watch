@@ -67,10 +67,10 @@ resolver lease leak.
 
 ### Architecture
 
-`AppDatabase` — schema v14, migration, connection pragmas, bounded sync history.
+`AppDatabase` — schema v17, migration, connection pragmas, bounded sync history.
 `LocalDatabaseStorage` — production file lifecycle, eager `NativeDatabase.createInBackground`. Busy timeout installed before WAL transition. BUSY/LOCKED WAL races receive short bounded retry.
 
-**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version. First connection creates v14 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v14, no duplicate `createAll`.
+**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version. First connection creates v16 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v16, no duplicate `createAll`.
 
 **Existing/legacy databases**: No outer transaction, so ordered Drift table-rebuild migrations remain valid.
 
@@ -81,7 +81,7 @@ resolver lease leak.
 `insertAndPruneSyncRun` — bounded insert within existing sync transaction, avoids nested transaction.
 
 **Feature-owned adapters**:
-- `DriftSemesterSelectionStore` — reads catalog + selection transactionally, merges verified IDs insert-only, compares session lifecycle in same transaction before persisting network result.
+- `DriftSemesterSelectionStore` — reads structured semester catalog + selection transactionally, upserts verified IDs and display names, compares session lifecycle in same transaction before persisting network result.
 - `DriftAssignmentDashboardStore` — observes app settings,
   courses/activities, first-seen ledger, and bounded sync history; it also
   reads and replaces the singleton dashboard-preference record.
@@ -91,13 +91,21 @@ Deadline reminders consume durable reconciliation state through guarded generati
 
 ## Data Model
 
-`AppDatabase` is schema version 14. Its ordered migrations preserve supported
+`AppDatabase` is schema version 17. Its ordered migrations preserve supported
 upgrades, including frozen physical v12 and v13 fixtures. The v13→v14 path
-adds and seeds the singleton `assignment_dashboard_preferences` table. Drift
+adds and seeds the singleton `assignment_dashboard_preferences` table. The
+v14→v15 path rebuilds only the automatic-reauthentication attempt table to
+extend its checked failure-kind contract. The v15→v16 path rebuilds only the
+synchronization operation and backoff tables to persist access-key failure
+reasons, preserving all rows and the rest of the local database. Drift
 owns schema declarations and generated query code; application
 features own row semantics.
 
-The database owns the local-first semester graph (semesters, courses,
+The v16→v17 path adds nullable semester display names. Legacy rows retain
+`NULL` until the next successful structured `/Semester` refresh.
+
+The database owns the local-first semester graph (semesters with nullable
+legacy display names, courses,
 preferences, activities, identities, fingerprints, reminders, notification
 history, outbox, sync runs/operations/changes, backoff, and baselines), global
 settings, assignment-dashboard filter preferences, and non-secret
@@ -131,7 +139,7 @@ durable cross-isolate single-flight coordination.
 ### Important files
 
 - `lib/src/core/database/database_tables.dart` — 22 table definitions, constraints, indices
-- `lib/src/core/database/app_database.dart` — schema v14, migration, connection pragmas
+- `lib/src/core/database/app_database.dart` — schema v17, migration, connection pragmas
 - `lib/src/core/database/app_database.g.dart` — generated Drift source
 - `lib/src/core/database/local_database_storage.dart` — file lifecycle, eager background open
 - `lib/src/core/database/utc_date_time_converter.dart` — UTC epoch-millisecond conversion

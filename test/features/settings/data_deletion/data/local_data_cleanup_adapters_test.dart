@@ -912,6 +912,15 @@ final class _CredentialStore implements CredentialStore {
   int clearCalls = 0;
 
   @override
+  Future<String?> readAccessKey() async => null;
+
+  @override
+  Future<void> saveAccessKey(String value) async {}
+
+  @override
+  Future<void> deleteAccessKey() async {}
+
+  @override
   Future<void> clear() async {
     clearCalls += 1;
     if (throwOnClear) {
@@ -939,6 +948,7 @@ final class _CredentialStore implements CredentialStore {
 }
 
 final class _RecoveryCredentialStore implements CredentialStore {
+  String? accessKey = '00000000-0000-4000-8000-000000000001';
   String? cookie = '<SESSION_COOKIE_OLD>';
   StoredCredentials? credentials = const StoredCredentials(
     username: '<USERNAME>',
@@ -948,8 +958,23 @@ final class _RecoveryCredentialStore implements CredentialStore {
   int writesAfterClear = 0;
 
   @override
+  Future<String?> readAccessKey() async => accessKey;
+
+  @override
+  Future<void> saveAccessKey(String value) async {
+    if (cleared) {
+      writesAfterClear += 1;
+    }
+    accessKey = value;
+  }
+
+  @override
+  Future<void> deleteAccessKey() async => accessKey = null;
+
+  @override
   Future<void> clear() async {
     cleared = true;
+    accessKey = null;
     cookie = null;
     credentials = null;
   }
@@ -993,6 +1018,7 @@ final class _DelayedRecoveryBackend implements BackendSessionClient {
 
   @override
   Future<BackendUserIdentity> authenticateUser({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -1000,6 +1026,7 @@ final class _DelayedRecoveryBackend implements BackendSessionClient {
 
   @override
   Future<BackendSessionCookie> acquireSessionCookie({
+    required String accessKey,
     required String username,
     required String password,
     BackendRequestCancellation? cancellation,
@@ -1011,7 +1038,8 @@ final class _DelayedRecoveryBackend implements BackendSessionClient {
 
   @override
   Future<List<backend.Semester>> verifySessionCookie({
+    required String accessKey,
     required String candidateCookie,
     BackendRequestCancellation? cancellation,
-  }) async => const [backend.Semester(id: 101)];
+  }) async => const [backend.Semester(id: 101, name: '1/2026')];
 }

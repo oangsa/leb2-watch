@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
+import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
@@ -111,7 +112,7 @@ void main() {
   );
 
   test('concurrent refresh calls join one request and operation', () async {
-    final gate = Completer<List<int>>();
+    final gate = Completer<List<Semester>>();
     refreshInvoker.gate = gate;
 
     final first = service.refresh();
@@ -120,7 +121,7 @@ void main() {
 
     expect(second, same(first));
     expect(refreshInvoker.calls, 1);
-    gate.complete(const [101]);
+    gate.complete(const [Semester(id: 101, name: '1/2026')]);
     expect(await first, isA<SemesterRefreshSuccess>());
     expect(store.mergeCalls, 1);
   });
@@ -246,7 +247,7 @@ void main() {
   });
 
   test('exact expiration wins a pending-request cancellation race', () async {
-    final gate = Completer<List<int>>();
+    final gate = Completer<List<Semester>>();
     refreshInvoker.gate = gate;
     final cancellation = SemesterRefreshCancellation();
 
@@ -307,12 +308,12 @@ void main() {
     );
     expect(refreshInvoker.calls, 0);
 
-    final gate = Completer<List<int>>();
+    final gate = Completer<List<Semester>>();
     refreshInvoker.gate = gate;
     final during = SemesterRefreshCancellation();
     final pending = service.refresh(cancellation: during);
     during.cancel();
-    gate.complete(const [101]);
+    gate.complete(const [Semester(id: 101, name: '1/2026')]);
 
     expect(
       await pending,
@@ -379,17 +380,22 @@ void main() {
 
 final class _FakeSemesterIdRefreshInvoker {
   List<int> semesterIds = const [101];
-  Completer<List<int>>? gate;
+  Completer<List<Semester>>? gate;
   Object? failure;
   int calls = 0;
 
-  Future<List<int>> call({BackendRequestCancellation? cancellation}) async {
+  Future<List<Semester>> call({
+    BackendRequestCancellation? cancellation,
+  }) async {
     calls += 1;
     final error = failure;
     if (error != null) {
       throw error;
     }
-    return gate?.future ?? semesterIds;
+    return gate?.future ??
+        semesterIds
+            .map((id) => Semester(id: id, name: 'Semester $id'))
+            .toList(growable: false);
   }
 }
 
@@ -415,11 +421,11 @@ final class _FakeSemesterSelectionStore implements SemesterSelectionStore {
 
   @override
   Future<SemesterCatalogMergeResult> mergeIfSessionCurrent(
-    Iterable<int> semesterIds, {
+    Iterable<Semester> semesters, {
     required SessionLifecycleSnapshot expectedSession,
   }) async {
     mergeCalls += 1;
-    mergedIds = semesterIds.toList();
+    mergedIds = semesters.map((semester) => semester.id).toList();
     this.expectedSession = expectedSession;
     final error = mergeFailure;
     if (error != null) {
@@ -430,7 +436,7 @@ final class _FakeSemesterSelectionStore implements SemesterSelectionStore {
       return result;
     }
     catalog = SemesterCatalog(
-      semesterIds: [...semesterIds]..sort((a, b) => b.compareTo(a)),
+      semesters: [...semesters]..sort((a, b) => b.id.compareTo(a.id)),
       activeSemesterId: catalog.activeSemesterId,
     );
     return SemesterCatalogMerged(catalog);

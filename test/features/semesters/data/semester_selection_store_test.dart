@@ -2,6 +2,8 @@ import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
+import 'package:leb2_watch/src/core/network/domain/backend_models.dart'
+    as backend;
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 
@@ -52,8 +54,8 @@ void main() {
     );
 
     final result = await store.mergeIfSessionCurrent([
-      202,
-      303,
+      const backend.Semester(id: 202, name: '2/2026'),
+      const backend.Semester(id: 303, name: '3/2026'),
     ], expectedSession: session);
 
     expect(result, isA<SemesterCatalogMerged>());
@@ -110,7 +112,9 @@ void main() {
     );
     for (final id in [0, -1, 2147483648]) {
       expect(
-        () => store.mergeIfSessionCurrent([id], expectedSession: session),
+        () => store.mergeIfSessionCurrent([
+          backend.Semester(id: id, name: 'Legacy'),
+        ], expectedSession: session),
         throwsArgumentError,
       );
       expect(() => store.select(id), throwsArgumentError);
@@ -139,7 +143,7 @@ void main() {
         );
 
     final result = await store.mergeIfSessionCurrent(
-      [101],
+      [const backend.Semester(id: 101, name: '1/2026')],
       expectedSession: const SessionLifecycleSnapshot(
         state: SessionLifecycleState.active,
         revision: 1,
@@ -169,7 +173,10 @@ void main() {
 
     await expectLater(
       store.mergeIfSessionCurrent(
-        [202, 303],
+        [
+          const backend.Semester(id: 202, name: '2/2026'),
+          const backend.Semester(id: 303, name: '3/2026'),
+        ],
         expectedSession: const SessionLifecycleSnapshot(
           state: SessionLifecycleState.active,
           revision: 1,
