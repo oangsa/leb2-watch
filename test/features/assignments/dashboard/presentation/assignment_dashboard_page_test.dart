@@ -376,6 +376,60 @@ void main() {
     expect(find.text('Filters (3)'), findsOneWidget);
   });
 
+  testWidgets('deleting submitted chip hides submitted assignments', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = FakeAssignmentDashboardService(
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'pending',
+            title: 'Pending assignment',
+          ),
+          dashboardAssignment(
+            identityKey: 'submitted',
+            title: 'Submitted assignment',
+            submissionStatus: AssignmentSubmissionStatus.submitted,
+          ),
+        ],
+      ),
+      initialPreferences: const AssignmentDashboardPreferences(
+        submissionFilter: AssignmentSubmissionFilter.all,
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('assignment-filter-chip-submission')),
+      findsOneWidget,
+    );
+    expect(find.text('Submitted assignment'), findsOneWidget);
+
+    tester
+        .widget<InputChip>(
+          find.byKey(const Key('assignment-filter-chip-submission')),
+        )
+        .onDeleted!();
+    await tester.pumpAndSettle();
+
+    expect(
+      service.savedPreferences.last.submissionFilter,
+      AssignmentSubmissionFilter.unsubmitted,
+    );
+    expect(
+      find.byKey(const Key('assignment-filter-chip-submission')),
+      findsNothing,
+    );
+    expect(find.text('Submitted assignment'), findsNothing);
+  });
+
   testWidgets('search and filter button share a row on mobile', (tester) async {
     tester.view.physicalSize = const Size(375, 1400);
     tester.view.devicePixelRatio = 1;

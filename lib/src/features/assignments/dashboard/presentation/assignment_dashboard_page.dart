@@ -497,7 +497,7 @@ class _DashboardWorklist extends StatelessWidget {
                         onCourseCleared: () => onCourseChanged(null),
                         onDeadlineCleared: onDeadlineCleared,
                         onSubmissionCleared: () => onSubmissionFilterChanged(
-                          AssignmentSubmissionFilter.all,
+                          AssignmentSubmissionFilter.unsubmitted,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
