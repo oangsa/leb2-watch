@@ -48,7 +48,7 @@ void main() {
       final workflow = File('.github/workflows/ci.yml').readAsStringSync();
 
       expect(workflow, contains('windows-build:'));
-      expect(workflow, contains('runs-on: windows-latest'));
+      expect(workflow, contains('runs-on: windows-2022'));
       expect(workflow, contains('flutter-version: \'3.44.8\''));
       expect(workflow, contains('flutter config --enable-windows-desktop'));
       expect(workflow, contains('flutter doctor -v'));

@@ -541,7 +541,8 @@ the native quit message.
   packaged/unpackaged capability matrix.
 - `lib/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart`
   — process-lifetime due-event timer and delivery.
-- `.github/workflows/ci.yml` — Windows Release build job with sanitized
+- `.github/workflows/ci.yml` — Windows Release build job pinned to
+  `windows-2022` for the Visual Studio 2022 C++/ATL toolchain, with sanitized
   compile-time definitions.
 - `test/platform/desktop/` — native, coordinator, reveal-subscription, and
   disposal coverage.
@@ -1507,6 +1508,14 @@ Mocked Linux desktop integration workflow: 2 passed.
 dart analyze --fatal-infos --fatal-warnings: no issues.
 flutter analyze --fatal-infos --fatal-warnings: no issues.
 dart format --output=none --set-exit-if-changed .:
+
+The current CI repair also keeps the workflow static contract aligned with the
+runner pin, updates the mocked Linux workflow assertion to the current
+title-only onboarding screen (`Assignments, ready when you are`), and retains
+the existing sanitized Release-build checks. The focused desktop contract and
+mocked Linux integration tests passed; the full local memory-safe runner passed
+143 discovered files in 15 sequential shards. A remote GitHub rerun remains
+the final evidence for the hosted Windows environment.
 
 ### Android Workmanager Built-in Kotlin migration
 

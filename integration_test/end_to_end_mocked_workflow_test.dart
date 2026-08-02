@@ -146,13 +146,7 @@ void main() {
 
       lifetime = await harness.pumpApp(tester);
 
-      expect(
-        find.text(
-          'LEB2 Watch is an independent third-party application and is not '
-          'affiliated with or endorsed by KMUTT or LEB2.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Assignments, ready when you are'), findsOneWidget);
       expect(adapter.requestCount, 0);
       expect(harness.credentials.mutationCount, 0);
       expect(harness.notifications.permissionRequestCount, 0);

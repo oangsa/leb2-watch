@@ -796,17 +796,34 @@ Future<void> _exerciseSimultaneousIsolateOpens(
   }
 
   final ready = ReceivePort();
+  final opened = ReceivePort();
   final readySendPort = ready.sendPort;
+  final openedSendPort = opened.sendPort;
   final operations = [
     for (var index = 0; index < isolateCount; index += 1)
       Isolate.run(
-        () => _openAfterBarrier(directoryPath, readySendPort, writesPerIsolate),
+        () => _openAfterBarrier(
+          directoryPath,
+          readySendPort,
+          openedSendPort,
+          writesPerIsolate,
+        ),
       ),
   ];
   final releases = await ready.take(isolateCount).cast<SendPort>().toList();
   ready.close();
   for (final release in releases) {
     release.send(null);
+  }
+  final openResults = await opened
+      .take(isolateCount)
+      .toList()
+      .timeout(const Duration(seconds: 30));
+  opened.close();
+  for (final result in openResults) {
+    if (result is SendPort) {
+      result.send(null);
+    }
   }
   await Future.wait(operations).timeout(const Duration(seconds: 30));
 
@@ -824,6 +841,7 @@ Future<void> _exerciseSimultaneousIsolateOpens(
 Future<void> _openAfterBarrier(
   String directoryPath,
   SendPort ready,
+  SendPort opened,
   int writeCount,
 ) async {
   final release = ReceivePort();
@@ -831,7 +849,17 @@ Future<void> _openAfterBarrier(
   await release.first;
   release.close();
 
-  final database = await _storageForIsolate(directoryPath).openDatabase();
+  late final AppDatabase database;
+  try {
+    database = await _storageForIsolate(directoryPath).openDatabase();
+  } on Object catch (error) {
+    opened.send(error.toString());
+    rethrow;
+  }
+  final releaseWrites = ReceivePort();
+  opened.send(releaseWrites.sendPort);
+  await releaseWrites.first;
+  releaseWrites.close();
   try {
     for (var index = 0; index < writeCount; index += 1) {
       await database.transaction(() async {

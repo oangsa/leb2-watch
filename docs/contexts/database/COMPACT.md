@@ -144,6 +144,8 @@ durable cross-isolate single-flight coordination.
 - `lib/src/core/database/local_database_storage.dart` — file lifecycle, eager background open
 - `lib/src/core/database/utc_date_time_converter.dart` — UTC epoch-millisecond conversion
 - `lib/src/core/database/sync_operations.dart` — sync coordination transactions
+- `test/core/database/local_database_storage_test.dart` — concurrent production
+  isolate-open coverage with separate open and write barriers.
 - `lib/src/features/semester/semester_store.dart` — DriftSemesterSelectionStore adapter
 - `lib/src/features/assignment/dashboard/assignment_dashboard_store.dart` — DashboardStore adapter
 - `lib/src/features/assignment/detail/assignment_detail_store.dart` — DetailStore adapter
@@ -242,6 +244,12 @@ column before altering legacy fixtures, preserving idempotent upgrades. The
 2026-08-02 memory-safe runner passed all 15 sequential shards across 143
 discovered test files with exit 0. Code generation completed with exit 0,
 formatting changed zero files, and both analyzers reported no issues.
+
+The simultaneous-isolate-open regression test now releases its four concurrent
+production opens before allowing any isolate to begin its writes. This keeps
+the concurrency coverage and 60-write assertion while avoiding a test-induced
+`SQLITE_BUSY` race between an unfinished opener and an early writer. The exact
+10-file CI database/network shard passed 98 tests.
 
 Before isolation, the focused five-case file passed, but a bounded
 fresh-process run of the independent-open comparison reproduced the raw
