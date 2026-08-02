@@ -4,13 +4,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../app/design_system/app_tokens.dart';
 import '../../../core/security/credential_store.dart';
 import '../application/session_setup_service.dart';
-
-enum SessionSetupMethod { sessionCookie, credentials }
 
 class SessionSetupPage extends StatefulWidget {
   const SessionSetupPage({
@@ -32,30 +29,22 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   static const _wideFormBreakpoint = 768.0;
   static const _maximumWideTextScale = 1.5;
 
-  final _cookieController = TextEditingController();
   final _accessKeyController = TextEditingController();
-  final _userIdController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _cookieFocus = FocusNode();
   final _accessKeyFocus = FocusNode();
-  final _userIdFocus = FocusNode();
   final _usernameFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
-  SessionSetupMethod _method = SessionSetupMethod.credentials;
   SavedSessionSummary? _savedSummary;
   SessionSetupCancellation? _cancellation;
-  String? _cookieError;
   String? _accessKeyError;
-  String? _userIdError;
   String? _usernameError;
   String? _passwordError;
   String? _status;
   bool _statusIsError = false;
   bool _busy = false;
   bool _summaryLoading = true;
-  bool _showCookie = false;
   bool _showAccessKey = false;
   bool _showPassword = false;
   bool _automaticReauthentication = false;
@@ -83,7 +72,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     if (_busy || _summaryLoading || _navigationPending) {
       return;
     }
-    if (!_validateCurrentMethod()) {
+    if (!_validateCredentials()) {
       return;
     }
     final accessKey = normalizeAccessKey(_accessKeyController.text)!;
@@ -94,26 +83,16 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       _busy = true;
       _cancellation = cancellation;
       _statusIsError = false;
-      _status = 'Checking your connection…';
+      _status = 'Checking connection…';
     });
 
-    final SessionSetupResult result;
-    if (_method == SessionSetupMethod.sessionCookie) {
-      result = await widget.service.connectWithCookie(
-        accessKey: accessKey,
-        sessionCookie: _cookieController.text,
-        userId: int.parse(_userIdController.text),
-        cancellation: cancellation,
-      );
-    } else {
-      result = await widget.service.connectWithCredentials(
-        accessKey: accessKey,
-        username: _usernameController.text,
-        password: _passwordController.text,
-        enableAutomaticReauthentication: _automaticReauthentication,
-        cancellation: cancellation,
-      );
-    }
+    final result = await widget.service.connectWithCredentials(
+      accessKey: accessKey,
+      username: _usernameController.text,
+      password: _passwordController.text,
+      enableAutomaticReauthentication: _automaticReauthentication,
+      cancellation: cancellation,
+    );
     await _handleResult(result, operationId);
   }
 
@@ -128,7 +107,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       _busy = true;
       _cancellation = cancellation;
       _statusIsError = false;
-      _status = 'Checking the saved session…';
+      _status = 'Checking saved session…';
     });
     final result = await widget.service.verifySavedSession(
       cancellation: cancellation,
@@ -136,38 +115,14 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     await _handleResult(result, operationId);
   }
 
-  bool _validateCurrentMethod() {
+  bool _validateCredentials() {
     setState(() {
-      _cookieError = null;
       _accessKeyError = null;
-      _userIdError = null;
       _usernameError = null;
       _passwordError = null;
       _status = null;
       _statusIsError = false;
     });
-
-    if (_method == SessionSetupMethod.sessionCookie) {
-      if (!_validateAccessKey()) {
-        return false;
-      }
-      if (_cookieController.text.trim().isEmpty) {
-        setState(() {
-          _cookieError = 'Enter your current LEB2 session cookie.';
-        });
-        _cookieFocus.requestFocus();
-        return false;
-      }
-      final userId = int.tryParse(_userIdController.text);
-      if (userId == null || userId <= 0 || userId > 2147483647) {
-        setState(() {
-          _userIdError = 'Enter a positive numeric LEB2 user ID.';
-        });
-        _userIdFocus.requestFocus();
-        return false;
-      }
-      return true;
-    }
 
     if (!_validateAccessKey()) {
       return false;
@@ -193,7 +148,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     if (normalizeAccessKey(_accessKeyController.text) == null) {
       setState(() {
         _accessKeyError =
-            'Enter the UUID access key provided by your backend operator.';
+            'Enter the UUID access key from your backend operator.';
       });
       _accessKeyFocus.requestFocus();
       return false;
@@ -258,9 +213,9 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       SessionSetupFailureKind.invalidInput =>
         'Check the highlighted fields and try again.',
       SessionSetupFailureKind.incompleteSavedSession =>
-        'The saved setup is incomplete. Enter a current session.',
+        'Setup incomplete. Sign in above to continue.',
       SessionSetupFailureKind.invalidOrExpiredSession =>
-        'This session is expired or invalid. Enter a current session.',
+        'This session is expired or invalid. Sign in again.',
       SessionSetupFailureKind.invalidCredentials =>
         'The username or password was not accepted.',
       SessionSetupFailureKind.networkUnavailable =>
@@ -273,7 +228,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         failure.retryAfter,
       ),
       SessionSetupFailureKind.invalidResponse =>
-        'The backend returned an unexpected response. Your saved session was not changed.',
+        'Backend returned an unexpected response. Saved session unchanged.',
       SessionSetupFailureKind.secureStorageUnavailable =>
         'Secure credential storage is unavailable. No new session was saved.',
       SessionSetupFailureKind.localStorageUnavailable =>
@@ -379,55 +334,9 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Connection method',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SegmentedButton<SessionSetupMethod>(
-              key: const Key('session-method-control'),
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: SessionSetupMethod.sessionCookie,
-                  label: Text(
-                    'Session cookie',
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                  ),
-                ),
-                ButtonSegment(
-                  value: SessionSetupMethod.credentials,
-                  label: Text(
-                    'Username / password',
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                  ),
-                ),
-              ],
-              selected: {_method},
-              onSelectionChanged: _busy || _navigationPending
-                  ? null
-                  : (selection) {
-                      setState(() {
-                        _method = selection.single;
-                        _cookieError = null;
-                        _accessKeyError = null;
-                        _userIdError = null;
-                        _usernameError = null;
-                        _passwordError = null;
-                        _status = null;
-                        _statusIsError = false;
-                      });
-                    },
-            ),
-            const SizedBox(height: AppSpacing.lg),
             _accessKeyField(),
             const SizedBox(height: AppSpacing.md),
-            if (_method == SessionSetupMethod.sessionCookie)
-              _cookieFields()
-            else
-              _credentialFields(),
+            _credentialFields(),
             const SizedBox(height: AppSpacing.lg),
             _statusRegion(context),
             if (_status != null) const SizedBox(height: AppSpacing.md),
@@ -450,56 +359,6 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _cookieFields() {
-    return Column(
-      key: const Key('cookie-method-fields'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          key: const Key('session-cookie-field'),
-          controller: _cookieController,
-          focusNode: _cookieFocus,
-          enabled: !_busy && !_navigationPending,
-          obscureText: !_showCookie,
-          autocorrect: false,
-          enableSuggestions: false,
-          smartDashesType: SmartDashesType.disabled,
-          smartQuotesType: SmartQuotesType.disabled,
-          enableIMEPersonalizedLearning: false,
-          keyboardType: TextInputType.visiblePassword,
-          textInputAction: TextInputAction.next,
-          decoration: InputDecoration(
-            labelText: 'LEB2 session cookie',
-            errorText: _cookieError,
-            suffixIcon: _SecretVisibilityButton(
-              visible: _showCookie,
-              onPressed: _busy
-                  ? null
-                  : () => setState(() => _showCookie = !_showCookie),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          key: const Key('session-user-id-field'),
-          controller: _userIdController,
-          focusNode: _userIdFocus,
-          enabled: !_busy && !_navigationPending,
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.done,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onSubmitted: (_) => unawaited(_submit()),
-          decoration: InputDecoration(
-            labelText: 'LEB2 user ID',
-            errorText: _userIdError,
-            helperText:
-                'The connection check verifies the cookie only. The backend cannot verify this ID from a cookie.',
-          ),
-        ),
-      ],
     );
   }
 
@@ -589,7 +448,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
                 },
           title: const Text('Save credentials for automatic reauthentication'),
           subtitle: const Text(
-            'Off by default. When enabled, credentials stay only in operating-system secure storage.',
+            'Off by default. Saves credentials only in OS secure storage.',
           ),
         ),
       ],
@@ -638,29 +497,27 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     if (_summaryLoading || summary == null) {
       return Semantics(
         liveRegion: true,
-        child: const Text('Checking saved-session status…'),
+        child: const Text('Checking saved session…'),
       );
     }
 
     final title = switch (summary.state) {
       SavedSessionState.none => 'No saved session',
-      SavedSessionState.ready => 'Saved session ready to verify',
-      SavedSessionState.incomplete => 'Saved setup is incomplete',
+      SavedSessionState.ready => 'Saved session ready',
+      SavedSessionState.incomplete => 'Setup incomplete',
       SavedSessionState.secureStorageUnavailable ||
       SavedSessionState.localStorageUnavailable =>
         'Saved-session status unavailable',
     };
     final detail = switch (summary.state) {
-      SavedSessionState.none =>
-        'Connect with one of the methods above to continue.',
+      SavedSessionState.none => 'Connect above to continue.',
       SavedSessionState.ready =>
         summary.automaticReauthenticationEnabled
-            ? 'Automatic reauthentication is enabled in secure storage.'
+            ? 'Automatic reauthentication is enabled.'
             : 'Automatic reauthentication is off.',
-      SavedSessionState.incomplete =>
-        'Enter a current session to complete setup.',
+      SavedSessionState.incomplete => 'Sign in above to finish setup.',
       SavedSessionState.secureStorageUnavailable =>
-        'Operating-system secure storage could not be read.',
+        'Secure storage could not be read.',
       SavedSessionState.localStorageUnavailable =>
         'Local session settings could not be read.',
     };
@@ -692,18 +549,13 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   @override
   void dispose() {
     _cancellation?.cancel();
-    _cookieController.clear();
     _accessKeyController.clear();
     _usernameController.clear();
     _passwordController.clear();
-    _cookieController.dispose();
     _accessKeyController.dispose();
-    _userIdController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
-    _cookieFocus.dispose();
     _accessKeyFocus.dispose();
-    _userIdFocus.dispose();
     _usernameFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -735,9 +587,8 @@ class _ConnectionIntroduction extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'LEB2 Watch is an independent third-party application. Your '
-          'username and password are sent only when you sign in and, if you '
-          'opt in, for automatic reauthentication.',
+          'LEB2 Watch is not affiliated with KMUTT or LEB2. Username and '
+          'password are sent only during sign-in or optional reauthentication.',
           style: textTheme.bodyLarge,
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -752,10 +603,9 @@ class _ConnectionIntroduction extends StatelessWidget {
             ),
           ),
           child: Text(
-            'Your access key and saved session cookie stay in operating-system '
-            'secure storage. Protected backend requests temporarily send both '
-            'values and your numeric LEB2 user ID. The ID stays in local SQLite '
-            'between requests.',
+            'Access key and session cookie stay in OS secure storage. Protected '
+            'requests send them with your LEB2 user ID. The ID stays in local '
+            'SQLite.',
             style: textTheme.bodyLarge,
           ),
         ),

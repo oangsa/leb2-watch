@@ -569,13 +569,13 @@ Candidate verification sends:
 
 ### Decisions
 
-- Make Username/password setup the default because it can activate a newly
-  provisioned access key; retain manual-cookie setup for an already activated
-  key.
-- Require an access key for either setup method and keep it independent from
-  optional saved username/password.
-- Require the user ID beside a manual cookie because the verified snapshot
-  route requires it and the cookie has no identity contract.
+- Make Username/password setup the only foreground setup method because it can
+  activate a newly provisioned access key; the setup UI does not accept raw
+  session cookies.
+- Keep session cookies as backend/session state and retain the service-level
+  candidate verification contract for saved-session and recovery flows.
+- Require an access key for setup and keep it independent from optional saved
+  username/password.
 - Keep the user ID in SQLite because it is request context, not a credential.
 - Use the verified login response to obtain identity for credential setup.
 - Verify all acquired cookies before persistence.

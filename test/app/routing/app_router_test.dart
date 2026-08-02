@@ -267,7 +267,7 @@ void main() {
         initialLocation: AppRoute.authentication.path,
       );
       final service = _RouteSessionSetupService(
-        cookieResult: const SessionSetupSuccess(),
+        credentialResult: const SessionSetupSuccess(),
       );
       addTearDown(controller.dispose);
       addTearDown(router.dispose);
@@ -280,19 +280,17 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Session cookie'));
-      await tester.pump();
       await tester.enterText(
         find.bySemanticsLabel('Access key'),
         '00000000-0000-4000-8000-000000000001',
       );
       await tester.enterText(
-        find.byKey(const Key('session-cookie-field')),
-        '<SESSION_COOKIE>',
+        find.byKey(const Key('session-username-field')),
+        '<USERNAME>',
       );
       await tester.enterText(
-        find.byKey(const Key('session-user-id-field')),
-        '2001',
+        find.byKey(const Key('session-password-field')),
+        '<PASSWORD>',
       );
       final submit = find.byKey(const Key('session-submit'));
       await tester.ensureVisible(submit);
@@ -300,7 +298,7 @@ void main() {
       await tester.tap(submit);
       await tester.pumpAndSettle();
 
-      expect(service.cookieCalls, 1);
+      expect(service.credentialCalls, 1);
       expect(controller.stage, AppFlowStage.semesterSelection);
       expect(find.text('Choose semester'), findsOneWidget);
       expect(find.text('Connect LEB2'), findsNothing);
@@ -312,7 +310,7 @@ void main() {
         final controller = AppFlowController(initialStage: AppFlowStage.ready);
         final router = createAppRouter(controller);
         final service = _RouteSessionSetupService(
-          cookieResult: const SessionSetupSuccess(),
+          credentialResult: const SessionSetupSuccess(),
         );
         addTearDown(controller.dispose);
         addTearDown(router.dispose);
@@ -339,26 +337,24 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Connect LEB2'), findsOneWidget);
 
-        await tester.tap(find.text('Session cookie'));
-        await tester.pump();
         await tester.enterText(
           find.bySemanticsLabel('Access key'),
           '00000000-0000-4000-8000-000000000001',
         );
         await tester.enterText(
-          find.byKey(const Key('session-cookie-field')),
-          '<SESSION_COOKIE>',
+          find.byKey(const Key('session-username-field')),
+          '<USERNAME>',
         );
         await tester.enterText(
-          find.byKey(const Key('session-user-id-field')),
-          '2001',
+          find.byKey(const Key('session-password-field')),
+          '<PASSWORD>',
         );
         final submit = find.byKey(const Key('session-submit'));
         await tester.ensureVisible(submit);
         await tester.tap(submit);
         await tester.pumpAndSettle();
 
-        expect(service.cookieCalls, 1);
+        expect(service.credentialCalls, 1);
         expect(controller.stage, AppFlowStage.ready);
         expect(
           find.byKey(const Key('assignment-dashboard-list')),
@@ -1298,13 +1294,13 @@ final class _RouteAssignmentDetailService implements AssignmentDetailService {
 
 final class _RouteSessionSetupService implements SessionSetupService {
   _RouteSessionSetupService({
-    this.cookieResult = const SessionSetupFailure(
+    this.credentialResult = const SessionSetupFailure(
       SessionSetupFailureKind.networkUnavailable,
     ),
   });
 
-  final SessionSetupResult cookieResult;
-  int cookieCalls = 0;
+  final SessionSetupResult credentialResult;
+  int credentialCalls = 0;
 
   @override
   Future<SessionSetupResult> connectWithCookie({
@@ -1313,8 +1309,7 @@ final class _RouteSessionSetupService implements SessionSetupService {
     required int userId,
     SessionSetupCancellation? cancellation,
   }) async {
-    cookieCalls += 1;
-    return cookieResult;
+    return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
   }
 
   @override
@@ -1324,8 +1319,10 @@ final class _RouteSessionSetupService implements SessionSetupService {
     required String password,
     required bool enableAutomaticReauthentication,
     SessionSetupCancellation? cancellation,
-  }) async =>
-      const SessionSetupFailure(SessionSetupFailureKind.networkUnavailable);
+  }) async {
+    credentialCalls += 1;
+    return credentialResult;
+  }
 
   @override
   Future<SavedSessionSummary> readSavedSessionSummary() async {

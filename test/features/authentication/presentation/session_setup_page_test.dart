@@ -6,7 +6,6 @@ import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
 import 'package:leb2_watch/src/features/authentication/presentation/session_setup_page.dart';
 
-const _secretCookie = '<SECRET_COOKIE_VALUE>';
 const _secretPassword = '<SECRET_PASSWORD_VALUE>';
 const _secretAccessKey = '00000000-0000-4000-8000-000000000001';
 
@@ -23,34 +22,34 @@ void main() {
       await _pumpPage(tester, service: service);
 
       expect(find.text('Connect LEB2'), findsOneWidget);
-      expect(find.textContaining('independent third-party'), findsOneWidget);
+      expect(find.textContaining('not affiliated with KMUTT'), findsOneWidget);
       expect(
         find.text(
-          'LEB2 Watch is an independent third-party application. Your '
-          'username and password are sent only when you sign in and, if you '
-          'opt in, for automatic reauthentication.',
+          'LEB2 Watch is not affiliated with KMUTT or LEB2. Username and '
+          'password are sent only during sign-in or optional reauthentication.',
         ),
         findsOneWidget,
       );
       expect(
         find.text(
-          'Your access key and saved session cookie stay in operating-system '
-          'secure storage. Protected backend requests temporarily send both '
-          'values and your numeric LEB2 user ID. The ID stays in local SQLite '
-          'between requests.',
+          'Access key and session cookie stay in OS secure storage. Protected '
+          'requests send them with your LEB2 user ID. The ID stays in local '
+          'SQLite.',
         ),
         findsOneWidget,
       );
-      expect(find.text('Username / password'), findsOneWidget);
+      expect(find.text('Username'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
       expect(find.byKey(const Key('session-access-key-field')), findsOneWidget);
       expect(find.byKey(const Key('credential-method-fields')), findsOneWidget);
-      expect(find.byKey(const Key('cookie-method-fields')), findsNothing);
-      expect(find.text('Saved session ready to verify'), findsOneWidget);
+      expect(find.text('Session cookie'), findsNothing);
+      expect(find.byKey(const Key('session-cookie-field')), findsNothing);
+      expect(find.byKey(const Key('session-user-id-field')), findsNothing);
+      expect(find.text('Saved session ready'), findsOneWidget);
       expect(
         find.textContaining('Automatic reauthentication is enabled'),
         findsOneWidget,
       );
-      expect(find.textContaining(_secretCookie), findsNothing);
       expect(find.textContaining(_secretPassword), findsNothing);
     },
   );
@@ -87,10 +86,7 @@ void main() {
     );
     expect(password.obscureText, isTrue);
     _expectSecretInputHardening(password);
-    expect(
-      find.textContaining('operating-system secure storage'),
-      findsWidgets,
-    );
+    expect(find.textContaining('OS secure storage'), findsWidgets);
 
     await _tapSecretVisibility(tester, const Key('session-password-field'));
     await tester.pump();
@@ -111,7 +107,7 @@ void main() {
     );
     expect(accessKey.focusNode?.hasFocus, isTrue);
     expect(
-      find.text('Enter the UUID access key provided by your backend operator.'),
+      find.text('Enter the UUID access key from your backend operator.'),
       findsOneWidget,
     );
 
@@ -147,9 +143,7 @@ void main() {
       await _tapVisible(tester, find.byKey(const Key('session-submit')));
       await tester.pump();
       expect(
-        find.text(
-          'Enter the UUID access key provided by your backend operator.',
-        ),
+        find.text('Enter the UUID access key from your backend operator.'),
         findsOneWidget,
       );
       expect(service.credentialCalls, 0);
@@ -197,18 +191,10 @@ void main() {
     'rapid tap and keyboard submission dispatch only once while busy',
     (tester) async {
       final gate = Completer<SessionSetupResult>();
-      final service = _FakeSessionSetupService(cookieGate: gate);
+      final service = _FakeSessionSetupService(credentialGate: gate);
       await _pumpPage(tester, service: service);
-      await _selectCookieMethod(tester);
       await _enterAccessKey(tester);
-      await tester.enterText(
-        find.byKey(const Key('session-cookie-field')),
-        _secretCookie,
-      );
-      await tester.enterText(
-        find.byKey(const Key('session-user-id-field')),
-        '2001',
-      );
+      await _enterCredentials(tester);
 
       await _tapVisible(tester, find.byKey(const Key('session-submit')));
       await tester.tap(find.byKey(const Key('session-submit')));
@@ -216,18 +202,10 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
 
-      expect(service.cookieCalls, 1);
+      expect(service.credentialCalls, 1);
       expect(
         tester
-            .widget<SegmentedButton<SessionSetupMethod>>(
-              find.byKey(const Key('session-method-control')),
-            )
-            .onSelectionChanged,
-        isNull,
-      );
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('session-cookie-field')))
+            .widget<TextField>(find.byKey(const Key('session-password-field')))
             .enabled,
         isFalse,
       );
@@ -257,18 +235,10 @@ void main() {
     tester,
   ) async {
     final gate = Completer<SessionSetupResult>();
-    final service = _FakeSessionSetupService(cookieGate: gate);
+    final service = _FakeSessionSetupService(credentialGate: gate);
     await _pumpPage(tester, service: service);
-    await _selectCookieMethod(tester);
     await _enterAccessKey(tester);
-    await tester.enterText(
-      find.byKey(const Key('session-cookie-field')),
-      _secretCookie,
-    );
-    await tester.enterText(
-      find.byKey(const Key('session-user-id-field')),
-      '2001',
-    );
+    await _enterCredentials(tester);
     await _tapVisible(tester, find.byKey(const Key('session-submit')));
     await tester.pump();
     final cancellation = service.lastCancellation;
@@ -283,27 +253,19 @@ void main() {
   testWidgets('successful setup completes once', (tester) async {
     var completions = 0;
     final service = _FakeSessionSetupService(
-      cookieResult: const SessionSetupSuccess(),
+      credentialResult: const SessionSetupSuccess(),
     );
     await _pumpPage(
       tester,
       service: service,
       onCompleted: () => completions += 1,
     );
-    await _selectCookieMethod(tester);
     await _enterAccessKey(tester);
-    await tester.enterText(
-      find.byKey(const Key('session-cookie-field')),
-      _secretCookie,
-    );
-    await tester.enterText(
-      find.byKey(const Key('session-user-id-field')),
-      '2001',
-    );
+    await _enterCredentials(tester);
     await _tapVisible(tester, find.byKey(const Key('session-submit')));
     await tester.pump();
 
-    expect(service.cookieCalls, 1);
+    expect(service.credentialCalls, 1);
     expect(completions, 1);
   });
 
@@ -312,7 +274,7 @@ void main() {
   ) async {
     var navigationCalls = 0;
     final service = _FakeSessionSetupService(
-      cookieResult: const SessionSetupSuccess(),
+      credentialResult: const SessionSetupSuccess(),
     );
     await _pumpPage(
       tester,
@@ -324,16 +286,8 @@ void main() {
         }
       },
     );
-    await _selectCookieMethod(tester);
     await _enterAccessKey(tester);
-    await tester.enterText(
-      find.byKey(const Key('session-cookie-field')),
-      _secretCookie,
-    );
-    await tester.enterText(
-      find.byKey(const Key('session-user-id-field')),
-      '2001',
-    );
+    await _enterCredentials(tester);
     await _tapVisible(tester, find.byKey(const Key('session-submit')));
     await tester.pump();
 
@@ -348,7 +302,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(service.cookieCalls, 1);
+    expect(service.credentialCalls, 1);
     expect(navigationCalls, 2);
   });
 
@@ -378,12 +332,31 @@ void main() {
       isEmpty,
     );
     expect(
-      find.text('This session is expired or invalid. Enter a current session.'),
+      find.text('This session is expired or invalid. Sign in again.'),
       findsOneWidget,
     );
   });
 
-  testWidgets('credential mode forwards explicit auto-reauth choice', (
+  testWidgets('shows concise incomplete saved-session guidance', (
+    tester,
+  ) async {
+    await _pumpPage(
+      tester,
+      service: _FakeSessionSetupService(
+        summary: const SavedSessionSummary(
+          state: SavedSessionState.incomplete,
+          automaticReauthenticationEnabled: false,
+        ),
+      ),
+    );
+
+    expect(find.text('Setup incomplete'), findsOneWidget);
+    expect(find.text('Sign in above to finish setup.'), findsOneWidget);
+    expect(find.byKey(const Key('session-submit')), findsOneWidget);
+    expect(find.byKey(const Key('verify-saved-session')), findsNothing);
+  });
+
+  testWidgets('credential flow forwards explicit auto-reauth choice', (
     tester,
   ) async {
     final service = _FakeSessionSetupService();
@@ -419,7 +392,7 @@ void main() {
         const SessionSetupFailure(
           SessionSetupFailureKind.incompleteSavedSession,
         ),
-        'The saved setup is incomplete.',
+        'Setup incomplete.',
       ),
       (
         const SessionSetupFailure(
@@ -452,7 +425,7 @@ void main() {
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.invalidResponse),
-        'The backend returned an unexpected response.',
+        'Backend returned an unexpected response.',
       ),
       (
         const SessionSetupFailure(
@@ -527,27 +500,19 @@ void main() {
     for (final (failure, expected) in cases) {
       await _pumpPage(
         tester,
-        service: _FakeSessionSetupService(cookieResult: failure),
+        service: _FakeSessionSetupService(credentialResult: failure),
       );
-      await _selectCookieMethod(tester);
       await _enterAccessKey(tester);
-      await tester.enterText(
-        find.byKey(const Key('session-cookie-field')),
-        _secretCookie,
-      );
-      await tester.enterText(
-        find.byKey(const Key('session-user-id-field')),
-        '2001',
-      );
+      await _enterCredentials(tester);
       await _tapVisible(tester, find.byKey(const Key('session-submit')));
       await tester.pump();
       expect(find.textContaining(expected), findsOneWidget);
       final semanticsHandle = tester.ensureSemantics();
       try {
-        final cookieField = tester.getSemantics(
-          find.byKey(const Key('session-cookie-field')),
+        final passwordField = tester.getSemantics(
+          find.byKey(const Key('session-password-field')),
         );
-        expect(cookieField.value, isNot(contains(_secretCookie)));
+        expect(passwordField.value, isNot(contains(_secretPassword)));
       } finally {
         semanticsHandle.dispose();
       }
@@ -593,15 +558,21 @@ void main() {
   });
 }
 
-Future<void> _selectCookieMethod(WidgetTester tester) async {
-  await _tapVisible(tester, find.text('Session cookie'));
-  await tester.pump();
-}
-
 Future<void> _enterAccessKey(WidgetTester tester) async {
   await tester.enterText(
     find.byKey(const Key('session-access-key-field')),
     _secretAccessKey,
+  );
+}
+
+Future<void> _enterCredentials(WidgetTester tester) async {
+  await tester.enterText(
+    find.byKey(const Key('session-username-field')),
+    '<USERNAME>',
+  );
+  await tester.enterText(
+    find.byKey(const Key('session-password-field')),
+    _secretPassword,
   );
 }
 
@@ -675,26 +646,24 @@ final class _FakeSessionSetupService implements SessionSetupService {
       state: SavedSessionState.none,
       automaticReauthenticationEnabled: false,
     ),
-    this.cookieResult = const SessionSetupFailure(
+    this.credentialResult = const SessionSetupFailure(
       SessionSetupFailureKind.networkUnavailable,
     ),
     this.savedResult = const SessionSetupFailure(
       SessionSetupFailureKind.networkUnavailable,
     ),
-    this.cookieGate,
+    this.credentialGate,
   });
 
   final SavedSessionSummary summary;
-  final SessionSetupResult cookieResult;
+  final SessionSetupResult credentialResult;
   final SessionSetupResult savedResult;
-  final Completer<SessionSetupResult>? cookieGate;
-  int cookieCalls = 0;
+  final Completer<SessionSetupResult>? credentialGate;
   int savedCalls = 0;
   int credentialCalls = 0;
   bool? lastAutomaticReauthentication;
   SessionSetupCancellation? lastCancellation;
   String? lastAccessKey;
-  String? lastSessionCookie;
   String? lastUsername;
 
   @override
@@ -704,11 +673,7 @@ final class _FakeSessionSetupService implements SessionSetupService {
     required int userId,
     SessionSetupCancellation? cancellation,
   }) async {
-    cookieCalls += 1;
-    lastAccessKey = accessKey;
-    lastSessionCookie = sessionCookie;
-    lastCancellation = cancellation;
-    return cookieGate?.future ?? cookieResult;
+    return const SessionSetupFailure(SessionSetupFailureKind.unexpected);
   }
 
   @override
@@ -724,9 +689,7 @@ final class _FakeSessionSetupService implements SessionSetupService {
     lastUsername = username;
     lastAutomaticReauthentication = enableAutomaticReauthentication;
     lastCancellation = cancellation;
-    return const SessionSetupFailure(
-      SessionSetupFailureKind.networkUnavailable,
-    );
+    return credentialGate?.future ?? credentialResult;
   }
 
   @override
