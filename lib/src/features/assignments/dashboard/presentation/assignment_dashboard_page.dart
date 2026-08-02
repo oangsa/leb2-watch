@@ -1289,6 +1289,24 @@ Widget? _statusBanner(
     'accessKey.storeUnavailable' =>
       'Access-key verification is temporarily unavailable. Try again later. '
           'Showing saved assignments.',
+    'deviceBinding.deviceIdentityMissing' ||
+    'deviceBinding.deviceIdentityInvalid' =>
+      'This device could not provide a valid device identifier. Showing saved '
+          'assignments.',
+    'deviceBinding.notBound' =>
+      'This access key needs to be connected to this device again. Reconnect '
+          'with Username / password. Showing saved assignments.',
+    'deviceBinding.boundToAnotherDevice' =>
+      'This access key is connected to another device. Log out there or ask '
+          'your backend operator to reset the binding. Showing saved assignments.',
+    'clientCompatibility.clientVersionRequired' ||
+    'clientCompatibility.clientVersionInvalid' =>
+      'This app could not provide a valid client version. Showing saved '
+          'assignments.',
+    'clientCompatibility.updateRequired' ||
+    'clientCompatibility.unsupportedApiVersion' =>
+      'This version of LEB2 Watch is no longer compatible with the backend. '
+          'Install the latest APK to continue.',
     _ => null,
   };
   if (accessKeyMessage != null) {

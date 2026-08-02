@@ -246,6 +246,19 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         'Sign in with Username / password to finish initializing this access key.',
       SessionSetupFailureKind.accessKeyStoreUnavailable =>
         'Access-key verification is temporarily unavailable. Try again later.',
+      SessionSetupFailureKind.deviceIdentityMissing =>
+        'This device could not provide a valid device identifier.',
+      SessionSetupFailureKind.deviceIdentityInvalid =>
+        'This device could not provide a valid device identifier.',
+      SessionSetupFailureKind.deviceNotBound =>
+        'This access key needs to be connected to this device again. Sign in with your LEB2 username and password.',
+      SessionSetupFailureKind.deviceMismatch =>
+        'This access key is currently connected to another device. Log out on that device first, or ask your backend operator to reset the device binding.',
+      SessionSetupFailureKind.clientVersionRequired ||
+      SessionSetupFailureKind.clientVersionInvalid =>
+        'This app could not provide a valid client version.',
+      SessionSetupFailureKind.clientUpdateRequired =>
+        'This version of LEB2 Watch is no longer compatible with the backend. Install the latest APK to continue.',
       SessionSetupFailureKind.persistenceUncertain =>
         'Saving could not be completed or safely restored. Review the saved-session status before trying again.',
       SessionSetupFailureKind.cancelled => 'Connection check cancelled.',

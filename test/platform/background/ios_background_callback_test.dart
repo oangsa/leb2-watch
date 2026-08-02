@@ -99,6 +99,22 @@ void main() {
     }
   });
 
+  test(
+    'iOS task does not retry compatibility or device-binding blockers',
+    () async {
+      final handler = IosBackgroundSyncTaskHandler(
+        execute: ({required reason, cancellation, timeBudget}) async =>
+            const BackgroundSyncTerminalFailure(retryEligible: false),
+        cancelPending: () async {},
+      );
+
+      expect(
+        await handler(const WorkmanagerTaskExecutionContext()),
+        WorkmanagerTaskExecutionResult.handled,
+      );
+    },
+  );
+
   test('iOS callback remains a top-level retained exact-name entrypoint', () {
     final source = File(
       'lib/src/platform/background/ios/ios_background_callback.dart',

@@ -115,6 +115,16 @@ under the session mutation gate before any deletion or replacement.
 Delete-all uses the same mutation fence, so an automatic candidate cannot
 restore secrets after credential deletion completes.
 
+The shared `BackendClientIdentityProvider` resolves the stable device identity
+and semantic installed app version once for each client composition. Android
+uses `ANDROID_ID`; non-Android platforms persist a cryptographically random
+installation identifier in secure storage. Candidate login, cookie acquisition,
+verification, saved protected requests, automatic recovery, logout, and
+headless background work use the same provider path. `/api/v1/User/logout` is
+server-first and accepts `204 No Content` without an LEB2 cookie; only after it
+succeeds does local cleanup clear secrets while retaining the local account
+fence and cached data.
+
 ### State and control flow
 
 Access-key and session-cookie reads and writes go directly through dedicated
@@ -241,7 +251,7 @@ Cookie setup:
 1. Validate a nonblank cookie and positive int32 user ID locally.
 2. Read the prior secure and identity state.
 3. Block before network access if that known identity differs.
-4. Verify the candidate cookie directly against `GET /Semester`.
+4. Verify the candidate cookie directly against `GET /api/v1/Semester`.
 5. Save the cookie, delete optional credentials, save the user ID, then mark
    the session active at a new revision.
 6. Advance to semester selection for initial setup, or return to assignments

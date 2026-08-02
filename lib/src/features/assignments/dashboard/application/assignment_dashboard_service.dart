@@ -139,6 +139,9 @@ final class LocalAssignmentDashboardService
       RateLimitedFailure() => 'rateLimited',
       InvalidResponseFailure() => 'invalidResponse',
       AccessKeyFailure(:final reason) => 'accessKey.${reason.name}',
+      DeviceBindingFailure(:final reason) => 'deviceBinding.${reason.name}',
+      ClientCompatibilityFailure(:final reason) =>
+        'clientCompatibility.${reason.name}',
       UnknownSyncFailure(:final reason) => reason.name,
     };
   }

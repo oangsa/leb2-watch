@@ -1,0 +1,7 @@
+{
+  "message": "This client version is no longer supported.",
+  "responseCode": "CLIENT_UPDATE_REQUIRED",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

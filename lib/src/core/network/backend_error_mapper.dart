@@ -12,6 +12,24 @@ SyncFailure mapBackendTransportException(
   ),
   BackendTransportFailureKind.accessKeyStoreUnavailable =>
     const AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+  BackendTransportFailureKind.deviceIdentityMissing =>
+    const DeviceBindingFailure(
+      DeviceBindingFailureReason.deviceIdentityMissing,
+    ),
+  BackendTransportFailureKind.deviceIdentityInvalid ||
+  BackendTransportFailureKind.deviceIdentityUnavailable =>
+    const DeviceBindingFailure(
+      DeviceBindingFailureReason.deviceIdentityInvalid,
+    ),
+  BackendTransportFailureKind.clientVersionMissing =>
+    const ClientCompatibilityFailure(
+      ClientCompatibilityFailureReason.clientVersionRequired,
+    ),
+  BackendTransportFailureKind.clientVersionInvalid ||
+  BackendTransportFailureKind.clientVersionUnavailable =>
+    const ClientCompatibilityFailure(
+      ClientCompatibilityFailureReason.clientVersionInvalid,
+    ),
   BackendTransportFailureKind.missingCredential => const UnknownSyncFailure(
     UnknownSyncFailureReason.missingCredential,
   ),
@@ -84,6 +102,46 @@ SyncFailure _mapHttpEvidence(BackendHttpErrorEvidence? evidence) {
     },
     'ACCESS_KEY_STORE_UNAVAILABLE' => switch (evidence.statusCode) {
       503 => const AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+      _ => const InvalidResponseFailure(),
+    },
+    'DEVICE_ID_REQUIRED' => switch (evidence.statusCode) {
+      400 => const DeviceBindingFailure(
+        DeviceBindingFailureReason.deviceIdentityMissing,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'DEVICE_ID_INVALID' => switch (evidence.statusCode) {
+      400 => const DeviceBindingFailure(
+        DeviceBindingFailureReason.deviceIdentityInvalid,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'DEVICE_BINDING_REQUIRED' => switch (evidence.statusCode) {
+      403 => const DeviceBindingFailure(DeviceBindingFailureReason.notBound),
+      _ => const InvalidResponseFailure(),
+    },
+    'DEVICE_BINDING_MISMATCH' => switch (evidence.statusCode) {
+      403 => const DeviceBindingFailure(
+        DeviceBindingFailureReason.boundToAnotherDevice,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'CLIENT_VERSION_REQUIRED' => switch (evidence.statusCode) {
+      400 => const ClientCompatibilityFailure(
+        ClientCompatibilityFailureReason.clientVersionRequired,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'CLIENT_VERSION_INVALID' => switch (evidence.statusCode) {
+      400 => const ClientCompatibilityFailure(
+        ClientCompatibilityFailureReason.clientVersionInvalid,
+      ),
+      _ => const InvalidResponseFailure(),
+    },
+    'CLIENT_UPDATE_REQUIRED' => switch (evidence.statusCode) {
+      426 => const ClientCompatibilityFailure(
+        ClientCompatibilityFailureReason.updateRequired,
+      ),
       _ => const InvalidResponseFailure(),
     },
     'SESSION_EXPIRED' => switch (evidence.statusCode) {

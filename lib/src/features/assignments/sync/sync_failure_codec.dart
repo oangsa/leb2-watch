@@ -47,6 +47,16 @@ EncodedSyncFailure encodeFailure(SyncFailure failure) => switch (failure) {
     detail: reason.name,
     historyCategory: 'accessKey.${reason.name}',
   ),
+  DeviceBindingFailure(:final reason) => EncodedSyncFailure(
+    kind: 'deviceBinding',
+    detail: reason.name,
+    historyCategory: 'deviceBinding.${reason.name}',
+  ),
+  ClientCompatibilityFailure(:final reason) => EncodedSyncFailure(
+    kind: 'clientCompatibility',
+    detail: reason.name,
+    historyCategory: 'clientCompatibility.${reason.name}',
+  ),
   UnknownSyncFailure(:final reason) => EncodedSyncFailure(
     kind: 'unknown',
     detail: reason.name,
@@ -82,6 +92,16 @@ SyncFailure decodeFailure({
       const InvalidResponseFailure(),
     'accessKey' when retryAfter == null => AccessKeyFailure(
       AccessKeyFailureReason.values
+          .where((value) => value.name == detail)
+          .single,
+    ),
+    'deviceBinding' when retryAfter == null => DeviceBindingFailure(
+      DeviceBindingFailureReason.values
+          .where((value) => value.name == detail)
+          .single,
+    ),
+    'clientCompatibility' when retryAfter == null => ClientCompatibilityFailure(
+      ClientCompatibilityFailureReason.values
           .where((value) => value.name == detail)
           .single,
     ),

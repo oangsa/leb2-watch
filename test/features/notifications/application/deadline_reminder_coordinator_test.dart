@@ -450,7 +450,7 @@ void main() {
         DriftDeadlineReminderStore(database),
         notifications,
         policy: DeadlineReminderSchedulingPolicy.android,
-        nowUtc: () => DateTime.now().toUtc(),
+        nowUtc: () => now,
         ownerTokenFactory: () => 'preference-timeout-owner',
         wait: (duration) => Future<void>.delayed(duration),
         leaseDuration: const Duration(milliseconds: 120),

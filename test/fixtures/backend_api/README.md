@@ -6,7 +6,7 @@ credentials, user data, or production response content.
 
 Future fake-adapter tests must attach HTTP metadata separately:
 
-`semesters_success.json` follows the structured `/Semester` response: each
+`semesters_success.json` follows the structured `/api/v1/Semester` response: each
 entry contains numeric `id` and human-readable `name`.
 
 | Fixture | Status | Required response headers |
@@ -26,6 +26,12 @@ entry contains numeric `id` and human-readable `name`.
 | `request_backoff_active.json` | 503 | `Content-Type: application/json`, positive integer delta-seconds `Retry-After` |
 | `backend_unavailable.json` | 503 | `Content-Type: application/json` |
 | `scrape_response_changed.json` | 502 | `Content-Type: application/json` |
+| `meta_success.json` | 200 | `Content-Type: application/json` |
+| `device_binding_required.json` | 403 | `Content-Type: application/json` |
+| `device_binding_mismatch.json` | 403 | `Content-Type: application/json` |
+| `client_version_required.json` | 400 | `Content-Type: application/json` |
+| `client_version_invalid.json` | 400 | `Content-Type: application/json` |
+| `client_update_required.json` | 426 | `Content-Type: application/json` |
 
 Do not add status codes, content types, `Retry-After`, or
 `WWW-Authenticate` to the JSON payloads. Malformed JSON, HTML, empty bodies, and

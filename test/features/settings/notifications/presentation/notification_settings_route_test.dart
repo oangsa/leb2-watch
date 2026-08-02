@@ -13,6 +13,7 @@ import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
+import 'package:leb2_watch/src/features/authentication/application/logout_service.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/application/local_data_deletion_ports.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/domain/local_data_deletion.dart';
@@ -39,6 +40,7 @@ void main() {
             }
             return const FakeNotificationSettingsService();
           }),
+          logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         ],
         child: MaterialApp(
           theme: AppTheme.light,
@@ -92,6 +94,9 @@ void main() {
             appFlowControllerProvider.overrideWithValue(flow),
             notificationSettingsServiceProvider.overrideWith(
               (_) => const FakeNotificationSettingsService(),
+            ),
+            logoutServiceProvider.overrideWithValue(
+              const _RouteLogoutService(),
             ),
             localDataDeletionServiceProvider.overrideWithValue(
               _CompletedDeletionService(testCase.operation),
@@ -185,6 +190,7 @@ void main() {
             await ref.watch(appDatabaseProvider.future);
             return const FakeNotificationSettingsService();
           }),
+          logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         ],
       );
       addTearDown(container.dispose);
@@ -221,6 +227,13 @@ void main() {
       expect(flow.stage, testCase.expectedStage);
     });
   }
+}
+
+final class _RouteLogoutService implements LogoutService {
+  const _RouteLogoutService();
+
+  @override
+  Future<LogoutResult> logout() async => const LogoutSuccess();
 }
 
 final class _CompletedDeletionService implements LocalDataDeletionService {

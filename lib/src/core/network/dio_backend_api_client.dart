@@ -4,46 +4,75 @@ const _maximumInt32 = 2147483647;
 const _authorizationHeader = 'Authorization';
 const _accessKeyHeader = 'access-key';
 const _userIdHeader = 'X-LEB2-USER-ID';
+const _deviceIdHeader = 'X-Device-ID';
+const _deviceNameHeader = 'X-Device-Name';
+const _devicePlatformHeader = 'X-Device-Platform';
+const _deviceOsVersionHeader = 'X-Device-OS-Version';
+const _clientVersionHeader = 'X-Client-Version';
+const _apiV1Prefix = '/api/v1';
 
 final class DioBackendApiClient
-    implements BackendApiClient, BackendSessionClient {
+    implements
+        BackendApiClient,
+        BackendSessionClient,
+        BackendSessionLifecycleClient,
+        BackendCompatibilityClient {
   factory DioBackendApiClient({
     required AppConfiguration configuration,
     required CredentialStore credentialStore,
     HttpClientAdapter? httpClientAdapter,
     BackendTransportEventSink? eventSink,
     DateTime Function()? utcNow,
+    BackendClientIdentityProvider? runtimeIdentityProvider,
+    void Function()? onClientUpdateRequired,
   }) {
     final baseUrl = _validatedBaseUrl(configuration);
     final dio = _createDio(baseUrl);
     final sessionDio = _createDio(baseUrl);
+    final publicDio = _createDio(baseUrl);
+    final runtime =
+        runtimeIdentityProvider ??
+        RuntimeBackendClientIdentityProvider(
+          device: PlatformDeviceIdentityProvider(),
+          clientVersion: PackageInfoClientVersionProvider(),
+        );
     if (httpClientAdapter != null) {
       dio.httpClientAdapter = httpClientAdapter;
       sessionDio.httpClientAdapter = httpClientAdapter;
+      publicDio.httpClientAdapter = httpClientAdapter;
     }
-    dio.interceptors.add(_CredentialInterceptor(credentialStore));
+    dio.interceptors.add(_CredentialInterceptor(credentialStore, runtime));
 
     return DioBackendApiClient._(
       dio: dio,
       sessionDio: sessionDio,
+      publicDio: publicDio,
+      runtimeIdentityProvider: runtime,
       eventSink: configuration.environment == AppEnvironment.development
           ? eventSink ?? _developmentEventSink
           : null,
       utcNow: utcNow ?? DateTime.now,
+      onClientUpdateRequired: onClientUpdateRequired,
     );
   }
 
   DioBackendApiClient._({
     required this._dio,
     required this._sessionDio,
+    required this._publicDio,
+    required this._runtimeIdentityProvider,
     required this._eventSink,
     required this._utcNow,
+    required this._onClientUpdateRequired,
   });
 
   final Dio _dio;
   final Dio _sessionDio;
+  final Dio _publicDio;
+  final BackendClientIdentityProvider _runtimeIdentityProvider;
   final BackendTransportEventSink? _eventSink;
   final DateTime Function() _utcNow;
+  final void Function()? _onClientUpdateRequired;
 
   @override
   Future<List<Semester>> getSemesters({
@@ -51,7 +80,7 @@ final class DioBackendApiClient
   }) {
     return _execute(
       route: BackendTransportRoute.semesters,
-      path: '/Semester',
+      path: '$_apiV1Prefix/Semester',
       cancellation: cancellation,
       mapSuccess: _mapSemesters,
     );
@@ -68,12 +97,13 @@ final class DioBackendApiClient
     return _execute(
       dio: _sessionDio,
       route: BackendTransportRoute.sessionVerification,
-      path: '/Semester',
+      path: '$_apiV1Prefix/Semester',
       headers: {
         _accessKeyHeader: candidateAccessKey,
         _authorizationHeader: 'Bearer $candidateCookie',
       },
       cancellation: cancellation,
+      requiresRuntimeIdentity: true,
       mapSuccess: _mapSemesters,
     );
   }
@@ -96,10 +126,11 @@ final class DioBackendApiClient
       dio: _sessionDio,
       method: BackendTransportMethod.post,
       route: BackendTransportRoute.userLogin,
-      path: '/User/login',
+      path: '$_apiV1Prefix/User/login',
       headers: {_accessKeyHeader: candidateAccessKey},
       data: request.toJson(),
       cancellation: cancellation,
+      requiresRuntimeIdentity: true,
       mapSuccess: _mapUserIdentity,
     );
   }
@@ -122,10 +153,11 @@ final class DioBackendApiClient
       dio: _sessionDio,
       method: BackendTransportMethod.post,
       route: BackendTransportRoute.sessionCookieAcquisition,
-      path: '/User/cookie',
+      path: '$_apiV1Prefix/User/cookie',
       headers: {_accessKeyHeader: candidateAccessKey},
       data: request.toJson(),
       cancellation: cancellation,
+      requiresRuntimeIdentity: true,
       mapSuccess: _mapSessionCookie,
     );
   }
@@ -138,7 +170,7 @@ final class DioBackendApiClient
     _requirePositiveInt32(semesterId, 'semesterId');
     return _execute(
       route: BackendTransportRoute.courses,
-      path: '/Class/$semesterId',
+      path: '$_apiV1Prefix/Class/$semesterId',
       cancellation: cancellation,
       mapSuccess: (json) => _mapCourses(json, semesterId),
     );
@@ -154,10 +186,42 @@ final class DioBackendApiClient
     _requirePositiveInt32(userId, 'userId');
     return _execute(
       route: BackendTransportRoute.semesterSnapshot,
-      path: '/Activity/$semesterId/snapshot',
+      path: '$_apiV1Prefix/Activity/$semesterId/snapshot',
       headers: {_userIdHeader: userId.toString()},
       cancellation: cancellation,
       mapSuccess: (json) => _mapSnapshot(json, semesterId),
+    );
+  }
+
+  @override
+  Future<void> logout({
+    required String accessKey,
+    BackendRequestCancellation? cancellation,
+  }) {
+    final candidateAccessKey = _requireAccessKey(accessKey);
+    return _execute<void>(
+      dio: _sessionDio,
+      method: BackendTransportMethod.post,
+      route: BackendTransportRoute.userLogout,
+      path: '$_apiV1Prefix/User/logout',
+      headers: {_accessKeyHeader: candidateAccessKey},
+      cancellation: cancellation,
+      requiresRuntimeIdentity: true,
+      expectedStatusCode: 204,
+      mapSuccess: (_) {},
+    );
+  }
+
+  @override
+  Future<BackendApiMetadata> getMetadata({
+    BackendRequestCancellation? cancellation,
+  }) {
+    return _execute(
+      dio: _publicDio,
+      route: BackendTransportRoute.metadata,
+      path: '$_apiV1Prefix/meta',
+      cancellation: cancellation,
+      mapSuccess: _mapMetadata,
     );
   }
 
@@ -170,6 +234,8 @@ final class DioBackendApiClient
     Map<String, Object?>? headers,
     Object? data,
     BackendRequestCancellation? cancellation,
+    bool requiresRuntimeIdentity = false,
+    int expectedStatusCode = 200,
   }) async {
     final stopwatch = Stopwatch()..start();
     int? statusCode;
@@ -193,11 +259,15 @@ final class DioBackendApiClient
       }
 
       final client = dio ?? _dio;
+      final runtimeHeaders = requiresRuntimeIdentity
+          ? await _readRuntimeHeaders(_runtimeIdentityProvider)
+          : const <String, String>{};
       final options = Options(
         method: method.name.toUpperCase(),
         headers: {
           if (method == BackendTransportMethod.post)
             Headers.contentTypeHeader: Headers.jsonContentType,
+          ...runtimeHeaders,
           ...?headers,
         },
       );
@@ -215,10 +285,29 @@ final class DioBackendApiClient
         );
       }
 
-      final decoded = _decodeResponse(response);
-      if (statusCode != 200) {
+      if (statusCode == expectedStatusCode && expectedStatusCode == 204) {
+        if (response.data != null && response.data!.isNotEmpty) {
+          throw const BackendTransportException(
+            kind: BackendTransportFailureKind.invalidResponse,
+            invalidResponseReason: BackendInvalidResponseReason.wrongShape,
+          );
+        }
+        final result = mapSuccess(null);
+        outcome = BackendTransportOutcome.success;
+        return result;
+      }
+      if (statusCode != expectedStatusCode) {
+        if (statusCode >= 200 && statusCode < 400) {
+          throw const BackendTransportException(
+            kind: BackendTransportFailureKind.invalidResponse,
+            invalidResponseReason: BackendInvalidResponseReason.wrongShape,
+          );
+        }
+        final decoded = _decodeResponse(response);
         throw _mapHttpError(response, decoded, statusCode);
       }
+
+      final decoded = _decodeResponse(response);
 
       try {
         final result = mapSuccess(decoded);
@@ -367,15 +456,23 @@ final class DioBackendApiClient
         envelopeKind = BackendErrorEnvelopeKind.standard;
       }
 
+      final evidence = BackendHttpErrorEvidence(
+        statusCode: statusCode,
+        responseCode: responseCode,
+        envelopeKind: envelopeKind,
+        retryAfter: _parseRetryAfterHeader(response.headers),
+        hasBearerChallenge: _hasBearerChallenge(response.headers),
+      );
+      if (statusCode == 426 && responseCode == 'CLIENT_UPDATE_REQUIRED') {
+        try {
+          _onClientUpdateRequired?.call();
+        } on Object {
+          // Compatibility state must never change transport behavior.
+        }
+      }
       return BackendTransportException(
         kind: BackendTransportFailureKind.httpResponse,
-        httpError: BackendHttpErrorEvidence(
-          statusCode: statusCode,
-          responseCode: responseCode,
-          envelopeKind: envelopeKind,
-          retryAfter: _parseRetryAfterHeader(response.headers),
-          hasBearerChallenge: _hasBearerChallenge(response.headers),
-        ),
+        httpError: evidence,
       );
     } on BackendTransportException {
       rethrow;
@@ -470,9 +567,10 @@ Dio _createDio(String baseUrl) {
 }
 
 final class _CredentialInterceptor extends Interceptor {
-  _CredentialInterceptor(this._credentialStore);
+  _CredentialInterceptor(this._credentialStore, this._runtimeIdentityProvider);
 
   final CredentialStore _credentialStore;
+  final BackendClientIdentityProvider _runtimeIdentityProvider;
 
   @override
   Future<void> onRequest(
@@ -544,6 +642,31 @@ final class _CredentialInterceptor extends Interceptor {
       return;
     }
 
+    try {
+      final runtimeHeaders = await _readRuntimeHeaders(
+        _runtimeIdentityProvider,
+      );
+      options.headers.addAll(runtimeHeaders);
+    } on BackendTransportException catch (error) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: _CredentialFailure(error.kind),
+        ),
+      );
+      return;
+    } on Object {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: const _CredentialFailure(
+            BackendTransportFailureKind.deviceIdentityUnavailable,
+          ),
+        ),
+      );
+      return;
+    }
+
     options.headers[_accessKeyHeader] = accessKey.trim();
     options.headers[_authorizationHeader] = 'Bearer $cookie';
     handler.next(options);
@@ -557,6 +680,71 @@ final class _CredentialFailure {
 
   @override
   String toString() => '_CredentialFailure(redacted: true)';
+}
+
+Future<Map<String, String>> _readRuntimeHeaders(
+  BackendClientIdentityProvider provider,
+) async {
+  final BackendClientIdentity identity;
+  try {
+    identity = await provider.read();
+  } on DeviceIdentityException catch (error) {
+    throw BackendTransportException(
+      kind: switch (error.reason) {
+        DeviceIdentityFailureReason.missing =>
+          BackendTransportFailureKind.deviceIdentityMissing,
+        DeviceIdentityFailureReason.invalid =>
+          BackendTransportFailureKind.deviceIdentityInvalid,
+        DeviceIdentityFailureReason.unavailable =>
+          BackendTransportFailureKind.deviceIdentityUnavailable,
+      },
+    );
+  } on ClientVersionException catch (error) {
+    throw BackendTransportException(
+      kind: switch (error.reason) {
+        ClientVersionFailureReason.missing =>
+          BackendTransportFailureKind.clientVersionMissing,
+        ClientVersionFailureReason.invalid =>
+          BackendTransportFailureKind.clientVersionInvalid,
+        ClientVersionFailureReason.unavailable =>
+          BackendTransportFailureKind.clientVersionUnavailable,
+      },
+    );
+  } on Object {
+    throw const BackendTransportException(
+      kind: BackendTransportFailureKind.deviceIdentityUnavailable,
+    );
+  }
+
+  final deviceId = identity.device.id.trim();
+  final platform = identity.device.platform.trim();
+  if (deviceId.isEmpty || platform.isEmpty) {
+    throw const BackendTransportException(
+      kind: BackendTransportFailureKind.deviceIdentityInvalid,
+    );
+  }
+
+  final SemanticVersion version;
+  try {
+    version = SemanticVersion.parse(identity.clientVersion);
+  } on FormatException {
+    throw const BackendTransportException(
+      kind: BackendTransportFailureKind.clientVersionInvalid,
+    );
+  }
+  final clientVersion =
+      version.coreVersion +
+      (version.prerelease.isEmpty ? '' : '-${version.prerelease.join('.')}');
+  final name = identity.device.name?.trim();
+  final osVersion = identity.device.osVersion?.trim();
+  return {
+    _deviceIdHeader: deviceId,
+    _devicePlatformHeader: platform,
+    _clientVersionHeader: clientVersion,
+    if (name != null && name.isNotEmpty) _deviceNameHeader: name,
+    if (osVersion != null && osVersion.isNotEmpty)
+      _deviceOsVersionHeader: osVersion,
+  };
 }
 
 List<Semester> _mapSemesters(Object? json) {
@@ -588,6 +776,45 @@ BackendSessionCookie _mapSessionCookie(Object? json) {
   final dto = BackendCookieDto.fromJson(_asJsonObject(json));
   _requireNonblank(dto.cookie);
   return BackendSessionCookie(dto.cookie);
+}
+
+BackendApiMetadata _mapMetadata(Object? json) {
+  final map = _asJsonObject(json);
+  final apiVersion = map['apiVersion'];
+  final minimumSource = map['minimumClientVersion'];
+  final latestSource = map['latestClientVersion'];
+  final downloadSource = map['downloadUrl'];
+  if (apiVersion is! int ||
+      minimumSource is! String ||
+      latestSource is! String ||
+      downloadSource is! String) {
+    throw const _ResponseShapeException();
+  }
+
+  final SemanticVersion minimum;
+  final SemanticVersion latest;
+  try {
+    minimum = SemanticVersion.parse(minimumSource);
+    latest = SemanticVersion.parse(latestSource);
+  } on FormatException {
+    throw const _ResponseInvariantException();
+  }
+  final downloadUrl = Uri.tryParse(downloadSource);
+  if (downloadUrl == null ||
+      !downloadUrl.isAbsolute ||
+      downloadUrl.host.isEmpty ||
+      downloadUrl.userInfo.isNotEmpty ||
+      (downloadUrl.scheme != 'http' && downloadUrl.scheme != 'https') ||
+      minimum > latest) {
+    throw const _ResponseInvariantException();
+  }
+
+  return BackendApiMetadata(
+    apiVersion: apiVersion,
+    minimumClientVersion: minimum,
+    latestClientVersion: latest,
+    downloadUrl: downloadUrl,
+  );
 }
 
 List<Course> _mapCourses(Object? json, int semesterId) {
@@ -856,6 +1083,18 @@ BackendTransportOutcome _eventOutcome(BackendTransportFailureKind kind) {
       BackendTransportOutcome.invalidResponse,
     BackendTransportFailureKind.httpResponse =>
       BackendTransportOutcome.httpResponse,
+    BackendTransportFailureKind.deviceIdentityMissing =>
+      BackendTransportOutcome.deviceIdentityMissing,
+    BackendTransportFailureKind.deviceIdentityInvalid =>
+      BackendTransportOutcome.deviceIdentityInvalid,
+    BackendTransportFailureKind.deviceIdentityUnavailable =>
+      BackendTransportOutcome.deviceIdentityUnavailable,
+    BackendTransportFailureKind.clientVersionMissing =>
+      BackendTransportOutcome.clientVersionMissing,
+    BackendTransportFailureKind.clientVersionInvalid =>
+      BackendTransportOutcome.clientVersionInvalid,
+    BackendTransportFailureKind.clientVersionUnavailable =>
+      BackendTransportOutcome.clientVersionUnavailable,
     BackendTransportFailureKind.unknownFailure =>
       BackendTransportOutcome.unknownFailure,
   };

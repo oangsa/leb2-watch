@@ -106,9 +106,14 @@ void main() {
           )
           .map((file) => file.path)
           .toList();
-      expect(pluginImports, <String>[
-        'lib/src/core/security/flutter_secure_credential_store.dart',
-      ]);
+      expect(
+        pluginImports,
+        containsAll(<String>[
+          'lib/src/core/security/flutter_secure_credential_store.dart',
+          'lib/src/core/network/backend_runtime_identity.dart',
+        ]),
+      );
+      expect(pluginImports, hasLength(2));
 
       final persistenceFiles = dartFiles.where((file) {
         final source = _read(file.path);

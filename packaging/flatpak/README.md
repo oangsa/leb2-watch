@@ -41,7 +41,7 @@ Linux Release bundle was built with `APP_ENV=development` and
 update then passed; metadata/permission inspection, an in-sandbox
 file/linker/symlink smoke, and a bounded 20-second Wayland launch also passed.
 A host-side Swagger preflight and the same request from the installed Flatpak
-sandbox both returned HTTP 200. An unauthenticated `/Semester` request returned
+sandbox both returned HTTP 200. An unauthenticated `/api/v1/Semester` request returned
 HTTP 401 from both namespaces. The exact packaged launch command used by the
 generated autostart entry stayed alive for 15 seconds before its expected
 timeout. No authenticated app flow or real login/reboot launch was run. Because

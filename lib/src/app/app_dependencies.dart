@@ -7,6 +7,8 @@ import '../core/database/app_database.dart';
 import '../core/database/app_database_manager.dart';
 import '../core/database/local_database_storage.dart';
 import '../core/network/backend_api_client.dart';
+import '../core/network/backend_compatibility_controller.dart';
+import '../core/network/backend_runtime_identity.dart';
 import '../core/security/credential_store.dart';
 import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
@@ -86,6 +88,30 @@ final localNotificationDeletionControlProvider =
 final credentialStoreProvider = Provider<CredentialStore>((ref) {
   return FlutterSecureCredentialStore();
 });
+
+final deviceIdentityProvider = Provider<DeviceIdentityProvider>((ref) {
+  return PlatformDeviceIdentityProvider();
+});
+
+final clientVersionProvider = Provider<ClientVersionProvider>((ref) {
+  return PackageInfoClientVersionProvider();
+});
+
+final backendClientIdentityProvider = Provider<BackendClientIdentityProvider>((
+  ref,
+) {
+  return RuntimeBackendClientIdentityProvider(
+    device: ref.watch(deviceIdentityProvider),
+    clientVersion: ref.watch(clientVersionProvider),
+  );
+});
+
+final backendCompatibilityControllerProvider =
+    Provider<BackendCompatibilityController>((ref) {
+      final controller = BackendCompatibilityController();
+      ref.onDispose(controller.dispose);
+      return controller;
+    });
 
 final localDatabaseStorageProvider = Provider<LocalDatabaseStorage>((ref) {
   return LocalDatabaseStorage();
@@ -188,6 +214,10 @@ final backendTransportClientProvider = Provider<DioBackendApiClient>((ref) {
   return DioBackendApiClient(
     configuration: ref.watch(appConfigurationProvider),
     credentialStore: ref.watch(credentialStoreProvider),
+    runtimeIdentityProvider: ref.watch(backendClientIdentityProvider),
+    onClientUpdateRequired: ref
+        .read(backendCompatibilityControllerProvider)
+        .markUpdateRequired,
   );
 });
 
@@ -198,6 +228,17 @@ final backendApiClientProvider = Provider<BackendApiClient>((ref) {
 final backendSessionClientProvider = Provider<BackendSessionClient>((ref) {
   return ref.watch(backendTransportClientProvider);
 });
+
+final backendSessionLifecycleClientProvider =
+    Provider<BackendSessionLifecycleClient>((ref) {
+      return ref.watch(backendTransportClientProvider);
+    });
+
+final backendCompatibilityClientProvider = Provider<BackendCompatibilityClient>(
+  (ref) {
+    return ref.watch(backendTransportClientProvider);
+  },
+);
 
 final sessionIdentityStoreProvider = FutureProvider<SessionIdentityStore>((
   ref,

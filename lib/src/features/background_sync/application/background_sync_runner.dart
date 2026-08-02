@@ -45,7 +45,9 @@ final class BackgroundSyncRetryableFailure extends BackgroundSyncRunResult {
 }
 
 final class BackgroundSyncTerminalFailure extends BackgroundSyncRunResult {
-  const BackgroundSyncTerminalFailure();
+  const BackgroundSyncTerminalFailure({this.retryEligible = true});
+
+  final bool retryEligible;
 }
 
 final class BackgroundSyncCancelled extends BackgroundSyncRunResult {
@@ -189,6 +191,10 @@ final class BackgroundSyncRunner {
             userId: userId,
           ),
         ),
+      SyncFailed(:final failure)
+          when failure is DeviceBindingFailure ||
+              failure is ClientCompatibilityFailure =>
+        const BackgroundSyncTerminalFailure(retryEligible: false),
       SyncFailed() => const BackgroundSyncTerminalFailure(),
     };
   }

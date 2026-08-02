@@ -35,6 +35,12 @@ enum BackendTransportFailureKind {
   badCertificate,
   invalidResponse,
   httpResponse,
+  deviceIdentityMissing,
+  deviceIdentityInvalid,
+  deviceIdentityUnavailable,
+  clientVersionMissing,
+  clientVersionInvalid,
+  clientVersionUnavailable,
   unknownFailure,
 }
 

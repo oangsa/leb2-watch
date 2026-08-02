@@ -1,0 +1,7 @@
+{
+  "message": "The client version is invalid.",
+  "responseCode": "CLIENT_VERSION_INVALID",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

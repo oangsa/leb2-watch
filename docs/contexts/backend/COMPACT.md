@@ -69,16 +69,19 @@ Domain models and checked DTOs are separate. DTOs = internal transport values wi
 
 | Method | Path | Auth | Success |
 |---|---|---|---|
-| POST | `/User/login` | Provisioned `access-key` | User profile |
-| POST | `/User/cookie` | Activated `access-key` | Cookie |
-| GET | `/Semester` | `access-key` + LEB2 Bearer | `{id,name}` object array |
-| GET | `/Class/{id}` | `access-key` + LEB2 Bearer | Class array |
-| GET | `/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID | Activity array |
-| GET | `/Activity/{sid}` | `access-key` + Bearer + positive user ID | Flat activity |
-| GET | `/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID | Nested snapshot |
-| GET | `/health/leb2` | None | Health |
+| POST | `/api/v1/User/login` | Provisioned `access-key` + device/client metadata | User profile |
+| POST | `/api/v1/User/cookie` | Activated `access-key` + device/client metadata | Cookie |
+| POST | `/api/v1/User/logout` | Activated `access-key` + device/client metadata | 204 |
+| GET | `/api/v1/Semester` | `access-key` + Bearer + device/client metadata | `{id,name}` object array |
+| GET | `/api/v1/Class/{id}` | `access-key` + Bearer + device/client metadata | Class array |
+| GET | `/api/v1/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID + device/client metadata | Activity array |
+| GET | `/api/v1/Activity/{sid}` | `access-key` + Bearer + positive user ID + device/client metadata | Flat activity |
+| GET | `/api/v1/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID + device/client metadata | Nested snapshot |
+| GET | `/api/v1/meta` | None | Compatibility metadata |
+| GET | `/api/v1/health/leb2` | None | Health |
 
-No `/api` prefix. Swagger generated at runtime only in Development.
+The frontend keeps `BACKEND_BASE_URL` as the origin and owns the canonical
+`/api/v1` prefix. Swagger is generated at runtime only in Development.
 
 The backend operator provisions access keys in Supabase PostgreSQL and owns the
 local user/key identity mapping and audit metadata. The frontend never connects
@@ -89,13 +92,14 @@ Frontend defines application-owned JSON transport DTOs for verified camelCase fi
 
 ### Required activity and snapshot contract
 
-Every route except `/health/leb2` requires the operator-provisioned `access-key`.
+Every route except `/api/v1/meta` and `/api/v1/health/leb2` requires the
+operator-provisioned `access-key`.
 All protected data routes also use the opaque LEB2 cookie in `Authorization: Bearer
 <LEB2-session-cookie>`; activity routes additionally require `X-LEB2-USER-ID` with a
 positive int32. The cookie is not a JWT, and a cookie-only flow cannot derive
 the user ID because no verified identity-from-cookie endpoint exists.
 
-`GET /Activity/{semesterId}/snapshot` returns one object with a positive
+`GET /api/v1/Activity/{semesterId}/snapshot` returns one object with a positive
 semester ID and a `classes` array. It retains empty classes, so an empty result
 is `{"semesterId": <id>, "classes": []}`, never a bare array. Classes are
 de-duplicated and ordered by positive ID; a discovery or activity failure for
@@ -117,11 +121,21 @@ expiry (401/403, login redirect, recognizable logged-out HTML, or leaving
 instead returns 401 `AUTHENTICATION_REQUIRED`; timeouts, rejected credentials,
 malformed responses, and backend outages are also not session expiry.
 
+The current v1 rollout also requires exact device/client evidence: `400
+DEVICE_ID_REQUIRED`, `400 DEVICE_ID_INVALID`, `400 CLIENT_VERSION_REQUIRED`,
+`400 CLIENT_VERSION_INVALID`, `403 DEVICE_BINDING_REQUIRED`, `403
+DEVICE_BINDING_MISMATCH`, and `426 CLIENT_UPDATE_REQUIRED`. The frontend maps
+these to non-retryable device-binding or client-compatibility failures; none
+starts session-expiry recovery. `POST /api/v1/User/logout` releases only the
+matching temporary device binding and returns `204 No Content`; it does not
+delete permanent key ownership.
+
 ## Important Files
 
 ### Important files
 
-- `lib/src/core/network/domain/sync_failure.dart` — seven failure values, safe
+- `lib/src/core/network/domain/sync_failure.dart` — transport failure values,
+  including device-binding and client-compatibility states, safe
   metadata enums, equality, redaction, and eligibility.
 - `lib/src/core/network/backend_error_mapper.dart` — exhaustive transport and
   HTTP evidence mapping.
@@ -168,6 +182,14 @@ The public failure types are:
 - `RateLimitedFailure`
 - `InvalidResponseFailure`
 - `UnknownSyncFailure`
+
+`DeviceBindingFailure` reasons are `deviceIdentityMissing`,
+`deviceIdentityInvalid`, `notBound`, and `boundToAnotherDevice`; all are
+non-retryable. `ClientCompatibilityFailure` reasons are
+`clientVersionRequired`, `clientVersionInvalid`, `updateRequired`, and
+`unsupportedApiVersion`; all are non-retryable. These values are persisted by
+the synchronization failure codec so headless failures become terminal
+instead of retrying indefinitely.
 
 `RequestTimeoutFailure` retains one `RequestTimeoutPhase`: `connection`,
 `send`, `receive`, `transform`, or `server`.
@@ -255,7 +277,7 @@ Access-key response codes are first-class failures, never session expiry:
 - **Fixed error codes:** `AUTHENTICATION_REQUIRED`, `INVALID_REQUEST`, `RESOURCE_NOT_FOUND` map to fixed non-retryable `UnknownSyncFailureReason` values.
 - **Empty-semester path:** API reference says empty semester yields `[]`, but executable parser treats missing semester links/IDs as structural failure.
 - **Production compatibility:** deployed revision and production base URL intentionally not inspected.
-- **Session probe:** `GET /Semester` is Selenium-backed and can fail for integration reasons unrelated to expiry.
+- **Session probe:** `GET /api/v1/Semester` is Selenium-backed and can fail for integration reasons unrelated to expiry.
 
 ## Validation Evidence
 

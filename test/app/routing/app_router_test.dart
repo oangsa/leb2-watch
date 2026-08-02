@@ -10,8 +10,10 @@ import 'package:leb2_watch/src/app/routing/app_flow.dart';
 import 'package:leb2_watch/src/app/routing/app_route.dart';
 import 'package:leb2_watch/src/app/routing/app_router.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility_controller.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/authentication/application/session_setup_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/logout_service.dart';
 import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_preferences.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_service.dart';
@@ -29,6 +31,7 @@ import 'package:leb2_watch/src/features/diagnostics/presentation/synchronization
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
 import 'package:leb2_watch/src/features/settings/notifications/notification_settings_dependencies.dart';
+import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 
 import '../../features/settings/notifications/support/fake_notification_settings_service.dart';
 
@@ -73,6 +76,7 @@ void main() {
         '/courses',
         '/settings',
         '/diagnostics',
+        '/update-required',
         '/privacy',
       ]);
       expect(
@@ -97,6 +101,26 @@ void main() {
       for (final route in AppRoute.values) {
         expect(router.namedLocation(route.name), route.path);
       }
+    });
+
+    testWidgets('compatibility controller globally redirects to update state', (
+      tester,
+    ) async {
+      final controller = AppFlowController(initialStage: AppFlowStage.ready);
+      final compatibility = BackendCompatibilityController();
+      compatibility.markUpdateRequired();
+      final router = createAppRouter(
+        controller,
+        compatibilityController: compatibility,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(compatibility.dispose);
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update required'), findsOneWidget);
     });
 
     for (final testCase in <(AppFlowStage, String, String)>[
@@ -1084,6 +1108,7 @@ class _RouterHarness extends StatelessWidget {
         notificationSettingsServiceProvider.overrideWith(
           (_) => const FakeNotificationSettingsService(),
         ),
+        logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
         currentAutomaticSessionReauthenticationAttemptProvider.overrideWith(
           (_) => Stream.value(automaticAttempt),
@@ -1337,4 +1362,11 @@ final class _RouteSessionSetupService implements SessionSetupService {
     SessionSetupCancellation? cancellation,
   }) async =>
       const SessionSetupFailure(SessionSetupFailureKind.incompleteSavedSession);
+}
+
+final class _RouteLogoutService implements LogoutService {
+  const _RouteLogoutService();
+
+  @override
+  Future<LogoutResult> logout() async => const LogoutSuccess();
 }

@@ -16,9 +16,10 @@ Each target also needs its native host toolchain. See
 [Platform support](platform-support.md) before interpreting a command as a
 verified native build.
 
-## Public Beta v0.1 build script
+## Release build script
 
-The repository marks version `0.1.0+1` as Public Beta v0.1. Build with an
+The repository currently builds version `0.5.0+2` (semantic version `0.5.0`,
+Android build number `2`). Build with an
 operator-owned HTTPS backend origin:
 
 ```bash
@@ -37,7 +38,7 @@ The resulting artifacts are:
 
 ```text
 Android:  build/app/outputs/bundle/release/app-release.aab
-Flatpak:  build/public-beta-v0.1/leb2-watch-v0.1.flatpak
+Flatpak:  build/release-v0.5/leb2-watch-v0.5.flatpak
 Windows:  build/windows/x64/runner/Release/
 macOS:    build/macos/Build/Products/Release/leb2_watch.app
 ```
@@ -64,6 +65,12 @@ app stores it only in OS secure storage. Do not add an access key to
 
 The client normalizes the origin to a trailing slash. Production additionally
 requires HTTPS.
+
+Keep `BACKEND_BASE_URL` as the backend origin only, for example
+`https://backend.example.test`; do not append `/api/v1`. The client owns the
+canonical `/api/v1` request paths. The installed semantic version comes from
+platform package metadata and is sent as `X-Client-Version`; the Android `+2`
+build metadata is not sent in that header.
 
 An unsupported nonempty `APP_ENV` is detected during bootstrap and shows a
 fixed recovery surface. There is no same-process retry; rebuild with a
@@ -168,6 +175,15 @@ notification submission smoke also passed there. This does not verify
 WorkManager execution, session synchronization, secure-storage CRUD,
 delete-all, visible delivery or notification taps, cold activation, or
 physical-device/OEM behavior.
+
+For APK distribution, keep the same application ID, signing certificate, and a
+higher `versionCode` when installing an update over an existing APK. Do not
+lose or replace the Android signing key: a differently signed APK is not a
+normal update and may not preserve the installation or device-binding
+lifecycle. Do not uninstall the old APK before an update. If the app is
+actually uninstalled, local database and secrets may be removed; same-device
+Android `ANDROID_ID` continuity still lets the user reconnect by re-entering
+the same access key and LEB2 credentials.
 
 To create an Android App Bundle (AAB) for an operator-controlled distribution
 pipeline, use the same definitions:

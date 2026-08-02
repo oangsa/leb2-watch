@@ -54,8 +54,11 @@ final class IosBackgroundSyncTaskHandler {
       BackgroundSyncNoBackgroundCourses() =>
         WorkmanagerTaskExecutionResult.handled,
       BackgroundSyncRetryableFailure() ||
-      BackgroundSyncTerminalFailure() ||
       BackgroundSyncCancelled() => WorkmanagerTaskExecutionResult.retry,
+      BackgroundSyncTerminalFailure(:final retryEligible) =>
+        retryEligible
+            ? WorkmanagerTaskExecutionResult.retry
+            : WorkmanagerTaskExecutionResult.handled,
       BackgroundSyncDisabled() ||
       BackgroundSyncMissingTarget() ||
       BackgroundSyncSessionPaused() => WorkmanagerTaskExecutionResult.handled,

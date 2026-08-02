@@ -4,11 +4,11 @@ set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
-readonly PUBLIC_BETA_VERSION="0.1"
-readonly EXPECTED_PUBSPEC_VERSION_PREFIX="0.1.0+"
+readonly RELEASE_VERSION="0.5"
+readonly EXPECTED_PUBSPEC_VERSION_PREFIX="0.5.0+"
 readonly FLATPAK_APP_ID="dev.oangsa.leb2watch"
 readonly FLATPAK_MANIFEST="${REPO_ROOT}/packaging/flatpak/${FLATPAK_APP_ID}.json"
-readonly ARTIFACT_ROOT="${REPO_ROOT}/build/public-beta-v${PUBLIC_BETA_VERSION}"
+readonly ARTIFACT_ROOT="${REPO_ROOT}/build/release-v${RELEASE_VERSION}"
 
 BACKEND_BASE_URL="${BACKEND_BASE_URL:-}"
 TARGET="${1:-all}"
@@ -19,7 +19,7 @@ Usage:
   BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN> \
     tool/build_public_beta.sh <android|flatpak|windows|macos|all>
 
-Builds the LEB2 Watch Public Beta v0.1 release artifact for one native target.
+Builds the LEB2 Watch v0.5 release artifact for one native target.
 The all target is intentionally rejected: Flutter cannot build Flatpak,
 Windows, and macOS artifacts from one host, so use the target-specific
 commands on the required native hosts.
@@ -77,7 +77,7 @@ check_release_version() {
   local pubspec_version
   pubspec_version="$(awk '$1 == "version:" { print $2; exit }' pubspec.yaml)"
   [[ "$pubspec_version" == "${EXPECTED_PUBSPEC_VERSION_PREFIX}"* ]] || fail \
-    "pubspec.yaml version is ${pubspec_version:-missing}; expected 0.1.0+<build> for Public Beta v${PUBLIC_BETA_VERSION}"
+    "pubspec.yaml version is ${pubspec_version:-missing}; expected 0.5.0+<build> for release v${RELEASE_VERSION}"
 }
 
 check_backend_origin() {
@@ -85,7 +85,7 @@ check_backend_origin() {
     'BACKEND_BASE_URL is required; provide the operator-owned HTTPS backend origin.'
   case "$BACKEND_BASE_URL" in
     https://*) ;;
-    *) fail 'BACKEND_BASE_URL must use https:// for a production/public-beta build.' ;;
+    *) fail 'BACKEND_BASE_URL must use https:// for a production/release build.' ;;
   esac
 }
 
@@ -111,7 +111,7 @@ build_flatpak() {
   build_flutter_target linux
   local flatpak_build="${ARTIFACT_ROOT}/flatpak-build"
   local flatpak_repo="${ARTIFACT_ROOT}/flatpak-repo"
-  local flatpak_artifact="${ARTIFACT_ROOT}/leb2-watch-v${PUBLIC_BETA_VERSION}.flatpak"
+  local flatpak_artifact="${ARTIFACT_ROOT}/leb2-watch-v${RELEASE_VERSION}.flatpak"
   run mkdir -p "$ARTIFACT_ROOT"
   run flatpak-builder --force-clean \
     --repo="$flatpak_repo" \
@@ -195,4 +195,4 @@ fi
 run_validation
 build_target "$TARGET"
 
-printf 'Public Beta v%s build completed for %s.\n' "$PUBLIC_BETA_VERSION" "$TARGET"
+printf 'LEB2 Watch v%s build completed for %s.\n' "$RELEASE_VERSION" "$TARGET"

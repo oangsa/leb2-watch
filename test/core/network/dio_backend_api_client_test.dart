@@ -8,6 +8,7 @@ import 'package:leb2_watch/src/core/config/app_configuration.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_event.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 
 import 'network_test_support.dart';
 
@@ -101,9 +102,9 @@ void main() {
       () async {
         final adapter = CallbackHttpClientAdapter((options, _, _) {
           return switch (options.path) {
-            '/Semester' => _fixtureResponse('semesters_success.json'),
-            '/Class/101' => _fixtureResponse('classes_success.json'),
-            '/Activity/101/snapshot' => _fixtureResponse(
+            '/api/v1/Semester' => _fixtureResponse('semesters_success.json'),
+            '/api/v1/Class/101' => _fixtureResponse('classes_success.json'),
+            '/api/v1/Activity/101/snapshot' => _fixtureResponse(
               'snapshot_success.json',
             ),
             _ => throw StateError('Unexpected test route.'),
@@ -119,9 +120,9 @@ void main() {
         expect(credentials.sessionReadCount, 3);
         expect(credentials.accessKeyReadCount, 3);
         expect(adapter.requests.map((request) => request.path), [
-          '/Semester',
-          '/Class/101',
-          '/Activity/101/snapshot',
+          '/api/v1/Semester',
+          '/api/v1/Class/101',
+          '/api/v1/Activity/101/snapshot',
         ]);
         for (final request in adapter.requests) {
           expect(request.method, 'GET');
@@ -138,6 +139,9 @@ void main() {
             '00000000-0000-4000-8000-000000000001',
           );
           expect(request.headers['Authorization'], 'Bearer <SESSION_COOKIE>');
+          expect(request.headers['X-Device-ID'], 'device-A');
+          expect(request.headers['X-Device-Platform'], 'android');
+          expect(request.headers['X-Client-Version'], '0.5.0');
         }
         expect(adapter.requests[0].headers, isNot(contains('X-LEB2-USER-ID')));
         expect(adapter.requests[1].headers, isNot(contains('X-LEB2-USER-ID')));
@@ -242,7 +246,7 @@ void main() {
   group('successful response mapping', () {
     test('maps semesters and courses into separate domain models', () async {
       final adapter = CallbackHttpClientAdapter((options, _, _) {
-        return options.path == '/Semester'
+        return options.path == '/api/v1/Semester'
             ? _fixtureResponse('semesters_success.json')
             : _fixtureResponse('classes_success.json');
       });
@@ -407,7 +411,8 @@ void main() {
 
     test('maps exact empty response semantics', () async {
       final adapter = CallbackHttpClientAdapter((options, _, _) {
-        if (options.path == '/Semester' || options.path.startsWith('/Class/')) {
+        if (options.path == '/api/v1/Semester' ||
+            options.path.startsWith('/api/v1/Class/')) {
           return jsonResponse(const <Object?>[]);
         }
         return _fixtureResponse('snapshot_empty.json');
@@ -1071,7 +1076,7 @@ void main() {
         'Example assignment',
         'Example description',
         '<TRACE_ID>',
-        '/Semester',
+        '/api/v1/Semester',
       ]) {
         expect(output, isNot(contains(sensitiveValue)));
       }
@@ -1138,6 +1143,191 @@ void main() {
       },
     );
   });
+
+  group('metadata and session lifecycle', () {
+    test('metadata is anonymous and parses the strict v1 response', () async {
+      final adapter = CallbackHttpClientAdapter((options, _, _) {
+        expect(options.method, 'GET');
+        expect(options.path, '/api/v1/meta');
+        expect(options.headers, isNot(contains('access-key')));
+        expect(options.headers, isNot(contains('Authorization')));
+        expect(options.headers, isNot(contains('X-Device-ID')));
+        expect(options.headers, isNot(contains('X-Client-Version')));
+        expect(options.headers, isNot(contains('X-LEB2-USER-ID')));
+        return _fixtureResponse('meta_success.json');
+      });
+
+      final metadata = await _client(adapter).getMetadata();
+
+      expect(metadata.apiVersion, 1);
+      expect(metadata.minimumClientVersion.coreVersion, '0.5.0');
+      expect(metadata.latestClientVersion.coreVersion, '0.6.0');
+      expect(
+        metadata.downloadUrl,
+        Uri.parse('https://downloads.example.test/leb2-watch/latest.apk'),
+      );
+      expect(adapter.requests, hasLength(1));
+    });
+
+    test('metadata rejects malformed compatibility fields', () async {
+      final valid = _fixtureObject('meta_success.json');
+      final cases = <Object>[
+        {...valid}..remove('apiVersion'),
+        {...valid, 'minimumClientVersion': 'not-semver'},
+        {...valid, 'latestClientVersion': '0.4.0'},
+        {...valid, 'downloadUrl': 'file:///tmp/update.apk'},
+        {...valid, 'downloadUrl': 'https://'},
+        {
+          ...valid,
+          'downloadUrl':
+              'https://user:%3CPASSWORD%3E@downloads.example.test/update.apk',
+        },
+        const <Object?>[],
+      ];
+
+      for (final body in cases) {
+        final adapter = CallbackHttpClientAdapter(
+          (_, _, _) => jsonResponse(body),
+        );
+        await expectLater(
+          _client(adapter).getMetadata(),
+          throwsA(
+            _transportFailure(BackendTransportFailureKind.invalidResponse),
+          ),
+        );
+      }
+
+      final contentTypeAdapter = CallbackHttpClientAdapter(
+        (_, _, _) => ResponseBody.fromString(
+          '<html></html>',
+          200,
+          headers: const {
+            Headers.contentTypeHeader: ['text/html'],
+          },
+        ),
+      );
+      await expectLater(
+        _client(contentTypeAdapter).getMetadata(),
+        throwsA(_transportFailure(BackendTransportFailureKind.invalidResponse)),
+      );
+    });
+
+    test('metadata network failures remain transport failures', () async {
+      final adapter = CallbackHttpClientAdapter(
+        (options, _, _) => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionTimeout,
+        ),
+      );
+
+      await expectLater(
+        _client(adapter).getMetadata(),
+        throwsA(
+          _transportFailure(BackendTransportFailureKind.connectionTimeout),
+        ),
+      );
+    });
+
+    test(
+      'logout sends only the key and runtime metadata and accepts 204',
+      () async {
+        final adapter = CallbackHttpClientAdapter((options, _, _) {
+          expect(options.method, 'POST');
+          expect(options.path, '/api/v1/User/logout');
+          expect(
+            options.headers['access-key'],
+            '00000000-0000-4000-8000-000000000001',
+          );
+          expect(options.headers['X-Device-ID'], 'device-A');
+          expect(options.headers['X-Device-Platform'], 'android');
+          expect(options.headers['X-Client-Version'], '0.5.0');
+          expect(options.headers, isNot(contains('Authorization')));
+          expect(options.headers, isNot(contains('X-LEB2-USER-ID')));
+          return ResponseBody.fromBytes(const <int>[], 204);
+        });
+        final credentials = MemoryCredentialStore();
+
+        await _client(
+          adapter,
+          credentials: credentials,
+        ).logout(accessKey: '00000000-0000-4000-8000-000000000001');
+
+        expect(credentials.accessKeyReadCount, 0);
+        expect(credentials.sessionReadCount, 0);
+      },
+    );
+
+    test('logout rejects every non-204 success shape', () async {
+      final responses = <ResponseBody>[
+        jsonResponse(const <String, Object?>{}, statusCode: 200),
+        ResponseBody.fromString(
+          '{}',
+          204,
+          headers: const {
+            Headers.contentTypeHeader: ['application/json'],
+          },
+        ),
+        ResponseBody.fromString(
+          '',
+          202,
+          headers: const {
+            Headers.contentTypeHeader: ['application/json'],
+          },
+        ),
+      ];
+      for (final response in responses) {
+        final adapter = CallbackHttpClientAdapter((_, _, _) => response);
+        await expectLater(
+          _client(
+            adapter,
+          ).logout(accessKey: '00000000-0000-4000-8000-000000000001'),
+          throwsA(
+            _transportFailure(BackendTransportFailureKind.invalidResponse),
+          ),
+        );
+      }
+    });
+
+    test('runtime identity failure prevents protected dispatch', () async {
+      final adapter = CallbackHttpClientAdapter(
+        (_, _, _) => throw StateError('must not dispatch'),
+      );
+      final client = _client(
+        adapter,
+        runtimeIdentityProvider: const _UnavailableIdentityProvider(),
+      );
+
+      await expectLater(
+        client.getSemesters(),
+        throwsA(
+          _transportFailure(BackendTransportFailureKind.deviceIdentityMissing),
+        ),
+      );
+      expect(adapter.requests, isEmpty);
+    });
+
+    test(
+      'protected 426 invokes compatibility handling without session recovery',
+      () async {
+        var updateRequiredCalls = 0;
+        final adapter = CallbackHttpClientAdapter(
+          (_, _, _) =>
+              _fixtureResponse('client_update_required.json', statusCode: 426),
+        );
+        final client = _client(
+          adapter,
+          onClientUpdateRequired: () => updateRequiredCalls += 1,
+        );
+
+        final error = await _captureTransportFailure(client.getSemesters());
+
+        expect(error.kind, BackendTransportFailureKind.httpResponse);
+        expect(error.httpError?.statusCode, 426);
+        expect(error.httpError?.responseCode, 'CLIENT_UPDATE_REQUIRED');
+        expect(updateRequiredCalls, 1);
+      },
+    );
+  });
 }
 
 DioBackendApiClient _client(
@@ -1146,6 +1336,8 @@ DioBackendApiClient _client(
   String environment = 'development',
   String backendBaseUrl = _baseUrl,
   BackendTransportEventSink? eventSink,
+  BackendClientIdentityProvider? runtimeIdentityProvider,
+  void Function()? onClientUpdateRequired,
 }) {
   return DioBackendApiClient(
     configuration: AppConfiguration.parse(
@@ -1156,7 +1348,20 @@ DioBackendApiClient _client(
     httpClientAdapter: adapter,
     eventSink: eventSink ?? (_) {},
     utcNow: () => DateTime.utc(2026, 7, 24, 12),
+    runtimeIdentityProvider:
+        runtimeIdentityProvider ?? const FixedBackendClientIdentityProvider(),
+    onClientUpdateRequired: onClientUpdateRequired,
   );
+}
+
+final class _UnavailableIdentityProvider
+    implements BackendClientIdentityProvider {
+  const _UnavailableIdentityProvider();
+
+  @override
+  Future<BackendClientIdentity> read() async {
+    throw const DeviceIdentityException(DeviceIdentityFailureReason.missing);
+  }
 }
 
 Map<String, dynamic> _fixtureObject(String name) {

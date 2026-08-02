@@ -6,8 +6,8 @@ notifications. It targets Android, iOS, Windows, macOS, and Linux.
 
 > LEB2 Watch is an independent third-party application and is not affiliated with or endorsed by KMUTT or LEB2.
 
-> **Public Beta v0.1:** the host-side function suite and source/static checks
-> are green in this checkout: 143 test files passed across 15 sequential
+> **Development release 0.5.0:** the host-side function suite and source/static checks
+> are green in this checkout: 148 test files passed across 15 sequential
 > shards, and Dart and Flutter analysis report no issues. Windows and macOS
 > native builds and runtime behavior have not been tested yet, so this beta is
 > not a production, store, signing, or notarization readiness claim. No
@@ -48,6 +48,20 @@ The backend operator provisions one access key per user and gives it to that
 user out of band. Enter the key at runtime during setup; it is never a
 `--dart-define` or part of `AppConfiguration`, and the app stores it only in OS
 secure storage.
+
+An access key permanently belongs to one LEB2 account. The backend temporarily
+binds that key to one active device. Logging out releases the device binding
+without deleting the key or changing its account ownership; cached assignment
+data remains on the device. A new device can use the same key only after the
+old device logs out or the backend operator resets its binding.
+
+On Android, the app uses the platform `ANDROID_ID` as `X-Device-ID`, so a normal
+same-package, same-signing-identity reinstall on the same Android user/profile
+can reconnect with the same key after the user re-enters the key and LEB2
+credentials. Installing a newer APK over the existing app preserves local
+secrets and the binding. Non-Android platforms use a cryptographically random
+installation identifier in secure storage; losing that storage may require an
+operator reset. The identifier is never shown or logged.
 
 ## Current capabilities
 

@@ -50,6 +50,13 @@ enum SessionSetupFailureKind {
   accessKeyAccountMismatch,
   accessKeyReauthenticationRequired,
   accessKeyStoreUnavailable,
+  deviceIdentityMissing,
+  deviceIdentityInvalid,
+  deviceNotBound,
+  deviceMismatch,
+  clientVersionRequired,
+  clientVersionInvalid,
+  clientUpdateRequired,
   persistenceUncertain,
   cancelled,
   busy,
@@ -719,6 +726,20 @@ SessionSetupFailure _mapTransportFailure(
       SessionSetupFailureKind.accessKeyReauthenticationRequired,
     SessionTransportFailureKind.accessKeyStoreUnavailable =>
       SessionSetupFailureKind.accessKeyStoreUnavailable,
+    SessionTransportFailureKind.deviceIdentityMissing =>
+      SessionSetupFailureKind.deviceIdentityMissing,
+    SessionTransportFailureKind.deviceIdentityInvalid =>
+      SessionSetupFailureKind.deviceIdentityInvalid,
+    SessionTransportFailureKind.deviceNotBound =>
+      SessionSetupFailureKind.deviceNotBound,
+    SessionTransportFailureKind.deviceMismatch =>
+      SessionSetupFailureKind.deviceMismatch,
+    SessionTransportFailureKind.clientVersionRequired =>
+      SessionSetupFailureKind.clientVersionRequired,
+    SessionTransportFailureKind.clientVersionInvalid =>
+      SessionSetupFailureKind.clientVersionInvalid,
+    SessionTransportFailureKind.clientUpdateRequired =>
+      SessionSetupFailureKind.clientUpdateRequired,
     SessionTransportFailureKind.unexpected =>
       SessionSetupFailureKind.unexpected,
   };

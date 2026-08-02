@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 
@@ -127,6 +128,34 @@ final class MemoryCredentialStore implements CredentialStore {
     sessionWriteCount += 1;
     mutationCount += 1;
   }
+}
+
+final class FixedBackendClientIdentityProvider
+    implements BackendClientIdentityProvider {
+  const FixedBackendClientIdentityProvider({
+    this.id = 'device-A',
+    this.platform = 'android',
+    this.name,
+    this.osVersion,
+    this.version = '0.5.0',
+  });
+
+  final String id;
+  final String platform;
+  final String? name;
+  final String? osVersion;
+  final String version;
+
+  @override
+  Future<BackendClientIdentity> read() async => BackendClientIdentity(
+    device: DeviceIdentity(
+      id: id,
+      platform: platform,
+      name: name,
+      osVersion: osVersion,
+    ),
+    clientVersion: version,
+  );
 }
 
 ResponseBody jsonResponse(

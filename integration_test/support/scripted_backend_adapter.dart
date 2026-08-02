@@ -24,7 +24,7 @@ final class ScriptedBackendExchange {
 
   final String method;
   final String path;
-  final String accessKey;
+  final String? accessKey;
   final String? authorization;
   final String? userId;
   final Object body;
@@ -74,6 +74,18 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
       _require(
         options.headers['X-LEB2-USER-ID'] == exchange.userId,
         'Unexpected LEB2 user ID header.',
+      );
+      _require(
+        options.headers['X-Device-ID'] == 'integration-device',
+        'Unexpected device identity header.',
+      );
+      _require(
+        options.headers['X-Device-Platform'] == 'android',
+        'Unexpected device platform header.',
+      );
+      _require(
+        options.headers['X-Client-Version'] == '0.5.0',
+        'Unexpected client version header.',
       );
       final expectedRequestBody = exchange.requestBody;
       if (expectedRequestBody == null) {

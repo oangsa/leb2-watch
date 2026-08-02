@@ -7,6 +7,8 @@ enum BackendTransportRoute {
   sessionVerification,
   userLogin,
   sessionCookieAcquisition,
+  userLogout,
+  metadata,
 }
 
 enum BackendTransportOutcome {
@@ -25,6 +27,12 @@ enum BackendTransportOutcome {
   badCertificate,
   invalidResponse,
   httpResponse,
+  deviceIdentityMissing,
+  deviceIdentityInvalid,
+  deviceIdentityUnavailable,
+  clientVersionMissing,
+  clientVersionInvalid,
+  clientVersionUnavailable,
   unknownFailure,
 }
 

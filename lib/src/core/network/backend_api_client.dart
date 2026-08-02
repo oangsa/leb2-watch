@@ -9,7 +9,10 @@ import 'package:leb2_watch/src/core/network/retry_after_parser.dart';
 import 'package:leb2_watch/src/core/network/transport/backend_dtos.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 
+import 'backend_compatibility.dart';
+import 'backend_runtime_identity.dart';
 import 'domain/backend_models.dart';
+import 'semantic_version.dart';
 
 part 'dio_backend_api_client.dart';
 
@@ -48,6 +51,19 @@ abstract interface class BackendSessionClient {
     required String accessKey,
     required String username,
     required String password,
+    BackendRequestCancellation? cancellation,
+  });
+}
+
+abstract interface class BackendSessionLifecycleClient {
+  Future<void> logout({
+    required String accessKey,
+    BackendRequestCancellation? cancellation,
+  });
+}
+
+abstract interface class BackendCompatibilityClient {
+  Future<BackendApiMetadata> getMetadata({
     BackendRequestCancellation? cancellation,
   });
 }

@@ -25,8 +25,10 @@ import 'package:leb2_watch/src/features/background_sync/domain/background_schedu
 import 'package:leb2_watch/src/features/diagnostics/application/synchronization_diagnostics_service.dart';
 import 'package:leb2_watch/src/features/diagnostics/domain/synchronization_diagnostics.dart';
 import 'package:leb2_watch/src/features/diagnostics/presentation/synchronization_diagnostics_route.dart';
+import 'package:leb2_watch/src/features/authentication/application/logout_service.dart';
 import 'package:leb2_watch/src/features/semesters/application/semester_selection_service.dart';
 import 'package:leb2_watch/src/features/semesters/data/semester_selection_store.dart';
+import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 import 'package:leb2_watch/src/features/settings/notifications/notification_settings_dependencies.dart';
 
 import '../../features/settings/notifications/support/fake_notification_settings_service.dart';
@@ -626,6 +628,7 @@ Future<_ShellSetup> _pumpShell(
         notificationSettingsServiceProvider.overrideWith(
           (_) => const FakeNotificationSettingsService(),
         ),
+        logoutServiceProvider.overrideWithValue(const _ShellLogoutService()),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light,
@@ -646,6 +649,13 @@ Future<_ShellSetup> _pumpShell(
   );
   await tester.pumpAndSettle();
   return _ShellSetup(controller: controller, router: router);
+}
+
+final class _ShellLogoutService implements LogoutService {
+  const _ShellLogoutService();
+
+  @override
+  Future<LogoutResult> logout() async => const LogoutSuccess();
 }
 
 final class _ShellSemesterSelectionService implements SemesterSelectionService {

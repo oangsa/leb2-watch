@@ -11,6 +11,9 @@ import 'package:leb2_watch/src/core/config/app_configuration.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
+import 'package:leb2_watch/src/core/network/backend_compatibility.dart';
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
+import 'package:leb2_watch/src/core/network/semantic_version.dart';
 import 'package:leb2_watch/src/features/settings/data_deletion/data_deletion_dependencies.dart';
 
 import 'recording_platforms.dart';
@@ -83,6 +86,8 @@ final class E2eAppHarness {
       configuration: configuration,
       credentialStore: credentials,
       httpClientAdapter: adapter,
+      runtimeIdentityProvider:
+          const _IntegrationBackendClientIdentityProvider(),
     );
     final container = ProviderContainer(
       overrides: [
@@ -92,6 +97,9 @@ final class E2eAppHarness {
         localDatabaseStorageProvider.overrideWithValue(storage),
         backendApiClientProvider.overrideWithValue(client),
         backendSessionClientProvider.overrideWithValue(client),
+        backendCompatibilityClientProvider.overrideWithValue(
+          const _IntegrationCompatibilityClient(),
+        ),
         localNotificationsPlatformProvider.overrideWithValue(
           notificationPlatform,
         ),
@@ -118,6 +126,32 @@ final class E2eAppHarness {
       await root.delete(recursive: true);
     }
   }
+}
+
+final class _IntegrationBackendClientIdentityProvider
+    implements BackendClientIdentityProvider {
+  const _IntegrationBackendClientIdentityProvider();
+
+  @override
+  Future<BackendClientIdentity> read() async => const BackendClientIdentity(
+    device: DeviceIdentity(id: 'integration-device', platform: 'android'),
+    clientVersion: '0.5.0',
+  );
+}
+
+final class _IntegrationCompatibilityClient
+    implements BackendCompatibilityClient {
+  const _IntegrationCompatibilityClient();
+
+  @override
+  Future<BackendApiMetadata> getMetadata({
+    BackendRequestCancellation? cancellation,
+  }) async => BackendApiMetadata(
+    apiVersion: 1,
+    minimumClientVersion: SemanticVersion.parse('0.5.0'),
+    latestClientVersion: SemanticVersion.parse('0.5.0'),
+    downloadUrl: Uri.parse('https://downloads.example.test/latest.apk'),
+  );
 }
 
 final class E2eAppLifetime {

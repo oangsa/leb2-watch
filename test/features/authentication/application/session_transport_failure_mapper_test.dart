@@ -179,6 +179,81 @@ void main() {
     expect(failure.kind, SessionTransportFailureKind.accessKeyStoreUnavailable);
     expect(failure.retryAfter, const Duration(seconds: 11));
   });
+
+  test('maps device and client compatibility evidence exactly', () {
+    const cases = <(int, String, SessionTransportFailureKind)>[
+      (
+        400,
+        'DEVICE_ID_REQUIRED',
+        SessionTransportFailureKind.deviceIdentityMissing,
+      ),
+      (
+        400,
+        'DEVICE_ID_INVALID',
+        SessionTransportFailureKind.deviceIdentityInvalid,
+      ),
+      (
+        403,
+        'DEVICE_BINDING_REQUIRED',
+        SessionTransportFailureKind.deviceNotBound,
+      ),
+      (
+        403,
+        'DEVICE_BINDING_MISMATCH',
+        SessionTransportFailureKind.deviceMismatch,
+      ),
+      (
+        400,
+        'CLIENT_VERSION_REQUIRED',
+        SessionTransportFailureKind.clientVersionRequired,
+      ),
+      (
+        400,
+        'CLIENT_VERSION_INVALID',
+        SessionTransportFailureKind.clientVersionInvalid,
+      ),
+      (
+        426,
+        'CLIENT_UPDATE_REQUIRED',
+        SessionTransportFailureKind.clientUpdateRequired,
+      ),
+    ];
+
+    for (final (statusCode, responseCode, expected) in cases) {
+      expect(
+        mapSessionTransportFailure(
+          _httpError(statusCode, responseCode),
+          SessionTransportRequest.login,
+        ).kind,
+        expected,
+        reason: responseCode,
+      );
+      expect(
+        mapSessionTransportFailure(
+          _httpError(statusCode == 426 ? 400 : 426, responseCode),
+          SessionTransportRequest.login,
+        ).kind,
+        SessionTransportFailureKind.invalidResponse,
+        reason: '$responseCode wrong status',
+      );
+    }
+  });
+
+  test('device and update failures are not session expiry', () {
+    for (final (statusCode, responseCode) in [
+      (403, 'DEVICE_BINDING_MISMATCH'),
+      (426, 'CLIENT_UPDATE_REQUIRED'),
+    ]) {
+      final failure = mapSessionTransportFailure(
+        _httpError(statusCode, responseCode),
+        SessionTransportRequest.verification,
+      );
+      expect(
+        failure.kind,
+        isNot(SessionTransportFailureKind.invalidOrExpiredSession),
+      );
+    }
+  });
 }
 
 BackendTransportException _httpError(

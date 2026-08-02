@@ -39,15 +39,16 @@ the app; it is not a runtime setting.
 ## Snapshot returns 404 or the response shape is wrong
 
 Verify that deployment follows the current backend `dev` API reference and
-uses the documented `/Activity/{semesterId}/snapshot` route.
+uses the documented `/api/v1/Activity/{semesterId}/snapshot` route.
 
 The snapshot path is:
 
 ```text
-GET /Activity/{semesterId}/snapshot
+GET /api/v1/Activity/{semesterId}/snapshot
 ```
 
-There is no `/api` prefix. See
+Keep `BACKEND_BASE_URL` as the origin only; do not put `/api/v1` into the build
+definition. See
 [Self-hosting the backend](self-hosting-backend.md).
 
 ## A phone or emulator cannot reach the local backend
@@ -62,7 +63,7 @@ device and host; do not disable TLS verification to work around connectivity.
 
 ## The health endpoint is HTTP 200 but requests fail
 
-`/health/leb2` intentionally always returns HTTP 200. Inspect the JSON body:
+`/api/v1/health/leb2` intentionally always returns HTTP 200. Inspect the JSON body:
 `degraded` means at least one process-local LEB2 dependency has active backoff.
 Health state is not shared across backend instances.
 
@@ -92,6 +93,47 @@ X-LEB2-USER-ID: <positive-int32>
 The cookie is opaque, not a JWT. The numeric user ID is stored separately as
 non-secret local identity after session verification. Do not try to derive it
 from the cookie.
+
+Protected and session setup calls also require `X-Device-ID` and
+`X-Client-Version`, with optional device metadata. The anonymous
+`/api/v1/meta` and `/api/v1/health/leb2` calls do not send those headers.
+
+### The key is bound to another device
+
+The key permanently belongs to its original LEB2 account, but only one active
+device may use it. Log out on the original device, or ask the backend operator
+to reset its device binding. Do not generate a new key as the first response.
+
+### The app was reinstalled on the same Android device
+
+Re-enter the same access key and LEB2 username/password. Android uses
+`ANDROID_ID` as the device-binding input, so a same-device, same-signed APK
+reinstall can reconnect without a special reinstall mode. Local cache and
+secure secrets are not promised across uninstall.
+
+### The APK is old or update is required
+
+Install the current APK over the existing installation, keeping the same
+application ID, signing key, and a higher `versionCode`. `426
+CLIENT_UPDATE_REQUIRED` means the client must be updated; do not clear local
+data. The **Download update** button opens the backend-provided URL in the
+external browser. LEB2 Watch never downloads or installs an APK itself.
+
+### Device ID unavailable
+
+Treat this as a platform/device integration failure. On Android, check the
+runtime and application installation rather than requesting unrelated dangerous
+permissions. On other platforms, secure-storage failure may prevent the
+persistent installation identifier from being read. Do not advise generating
+another access key first.
+
+### Logout fails
+
+Logout is server-first. Network outage, timeout, or device mismatch leaves the
+access key and cookie in secure storage so the backend binding is not stranded.
+Retry when the original device can reach the backend. Successful logout clears
+local secrets, retains cached data and local user identity, and stops remote
+background work.
 
 If the message says the access key is missing, invalid, not activated, or
 belongs to another account, request the correct key from the backend operator.

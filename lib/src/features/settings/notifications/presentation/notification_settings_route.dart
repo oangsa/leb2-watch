@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/app_dependencies.dart';
+import '../../../../app/routing/app_flow.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/routing/app_route.dart';
 import '../../data_deletion/data_deletion_dependencies.dart';
@@ -21,6 +22,13 @@ class NotificationSettingsRoute extends ConsumerWidget {
         service: settingsService,
         deletionService: deletion,
         onDeletionCompleted: (_) {},
+        logoutService: ref.watch(logoutServiceProvider),
+        onLogoutCompleted: () {
+          ref
+              .read(appFlowControllerProvider)
+              .updateStage(AppFlowStage.authentication);
+          context.go(AppRoute.authentication.path);
+        },
         onManageCourses: () => context.go(AppRoute.courses.path),
         onOpenPrivacy: () => context.push(AppRoute.privacy.path),
       ),

@@ -160,7 +160,7 @@ void main() {
     });
 
     test('maps every valid status from the fixed-code contract table', () {
-      expect(_knownCodeContracts, hasLength(17));
+      expect(_knownCodeContracts, hasLength(24));
       expect(
         _knownCodeContracts.map((contract) => contract.responseCode).toSet(),
         hasLength(_knownCodeContracts.length),
@@ -376,6 +376,19 @@ void main() {
         AccessKeyFailure(AccessKeyFailureReason.reauthenticationRequired),
         AccessKeyFailure(AccessKeyFailureReason.identityConflict),
         AccessKeyFailure(AccessKeyFailureReason.storeUnavailable),
+        DeviceBindingFailure(DeviceBindingFailureReason.deviceIdentityMissing),
+        DeviceBindingFailure(DeviceBindingFailureReason.deviceIdentityInvalid),
+        DeviceBindingFailure(DeviceBindingFailureReason.notBound),
+        DeviceBindingFailure(DeviceBindingFailureReason.boundToAnotherDevice),
+        ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.clientVersionRequired,
+        ),
+        ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.clientVersionInvalid,
+        ),
+        ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.updateRequired,
+        ),
         NetworkUnavailableFailure(),
         RequestTimeoutFailure(RequestTimeoutPhase.receive),
         BackendUnavailableFailure(retryAfter: Duration(hours: 4)),
@@ -559,6 +572,88 @@ const _knownCodeContracts = <_KnownCodeContract>[
       ),
     ],
     wrongStatusCode: 500,
+  ),
+  _KnownCodeContract(
+    responseCode: 'DEVICE_ID_REQUIRED',
+    validCases: [
+      (
+        statusCode: 400,
+        failure: DeviceBindingFailure(
+          DeviceBindingFailureReason.deviceIdentityMissing,
+        ),
+      ),
+    ],
+    wrongStatusCode: 403,
+  ),
+  _KnownCodeContract(
+    responseCode: 'DEVICE_ID_INVALID',
+    validCases: [
+      (
+        statusCode: 400,
+        failure: DeviceBindingFailure(
+          DeviceBindingFailureReason.deviceIdentityInvalid,
+        ),
+      ),
+    ],
+    wrongStatusCode: 403,
+  ),
+  _KnownCodeContract(
+    responseCode: 'DEVICE_BINDING_REQUIRED',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: DeviceBindingFailure(DeviceBindingFailureReason.notBound),
+      ),
+    ],
+    wrongStatusCode: 400,
+  ),
+  _KnownCodeContract(
+    responseCode: 'DEVICE_BINDING_MISMATCH',
+    validCases: [
+      (
+        statusCode: 403,
+        failure: DeviceBindingFailure(
+          DeviceBindingFailureReason.boundToAnotherDevice,
+        ),
+      ),
+    ],
+    wrongStatusCode: 400,
+  ),
+  _KnownCodeContract(
+    responseCode: 'CLIENT_VERSION_REQUIRED',
+    validCases: [
+      (
+        statusCode: 400,
+        failure: ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.clientVersionRequired,
+        ),
+      ),
+    ],
+    wrongStatusCode: 426,
+  ),
+  _KnownCodeContract(
+    responseCode: 'CLIENT_VERSION_INVALID',
+    validCases: [
+      (
+        statusCode: 400,
+        failure: ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.clientVersionInvalid,
+        ),
+      ),
+    ],
+    wrongStatusCode: 426,
+  ),
+  _KnownCodeContract(
+    responseCode: 'CLIENT_UPDATE_REQUIRED',
+    validCases: [
+      (
+        statusCode: 426,
+        failure: ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.updateRequired,
+        ),
+      ),
+    ],
+    wrongStatusCode: 400,
   ),
   _KnownCodeContract(
     responseCode: 'SESSION_EXPIRED',

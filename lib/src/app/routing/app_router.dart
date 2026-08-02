@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app_dependencies.dart';
+import '../../core/network/backend_compatibility.dart';
+import '../../core/network/backend_compatibility_controller.dart';
 import '../design_system/widgets/app_status_banner.dart';
 import '../design_system/widgets/app_state_view.dart';
 import '../shell/adaptive_app_shell.dart';
 import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
+import '../../features/compatibility/presentation/update_required_page.dart';
 import '../../features/authentication/domain/automatic_session_reauthentication.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
@@ -22,12 +25,19 @@ import 'app_route.dart';
 
 GoRouter createAppRouter(
   AppFlowController controller, {
+  BackendCompatibilityController? compatibilityController,
   String? initialLocation,
 }) {
+  final compatibility =
+      compatibilityController ?? BackendCompatibilityController();
   return GoRouter(
     initialLocation: initialLocation ?? AppRoute.assignments.path,
-    refreshListenable: controller,
-    redirect: (_, state) => _redirectForStage(controller.stage, state.uri.path),
+    refreshListenable: Listenable.merge([controller, compatibility]),
+    redirect: (_, state) => _redirectForStage(
+      controller.stage,
+      compatibility.snapshot,
+      state.uri.path,
+    ),
     errorBuilder: (context, _) => Scaffold(
       body: AppStateView.error(
         title: 'Page unavailable',
@@ -50,6 +60,11 @@ GoRouter createAppRouter(
         name: AppRoute.authentication.name,
         path: AppRoute.authentication.path,
         builder: (_, _) => const SessionSetupRoute(),
+      ),
+      GoRoute(
+        name: AppRoute.updateRequired.name,
+        path: AppRoute.updateRequired.path,
+        builder: (_, _) => UpdateRequiredPage(snapshot: compatibility.snapshot),
       ),
       GoRoute(
         name: AppRoute.semesters.name,
@@ -103,7 +118,19 @@ GoRouter createAppRouter(
   );
 }
 
-String? _redirectForStage(AppFlowStage stage, String requestedPath) {
+String? _redirectForStage(
+  AppFlowStage stage,
+  BackendCompatibilitySnapshot compatibility,
+  String requestedPath,
+) {
+  if (compatibility.blocksRemoteUse) {
+    return requestedPath == AppRoute.updateRequired.path
+        ? null
+        : AppRoute.updateRequired.path;
+  }
+  if (requestedPath == AppRoute.updateRequired.path) {
+    return _redirectForStage(stage, compatibility, '/');
+  }
   if (requestedPath == AppRoute.privacy.path) {
     return null;
   }
@@ -185,6 +212,23 @@ String? _automaticReconnectMessage(AutomaticReauthenticationAttempt? attempt) {
     AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable =>
       'Access-key verification is temporarily unavailable. Try again later. '
           'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.deviceIdentityMissing ||
+    AutomaticReauthenticationFailureKind.deviceIdentityInvalid =>
+      'This device could not provide a valid device identifier. '
+          'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.deviceNotBound =>
+      'This access key needs to be connected to this device again. '
+          'Reconnect with Username / password. Saved data remains available.',
+    AutomaticReauthenticationFailureKind.deviceMismatch =>
+      'This access key is connected to another device. Log out there or ask '
+          'your backend operator to reset the binding. Saved data remains available.',
+    AutomaticReauthenticationFailureKind.clientVersionRequired ||
+    AutomaticReauthenticationFailureKind.clientVersionInvalid =>
+      'This app could not provide a valid client version. '
+          'Saved data remains available.',
+    AutomaticReauthenticationFailureKind.clientUpdateRequired =>
+      'This version is no longer compatible with the backend. Install the '
+          'latest APK to continue.',
     AutomaticReauthenticationFailureKind.cancelled ||
     AutomaticReauthenticationFailureKind.timedOut ||
     AutomaticReauthenticationFailureKind.superseded =>

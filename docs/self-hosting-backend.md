@@ -13,7 +13,7 @@ quota, or shared server capacity.
 
 | LEB2 Watch version | Backend requirement |
 | --- | --- |
-| Current pre-release | [`LEB2SCRAPPER-API`](https://github.com/oangsa/LEB2SCRAPPER-API) `dev` branch/current API reference, or a later release explicitly verified as compatible |
+| `0.5.0+2` | [`LEB2SCRAPPER-API`](https://github.com/oangsa/LEB2SCRAPPER-API) `dev` API reference at revision `86b2896af7ca42498f52fd5d015fffe711818b85`, or a later release explicitly verified as compatible |
 
 Use the backend revision whose checked-in API reference matches this frontend.
 Clone the repository and follow its current setup documentation:
@@ -23,7 +23,9 @@ git clone https://github.com/oangsa/LEB2SCRAPPER-API.git
 cd LEB2SCRAPPER-API
 ```
 
-There is no contract-version endpoint; verify the API reference when upgrading.
+The frontend also performs a best-effort anonymous `GET /api/v1/meta` check.
+Temporary metadata failure does not remove credentials or cached data; an
+explicit compatibility failure blocks remote use until the APK is updated.
 
 ## Runtime and data model
 
@@ -56,18 +58,22 @@ adds coordinated replacements or explicitly accepts per-instance behavior.
 
 ## Client-facing contract
 
-Routes are served at the configured origin root; there is no `/api` prefix:
+Routes are served from the configured origin root and the frontend uses the
+canonical `/api/v1` prefix:
 
 ```text
-POST /User/login
-POST /User/cookie
-GET  /Semester
-GET  /Class/{id}
-GET  /Activity/{semesterId}/snapshot
-GET  /health/leb2
+POST /api/v1/User/login
+POST /api/v1/User/cookie
+POST /api/v1/User/logout
+GET  /api/v1/Semester
+GET  /api/v1/Class/{id}
+GET  /api/v1/Activity/{semesterId}/snapshot
+GET  /api/v1/meta
+GET  /api/v1/health/leb2
 ```
 
-Every route except `/health/leb2` requires the operator-provisioned access key:
+Every route except `/api/v1/meta` and `/api/v1/health/leb2` requires the
+operator-provisioned access key:
 
 ```http
 access-key: <operator-provided-uuid>
@@ -85,6 +91,13 @@ Activity routes also require the positive numeric LEB2 user ID:
 ```http
 X-LEB2-USER-ID: <positive-int32>
 ```
+
+Protected and session-lifecycle requests also send `X-Device-ID` and
+`X-Client-Version`, plus optional `X-Device-Name`, `X-Device-Platform`, and
+`X-Device-OS-Version`. `/api/v1/meta` is anonymous and receives none of these
+headers. The access key permanently belongs to one LEB2 account and its active
+device binding is temporary: `/api/v1/User/logout` releases the matching
+binding without deleting key ownership.
 
 The cookie is not a JWT. Do not put an `/api` path in the frontend's backend
 URL. See the current
@@ -137,10 +150,10 @@ docker run --rm -p 8080:8080 leb2scrapper-api
 Check the JSON health body:
 
 ```bash
-curl http://localhost:8080/health/leb2
+curl http://localhost:8080/api/v1/health/leb2
 ```
 
-`/health/leb2` always returns HTTP 200. Its body reports `healthy` or
+`/api/v1/health/leb2` always returns HTTP 200. Its body reports `healthy` or
 `degraded`; a 200 status by itself does not prove that every LEB2 dependency is
 available. Health and retry state apply only to that process.
 
@@ -186,7 +199,7 @@ before adapting it. Important limitations:
 - The Flutter client does not send a Google identity token or
   `X-Serverless-Authorization`. As currently implemented, it needs an endpoint
   reachable without an additional IAM-authentication header.
-- `/User/login` and `/User/cookie` require the documented `access-key` header;
+- `/api/v1/User/login` and `/api/v1/User/cookie` require the documented `access-key` header;
   they are not anonymous endpoints.
 - Scale-to-zero reduces idle allocation but does not guarantee zero cost.
 - The three-instance example produces per-instance cache and throttle state.
@@ -241,10 +254,9 @@ it during setup; LEB2 Watch stores it only in OS secure storage.
 ## Upgrading
 
 1. Read backend release notes and compare the current API reference before updating.
-2. Verify the required routes, Bearer header, user-ID header, error envelopes,
+2. Verify the `/api/v1` routes, device/client headers, Bearer header, user-ID header, error envelopes,
    and nested snapshot response.
-3. Run the backend tests.
-4. Exercise the frontend only with sanitized test data first.
-5. Update this compatibility table only after the new revision is verified.
-
-Neither project currently publishes a compatibility/version handshake.
+3. Confirm `/api/v1/meta` advertises a minimum version supported by the APK.
+4. Run the backend tests.
+5. Exercise the frontend only with sanitized test data first.
+6. Update this compatibility table only after the new revision is verified.

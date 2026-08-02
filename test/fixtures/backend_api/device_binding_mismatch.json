@@ -1,0 +1,7 @@
+{
+  "message": "This access key is bound to another device.",
+  "responseCode": "DEVICE_BINDING_MISMATCH",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

@@ -33,9 +33,12 @@ void main() {
         );
         final adapter = CallbackHttpClientAdapter((options, _, _) {
           expect(options.method, 'GET');
-          expect(options.path, '/Semester');
+          expect(options.path, '/api/v1/Semester');
           expect(options.headers['access-key'], _candidateAccessKey);
           expect(options.headers['Authorization'], 'Bearer $_candidateCookie');
+          expect(options.headers['X-Device-ID'], 'device-A');
+          expect(options.headers['X-Device-Platform'], 'android');
+          expect(options.headers['X-Client-Version'], '0.5.0');
           expect(options.headers, isNot(contains('X-LEB2-USER-ID')));
           return _fixtureResponse('semesters_success.json');
         });
@@ -228,14 +231,18 @@ void main() {
           );
           expect(options.headers, isNot(contains('Authorization')));
           expect(options.headers, isNot(contains('X-LEB2-USER-ID')));
+          expect(options.headers['access-key'], _candidateAccessKey);
+          expect(options.headers['X-Device-ID'], 'device-A');
+          expect(options.headers['X-Device-Platform'], 'android');
+          expect(options.headers['X-Client-Version'], '0.5.0');
           expect(options.data, {
             'username': _username,
             'password': _password,
             'remember': false,
           });
           return switch (options.path) {
-            '/User/login' => _fixtureResponse('user_login_success.json'),
-            '/User/cookie' => _fixtureResponse('cookie_success.json'),
+            '/api/v1/User/login' => _fixtureResponse('user_login_success.json'),
+            '/api/v1/User/cookie' => _fixtureResponse('cookie_success.json'),
             _ => throw StateError('unexpected route'),
           };
         });
@@ -255,8 +262,8 @@ void main() {
         expect(identity.id, 2001);
         expect(cookie.value, '<SESSION_COOKIE>');
         expect(adapter.requests.map((request) => request.path), [
-          '/User/login',
-          '/User/cookie',
+          '/api/v1/User/login',
+          '/api/v1/User/cookie',
         ]);
         expect(credentials.sessionReadCount, 0);
         expect(credentials.mutationCount, 0);
@@ -384,7 +391,7 @@ void main() {
     test('events and all public debug values are redacted', () async {
       final events = <BackendTransportEvent>[];
       final adapter = CallbackHttpClientAdapter((options, _, _) {
-        return options.path == '/User/login'
+        return options.path == '/api/v1/User/login'
             ? _fixtureResponse('user_login_success.json')
             : _fixtureResponse('cookie_success.json');
       });
@@ -415,8 +422,8 @@ void main() {
         '<SESSION_COOKIE>',
         '2001',
         'Authorization',
-        '/User/login',
-        '/User/cookie',
+        '/api/v1/User/login',
+        '/api/v1/User/cookie',
       ]) {
         expect(output, isNot(contains(sensitive)));
       }
@@ -435,6 +442,7 @@ DioBackendApiClient _client(
     httpClientAdapter: adapter,
     eventSink: eventSink ?? (_) {},
     utcNow: () => DateTime.utc(2026, 7, 25),
+    runtimeIdentityProvider: const FixedBackendClientIdentityProvider(),
   );
 }
 

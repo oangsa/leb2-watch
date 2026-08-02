@@ -34,7 +34,7 @@ void main() {
       final adapter = ScriptedBackendAdapter([
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/login',
+          path: '/api/v1/User/login',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
@@ -42,7 +42,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/cookie',
+          path: '/api/v1/User/cookie',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
@@ -50,21 +50,21 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Semester',
+          path: '/api/v1/Semester',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Semester',
+          path: '/api/v1/Semester',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Activity/101/snapshot',
+          path: '/api/v1/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -72,7 +72,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Activity/101/snapshot',
+          path: '/api/v1/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -81,7 +81,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Activity/101/snapshot',
+          path: '/api/v1/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -93,7 +93,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/login',
+          path: '/api/v1/User/login',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
@@ -102,7 +102,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/cookie',
+          path: '/api/v1/User/cookie',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
@@ -110,14 +110,14 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Semester',
+          path: '/api/v1/Semester',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           body: sanitizedSemestersFixture,
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/Activity/101/snapshot',
+          path: '/api/v1/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           userId: '2001',
@@ -158,7 +158,7 @@ void main() {
       await pumpUntil(
         tester,
         () => find
-            .byKey(const Key('session-method-control'))
+            .byKey(const Key('session-access-key-field'))
             .evaluate()
             .isNotEmpty,
         reason: 'Onboarding did not open session setup.',
@@ -167,8 +167,6 @@ void main() {
       expect(harness.credentials.mutationCount, 0);
       expect(harness.notifications.permissionRequestCount, 0);
 
-      await tester.tap(find.text('Username / password'));
-      await tester.pump();
       await tester.enterText(
         find.byKey(const Key('session-access-key-field')),
         _accessKey,
@@ -507,7 +505,7 @@ void main() {
       final adapter = ScriptedBackendAdapter([
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/login',
+          path: '/api/v1/User/login',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,
@@ -515,7 +513,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'POST',
-          path: '/User/cookie',
+          path: '/api/v1/User/cookie',
           accessKey: _accessKey,
           authorization: null,
           requestBody: sanitizedCredentialsRequest,

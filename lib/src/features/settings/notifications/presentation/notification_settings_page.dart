@@ -12,6 +12,8 @@ import '../../../notifications/domain/deadline_reminder_preferences.dart';
 import '../../../notifications/domain/local_notification_models.dart';
 import '../../data_deletion/domain/local_data_deletion.dart';
 import '../../data_deletion/presentation/local_data_deletion_panel.dart';
+import '../../session/logout_panel.dart';
+import '../../../authentication/application/logout_service.dart';
 import '../application/new_assignment_notification_preferences_service.dart';
 import '../application/notification_settings_service.dart';
 import '../domain/notification_settings.dart';
@@ -34,6 +36,8 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.service,
     required this.deletionService,
     required this.onDeletionCompleted,
+    required this.logoutService,
+    required this.onLogoutCompleted,
     required this.onManageCourses,
     required this.onOpenPrivacy,
     super.key,
@@ -42,6 +46,8 @@ class NotificationSettingsPage extends StatefulWidget {
   final NotificationSettingsService service;
   final LocalDataDeletionService deletionService;
   final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
+  final LogoutService logoutService;
+  final VoidCallback onLogoutCompleted;
   final VoidCallback onManageCourses;
   final VoidCallback onOpenPrivacy;
 
@@ -666,6 +672,19 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenPrivacy,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _SettingsSection(
+                title: 'Account',
+                description:
+                    'Logout releases the temporary device binding but keeps '
+                    'cached local assignment data.',
+                children: [
+                  LogoutPanel(
+                    service: widget.logoutService,
+                    onCompleted: widget.onLogoutCompleted,
                   ),
                 ],
               ),

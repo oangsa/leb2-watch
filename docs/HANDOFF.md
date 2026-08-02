@@ -5,7 +5,7 @@
 > `docs/api-reference.md` fallback), not the historical commit references below.
 > Non-health backend requests require the user-supplied `access-key`; the
 > operator provisions per-user keys and persists their assignment/mapping in
-> Supabase PostgreSQL. `/Semester` remains a sanitized integer-ID list in this
+> Supabase PostgreSQL. `/api/v1/Semester` remains a sanitized integer-ID list in this
 > frontend contract. Historical checkpoints that mention cookie-only requests,
 > no durable backend mapping, or an incompatible default branch are retained
 > only as immutable validation history.
@@ -717,13 +717,13 @@ Use sanitized fixtures and `example.invalid` for build validation.
 The protected snapshot request is:
 
 ```http
-GET /Activity/{semesterId}/snapshot
+GET /api/v1/Activity/{semesterId}/snapshot
 access-key: <per-user-access-key>
 Authorization: Bearer <LEB2-session-cookie>
 X-LEB2-USER-ID: <positive-int32>
 ```
 
-There is no `/api` prefix. The cookie is opaque, not a JWT.
+The frontend uses the canonical `/api/v1` prefix. The cookie is opaque, not a JWT.
 
 Only exact HTTP 401 plus `SESSION_EXPIRED` expires a session. Timeouts, HTML,
 malformed JSON, `AUTHENTICATION_REQUIRED`, and other 401 responses do not.
@@ -901,7 +901,7 @@ already proven and must not be repeated without a new reason.
    installed; metadata, permissions, in-sandbox file/linker/symlink smoke, and
    a bounded Wayland launch passed. A host-side Swagger preflight and the same
    request from the installed Flatpak sandbox both returned HTTP 200. An
-   unauthenticated `/Semester` request returned HTTP 401 from both namespaces,
+   unauthenticated `/api/v1/Semester` request returned HTTP 401 from both namespaces,
    and the exact packaged autostart command stayed alive for its bounded
    15-second smoke. The owner subsequently reported repeated successful testing
    of the authenticated packaged flow and login/reboot autostart on 2026-08-01.
@@ -1070,7 +1070,7 @@ user-installed a fresh current-source bundle with `APP_ENV=development` and
 `BACKEND_BASE_URL=http://localhost:5015`, passed metadata/permission inspection
 and a read-only in-sandbox file/linker/symlink smoke, and stayed alive for a
 bounded 20-second Wayland launch before the expected timeout exit 124. Host and
-Flatpak Swagger preflights returned HTTP 200; unauthenticated `/Semester`
+Flatpak Swagger preflights returned HTTP 200; unauthenticated `/api/v1/Semester`
 requests returned HTTP 401 in both namespaces; and the packaged autostart
 command stayed alive for its bounded 15-second smoke. The owner subsequently
 reported repeated successful authenticated package-flow and login/reboot

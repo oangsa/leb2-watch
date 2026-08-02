@@ -1403,7 +1403,7 @@ in-sandbox file/linker/symlink smoke passed. A fresh bounded Wayland launch of
 the updated package stayed alive for 20 seconds and exited 124 from the
 expected timeout, with only cursor-theme and AppIndicator deprecation
 warnings. A host-side Swagger preflight and the same request from the installed
-Flatpak sandbox both returned HTTP 200. An unauthenticated `/Semester` request
+Flatpak sandbox both returned HTTP 200. An unauthenticated `/api/v1/Semester` request
 returned HTTP 401 from both namespaces, confirming the expected auth boundary.
 The exact packaged Flatpak launch command used by the generated autostart entry
 stayed alive for 15 seconds and exited 124 from the bounded timeout. The owner
@@ -1456,7 +1456,7 @@ The current package input was the complete Linux bundle whose compile-time
 backend origin was development-only `http://localhost:5015`. Its bounded
 Wayland and packaged-autostart command launches passed under the current
 KDE/Wayland session. The host and installed Flatpak sandbox both reached the
-Swagger endpoint and received HTTP 200; unauthenticated `/Semester` requests
+Swagger endpoint and received HTTP 200; unauthenticated `/api/v1/Semester` requests
 returned HTTP 401 in both namespaces. The owner reports repeated successful
 authenticated package-flow and login/reboot autostart testing. That report is
 owner-confirmed, with no credentials, cookies, or backend data recorded by the

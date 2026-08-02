@@ -476,6 +476,40 @@ void main() {
         'Access-key verification is temporarily unavailable.',
       ),
       (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.deviceIdentityMissing,
+        ),
+        'This device could not provide a valid device identifier.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.deviceIdentityInvalid,
+        ),
+        'This device could not provide a valid device identifier.',
+      ),
+      (
+        const SessionSetupFailure(SessionSetupFailureKind.deviceNotBound),
+        'This access key needs to be connected to this device again.',
+      ),
+      (
+        const SessionSetupFailure(SessionSetupFailureKind.deviceMismatch),
+        'This access key is currently connected to another device.',
+      ),
+      (
+        const SessionSetupFailure(
+          SessionSetupFailureKind.clientVersionRequired,
+        ),
+        'This app could not provide a valid client version.',
+      ),
+      (
+        const SessionSetupFailure(SessionSetupFailureKind.clientVersionInvalid),
+        'This app could not provide a valid client version.',
+      ),
+      (
+        const SessionSetupFailure(SessionSetupFailureKind.clientUpdateRequired),
+        'This version of LEB2 Watch is no longer compatible with the backend.',
+      ),
+      (
         const SessionSetupFailure(SessionSetupFailureKind.persistenceUncertain),
         'Saving could not be completed or safely restored.',
       ),

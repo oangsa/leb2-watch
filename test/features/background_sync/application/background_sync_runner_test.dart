@@ -94,6 +94,29 @@ void main() {
     pending.complete(_cancelled(SyncReason.backgroundTask));
   });
 
+  test(
+    'compatibility and device-binding failures do not schedule retries',
+    () async {
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      sync.outcome = SyncFailed(
+        operationId: 1,
+        semesterId: 101,
+        reason: SyncReason.backgroundTask,
+        startedAtUtc: DateTime.utc(2026, 7, 26),
+        completedAtUtc: DateTime.utc(2026, 7, 26, 0, 1),
+        failure: const ClientCompatibilityFailure(
+          ClientCompatibilityFailureReason.updateRequired,
+        ),
+      );
+
+      final result = await runner.run(reason: SyncReason.backgroundTask);
+
+      expect(result, isA<BackgroundSyncTerminalFailure>());
+      expect((result as BackgroundSyncTerminalFailure).retryEligible, isFalse);
+    },
+  );
+
   test('headless recovery continues once and reports succeeded', () async {
     await _seedTarget(database, session: 'active', withCourse: true);
     await settings.setMonitoringEnabled(true);

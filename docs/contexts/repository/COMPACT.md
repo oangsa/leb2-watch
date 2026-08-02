@@ -4,7 +4,7 @@
 > from `LEB2SCRAPPER-API/docs/api-reference.md` (or this repository's
 > `docs/api-reference.md` fallback). Every non-health request carries the
 > runtime per-user `access-key`; the operator owns Supabase PostgreSQL
-> provisioning and user/key mapping. This frontend still consumes `/Semester`
+> provisioning and user/key mapping. This frontend consumes `/api/v1/Semester`
 > as a sanitized integer-ID list. Older commit pins, cookie-only examples, and
 > no-database/default-branch claims below are immutable historical notes only.
 
@@ -394,16 +394,16 @@ The first workflow's script is:
 
 | Exchange | Trigger | Response |
 | --- | --- | --- |
-| 1 | Initial credential sign-in | `POST /User/login` |
-| 2 | Initial cookie acquisition | `POST /User/cookie`, cookie A |
-| 3 | Candidate A verification | `GET /Semester`, cookie A |
-| 4 | Semester refresh | `GET /Semester`, saved cookie A |
-| 5 | Initial dashboard sync | baseline `GET /Activity/101/snapshot`, cookie A |
+| 1 | Initial credential sign-in | `POST /api/v1/User/login` |
+| 2 | Initial cookie acquisition | `POST /api/v1/User/cookie`, cookie A |
+| 3 | Candidate A verification | `GET /api/v1/Semester`, cookie A |
+| 4 | Semester refresh | `GET /api/v1/Semester`, saved cookie A |
+| 5 | Initial dashboard sync | baseline `GET /api/v1/Activity/101/snapshot`, cookie A |
 | 6 | Reopened dashboard sync | gated baseline + activity 1002, cookie A |
 | 7 | Manual refresh | exact HTTP 401 `SESSION_EXPIRED` with bearer challenge |
-| 8 | Automatic credential sign-in | `POST /User/login` |
-| 9 | Automatic cookie acquisition | `POST /User/cookie`, cookie B |
-| 10 | Candidate B verification | `GET /Semester`, cookie B |
+| 8 | Automatic credential sign-in | `POST /api/v1/User/login` |
+| 9 | Automatic cookie acquisition | `POST /api/v1/User/cookie`, cookie B |
+| 10 | Candidate B verification | `GET /api/v1/Semester`, cookie B |
 | 11 | Direct continuation sync | unchanged two-activity snapshot, cookie B |
 
 Any extra request, missing request, wrong route, wrong placeholder

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config/app_configuration.dart';
+import '../core/network/backend_compatibility.dart';
 import '../core/session/session_lifecycle.dart';
 import '../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../features/background_sync/application/background_monitoring_lifecycle.dart';
@@ -43,7 +44,11 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     final flowController = ref.read(appFlowControllerProvider);
     final notifications = ref.read(localNotificationServiceProvider);
     final windowReveal = ref.read(desktopWindowRevealSignalProvider);
-    _router = createAppRouter(flowController);
+    final compatibility = ref.read(backendCompatibilityControllerProvider);
+    _router = createAppRouter(
+      flowController,
+      compatibilityController: compatibility,
+    );
     _notificationNavigation = NotificationNavigationCoordinator(
       notifications,
       flowController,
@@ -56,6 +61,25 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
       },
     );
     unawaited(_initializeNotifications(notifications));
+    unawaited(_loadBackendCompatibility());
+  }
+
+  Future<void> _loadBackendCompatibility() async {
+    final controller = ref.read(backendCompatibilityControllerProvider);
+    try {
+      final version = await ref.read(clientVersionProvider).readVersion();
+      final metadata = await ref
+          .read(backendCompatibilityClientProvider)
+          .getMetadata();
+      controller.setSnapshot(
+        evaluateBackendCompatibility(
+          installedClientVersion: version,
+          metadata: metadata,
+        ),
+      );
+    } on Object {
+      controller.setSnapshot(const BackendCompatibilitySnapshot.unavailable());
+    }
   }
 
   @override

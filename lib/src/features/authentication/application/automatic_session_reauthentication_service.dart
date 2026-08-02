@@ -839,6 +839,20 @@ AutomaticReauthenticationFailureKind _mapTransportFailure(
       AutomaticReauthenticationFailureKind.accessKeyReauthenticationRequired,
     SessionTransportFailureKind.accessKeyStoreUnavailable =>
       AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable,
+    SessionTransportFailureKind.deviceIdentityMissing =>
+      AutomaticReauthenticationFailureKind.deviceIdentityMissing,
+    SessionTransportFailureKind.deviceIdentityInvalid =>
+      AutomaticReauthenticationFailureKind.deviceIdentityInvalid,
+    SessionTransportFailureKind.deviceNotBound =>
+      AutomaticReauthenticationFailureKind.deviceNotBound,
+    SessionTransportFailureKind.deviceMismatch =>
+      AutomaticReauthenticationFailureKind.deviceMismatch,
+    SessionTransportFailureKind.clientVersionRequired =>
+      AutomaticReauthenticationFailureKind.clientVersionRequired,
+    SessionTransportFailureKind.clientVersionInvalid =>
+      AutomaticReauthenticationFailureKind.clientVersionInvalid,
+    SessionTransportFailureKind.clientUpdateRequired =>
+      AutomaticReauthenticationFailureKind.clientUpdateRequired,
     SessionTransportFailureKind.unexpected =>
       AutomaticReauthenticationFailureKind.unexpected,
   };

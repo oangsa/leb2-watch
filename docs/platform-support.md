@@ -3,8 +3,8 @@
 LEB2 Watch targets Android, iOS, Windows, macOS, and Linux. “Implemented,”
 “statically tested,” and “native-build verified” are different claims.
 
-The current release label is Public Beta v0.1 (`pubspec.yaml` version
-`0.1.0+1`). This label does not imply production, store, signing, or
+The current release label is v0.5 (`pubspec.yaml` version `0.5.0+2`). This
+label does not imply production, store, signing, or
 notarization readiness. Windows and macOS still require native build and
 runtime validation.
 
@@ -53,6 +53,20 @@ Android uses one unique WorkManager periodic request:
 
 App backup is disabled and secure-storage files are excluded from backup and
 device transfer.
+
+The Android device-binding identity is the platform `ANDROID_ID`; this feature
+does not request `READ_PHONE_STATE`, location, accessibility, device-admin, or
+other dangerous permissions. A normal APK update must keep the same application
+ID, signing certificate, and a higher `versionCode`. Install the new APK over
+the old one; do not uninstall first. Do not lose or replace the Android
+signing key, because a differently signed APK is not a normal update.
+
+If the app is actually uninstalled, local SQLite data and secure secrets may be
+gone. Reinstalling the same-signed app on the same Android user/profile keeps
+the `ANDROID_ID` input usable for backend recognition, so the user can re-enter
+the same access key and LEB2 credentials. This does not promise local cache
+preservation. Other platforms use a secure-storage installation identifier and
+may require an operator reset if that storage is lost.
 
 Release signing uses only a complete operator-local, ignored
 `android/key.properties`; it never falls back to the debug identity. With no
@@ -190,7 +204,7 @@ passed metadata/permission, in-sandbox file/linker, and bounded Wayland launch
 checks for a fresh current-source development bundle compiled with
 `BACKEND_BASE_URL=http://localhost:5015`. A host-side Swagger preflight and the
 same request from the installed Flatpak sandbox both returned HTTP 200. An
-unauthenticated `/Semester` request returned HTTP 401 from both namespaces, and
+unauthenticated `/api/v1/Semester` request returned HTTP 401 from both namespaces, and
 the packaged autostart command stayed alive for its bounded 15-second smoke.
 The owner subsequently reported repeated successful authenticated app-flow and
 login/reboot autostart testing on 2026-08-01. This closes the current

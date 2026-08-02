@@ -26,6 +26,44 @@ final class SessionExpiredFailure extends SyncFailure {
   bool get isRetryEligible => false;
 }
 
+enum DeviceBindingFailureReason {
+  deviceIdentityMissing,
+  deviceIdentityInvalid,
+  notBound,
+  boundToAnotherDevice,
+}
+
+final class DeviceBindingFailure extends SyncFailure {
+  const DeviceBindingFailure(this.reason);
+
+  final DeviceBindingFailureReason reason;
+
+  @override
+  bool get isRetryEligible => false;
+
+  @override
+  Object get _equalityKey => reason;
+}
+
+enum ClientCompatibilityFailureReason {
+  clientVersionRequired,
+  clientVersionInvalid,
+  updateRequired,
+  unsupportedApiVersion,
+}
+
+final class ClientCompatibilityFailure extends SyncFailure {
+  const ClientCompatibilityFailure(this.reason);
+
+  final ClientCompatibilityFailureReason reason;
+
+  @override
+  bool get isRetryEligible => false;
+
+  @override
+  Object get _equalityKey => reason;
+}
+
 enum AccessKeyFailureReason {
   missing,
   invalid,

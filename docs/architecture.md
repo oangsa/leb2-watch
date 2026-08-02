@@ -40,8 +40,10 @@ Production bootstrap resolves the initial application-flow stage from local
 evidence before attaching the first product frame. It reads only the
 app-settings/session lifecycle, active-semester selection, and whether all
 required secure session values (access key and session cookie) are present. It
-performs no backend request and reuses the
-same database and credential boundaries when it constructs the Riverpod graph.
+then performs a best-effort anonymous `GET /api/v1/meta` compatibility check.
+The metadata check never replaces the local-first state or clears local data,
+and it reuses the same database and credential boundaries when it constructs
+the Riverpod graph.
 
 A proven prior session and selected semester can therefore open the dashboard
 directly, where Drift emits cached assignments before asynchronous
@@ -84,6 +86,9 @@ JSON transport models.
 | Backend access key | Credential store | OS secure storage |
 | Session cookie | Credential store | OS secure storage |
 | Optional username/password | Credential store, only after explicit automatic-reauthentication opt-in | OS secure storage |
+| Non-Android installation identity | Runtime device provider | OS secure storage; generated once and never stored in SQLite |
+| Android device identity | Runtime device provider | Platform `ANDROID_ID`; not logged, stored, or hashed by the frontend |
+| Installed semantic app version | Package metadata provider | Runtime metadata, not hardcoded in transport |
 | Semesters, courses, activities | Assignment database | Local SQLite |
 | Seen identities and fingerprints | Synchronization/diff engine | Local SQLite |
 | Notification/reminder ownership and history | Notification application layer | Local SQLite |
@@ -94,6 +99,25 @@ JSON transport models.
 Credentials are deliberately absent from SQLite. The application has no direct
 Supabase connection, analytics, advertising, push-token registration, or remote
 crash reporting.
+
+## Device binding, compatibility, and logout
+
+The transport resolves one runtime identity representation for foreground,
+session-setup, automatic reauthentication, and headless background requests.
+Protected `/api/v1` calls send `X-Device-ID`, `X-Device-Platform`, optional
+device metadata, and `X-Client-Version`; anonymous `/api/v1/meta` sends none of
+those headers. The backend stores only an HMAC of the device identifier.
+
+`426 CLIENT_UPDATE_REQUIRED` and an incompatible `/api/v1/meta` result are
+non-retryable application compatibility failures. They reach one global
+blocking update route; the route opens the backend-provided download URL in an
+external browser and never downloads or installs an APK itself.
+
+Logout is server-first: `/api/v1/User/logout` must return `204 No Content`
+before access key, cookie, and optional credentials are cleared. Cache,
+preferences, notification history, and the local user identity remain. The
+existing background scheduler is cancelled/reconciled after successful local
+credential cleanup. Network or device-mismatch failure leaves secrets intact.
 
 ## Synchronization flow
 

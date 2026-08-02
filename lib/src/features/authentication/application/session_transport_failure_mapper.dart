@@ -1,6 +1,6 @@
 import '../../../core/network/backend_transport_failure.dart';
 
-enum SessionTransportRequest { verification, login, cookieAcquisition }
+enum SessionTransportRequest { verification, login, cookieAcquisition, logout }
 
 enum SessionTransportFailureKind {
   cancelled,
@@ -17,6 +17,13 @@ enum SessionTransportFailureKind {
   accessKeyAccountMismatch,
   accessKeyReauthenticationRequired,
   accessKeyStoreUnavailable,
+  deviceIdentityMissing,
+  deviceIdentityInvalid,
+  deviceNotBound,
+  deviceMismatch,
+  clientVersionRequired,
+  clientVersionInvalid,
+  clientUpdateRequired,
   unexpected,
 }
 
@@ -67,6 +74,24 @@ SessionTransportFailure mapSessionTransportFailure(
       const SessionTransportFailure(
         SessionTransportFailureKind.accessKeyStoreUnavailable,
       ),
+    BackendTransportFailureKind.deviceIdentityMissing =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.deviceIdentityMissing,
+      ),
+    BackendTransportFailureKind.deviceIdentityInvalid ||
+    BackendTransportFailureKind.deviceIdentityUnavailable =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.deviceIdentityInvalid,
+      ),
+    BackendTransportFailureKind.clientVersionMissing =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.clientVersionRequired,
+      ),
+    BackendTransportFailureKind.clientVersionInvalid ||
+    BackendTransportFailureKind.clientVersionUnavailable =>
+      const SessionTransportFailure(
+        SessionTransportFailureKind.clientVersionInvalid,
+      ),
     BackendTransportFailureKind.missingCredential ||
     BackendTransportFailureKind.credentialAccessFailed ||
     BackendTransportFailureKind.unknownFailure => const SessionTransportFailure(
@@ -87,6 +112,52 @@ SessionTransportFailure _mapHttpFailure(
 
   final status = evidence.statusCode;
   final code = evidence.responseCode;
+  if (code == 'DEVICE_ID_REQUIRED' && status == 400) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.deviceIdentityMissing,
+    );
+  }
+  if (code == 'DEVICE_ID_INVALID' && status == 400) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.deviceIdentityInvalid,
+    );
+  }
+  if (code == 'DEVICE_BINDING_REQUIRED' && status == 403) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.deviceNotBound,
+    );
+  }
+  if (code == 'DEVICE_BINDING_MISMATCH' && status == 403) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.deviceMismatch,
+    );
+  }
+  if (code == 'CLIENT_VERSION_REQUIRED' && status == 400) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.clientVersionRequired,
+    );
+  }
+  if (code == 'CLIENT_VERSION_INVALID' && status == 400) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.clientVersionInvalid,
+    );
+  }
+  if (code == 'CLIENT_UPDATE_REQUIRED' && status == 426) {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.clientUpdateRequired,
+    );
+  }
+  if (code == 'DEVICE_ID_REQUIRED' ||
+      code == 'DEVICE_ID_INVALID' ||
+      code == 'DEVICE_BINDING_REQUIRED' ||
+      code == 'DEVICE_BINDING_MISMATCH' ||
+      code == 'CLIENT_VERSION_REQUIRED' ||
+      code == 'CLIENT_VERSION_INVALID' ||
+      code == 'CLIENT_UPDATE_REQUIRED') {
+    return const SessionTransportFailure(
+      SessionTransportFailureKind.invalidResponse,
+    );
+  }
   if (code.startsWith('ACCESS_KEY_')) {
     final exact = switch (code) {
       'ACCESS_KEY_REQUIRED' => status == 401,

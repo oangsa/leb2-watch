@@ -8,6 +8,7 @@ enum AppRoute {
   courses('/courses'),
   settings('/settings'),
   diagnostics('/diagnostics'),
+  updateRequired('/update-required'),
   privacy('/privacy');
 
   const AppRoute(this.path);

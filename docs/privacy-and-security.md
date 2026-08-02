@@ -8,10 +8,12 @@ and server boundaries before deploying or distributing the app.
 
 | Data | Storage | Notes |
 | --- | --- | --- |
-| Backend access key | OS secure storage | Per-user secret supplied by the backend operator; sent as `access-key` on every non-health backend request |
+| Backend access key | OS secure storage | Per-user secret supplied by the backend operator; sent as `access-key` on every protected `/api/v1` request |
 | LEB2 session cookie | OS secure storage | Opaque secret used on protected backend requests |
 | Username/password | OS secure storage | Saved only after explicit automatic-reauthentication opt-in |
 | Credential schema version | OS secure storage | Version for the optional credential payload |
+| Android device identifier | Android platform identity provider | `ANDROID_ID` input sent as `X-Device-ID`; the frontend does not hash or log it |
+| Non-Android installation identifier | OS secure storage | Generated once with a cryptographically secure random source; not stored in SQLite or exposed to UI |
 | Assignment snapshots and course data | Local SQLite | Cached for immediate/offline display |
 | Settings and session lifecycle | Local SQLite | Non-secret app coordination state |
 | Seen identities, fingerprints, sync history/backoff | Local SQLite | Bounded local synchronization state |
@@ -36,6 +38,11 @@ push-token registration, or remote crash-reporting dependency.
 - **Linux:** the libsecret adapter requires an available, unlocked Secret
   Service keyring.
 
+Android `ANDROID_ID` provides the intended same-device reinstall continuity for
+the same Android user/profile and application signing identity. Other platforms
+use an installation identity, not a hardware identity claim; losing its secure
+storage can require an operator device-binding reset.
+
 Application clearing deletes only LEB2 Watch's three secure entries; it does not
 call a keyring-wide `deleteAll`.
 
@@ -56,13 +63,20 @@ cached assignments available and falls back to the manual reconnect flow.
 
 Depending on the setup path, the app sends:
 
-- the operator-provided access key in the `access-key` header on every route
-  except `/health/leb2`;
-- username and password to `/User/login` and `/User/cookie`;
+- the operator-provided access key in the `access-key` header on protected
+  `/api/v1` routes;
+- username and password to `/api/v1/User/login` and `/api/v1/User/cookie`;
 - the full session cookie in
   `Authorization: Bearer <LEB2-session-cookie>` on protected
   requests; and
 - the positive numeric LEB2 user ID in `X-LEB2-USER-ID` on activity requests.
+
+Protected and session-lifecycle requests also send `X-Device-ID`,
+`X-Device-Platform`, optional `X-Device-Name` and `X-Device-OS-Version`, and
+the semantic installed version in `X-Client-Version`. The anonymous
+`GET /api/v1/meta` and `GET /api/v1/health/leb2` requests intentionally send
+none of the access, session, device, or client-version headers. The backend
+stores only its HMAC of `X-Device-ID`; the frontend does not hash it first.
 
 The backend then communicates with LEB2. Production application builds require
 HTTPS, but the operator owns DNS, TLS termination, certificates, renewal, and
@@ -99,7 +113,8 @@ Operators must:
 
 The frontend does not connect directly to Supabase and sends no credentials
 other than the documented access key, LEB2 credentials during setup, and opaque
-session cookie.
+session cookie. It never logs request-header maps, raw device identifiers,
+cookies, passwords, or access keys.
 
 ## Local notifications and diagnostics
 
@@ -126,6 +141,9 @@ Settings provides three confirmed actions:
 - **Delete saved credentials** stops app-owned periodic scheduling, clears the
   access key, saved session, and optional credentials, marks the local session expired, and
   preserves cached assignments.
+- **Log out** first calls `/api/v1/User/logout` to release the temporary device
+  binding, then clears those secrets while preserving cached account data and
+  the local user identity fence. A failed server call does not clear secrets.
 - **Delete all local data** attempts to cancel app-owned background work and
   supported notifications, disable desktop autostart, clear credentials,
   logically scrub and then delete SQLite files, remove the app-owned cache, and

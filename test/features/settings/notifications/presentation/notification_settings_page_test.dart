@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
+import 'package:leb2_watch/src/features/authentication/application/logout_service.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
 import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_preferences.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
@@ -210,6 +211,8 @@ Future<void> _pump(
           service: service,
           deletionService: const _DeletionService(),
           onDeletionCompleted: (_) {},
+          logoutService: const _LogoutService(),
+          onLogoutCompleted: () {},
           onManageCourses: onManageCourses ?? () {},
           onOpenPrivacy: onOpenPrivacy ?? () {},
         ),
@@ -329,4 +332,11 @@ final class _SettingsService implements NotificationSettingsService {
     testCalls += 1;
     return const TestNotificationActionSubmitted();
   }
+}
+
+final class _LogoutService implements LogoutService {
+  const _LogoutService();
+
+  @override
+  Future<LogoutResult> logout() async => const LogoutSuccess();
 }

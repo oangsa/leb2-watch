@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app_dependencies.dart';
 import '../../../app/routing/app_flow.dart';
+import '../../authentication/application/logout_service.dart';
 import 'application/local_data_deletion_service.dart';
 import 'application/local_data_deletion_ports.dart';
 import 'data/local_data_cleanup_adapters.dart';
@@ -59,3 +60,11 @@ final localDataDeletionFlowServiceProvider = Provider<LocalDataDeletionService>(
     );
   },
 );
+
+final logoutServiceProvider = Provider<LogoutService>((ref) {
+  return LocalLogoutService(
+    ref.watch(backendSessionLifecycleClientProvider),
+    ref.watch(credentialStoreProvider),
+    () => ref.read(localDataDeletionServiceProvider).deleteSavedCredentials(),
+  );
+});

@@ -102,7 +102,7 @@ owns schema declarations and generated query code; application
 features own row semantics.
 
 The v16→v17 path adds nullable semester display names. Legacy rows retain
-`NULL` until the next successful structured `/Semester` refresh.
+`NULL` until the next successful structured `/api/v1/Semester` refresh.
 
 The database owns the local-first semester graph (semesters with nullable
 legacy display names, courses,

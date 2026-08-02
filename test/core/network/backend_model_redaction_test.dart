@@ -125,6 +125,7 @@ void main() {
       credentialStore: MemoryCredentialStore(),
       httpClientAdapter: adapter,
       eventSink: (_) {},
+      runtimeIdentityProvider: const FixedBackendClientIdentityProvider(),
     );
 
     expect(evidence.toString(), contains('redacted: true'));
@@ -149,7 +150,7 @@ void main() {
       'BackendTransportEvent(method: get, route: semesterSnapshot, '
       'statusCode: 401, elapsedMilliseconds: 17, outcome: httpResponse)',
     );
-    expect(event.toString(), isNot(contains('/Activity/')));
+    expect(event.toString(), isNot(contains('/api/v1/Activity/')));
     expect(event.toString(), isNot(contains('Authorization')));
   });
 
