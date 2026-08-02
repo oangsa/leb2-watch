@@ -74,7 +74,7 @@ jobs:
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $visualStudio = & $vswhere -latest -products * -requires `
-            Microsoft.VisualStudio.Workload.VCTools `
+            Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
             Microsoft.VisualStudio.Component.VC.ATL `
             -property installationPath
           if (-not $visualStudio) {

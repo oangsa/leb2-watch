@@ -52,7 +52,10 @@ void main() {
       expect(workflow, contains('flutter-version: \'3.44.8\''));
       expect(workflow, contains('flutter config --enable-windows-desktop'));
       expect(workflow, contains('flutter doctor -v'));
-      expect(workflow, contains('Microsoft.VisualStudio.Workload.VCTools'));
+      expect(
+        workflow,
+        contains('Microsoft.VisualStudio.Component.VC.Tools.x86.x64'),
+      );
       expect(workflow, contains('Microsoft.VisualStudio.Component.VC.ATL'));
       expect(workflow, contains('flutter build windows --release'));
       expect(workflow, contains('--dart-define=APP_ENV=production'));
