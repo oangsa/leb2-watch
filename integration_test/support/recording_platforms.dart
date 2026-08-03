@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
 import 'package:leb2_watch/src/core/security/stored_credentials.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
@@ -184,6 +185,16 @@ final class RecordingBackgroundSchedulerPlatform
 
   @override
   void dispose() {}
+}
+
+final class IntegrationDeviceIdentityCleanup implements DeviceIdentityCleanup {
+  int clearCount = 0;
+
+  @override
+  Future<DeviceIdentityCleanupResult> clearInstallationIdentity() async {
+    clearCount += 1;
+    return DeviceIdentityCleanupResult.completed;
+  }
 }
 
 final class IntegrationOwnedCacheCleanup

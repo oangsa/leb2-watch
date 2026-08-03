@@ -457,6 +457,7 @@ void main() {
         greaterThan(backgroundCancellationsBeforeDelete),
       );
       expect(await harness.cacheCleanup.ownedDirectory.exists(), isFalse);
+      expect(harness.deviceIdentityCleanup.clearCount, 1);
       expect(find.byKey(_baselineCardKey), findsNothing);
       expect(find.byKey(_newAssignmentCardKey), findsNothing);
 

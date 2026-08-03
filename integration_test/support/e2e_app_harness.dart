@@ -29,6 +29,7 @@ final class E2eAppHarness {
     required this.notifications,
     required this.background,
     required this.cacheCleanup,
+    required this.deviceIdentityCleanup,
   });
 
   final Directory root;
@@ -39,6 +40,7 @@ final class E2eAppHarness {
   final NotificationJournal notifications;
   final BackgroundJournal background;
   final IntegrationOwnedCacheCleanup cacheCleanup;
+  final IntegrationDeviceIdentityCleanup deviceIdentityCleanup;
 
   static Future<E2eAppHarness> create({
     required ScriptedBackendAdapter adapter,
@@ -70,6 +72,7 @@ final class E2eAppHarness {
       notifications: NotificationJournal(),
       background: BackgroundJournal(),
       cacheCleanup: cacheCleanup,
+      deviceIdentityCleanup: IntegrationDeviceIdentityCleanup(),
     );
   }
 
@@ -107,6 +110,7 @@ final class E2eAppHarness {
           backgroundPlatform,
         ),
         localApplicationCacheCleanupProvider.overrideWithValue(cacheCleanup),
+        deviceIdentityCleanupProvider.overrideWithValue(deviceIdentityCleanup),
       ],
     );
     await tester.pumpWidget(
