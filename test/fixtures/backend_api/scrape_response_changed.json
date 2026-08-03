@@ -1,0 +1,7 @@
+{
+  "message": "LEB2 returned an unexpected response structure.",
+  "responseCode": "SCRAPE_RESPONSE_CHANGED",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

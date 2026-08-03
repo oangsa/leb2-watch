@@ -1,0 +1,7 @@
+{
+  "message": "This access key is not bound to a device.",
+  "responseCode": "DEVICE_BINDING_REQUIRED",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

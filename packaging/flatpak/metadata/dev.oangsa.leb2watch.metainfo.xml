@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.oangsa.leb2watch</id>
+  <name>LEB2 Watch</name>
+  <summary>Local-first assignment monitoring for LEB2</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer>
+    <name>oangsa</name>
+  </developer>
+  <description>
+    <p>LEB2 Watch keeps assignment data available locally and monitors for newly published work using a compatible self-hosted LEB2 backend.</p>
+  </description>
+  <url type="homepage">https://github.com/oangsa/leb2-watch</url>
+  <launchable type="desktop-id">dev.oangsa.leb2watch.desktop</launchable>
+  <content_rating type="oars-1.1" />
+  <provides>
+    <binary>leb2-watch</binary>
+  </provides>
+</component>

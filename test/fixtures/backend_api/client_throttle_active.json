@@ -1,0 +1,7 @@
+{
+  "message": "This client has too many queued LEB2 requests.",
+  "responseCode": "CLIENT_THROTTLE_ACTIVE",
+  "details": null,
+  "timestamp": "2026-07-24T12:00:00Z",
+  "traceId": "<TRACE_ID>"
+}

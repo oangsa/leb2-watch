@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="sharedpref" path="leb2_watch_credentials_v1.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage:leb2_watch_credentials_v1.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:leb2_watch_credentials_v1.xml"/>
+</full-backup-content>

@@ -1,0 +1,138 @@
+# Contributing to LEB2 Watch
+
+Thank you for helping improve LEB2 Watch. Keep contributions small,
+evidence-backed, local-first, and honest about platform validation.
+
+## Before contributing
+
+LEB2 Watch is licensed under [Apache-2.0](LICENSE).
+
+Copyright © 2026 Oangsa.
+
+This is a public open-source, self-hosted application. Users are expected to
+clone the repository and build or deploy both the frontend and backend
+themselves.
+
+Project-specific contributor agreements are not established by this document.
+DCO sign-offs and commit signing are not required initially.
+
+## Choose a scope
+
+- Open or reference an issue that states the user-visible outcome.
+- Keep one coherent feature or fix per pull request.
+- Avoid unrelated refactors, dependency updates, formatting, and cleanup.
+- Preserve local-first data ownership and the self-hosted backend boundary.
+- Document unsupported or host-unverified behavior instead of presenting it
+  as complete.
+
+Changes to the backend belong in the
+[LEB2SCRAPPER-API](https://github.com/oangsa/LEB2SCRAPPER-API) repository.
+Coordinate contract changes across both repositories.
+
+## Set up
+
+Use Flutter `3.44.8` stable with Dart `3.12.2`:
+
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Run against a reachable non-production backend:
+
+```bash
+flutter run -d <DEVICE_ID> \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://<REACHABLE_HOST>:5015
+```
+
+Read [Development](docs/development.md) for architecture, generation, and test
+details.
+
+## Test the behavior
+
+Add the narrowest test that proves the requested outcome:
+
+- unit tests for domain logic;
+- Drift tests for schema, migration, transaction, and persistence behavior;
+- fake transport tests for API/error behavior;
+- widget and golden tests for responsive UI;
+- integration tests for complete mocked workflows; and
+- native/static tests for custom platform configuration.
+
+Automated tests must use sanitized fixtures. Never call the production backend
+or LEB2 and never use a real cookie, password, user ID, assignment, or personal
+identifier.
+
+Run:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+dart format --output=none --set-exit-if-changed .
+dart analyze --fatal-infos --fatal-warnings
+flutter analyze --fatal-infos --fatal-warnings
+dart run tool/run_flutter_tests.dart
+```
+
+The final command discovers every `test/**/*_test.dart` file and runs stable
+batches in fresh sequential `flutter test --concurrency=1` processes. It does
+not run `integration_test/`; device workflows remain separate.
+
+Run only native builds supported by the current host. State exactly which
+builds and device tests were not run.
+
+## Generated files
+
+`*.g.dart` and `*.freezed.dart` are committed. Modify their annotated sources,
+regenerate, review the generated diff, and commit it with the owning change.
+Do not edit generated files manually.
+
+## Documentation
+
+Update the relevant public guide when setup, configuration, privacy, platform
+behavior, or limitations change.
+
+Maintainer-directed feature work also updates one technical continuation file
+under `docs/contexts/` with:
+
+- scope and non-scope;
+- user-visible behavior;
+- architecture/contracts;
+- privacy/failure behavior;
+- tests and actual validation evidence; and
+- known limitations.
+
+## Commits and pull requests
+
+Repository commit prefixes are:
+
+- `feat:` new or completed behavior;
+- `fix:` corrected behavior;
+- `style:` formatting only;
+- `refactor:` structure without behavior changes; and
+- `chore:` tooling, configuration, maintenance, or documentation.
+
+Commit signing is not required.
+
+Before submitting:
+
+- review every changed file;
+- remove temporary logs and artifacts;
+- confirm generated code is synchronized;
+- search for credentials and personal data;
+- run relevant focused tests and repository gates;
+- document native validation gaps; and
+- explain the user-visible result and evidence in the pull request.
+
+## Sensitive reports
+
+Report non-confidential security problems only through the public process in
+[SECURITY.md](SECURITY.md). Do not paste session cookies, credentials,
+assignment data, authorization headers, passwords, private keys, private
+certificates, raw sensitive logs, or exploit details requiring confidentiality
+into a public issue or pull request.
+
+## Code of conduct
+
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you are expected to uphold this code.

@@ -1,0 +1,329 @@
+# Configuration and builds
+
+LEB2 Watch is configured at compile time. It does not read a shell environment
+variable or `.env` file at runtime, and it has no in-app server selector.
+
+## Requirements
+
+The verified development baseline is:
+
+```text
+Flutter 3.44.8 stable
+Dart 3.12.2
+```
+
+Each target also needs its native host toolchain. See
+[Platform support](platform-support.md) before interpreting a command as a
+verified native build.
+
+## Release build script
+
+The repository currently builds version `0.5.0+2` (semantic version `0.5.0`,
+Android build number `2`). Build with an
+operator-owned HTTPS backend origin:
+
+```bash
+BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN> \
+  tool/build_public_beta.sh android
+```
+
+Use the same command with `flatpak` on Linux, `windows` on Windows, and `macos`
+on macOS. The script runs code generation, formatting, both analyzers, and the
+checked-in function-test runner before producing the artifact. It refuses
+`all` because Flutter cannot build Flatpak, Windows, and macOS from one native
+host; run the target-specific command on each required host. Windows and macOS
+artifacts remain untested native previews even when their builds succeed.
+
+The resulting artifacts are:
+
+```text
+Android:  build/app/outputs/bundle/release/app-release.aab
+Flatpak:  build/release-v0.5/leb2-watch-v0.5.flatpak
+Windows:  build/windows/x64/runner/Release/
+macOS:    build/macos/Build/Products/Release/leb2_watch.app
+```
+
+## Compile-time definitions
+
+The app reads exactly:
+
+| Definition | Accepted values |
+| --- | --- |
+| `APP_ENV` | `development` or `production`; empty defaults to development |
+| `BACKEND_BASE_URL` | Absolute HTTP/HTTPS root origin |
+
+The access key is not compile-time configuration. The backend operator
+provisions one key per user; the user enters it during session setup, and the
+app stores it only in OS secure storage. Do not add an access key to
+`AppConfiguration`, `.env` files, or `--dart-define` arguments.
+
+`BACKEND_BASE_URL` must:
+
+- include `http` or `https` and a host;
+- contain no username/password, query, or fragment; and
+- have no path other than `/`.
+
+The client normalizes the origin to a trailing slash. Production additionally
+requires HTTPS.
+
+Keep `BACKEND_BASE_URL` as the backend origin only, for example
+`https://backend.example.test`; do not append `/api/v1`. The client owns the
+canonical `/api/v1` request paths. The installed semantic version comes from
+platform package metadata and is sent as `X-Client-Version`; the Android `+2`
+build metadata is not sent in that header.
+
+An unsupported nonempty `APP_ENV` is detected during bootstrap and shows a
+fixed recovery surface. There is no same-process retry; rebuild with a
+supported value.
+
+`BACKEND_BASE_URL` is validated lazily when authentication or synchronization
+resolves the network client. A missing or malformed value does not inherently
+hide readable cached semesters or assignments, but remote sign-in, refresh,
+and synchronization fail safely until the application is rebuilt with a valid
+origin.
+
+Valid examples:
+
+```text
+http://192.0.2.10:5015
+https://leb2-api.example.org
+```
+
+Unsupported examples:
+
+```text
+leb2-api.example.org
+https://example.org/leb2-api
+https://user:password@example.org
+https://example.org?tenant=one
+```
+
+The backend URL is embedded in the application binary. Setting a terminal
+variable without `--dart-define` has no effect, and changing the server
+requires rebuilding the app. Production does not bypass invalid or
+self-signed TLS certificates.
+
+## Install and generate
+
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+```
+
+Generated `*.g.dart` and `*.freezed.dart` files are committed beside their
+sources and must not be edited by hand.
+
+The pinned `build_runner 2.15.1` accepts the required
+`--delete-conflicting-outputs` argument but reports that it has been removed
+and is ignored. That warning is expected.
+
+For continuous generation while editing annotated sources:
+
+```bash
+dart run build_runner watch --delete-conflicting-outputs
+```
+
+## Run a development build
+
+List available targets:
+
+```bash
+flutter devices
+```
+
+Run with a server reachable from that target:
+
+```bash
+flutter run -d <DEVICE_ID> \
+  --dart-define=APP_ENV=development \
+  --dart-define=BACKEND_BASE_URL=http://<REACHABLE_HOST>:5015
+```
+
+`localhost` on a physical device or emulator normally refers to that device,
+not the development workstation. This repository does not provide a validated
+one-size-fits-all emulator networking or cleartext-transport recipe.
+
+## Production build commands
+
+Every production command must include both definitions:
+
+### Android
+
+```bash
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+Android release signing is operator-local and never falls back to the debug
+identity. A complete, ignored `android/key.properties` file selects the
+operator's release key. It must provide four nonblank properties:
+
+```text
+storePassword=<KEYSTORE_PASSWORD>
+keyPassword=<KEY_PASSWORD>
+keyAlias=<KEY_ALIAS>
+storeFile=<KEYSTORE_PATH>
+```
+
+When the file is absent, Gradle warns and leaves any release output unsigned
+and non-distributable. A present but incomplete file stops configuration with
+a redacted error. A sanitized externally test-signed Release APK has been
+built, manifest/signer-inspected, installed, and foreground-launched on an
+API 36 emulator. The explained notification-permission and fixed local test
+notification submission smoke also passed there. This does not verify
+WorkManager execution, session synchronization, secure-storage CRUD,
+delete-all, visible delivery or notification taps, cold activation, or
+physical-device/OEM behavior.
+
+For APK distribution, keep the same application ID, signing certificate, and a
+higher `versionCode` when installing an update over an existing APK. Do not
+lose or replace the Android signing key: a differently signed APK is not a
+normal update and may not preserve the installation or device-binding
+lifecycle. Do not uninstall the old APK before an update. If the app is
+actually uninstalled, local database and secrets may be removed; same-device
+Android `ANDROID_ID` continuity still lets the user reconnect by re-entering
+the same access key and LEB2 credentials.
+
+To create an Android App Bundle (AAB) for an operator-controlled distribution
+pipeline, use the same definitions:
+
+```bash
+flutter build appbundle --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+The output is normally
+`build/app/outputs/bundle/release/app-release.aab`. A sanitized AAB built with
+the external validation-only key passed ZIP integrity and non-strict
+`jarsigner -verify` archive-signature verification. Its default-JDK strict
+trust check intentionally returned exit `4`: the self-signed test identity is
+not trusted by that JDK trust store. This is not production-key or
+distribution-service evidence. No standalone Bundletool validation, generated
+APK installation, device runtime, Google Play upload, or Play App Signing was
+performed. See
+[Android App Bundle validation](contexts/platform-validation/COMPACT.md#validation-evidence)
+for the reproducible artifact-only record.
+
+### iOS
+
+```bash
+flutter build ios --release --no-codesign \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+This validates an unsigned build only when run on macOS with Xcode. Distribution
+requires operator-owned signing and provisioning.
+
+### Linux
+
+```bash
+flutter build linux --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+On the current Linux host, the verified release bundle location is:
+
+```text
+build/linux/x64/release/bundle/leb2-watch
+```
+
+The selected Flatpak preview target is configured at
+[`packaging/flatpak/dev.oangsa.leb2watch.json`](../packaging/flatpak/dev.oangsa.leb2watch.json).
+Build the Linux release bundle first, then follow
+[`packaging/flatpak/README.md`](../packaging/flatpak/README.md) to build and
+bundle it. The earlier development preview used `http://localhost:5015`, and
+the current installed Flatpak validation also uses that origin with
+`APP_ENV=development`. The localhost-backed artifact is for local validation
+only: production rejects HTTP, so build a fresh bundle with
+`APP_ENV=production` and the operator's real HTTPS origin before distribution.
+No distro package, installer, AppImage, or Snap is configured.
+
+### macOS
+
+```bash
+flutter build macos --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+Building, signing, notarization, tray behavior, Keychain behavior, and
+start-at-login require macOS validation.
+
+### Windows
+
+Use a Windows 10/11 x64 host with Flutter's Windows desktop prerequisites,
+Visual Studio Desktop development with C++, a Windows SDK, and C++ ATL. Check
+the toolchain before building:
+
+```powershell
+flutter doctor -v
+flutter config --enable-windows-desktop
+```
+
+```bash
+flutter build windows --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<YOUR_BACKEND_ORIGIN>
+```
+
+The current Windows output is an unsigned, unpackaged developer preview.
+Distribute and test the complete directory:
+
+```text
+build/windows/x64/runner/Release
+```
+
+Do not copy only `leb2-watch.exe`; its sibling libraries and data are required.
+No MSIX, installer, signing, update, or store pipeline is configured.
+Unpackaged Windows supports immediate notifications and taps while the app
+process remains alive. Future deadline events can also use process-lifetime
+immediate delivery. It does not support cold/terminated notification
+activation, OS-retained deadline schedules, or reliable reminder cancellation.
+
+CI builds this Release directory with the sanitized placeholder origin
+`https://api.example.org`. That compile gate does not sign, package, install,
+or runtime-test the preview.
+
+## Validate source
+
+Run from the repository root:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+dart format --output=none --set-exit-if-changed .
+dart analyze --fatal-infos --fatal-warnings
+flutter analyze --fatal-infos --fatal-warnings
+dart run tool/run_flutter_tests.dart
+flutter build linux --release
+```
+
+The test runner covers all sorted `test/**/*_test.dart` files exactly once in
+fresh sequential batches of at most 10 files. The Linux device workflow under
+`integration_test/` remains a separate command.
+
+The final command without production definitions is a source/build smoke
+check, not a runnable production configuration. Use the production command
+above with both definitions for a distributable operator build.
+
+Only run a platform build on a supported host. A static configuration test is
+not equivalent to a native build or device smoke test.
+
+## Release ownership
+
+This repository does not currently provide:
+
+- signed store artifacts;
+- an Android signing identity, key material, or a publicly trusted certificate
+  chain;
+- Apple signing, provisioning, or notarization;
+- Windows MSIX/installer/signing;
+- Linux distribution packaging; or
+- a prebuilt app that can select an arbitrary backend at runtime.
+
+An operator distributing binaries owns server selection, signing keys,
+platform accounts, packaging, updates, and compliance. Never commit signing
+secrets or backend credentials.

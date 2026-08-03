@@ -1,80 +1,61 @@
-## Purpose
+# Repository Instructions
 
-This file defines mandatory operating rules for every coding agent working in this repository.
+## 1. Priority and scope
 
-These rules apply to:
+These rules apply to all work in this repository.
 
-* The main/orchestrator agent
-* Research and data-gathering subagents
-* Feature worker subagents
-* Review and validation subagents
-* Any agent continuing work from a previous session
+Priority:
 
-The objective is to keep implementation work:
+1. Explicit user instructions
+2. The nearest applicable nested `AGENTS.md`
+3. This file
+4. General defaults
 
-* Incremental
-* Evidence-based
-* Easy to review
-* Easy to resume
-* Properly documented
-* Properly committed
-* Isolated by feature
+A nested `AGENTS.md` overrides this file only within its directory scope.
 
-Follow this file before following general preferences or convenience.
+Work on one feature or bounded change at a time. Do not expand scope because
+nearby code could be improved.
 
----
+## 2. Before editing
 
-# 1. Core operating model
+1. Read applicable `AGENTS.md` files.
+2. Check the current branch and run:
 
-The main agent acts as an **orchestrator**.
+   ```bash
+   git status --short
+   ```
 
-The main agent is responsible for:
+3. Identify pre-existing changes and preserve them.
+4. Read `docs/contexts/README.md` when present.
+5. Read only contexts relevant to the current feature.
+6. Define the scope, acceptance criteria, tests, risk, and commit instruction.
 
-* Understanding the user’s requested outcome
-* Defining the current feature boundary
-* Delegating investigation
-* Spawning feature workers
-* Receiving subagent handoffs
-* Reviewing evidence
-* Ensuring tests pass
-* Ensuring feature context is written
-* Committing completed work
-* Deciding when the next feature may begin
+Use this feature definition for substantial work:
 
-The main agent should not attempt to perform all investigation and implementation itself.
+```text
+Feature:
+Outcome:
+Included:
+Excluded:
+Verified contracts:
+Relevant files/modules:
+Acceptance criteria:
+Required tests:
+Required documentation:
+Risk: low | medium | high
+Commit instruction:
+```
 
-Work must be divided into:
+Risk guidance:
 
-1. Data gathering
-2. Feature implementation
-3. Validation
-4. Context documentation
-5. Commit
-6. Next feature
+- **Low** — localized and reversible
+- **Medium** — multi-file behavior or nontrivial integration
+- **High** — authentication, authorization, privacy, migration, financial logic,
+  concurrency, destructive behavior, public API, or broad architecture
 
-Only one feature may be actively implemented at a time.
+Never delete, reset, overwrite, reformat, stage, or commit unrelated changes.
 
----
-
-# 2. Repository instructions
-
-Before starting work, the main agent must:
-
-1. Read this `AGENTS.md`.
-2. Check for more specific `AGENTS.md` files in relevant subdirectories.
-3. Read the current feature context under `docs/contexts`, when one exists.
-4. Check the current Git branch.
-5. Check `git status`.
-6. Identify pre-existing uncommitted changes.
-7. Avoid modifying or committing unrelated user changes.
-
-More specific instructions in a nested `AGENTS.md` override this file only for files inside that nested scope.
-
-Do not delete, reset, overwrite, or reformat unrelated work.
-
-Do not use destructive Git commands unless the user explicitly requests them.
-
-Prohibited without explicit user approval:
+Prohibited without explicit approval:
 
 ```bash
 git reset --hard
@@ -85,680 +66,182 @@ git push --force
 git push --force-with-lease
 ```
 
----
+Never push unless explicitly requested.
 
-# 3. Mandatory data-gathering subagents
+## 3. Requirements and scope
 
-Whenever information must be gathered, investigated, verified, compared, or located, the main agent must spawn a **new dedicated data-gathering subagent**.
+Use authoritative specifications and repository contracts for behavior.
+Existing code may provide a technical pattern, but it is not behavioral
+authority unless the current specification says so.
 
-This includes gathering data from:
+Do not invent missing behavior from:
 
-* Repository source code
-* Existing documentation
-* OpenAPI specifications
-* Tests
-* Git history
-* Build configuration
-* Platform configuration
-* Package documentation
-* External technical documentation
-* Logs
-* Error output
-* Existing implementations
-* Backend contracts
-* Previous feature contexts
-* Related files or modules
+- another feature
+- legacy code
+- old prompts or reports
+- personal judgment
+- reasonable defaults
 
-The main agent may directly read:
+When a required behavior, mapping, permission, or integration decision is
+missing or contradictory:
 
-* `AGENTS.md`
-* The user’s current request
-* `git status`
-* The current feature’s existing context document
-* A direct handoff returned by a subagent
+1. Stop the affected work.
+2. State the exact unresolved point and affected files or behavior.
+3. Ask one concrete decision question.
+4. Wait for explicit approval.
+5. Record the decision only when authorized.
 
-All additional nontrivial investigation must be delegated.
+When unrelated work is discovered, report it and leave it unchanged. Treat it
+as a separate feature.
 
-## Fresh-agent rule
+Do not mix feature work with unrelated refactoring, formatting, dependency
+upgrades, or documentation cleanup.
 
-Every distinct data-gathering task must use a newly spawned subagent.
+## 4. Implementation and testing
 
-Do not reuse a previous data-gathering subagent for a new investigation.
+Implementation must:
 
-Examples of distinct investigations:
+- stay within approved scope
+- preserve unrelated changes and public contracts
+- avoid broad refactoring
+- enforce validation and authorization server-side
+- use approved transaction and concurrency behavior
+- prevent silent data loss
+- keep generated output synchronized with its source
+- update required tests, contexts, and reports
+- never expose secrets or production data
 
-* Finding the authentication contract
-* Inspecting the database schema
-* Researching Android WorkManager restrictions
-* Locating existing theme components
-* Investigating a failing test
-* Comparing current code against a feature specification
+Complete every applicable layer: UI, handler/controller, service/domain logic,
+persistence, integration, and tests. Do not claim a behavior is complete when
+only one layer exists.
 
-Each of these should use a fresh subagent.
+For financial, migration, authorization, concurrency, or destructive behavior,
+verify exact field targeting, transaction boundaries, rollback behavior, and
+stale-update protection.
 
-## Required handoff
+Every behavior change requires appropriate tests:
 
-Every data-gathering subagent must return its findings to the main agent using the installed `$handoff` mechanism.
+- unit tests for domain logic
+- database or migration tests for persistence
+- API tests for transport and errors
+- UI tests for states and interactions
+- integration tests for complete workflows
+- native tests for platform-specific code
 
-Do not replace `$handoff` with an informal summary when `$handoff` is available.
+Run focused checks first, then broader checks. A passing compile alone is not
+sufficient evidence.
 
-The handoff must include:
+Do not:
 
-* Investigation objective
-* Files and sources inspected
-* Verified facts
-* Relevant code locations
-* Commands executed
-* Test or build evidence
-* Uncertainties
-* Blockers
-* Recommended next action
+- delete valid failing tests
+- weaken assertions merely to obtain a pass
+- skip failures without documenting why
+- mock away the behavior under test
+- call production services from automated tests
+- use real credentials
+- claim a test passed when it was not run
 
-A data-gathering handoff must distinguish clearly between:
+After a correction, add or update a regression test, rerun the failing check,
+and rerun the affected feature suite.
 
-* Verified facts
-* Reasonable inference
-* Unverified assumptions
+When a required check cannot run, report why, what was validated instead, the
+exact remaining command, and what remains unverified.
 
-The main agent must consume the `$handoff` before making implementation decisions.
+## 5. Generated code
 
-If the handoff is incomplete, spawn another fresh data-gathering subagent. Do not silently fill the missing information with guesses.
+1. Modify source definitions, not generated output.
+2. Run the repository generator.
+3. Review generated changes.
+4. Commit generated files only when repository convention requires them.
+5. Keep generated output synchronized with its source.
 
----
+Never manually edit a file that will be overwritten by generation.
 
-# 4. Feature worker rule
+## 6. Feature contexts
 
-Every feature must be implemented by a **newly spawned feature worker subagent**.
+Use `docs/contexts/README.md` as the canonical context index.
 
-A feature worker:
+Normally read no more than two feature contexts unless a verified dependency
+requires more. Do not recursively read all contexts or archived contexts for
+ordinary work.
 
-* Must be freshly spawned for that feature
-* Must own exactly one feature
-* Must not continue into another feature
-* Must not implement unrelated improvements
-* Must receive a clear feature boundary
-* Must receive relevant research handoffs
-* Must receive relevant existing context files
-* Must return its result through `$handoff`
-
-## One feature at a time
-
-Only one feature worker may be active at a time.
-
-Do not run multiple feature workers concurrently.
-
-Do not implement multiple features in one worker assignment.
-
-Do not begin a second feature while the current feature is:
-
-* Still being implemented
-* Still failing tests
-* Missing context documentation
-* Uncommitted
-* Partially complete
-* Waiting for review
-
-The required sequence is:
-
-```text
-Feature A research
-        ↓
-Feature A worker
-        ↓
-Feature A validation
-        ↓
-Feature A context document
-        ↓
-Feature A commit
-        ↓
-Feature B research
-        ↓
-Feature B worker
-```
-
-## Feature boundary
-
-Before spawning a worker, the main agent must define:
-
-* Feature name
-* User-visible outcome
-* Included scope
-* Explicitly excluded scope
-* Relevant files or modules
-* Verified contracts
-* Acceptance criteria
-* Required tests
-* Required documentation
-* Expected commit category
-
-A worker must stop and report through `$handoff` if the feature boundary cannot be followed safely.
-
-## Worker handoff
-
-The worker must return:
-
-* What was implemented
-* Files changed
-* Architectural decisions
-* Tests added
-* Commands executed
-* Test results
-* Build results
-* Remaining limitations
-* Unresolved blockers
-* Suggested commit action and message
-* Confirmation that `docs/contexts/<feature>.md` was created or updated
-
-The worker must not claim completion without evidence.
-
----
-
-# 5. Feature lifecycle
-
-Every feature must follow this lifecycle.
-
-## Step 1: Define the feature
-
-Write a concise feature definition before implementation.
-
-The definition must include:
-
-```text
-Feature:
-Outcome:
-Included:
-Excluded:
-Dependencies:
-Acceptance criteria:
-Required tests:
-Expected commit action:
-```
-
-## Step 2: Gather data
-
-Spawn one or more fresh data-gathering subagents as necessary.
-
-Every research subagent must return through `$handoff`.
-
-Do not implement from assumptions when repository evidence is available.
-
-## Step 3: Spawn one feature worker
-
-Spawn exactly one new worker for the feature.
-
-Provide the worker with:
-
-* The feature definition
-* Relevant `$handoff` results
-* Relevant files
-* Relevant `docs/contexts` documents
-* Acceptance criteria
-* Testing expectations
-* Commit convention
-
-## Step 4: Validate
-
-After implementation, validate the feature.
-
-Validation must include the narrowest relevant checks first, followed by broader checks.
-
-Examples:
-
-```bash
-dart format --set-exit-if-changed .
-flutter analyze
-flutter test
-```
-
-Also run feature-specific checks, such as:
-
-* Focused unit tests
-* Widget tests
-* Database tests
-* Integration tests
-* Code generation
-* Native platform tests
-* Available platform builds
-* Secret-leakage searches
-
-A passing compile is not sufficient evidence of completion.
-
-If validation requires investigation, spawn a new data-gathering subagent.
-
-If fixes are required, keep them within the current feature. Do not start another feature.
-
-## Step 5: Write feature context
-
-After implementation and validation, create or update:
-
-```text
-docs/contexts/<feature-slug>.md
-```
-
-The context document must be included in the same commit as the feature.
-
-## Step 6: Commit
-
-Commit the completed feature before starting another feature.
-
-Do not move on with completed but uncommitted feature work.
-
-## Step 7: Begin the next feature
-
-A new feature may begin only when:
-
-* The previous feature satisfies its acceptance criteria
-* Relevant tests pass
-* Its context document exists
-* Its changes are committed
-* The working tree contains no unexplained changes from that feature
-
----
-
-# 6. Commit convention
-
-Commit whenever a coherent unit of work is finished.
-
-A completed feature must always be committed before moving to another feature.
-
-Use only the following action prefixes.
-
-## Actions
-
-* `feat` → add or complete a feature
-* `fix` → fix incorrect behavior or a bug
-* `style` → change formatting without affecting meaning or behavior
-* `refactor` → change code structure without affecting behavior
-* `chore` → update non-product-code work, such as `.gitignore`, configuration, tooling, or maintenance files
-
-## Commit format
-
-Use:
-
-```bash
-git commit -m "action: commit message"
-```
-
-Examples:
-
-```bash
-git commit -m "feat: add local assignment synchronization"
-git commit -m "fix: prevent duplicate assignment notifications"
-git commit -m "style: format notification settings screen"
-git commit -m "refactor: isolate background scheduler adapters"
-git commit -m "chore: update flutter analysis configuration"
-```
-
-## Commit message rules
-
-Commit messages must:
-
-* Use one allowed action
-* Be lowercase after the prefix unless a proper noun requires otherwise
-* Describe the completed result
-* Be concise
-* Use imperative or outcome-focused wording
-* Avoid vague messages
-
-Do not use messages such as:
-
-```text
-feat: changes
-fix: stuff
-chore: updates
-feat: work in progress
-fix: try again
-```
-
-## Feature commit rule
-
-A feature commit should normally contain:
-
-* Feature implementation
-* Feature-specific tests
-* Required generated files
-* Relevant documentation
-* `docs/contexts/<feature-slug>.md`
-
-Do not commit:
-
-* Unrelated formatting
-* Unrelated refactors
-* Temporary logs
-* Debug credentials
-* Secrets
-* Build artifacts
-* Incomplete placeholder code
-* Unrelated user changes
-
-## Pre-commit verification
-
-Before committing:
-
-1. Review `git status`.
-2. Review the diff.
-3. Confirm no secrets are present.
-4. Confirm no unrelated files are staged.
-5. Run relevant formatting.
-6. Run relevant tests.
-7. Run static analysis where applicable.
-8. Verify the context document is present.
-9. Stage only files belonging to the completed work.
-10. Commit using the required convention.
-
-After committing:
-
-1. Record the commit hash.
-2. Confirm the working tree state.
-3. Report any remaining uncommitted files and why they remain.
-4. Do not begin the next feature until the current feature is safely committed.
-
----
-
-# 7. Feature context documents
-
-Every completed feature must create or update a context document under:
-
-```text
-docs/contexts/
-```
-
-Use a descriptive kebab-case filename:
-
-```text
-docs/contexts/local-assignment-sync.md
-docs/contexts/android-background-worker.md
-docs/contexts/session-expiration-flow.md
-docs/contexts/desktop-system-tray.md
-```
-
-These documents exist for future agents, not as marketing documentation.
-
-They must contain enough technical context for a new agent to continue work without rediscovering the feature from scratch.
-
-## Required context template
+Create or update `docs/contexts/<feature-slug>.md` for substantial work,
+including user-visible features, schema or architecture changes, platform
+integrations, security-sensitive behavior, multi-module refactors, and work
+likely to continue across sessions.
+
+A context may be omitted for trivial fixes, formatting, small documentation
+changes, test-only maintenance, or routine tooling with no continuation value.
+State the reason in the final report.
+
+Update an existing context instead of creating a duplicate. Describe current
+implementation, not chronological history. Include only applicable sections:
 
 ```markdown
 # <Feature Name>
 
 ## Status
-
-Completed, partial, blocked, or superseded.
-
 ## Purpose
-
-Why this feature exists and what user problem it solves.
-
 ## Scope
-
-What is included in this feature.
-
 ## Non-scope
-
-What is intentionally excluded.
-
 ## User-visible behavior
-
-Describe what the user sees and how the feature behaves.
-
 ## Architecture
-
-Describe the components, layers, services, providers, adapters, and data flow.
-
 ## Important files
-
-- `path/to/file.dart` — purpose
-- `path/to/test.dart` — purpose
-
 ## Contracts and interfaces
-
-Document important APIs, domain interfaces, database contracts, platform interfaces, and error mappings.
-
 ## Data model
-
-Document relevant tables, fields, entities, migrations, indices, and ownership boundaries.
-
 ## State and control flow
-
-Explain important state transitions and execution flow.
-
-## Platform behavior
-
-Describe differences across Android, iOS, Windows, macOS, and Linux where relevant.
-
 ## Security and privacy
-
-Document credential handling, local storage, redaction, and privacy boundaries.
-
 ## Decisions
-
-List significant implementation decisions and why they were made.
-
-## Alternatives rejected
-
-List important alternatives considered and why they were not selected.
-
 ## Failure behavior
-
-Explain timeouts, retries, invalid responses, session expiration, rollback, and user-facing errors.
-
 ## Tests
-
-List tests added and the behavior each test covers.
-
 ## Validation evidence
-
-List commands executed and their results.
-
 ## Known limitations
-
-Document real limitations without hiding them.
-
-## Future considerations
-
-List reasonable future work that is explicitly outside the current feature.
-
 ## Related contexts
-
-Link related files under `docs/contexts`.
 ```
 
-## Context quality rules
+Reference concrete files and verified contracts. Avoid copying full
+specifications, duplicating other contexts, or presenting future work as
+implemented behavior.
 
-A context document must:
+Update `docs/contexts/README.md` when contexts are added, renamed, archived, or
+superseded.
 
-* Reflect the implementation that actually exists
-* Reference concrete files
-* Document verified contracts
-* Explain non-obvious decisions
-* Include test evidence
-* State limitations honestly
-* Avoid copying the entire feature specification
-* Avoid vague statements such as “handles everything”
-* Avoid future plans presented as implemented behavior
-
-Update an existing context instead of creating duplicate context files for the same feature.
-
----
-
-# 8. Research and implementation separation
-
-Research subagents must not make broad implementation changes.
-
-Feature workers must not begin by rediscovering the entire repository when a research handoff already exists.
-
-The preferred separation is:
-
-```text
-Research agent
-├── Inspects
-├── Verifies
-├── Locates
-├── Compares
-└── Returns $handoff
-
-Feature worker
-├── Consumes $handoff
-├── Implements one feature
-├── Adds tests
-├── Writes context
-└── Returns $handoff
-
-Main agent
-├── Reviews
-├── Validates
-├── Commits
-└── Starts next feature
-```
-
-A research agent may create a temporary report only when useful, but must not commit it unless it is intended repository documentation.
-
-Temporary investigation files must be removed before committing.
-
----
-
-# 9. Validation subagents
-
-The main agent may spawn a fresh validation or review subagent after a worker completes.
-
-A validation subagent must be different from the feature worker.
-
-Use a validation subagent for:
-
-* Reviewing security boundaries
-* Reviewing database transactions
-* Reviewing platform configuration
-* Reviewing test completeness
-* Verifying backend contracts
-* Investigating build failures
-* Checking for secret leakage
-* Checking acceptance criteria
-* Reviewing a high-risk diff
-
-Validation findings must return through `$handoff`.
-
-If validation discovers problems, fix them as part of the current feature before committing.
-
-Do not begin the next feature while known validation findings remain unresolved unless the finding is explicitly documented as an accepted limitation or blocker.
-
----
-
-# 10. Testing rules
-
-Every behavior change requires appropriate tests.
-
-Choose tests based on the changed behavior:
-
-* Unit tests for domain logic
-* Database tests for Drift behavior and migrations
-* API tests for transport and error mapping
-* Widget tests for UI states and interactions
-* Golden tests for important responsive layouts
-* Integration tests for complete workflows
-* Native tests for custom Kotlin, Swift, or desktop integrations
-
-Tests must verify behavior, not implementation trivia.
-
-Do not:
-
-* Delete a valid test merely because it fails
-* Weaken assertions to make a test pass
-* Mark failing tests as skipped without documenting why
-* Mock the behavior being tested so extensively that the test proves nothing
-* Call production services from automated tests
-* Use real credentials in tests
-* Report tests as passing when they were not run
-
-If the environment cannot run a platform-specific test, document:
-
-* Why it could not run
-* What static validation was completed
-* The exact command that must be run later
-* What remains unverified
-
----
-
-# 11. Generated code
-
-When the project uses code generation:
-
-1. Modify source definitions, not generated output.
-2. Run the correct generator.
-3. Review generated changes.
-4. Commit generated files only when the repository convention requires them.
-5. Ensure generated files are synchronized with their sources.
-
-Examples may include:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
-Do not manually edit files that will be overwritten by generation.
-
----
-
-# 12. Secrets and privacy
+## 7. Secrets and privacy
 
 Never commit or log:
 
-* Session cookies
-* Passwords
-* Authorization headers
-* API keys
-* Signing secrets
-* Private certificates
-* User assignment data
-* Personal identifiers
-* Production tokens
+- cookies, passwords, authorization headers, or API keys
+- signing secrets or private certificates
+- production tokens
+- personal identifiers or sensitive user data
 
-Before every commit, inspect the diff for accidental secrets.
-
-Use placeholders such as:
-
-```text
-<BACKEND_BASE_URL>
-<SESSION_COOKIE>
-<USERNAME>
-<PASSWORD>
-```
+Use placeholders such as `<API_KEY>`, `<SESSION_COOKIE>`, `<USERNAME>`, and
+`<PASSWORD>`.
 
 Do not disable TLS verification.
 
-Do not add analytics, tracking, advertising, cloud persistence, push-token registration, or remote crash reporting unless the user explicitly changes the product requirements.
+Do not add analytics, tracking, advertising, cloud persistence, push-token
+registration, or remote crash reporting unless explicitly requested.
 
-User-specific data must remain on the local device.
+Inspect changed and staged files for secrets before finalizing.
 
----
+## 8. Commit discipline
 
-# 13. Scope control
+Commit only when allowed by the user and current task. `Do not commit` always
+overrides automatic committing.
 
-Do not expand a feature merely because nearby code could be improved.
+Allowed prefixes:
 
-If unrelated work is discovered:
+- `feat`
+- `fix`
+- `style`
+- `refactor`
+- `chore`
 
-1. Record it in the current feature’s context under future considerations, when relevant.
-2. Report it to the main agent through `$handoff`.
-3. Leave it unchanged.
-4. Create a separate future feature if the user or main agent chooses to address it.
-
-Do not mix:
-
-* Feature work with broad refactoring
-* Bug fixes with unrelated style changes
-* Platform implementation with unrelated dependency upgrades
-* Documentation cleanup with behavior changes
-
-A necessary refactor may be included when it is narrowly required to implement the current feature. Document why it was necessary.
-
----
-
-# 14. Working-tree discipline
-
-Before starting a feature:
+Format:
 
 ```bash
-git status --short
+git commit -m "action: concise outcome"
 ```
 
 Before committing:
@@ -769,6 +252,12 @@ git diff
 git diff --staged
 ```
 
+Confirm that no secrets or unrelated files are staged, required validation ran,
+required contexts are current, and only in-scope files are included.
+
+Prefer explicit staging paths. Avoid `git add .` unless every changed file has
+been verified as in scope.
+
 After committing:
 
 ```bash
@@ -776,126 +265,55 @@ git status --short
 git log -1 --oneline
 ```
 
-Do not assume the working tree is clean.
+Report the commit hash and remaining uncommitted files with reasons.
 
-Do not stage the entire repository blindly when unrelated changes exist.
+## 9. Incomplete work
 
-Avoid:
+Do not claim completion without evidence or commit incomplete work as complete.
 
-```bash
-git add .
-```
+When blocked:
 
-Prefer explicit staging:
+- stop safely
+- explain the blocker with evidence
+- preserve unrelated work
+- report partial changes honestly
+- state what remains unverified
+- provide the exact next action
 
-```bash
-git add path/to/feature_file.dart
-git add path/to/feature_test.dart
-git add docs/contexts/feature-name.md
-```
+Do not create a WIP commit unless explicitly requested. Partial work may be
+committed only when it is independently valid, the user approves, and the
+message describes the partial result accurately.
 
-Using `git add .` is acceptable only after confirming every changed file belongs to the current completed work.
+## 10. Completion gate and final report
 
----
+Before claiming completion:
 
-# 15. Incomplete work
+1. Run `git status --short`.
+2. Review `git diff --stat` and `git diff --name-status`.
+3. Review relevant changed code.
+4. Confirm every approved requirement has implementation evidence.
+5. Confirm required tests and validation actually ran.
+6. Confirm failures and limitations are reported honestly.
+7. Confirm no unrelated changes were introduced.
+8. Confirm pre-existing changes remain intact.
+9. Confirm required contexts and reports are current.
+10. Follow the commit or non-commit instruction.
 
-Do not commit incomplete feature work as a completed `feat`.
+For high-risk work, directly verify critical changes involving authorization,
+security, privacy, financial logic, migrations, concurrency, transactions,
+destructive behavior, and public contracts.
 
-If work cannot be completed:
+The final report must include:
 
-* Do not claim success.
-* Return a `$handoff`.
-* Explain the blocker.
-* Include evidence.
-* Preserve the repository in a safe state.
-* Document partial work under `docs/contexts` only when it provides genuine continuation value.
-* Use a commit only when the partial work is independently valid and the user has approved committing it.
+- completed changes
+- changed files or areas
+- tests, builds, and validation results
+- context documents changed
+- review or audit result when applicable
+- security and privacy findings
+- known limitations and blockers
+- commit hash and message, or why no commit was created
+- current working-tree status
 
-Do not use “WIP” commits unless explicitly requested.
-
----
-
-# 16. Main-agent completion checklist
-
-Before moving to the next feature, the main agent must confirm:
-
-* [ ] The feature boundary was explicit.
-* [ ] Required research used newly spawned data-gathering subagents.
-* [ ] Research findings returned through `$handoff`.
-* [ ] A newly spawned worker implemented exactly one feature.
-* [ ] Only one feature worker was active.
-* [ ] The worker returned through `$handoff`.
-* [ ] Acceptance criteria were checked.
-* [ ] Relevant tests were added.
-* [ ] Relevant tests passed.
-* [ ] Static analysis passed where applicable.
-* [ ] Available builds passed where applicable.
-* [ ] Secrets were not introduced.
-* [ ] Unrelated changes were not included.
-* [ ] `docs/contexts/<feature-slug>.md` exists and is accurate.
-* [ ] The diff was reviewed.
-* [ ] The feature was committed.
-* [ ] The commit follows the required convention.
-* [ ] The working tree was checked after the commit.
-* [ ] Remaining limitations were documented.
-
-No next feature may begin until this checklist is satisfied or an explicit blocker is recorded.
-
----
-
-# 17. Required final handoff
-
-At the end of the requested work, the main agent must report:
-
-* Features completed
-* Feature commits in order
-* Commit hashes and messages
-* Context documents created or updated
-* Research subagents used
-* Worker subagents used
-* Validation subagents used
-* Tests executed
-* Test results
-* Builds executed
-* Build results
-* Security and privacy findings
-* Known limitations
-* Blocked or unimplemented work
-* Current working-tree status
-* Exact commands needed to continue
-
-Clearly separate:
-
-* Completed
-* Partially completed
-* Untested
-* Blocked
-* Future work
-
-Do not present partial, untested, or blocked work as completed.
-
----
-
-# 18. Mandatory workflow summary
-
-For every feature, follow this exact pattern:
-
-```text
-1. Define one feature
-2. Spawn fresh research subagent
-3. Receive research through $handoff
-4. Spawn one fresh feature worker
-5. Implement only that feature
-6. Receive worker result through $handoff
-7. Validate implementation
-8. Fix all in-scope failures
-9. Write docs/contexts/<feature-slug>.md
-10. Review diff and secrets
-11. Commit using:
-    git commit -m "action: commit message"
-12. Confirm repository state
-13. Only then begin the next feature
-```
-
-This workflow is mandatory.
+Clearly distinguish completed, partial, untested, blocked, unrelated, and future
+work.

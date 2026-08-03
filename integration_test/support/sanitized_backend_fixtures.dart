@@ -1,0 +1,120 @@
+const sanitizedSemestersFixture = <Map<String, Object?>>[
+  {'id': 101, 'name': '1/2026'},
+  {'id': 102, 'name': '3/2025'},
+];
+
+const sanitizedCredentialsRequest = <String, Object?>{
+  'username': '<USERNAME>',
+  'password': '<PASSWORD>',
+  'remember': false,
+};
+
+const sanitizedUserProfileFixture = <String, Object?>{
+  'id': 2001,
+  'kmuttId': '<KMUTT_ID>',
+  'nameThai': '<THAI_NAME>',
+  'nameEnglish': '<ENGLISH_NAME>',
+  'surnameThai': '<THAI_SURNAME>',
+  'surnameEnglish': '<ENGLISH_SURNAME>',
+};
+
+Map<String, Object?> sanitizedCookieFixture(String cookie) {
+  return <String, Object?>{'cookie': cookie};
+}
+
+const sanitizedBaselineActivity = <String, Object?>{
+  'id': 1001,
+  'userId': 2001,
+  'classId': 3001,
+  'advStarred': 0,
+  'groupType': 'individual',
+  'type': 'ASM',
+  'peerAssessment': 0,
+  'isAllowRepeat': 0,
+  'title': 'Example assignment',
+  'description': '<p>Example description</p>',
+  'startDate': '2026-07-01T09:00:00',
+  'dueDate': '2026-07-31T23:59:00',
+  'editGroupMode': '',
+  'createdAt': '2026-06-30T12:00:00',
+  'user': 2001,
+  'activitySubmissionId': null,
+  'classUserId': 4001,
+  'activityGroupId': null,
+  'activityGroupName': null,
+  'activitySubmissionSubmittedAt': null,
+  'dueDateExceed': false,
+  'quizSubmissionIsSubmitted': false,
+  'countGroupMember': 1,
+  'activitySubmissionIsLate': false,
+  'fileActivities': <Object?>[],
+  'questions': <Object?>[],
+  'submissions': <Object?>[],
+  'lastDueDateNotificationDate': null,
+  'lastStatusChangeNotificationDate': null,
+  'previousSubmissionStatus': null,
+};
+
+const sanitizedNewActivity = <String, Object?>{
+  'id': 1002,
+  'userId': 2001,
+  'classId': 3001,
+  'advStarred': 0,
+  'groupType': 'individual',
+  'type': 'ASM',
+  'peerAssessment': 0,
+  'isAllowRepeat': 0,
+  'title': 'New example assignment',
+  'description': '<p>Sanitized new assignment description</p>',
+  'startDate': '2026-07-25T09:00:00',
+  'dueDate': '2026-08-15T23:59:00',
+  'editGroupMode': '',
+  'createdAt': '2026-07-25T08:00:00',
+  'user': 2001,
+  'activitySubmissionId': null,
+  'classUserId': 4002,
+  'activityGroupId': null,
+  'activityGroupName': null,
+  'activitySubmissionSubmittedAt': null,
+  'dueDateExceed': false,
+  'quizSubmissionIsSubmitted': false,
+  'countGroupMember': 1,
+  'activitySubmissionIsLate': false,
+  'fileActivities': <Object?>[],
+  'questions': <Object?>[],
+  'submissions': <Object?>[],
+  'lastDueDateNotificationDate': null,
+  'lastStatusChangeNotificationDate': null,
+  'previousSubmissionStatus': null,
+};
+
+Map<String, Object?> sanitizedSnapshotFixture({
+  required bool includeNewAssignment,
+}) {
+  return <String, Object?>{
+    'semesterId': 101,
+    'classes': <Object?>[
+      <String, Object?>{
+        'id': 3001,
+        'name': 'Example Course',
+        'activities': <Object?>[
+          sanitizedBaselineActivity,
+          if (includeNewAssignment) sanitizedNewActivity,
+        ],
+      },
+      <String, Object?>{
+        'id': 3002,
+        'name': 'Course Without Activities',
+        'activities': <Object?>[],
+      },
+    ],
+  };
+}
+
+const sanitizedSessionExpiredFixture = <String, Object?>{
+  'message': 'The LEB2 session has expired or is invalid.',
+  'responseCode': 'SESSION_EXPIRED',
+  'details': null,
+  'timestamp': '2026-07-24T12:00:00Z',
+  'traceId': '<TRACE_ID>',
+};
