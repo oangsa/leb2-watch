@@ -101,7 +101,20 @@ class LocalDatabaseStorage {
           database.execute(
             'CREATE TEMP TABLE leb2_watch_open_transaction (value INTEGER)',
           );
-          database.execute('BEGIN IMMEDIATE');
+          for (var attempt = 0; attempt < _walSetupAttempts; attempt += 1) {
+            try {
+              database.execute('BEGIN IMMEDIATE');
+              break;
+            } on SqliteException catch (error) {
+              final isContention =
+                  error.resultCode == _sqliteBusyResultCode ||
+                  error.resultCode == _sqliteLockedResultCode;
+              if (!isContention || attempt == _walSetupAttempts - 1) {
+                rethrow;
+              }
+              sleep(Duration(milliseconds: 10 * (attempt + 1)));
+            }
+          }
         }
       }),
       completeOpenTransaction: true,

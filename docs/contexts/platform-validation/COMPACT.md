@@ -1326,6 +1326,14 @@ Built build/linux/x64/debug/bundle/leb2-watch
 The successful test is runtime evidence that the production path reached the
 current KDE server and received its same-process `default` action callback.
 
+The mocked end-to-end workflow waits for the assignment inline synchronization
+indicator to clear before reading durable notification history and beginning
+delete-all cleanup. This keeps the integration assertions ordered after the
+notification-marked-delivered write has completed.
+
+On 2026-08-03, the same Linux integration command passed both mocked workflow
+scenarios, including delete-all cleanup.
+
 ### Phase 20.3 runtime state transitions — complete — 2026-08-01
 
 Phase 20.3 passed on the current KDE/Wayland session under the approved

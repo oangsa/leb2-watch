@@ -68,9 +68,9 @@ resolver lease leak.
 ### Architecture
 
 `AppDatabase` — schema v17, migration, connection pragmas, bounded sync history.
-`LocalDatabaseStorage` — production file lifecycle, eager `NativeDatabase.createInBackground`. Busy timeout installed before WAL transition. BUSY/LOCKED WAL races receive short bounded retry.
+`LocalDatabaseStorage` — production file lifecycle, eager `NativeDatabase.createInBackground`. Busy timeout is installed before WAL transition; both WAL setup and zero-version transaction acquisition retry bounded BUSY/LOCKED contention with short backoff.
 
-**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version. First connection creates v16 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v16, no duplicate `createAll`.
+**Zero-version startup**: Creates connection-local temp marker, acquires `BEGIN IMMEDIATE` before Drift reads version, retrying bounded SQLite contention. First connection creates v16 schema; later connections wait in SQLite. Marked connection writes `user_version`, commits in `AppDatabase.beforeOpen`, drops temp marker, then enables foreign keys. Waiters re-read v16, no duplicate `createAll`.
 
 **Existing/legacy databases**: No outer transaction, so ordered Drift table-rebuild migrations remain valid.
 
@@ -234,6 +234,11 @@ comparison: the independent production-open reproducer and its one-manager
 control. Keeping both together makes the intermittent failure interpretable
 without treating it as deterministic product coverage.
 
+`test/core/database/local_database_storage_test.dart` covers simultaneous
+production opens on first creation and on an already-WAL database. The Linux
+mocked workflow also waits for the assignment inline synchronization to finish
+before asserting durable notification history or starting delete-all cleanup.
+
 ### Validation evidence
 
 Schema v17 validation passed: the focused database, dashboard, course-control,
@@ -241,9 +246,10 @@ router, shell, and app group completed 204 tests; the real frozen-v13 migration
 tests prove creation and default seeding while retaining representative prior
 settings. The v16-to-v17 migration checks for an existing `semesters.name`
 column before altering legacy fixtures, preserving idempotent upgrades. The
-2026-08-02 memory-safe runner passed all 15 sequential shards across 143
-discovered test files with exit 0. Code generation completed with exit 0,
-formatting changed zero files, and both analyzers reported no issues.
+2026-08-03 memory-safe runner passed all 15 sequential shards across 149
+discovered test files with exit 0. The focused storage and deletion/startup
+suite passed 58 tests; formatting changed zero files, and both analyzers
+reported no issues.
 
 The simultaneous-isolate-open regression test now releases its four concurrent
 production opens before allowing any isolate to begin its writes. This keeps

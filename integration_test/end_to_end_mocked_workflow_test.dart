@@ -270,6 +270,14 @@ void main() {
             harness.notifications.newAssignments.length == 1,
         reason: 'The new assignment was not persisted and notified once.',
       );
+      await pumpUntil(
+        tester,
+        () => find
+            .byKey(const Key('assignment-inline-progress'))
+            .evaluate()
+            .isEmpty,
+        reason: 'The new-assignment synchronization did not finish.',
+      );
 
       database = await lifetime.database();
       expect(await database.select(database.activities).get(), hasLength(2));
@@ -282,15 +290,6 @@ void main() {
           .get();
       expect(notificationHistory, hasLength(1));
       expect(notificationHistory.single.kind, newAssignmentNotificationKind);
-
-      await pumpUntil(
-        tester,
-        () => find
-            .byKey(const Key('assignment-inline-progress'))
-            .evaluate()
-            .isEmpty,
-        reason: 'The new-assignment synchronization did not finish.',
-      );
       final cancellationCountBeforeExpiry = harness.background.cancelCount;
       await tester.tap(find.byKey(const Key('assignment-refresh-button')));
       await pumpUntil(
