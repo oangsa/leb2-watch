@@ -20,6 +20,7 @@ final class ScriptedBackendExchange {
     this.statusCode = 200,
     this.additionalHeaders = const {},
     this.release,
+    this.repeatable = false,
   });
 
   final String method;
@@ -32,6 +33,11 @@ final class ScriptedBackendExchange {
   final int statusCode;
   final Map<String, List<String>> additionalHeaders;
   final Future<void>? release;
+
+  /// Serves every matching repeat of this request instead of being consumed
+  /// once. Independent callers may each admit their own synchronization when
+  /// they do not overlap, so the trailing exchange must stay replayable.
+  final bool repeatable;
 }
 
 final class ScriptedBackendAdapter implements HttpClientAdapter {
@@ -39,6 +45,7 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
     : _exchanges = Queue.of(exchanges);
 
   final Queue<ScriptedBackendExchange> _exchanges;
+  final Set<ScriptedBackendExchange> _served = {};
   Object? _failure;
   int _requestCount = 0;
 
@@ -55,7 +62,10 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
     if (_exchanges.isEmpty) {
       return _fail('Unexpected backend request after the script completed.');
     }
-    final exchange = _exchanges.removeFirst();
+    final exchange = _exchanges.first;
+    if (!exchange.repeatable) {
+      _exchanges.removeFirst();
+    }
     try {
       _require(
         options.baseUrl == integrationBackendCanonicalBaseUrl,
@@ -103,6 +113,7 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
         );
       }
       await exchange.release;
+      _served.add(exchange);
       return ResponseBody.fromString(
         jsonEncode(exchange.body),
         exchange.statusCode,
@@ -153,9 +164,11 @@ final class ScriptedBackendAdapter implements HttpClientAdapter {
   void verifyComplete() {
     final priorFailure = _failure;
     if (priorFailure != null) {
-      throw StateError('The scripted backend observed an invalid request.');
+      throw StateError(
+        'The scripted backend observed an invalid request: $priorFailure',
+      );
     }
-    if (_exchanges.isNotEmpty) {
+    if (_exchanges.any((exchange) => !_served.contains(exchange))) {
       throw StateError('The scripted backend has unconsumed exchanges.');
     }
   }
