@@ -1,6 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart' show SqliteException;
+// Background executors report failures through this type, and drift offers no
+// stable alternative for reading the original cause.
+// ignore: experimental_member_use
+import 'package:drift/remote.dart' show DriftRemoteException;
 
 import 'database_tables.dart';
 import 'utc_date_time_converter.dart';
@@ -9,6 +15,11 @@ part 'app_database.g.dart';
 
 const syncRunRetentionLimit = 100;
 const sqliteBusyTimeout = Duration(seconds: 5);
+const _sqliteBusyResultCode = 5;
+const _sqliteLockedResultCode = 6;
+const _transactionRetryZoneKey = #leb2WatchTransactionRetry;
+const _transactionRetryMaxBackoff = Duration(milliseconds: 100);
+final _transactionRetryJitter = Random();
 
 @DriftDatabase(
   tables: [
@@ -59,6 +70,57 @@ class AppDatabase extends _$AppDatabase {
   Future<void> _close() async {
     await super.close();
     await _onClose?.call();
+  }
+
+  /// Retries a transaction that lost the SQLite writer lock.
+  ///
+  /// `PRAGMA busy_timeout` does not cover this case: when another isolate of
+  /// the same process holds the WAL writer lock, SQLite reports SQLITE_BUSY
+  /// straight away instead of invoking the busy handler.
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function() action, {
+    bool requireNew = false,
+  }) {
+    if (Zone.current[_transactionRetryZoneKey] == true) {
+      return super.transaction(action, requireNew: requireNew);
+    }
+    return runZoned(
+      () => _retryWhileContended(
+        () => super.transaction(action, requireNew: requireNew),
+      ),
+      zoneValues: {_transactionRetryZoneKey: true},
+    );
+  }
+
+  // ponytail: a contended attempt re-runs the whole action, which is safe
+  // because SQLite discards the transaction; actions with effects outside the
+  // database would have to be idempotent themselves.
+  Future<T> _retryWhileContended<T>(Future<T> Function() run) async {
+    final deadline = DateTime.now().add(sqliteBusyTimeout);
+    var backoff = const Duration(milliseconds: 5);
+    while (true) {
+      try {
+        return await run();
+      } on Object catch (error) {
+        // A background executor reports failures as a remote exception that
+        // only carries the original error as its cause.
+        final cause = error is DriftRemoteException ? error.remoteCause : error;
+        final isContention =
+            cause is SqliteException &&
+            (cause.resultCode == _sqliteBusyResultCode ||
+                cause.resultCode == _sqliteLockedResultCode);
+        if (!isContention || !DateTime.now().isBefore(deadline)) {
+          rethrow;
+        }
+      }
+      await Future<void>.delayed(
+        backoff + Duration(milliseconds: _transactionRetryJitter.nextInt(5)),
+      );
+      if (backoff < _transactionRetryMaxBackoff) {
+        backoff *= 2;
+      }
+    }
   }
 
   @override

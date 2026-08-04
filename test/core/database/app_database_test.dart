@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
+import 'package:path/path.dart' as path;
 
 void main() {
   late AppDatabase database;
@@ -1246,7 +1250,51 @@ void main() {
       );
     }
   });
+
+  test('a write transaction waits for the connection holding the writer '
+      'lock', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'leb2-watch-writer-contention-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File(path.join(directory.path, 'leb2_watch.sqlite'));
+    AppDatabase openWalConnection() => AppDatabase.forTesting(
+      NativeDatabase(
+        file,
+        setup: (connection) => connection.execute('PRAGMA journal_mode = WAL'),
+      ),
+    );
+
+    final holder = openWalConnection();
+    addTearDown(holder.close);
+    await holder.customSelect('SELECT 1').getSingle();
+    final contender = openWalConnection();
+    addTearDown(contender.close);
+
+    final lockAcquired = Completer<void>();
+    final holderTransaction = holder.transaction(() async {
+      await holder.customStatement(_incrementReconciliationGeneration);
+      lockAcquired.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await lockAcquired.future;
+
+    await contender.transaction(() async {
+      await contender.customStatement(_incrementReconciliationGeneration);
+    });
+    await holderTransaction;
+
+    final state = await contender
+        .select(contender.deadlineReminderReconciliations)
+        .getSingle();
+    expect(state.requestedGeneration, 2);
+  });
 }
+
+const _incrementReconciliationGeneration =
+    'UPDATE deadline_reminder_reconciliations '
+    'SET requested_generation = requested_generation + 1 '
+    'WHERE singleton_id = 1';
 
 Future<int> _pragmaInt(AppDatabase database, String pragma) async {
   final row = await database.customSelect('PRAGMA $pragma').getSingle();
