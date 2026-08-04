@@ -513,7 +513,9 @@ void main() {
         nowUtc: () => now,
         ownerTokenFactory: () => 'file-owner-a',
         wait: (duration) => Future<void>.delayed(duration),
-        leaseDuration: const Duration(seconds: 1),
+        // Real clock, real database file: the lease only has to outlive the
+        // handover, so keep it long enough to survive a CI stall.
+        leaseDuration: const Duration(seconds: 10),
       );
       final second = DeadlineReminderCoordinator(
         DriftDeadlineReminderStore(secondDatabase),
@@ -522,7 +524,7 @@ void main() {
         nowUtc: () => now,
         ownerTokenFactory: () => 'file-owner-b',
         wait: (duration) => Future<void>.delayed(duration),
-        leaseDuration: const Duration(seconds: 1),
+        leaseDuration: const Duration(seconds: 10),
       );
 
       await Future.wait([

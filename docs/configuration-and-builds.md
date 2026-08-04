@@ -166,6 +166,12 @@ keyAlias=<KEY_ALIAS>
 storeFile=<KEYSTORE_PATH>
 ```
 
+The tagged release workflow writes this file from four repository secrets:
+`ANDROID_KEYSTORE_BASE64` (the keystore, base64-encoded),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD`.
+It fails before building when any of them is missing, and verifies the built
+APK with `apksigner` before publishing.
+
 When the file is absent, Gradle warns and leaves any release output unsigned
 and non-distributable. A present but incomplete file stops configuration with
 a redacted error. A sanitized externally test-signed Release APK has been

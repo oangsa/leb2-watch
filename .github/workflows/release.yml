@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             clang cmake libayatana-appindicator3-dev libgtk-3-dev \
-            libsecret-1-dev ninja-build pkg-config
+            libsecret-1-dev ninja-build patchelf pkg-config
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
@@ -42,6 +42,22 @@ jobs:
           flutter build linux --release \
             --dart-define=APP_ENV=production \
             "--dart-define=BACKEND_BASE_URL=${BACKEND_BASE_URL}"
+      - name: Bundle tray libraries
+        run: |
+          bundle=build/linux/x64/release/bundle
+          # Distros ship either ayatana-appindicator or the older appindicator,
+          # and Arch has neither in the base install, so ship what we linked.
+          # The plugin is linked with the build machine's ephemeral RUNPATH, so
+          # point every copy at its own directory.
+          ldd "$bundle/lib/libtray_manager_plugin.so" \
+            | awk '/=> \// {print $3}' \
+            | grep -E '/lib(ayatana-|dbusmenu-)' \
+            | while read -r lib; do
+                cp -L "$lib" "$bundle/lib/"
+                patchelf --set-rpath '$ORIGIN' "$bundle/lib/$(basename "$lib")"
+              done
+          test -e "$bundle/lib/libayatana-appindicator3.so.1"
+          patchelf --set-rpath '$ORIGIN' "$bundle/lib/libtray_manager_plugin.so"
       - name: Package bundle
         run: |
           mkdir -p dist
@@ -103,6 +119,28 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get
+      - name: Configure release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD \
+                      ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!name}" ] || {
+              echo "Repository secret $name is required to sign the release." >&2
+              exit 1
+            }
+          done
+          keystore="${RUNNER_TEMP}/release-keystore.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          cat > android/key.properties <<EOF
+          storeFile=${keystore}
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          EOF
       - name: Build Android release APK
         env:
           BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
@@ -119,7 +157,10 @@ jobs:
           mkdir -p dist
           apk="$(find build/app/outputs -name '*-release*.apk' -print -quit)"
           [ -n "$apk" ] || { echo 'No release APK produced.' >&2; exit 1; }
-          cp "$apk" "dist/leb2-watch-${GITHUB_REF_NAME}-android-unsigned.apk"
+          # An unsigned APK builds fine and then fails to install on device.
+          apksigner="$(ls -d "${ANDROID_HOME}"/build-tools/*/apksigner | tail -1)"
+          "$apksigner" verify "$apk"
+          cp "$apk" "dist/leb2-watch-${GITHUB_REF_NAME}-android.apk"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android
