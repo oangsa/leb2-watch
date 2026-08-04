@@ -73,14 +73,8 @@ void main() {
     expect(banner(), isNotNull);
     expect(banner(dismissed: true), isNull);
     expect(banner(channel: AppUpdateChannel.unmanaged), isNull);
-    expect(
-      banner(state: BackendCompatibilityState.compatibleCurrent),
-      isNull,
-    );
-    expect(
-      banner(state: BackendCompatibilityState.updateRequired),
-      isNull,
-    );
+    expect(banner(state: BackendCompatibilityState.compatibleCurrent), isNull);
+    expect(banner(state: BackendCompatibilityState.updateRequired), isNull);
     expect(
       banner(snapshot: const BackendCompatibilitySnapshot.unavailable()),
       isNull,
@@ -94,7 +88,9 @@ void main() {
     await _pump(
       tester,
       appUpdateBanner(
-        snapshot: _snapshot(BackendCompatibilityState.compatibleUpdateAvailable),
+        snapshot: _snapshot(
+          BackendCompatibilityState.compatibleUpdateAvailable,
+        ),
         channel: AppUpdateChannel.download,
         dismissed: false,
         onDismiss: () => dismissed = true,
@@ -117,7 +113,9 @@ void main() {
     await _pump(
       tester,
       appUpdateBanner(
-        snapshot: _snapshot(BackendCompatibilityState.compatibleUpdateAvailable),
+        snapshot: _snapshot(
+          BackendCompatibilityState.compatibleUpdateAvailable,
+        ),
         channel: AppUpdateChannel.flatpak,
         dismissed: false,
         onDismiss: () {},

@@ -146,7 +146,7 @@ void main() {
 
       lifetime = await harness.pumpApp(tester);
 
-      expect(find.text('Assignments, ready when you are'), findsOneWidget);
+      expect(find.text('Your assignments, in one place'), findsOneWidget);
       expect(adapter.requestCount, 0);
       expect(harness.credentials.mutationCount, 0);
       expect(harness.notifications.permissionRequestCount, 0);
@@ -322,10 +322,7 @@ void main() {
       );
       expect(await database.select(database.activities).get(), hasLength(2));
       expect(
-        find.text(
-          'Your LEB2 session expired. Reconnecting securely… '
-          'Saved data remains available.',
-        ),
+        find.text('Session expired. Reconnecting… Showing saved data.'),
         findsOneWidget,
       );
       final scheduleCountBeforeRecovery = harness.background.scheduleCount;
