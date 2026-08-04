@@ -79,10 +79,7 @@ void main() {
 
       expect(find.text('Graph traversal'), findsOneWidget);
       expect(find.text('Assignments unavailable'), findsNothing);
-      expect(
-        find.text('The last refresh did not complete. Showing saved data.'),
-        findsOneWidget,
-      );
+      expect(find.text('Refresh failed. Showing saved data.'), findsOneWidget);
       expect(
         find.textContaining('BackendApiConfigurationException'),
         findsNothing,

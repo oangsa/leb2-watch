@@ -279,6 +279,30 @@ void main() {
     },
   );
 
+  test('cache exposes the saved semester name for display', () async {
+    await database
+        .into(database.semesters)
+        .insert(
+          SemestersCompanion.insert(
+            semesterId: const drift.Value(101),
+            name: const drift.Value('1/2569'),
+          ),
+        );
+    await database
+        .into(database.appSettings)
+        .insertOnConflictUpdate(
+          const AppSettingsCompanion(
+            singletonId: drift.Value(1),
+            activeSemesterId: drift.Value(101),
+          ),
+        );
+
+    final cache = await store.watchActiveCache().first;
+
+    expect(cache.activeSemesterId, 101);
+    expect(cache.activeSemesterName, '1/2569');
+  });
+
   for (final category in const [
     'accessKey.invalid',
     'accessKey.storeUnavailable',

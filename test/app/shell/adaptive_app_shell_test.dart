@@ -490,10 +490,7 @@ void main() {
         expect(find.byKey(testCase.$2), findsOneWidget);
         expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
         expect(
-          find.text(
-            'Your LEB2 session expired. Reconnecting securely… '
-            'Saved data remains available.',
-          ),
+          find.text('Session expired. Reconnecting… Showing saved data.'),
           findsOneWidget,
         );
         expect(
@@ -508,22 +505,20 @@ void main() {
   for (final testCase in <(AutomaticReauthenticationFailureKind, String)>[
     (
       AutomaticReauthenticationFailureKind.invalidCredentials,
-      'Saved sign-in was not accepted. Reconnect manually.',
+      'Saved sign-in was rejected. Reconnect manually.',
     ),
     (
       AutomaticReauthenticationFailureKind.notEnabled,
-      'Automatic reconnect is not enabled. Reconnect manually. '
-          'Saved data remains available.',
+      'Automatic reconnect is off. Reconnect manually. Showing saved data.',
     ),
     (
       AutomaticReauthenticationFailureKind.cancelled,
       'Automatic reconnect was interrupted. Reconnect manually. '
-          'Saved data remains available.',
+          'Showing saved data.',
     ),
     (
       AutomaticReauthenticationFailureKind.backendUnavailable,
-      'Automatic reconnect failed. Reconnect manually. '
-          'Saved data remains available.',
+      'Automatic reconnect failed. Reconnect manually. Showing saved data.',
     ),
   ]) {
     testWidgets('${testCase.$1.name} shows bounded reconnect guidance', (
@@ -626,7 +621,7 @@ Future<_ShellSetup> _pumpShell(
           (_) => _ShellDiagnosticsService(lifecycle: lifecycle.state),
         ),
         notificationSettingsServiceProvider.overrideWith(
-          (_) => const FakeNotificationSettingsService(),
+          (_) => FakeNotificationSettingsService(),
         ),
         logoutServiceProvider.overrideWithValue(const _ShellLogoutService()),
       ],

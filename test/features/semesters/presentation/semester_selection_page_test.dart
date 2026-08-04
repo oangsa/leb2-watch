@@ -87,27 +87,27 @@ void main() {
       in <({AccessKeyFailureReason reason, String message, String action})>[
         (
           reason: AccessKeyFailureReason.invalid,
-          message: 'missing or no longer valid',
+          message: 'missing or invalid',
           action: 'Reconnect',
         ),
         (
           reason: AccessKeyFailureReason.notActivated,
-          message: 'has not been activated',
+          message: 'not activated',
           action: 'Reconnect',
         ),
         (
           reason: AccessKeyFailureReason.identityMismatch,
-          message: 'cannot be used with this LEB2 account',
+          message: 'does not match this account',
           action: 'Reconnect',
         ),
         (
           reason: AccessKeyFailureReason.reauthenticationRequired,
-          message: 'needs Username / password reauthentication',
+          message: 'Sign in again with username and password',
           action: 'Reconnect',
         ),
         (
           reason: AccessKeyFailureReason.storeUnavailable,
-          message: 'temporarily unavailable. Try again later.',
+          message: 'unavailable. Try again later.',
           action: 'Retry',
         ),
       ]) {
@@ -319,7 +319,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Semesters unavailable'), findsOneWidget);
-      expect(find.textContaining('No usable semester list'), findsOneWidget);
+      expect(find.textContaining('Nothing was returned'), findsOneWidget);
       expect(find.textContaining('No semesters'), findsNothing);
     },
   );

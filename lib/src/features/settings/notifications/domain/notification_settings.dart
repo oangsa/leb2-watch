@@ -20,37 +20,6 @@ enum NotificationSettingsPlatform {
 
   bool get requiresPermissionRequest =>
       this == android || this == iOS || this == macOS;
-
-  bool get supportsImmediateNotifications => this != unsupported;
-
-  String get reliabilityMessage => switch (this) {
-    android =>
-      'Android background checks and reminder timing are best effort. '
-          'Power management and operating-system scheduling can delay them.',
-    iOS =>
-      'iOS schedules background refresh as best effort. Launch and resume '
-          'refresh are important fallbacks; exact check or reminder times '
-          'cannot be promised.',
-    macOS =>
-      'macOS controls notification timing. Desktop monitoring requires '
-          'LEB2 Watch to remain running; start at login improves availability '
-          'but is not an exact schedule guarantee.',
-    linux =>
-      'Linux deadline reminders use best-effort process timers and require '
-          'LEB2 Watch to remain running. Exact timing, OS-retained schedules, '
-          'and notification activation after Quit are unavailable.',
-    windowsPackaged =>
-      'Packaged Windows supports immediate and scheduled notifications. '
-          'Monitoring still requires LEB2 Watch to remain running, and timing '
-          'is best effort.',
-    windowsUnpackaged =>
-      'This unpackaged Windows build uses best-effort process timers for '
-          'deadline reminders and must remain running. OS-retained schedules '
-          'and notification activation after Quit require a packaged build.',
-    unsupported =>
-      'Notifications and background monitoring are unavailable on this '
-          'platform. Saved preferences remain local to this device.',
-  };
 }
 
 final class NotificationSettingsSnapshot {

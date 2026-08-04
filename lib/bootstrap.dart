@@ -34,6 +34,7 @@ Future<void> bootstrap({
   LocalDatabaseStorage? databaseStorage,
   CredentialStore? credentialStore,
   AppStartupFlowResolver? startupFlowResolver,
+  Duration localDataRetryDelay = _localDataOpenRetryDelay,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -55,6 +56,7 @@ Future<void> bootstrap({
         databaseStorage: databaseStorage,
         credentialStore: credentialStore,
         startupFlowResolver: startupFlowResolver,
+        localDataRetryDelay: localDataRetryDelay,
       ),
     ),
   );
@@ -65,6 +67,7 @@ Future<_BootstrapAttemptResult> _prepareApplication({
   required LocalDatabaseStorage? databaseStorage,
   required CredentialStore? credentialStore,
   required AppStartupFlowResolver? startupFlowResolver,
+  required Duration localDataRetryDelay,
 }) async {
   late final AppConfiguration configuration;
   try {
@@ -90,24 +93,38 @@ Future<_BootstrapAttemptResult> _prepareApplication({
     );
   }
 
-  try {
-    final initialStage =
-        await (startupFlowResolver ?? resolveInitialAppFlowStage)(
-          databaseStorage: resolvedDatabaseStorage,
-          credentialStore: resolvedCredentialStore,
+  // Background sync runs in its own isolate, so a startup open can lose a
+  // short race for the same database. One retry converts that transient
+  // contention into a normal start instead of a dead-end failure screen.
+  for (var attempt = 0; attempt < _localDataOpenAttempts; attempt += 1) {
+    try {
+      final initialStage =
+          await (startupFlowResolver ?? resolveInitialAppFlowStage)(
+            databaseStorage: resolvedDatabaseStorage,
+            credentialStore: resolvedCredentialStore,
+          );
+      return _BootstrapAttemptSuccess(
+        configuration: configuration,
+        databaseStorage: resolvedDatabaseStorage,
+        credentialStore: resolvedCredentialStore,
+        initialStage: initialStage,
+      );
+    } on Object {
+      if (attempt == _localDataOpenAttempts - 1) {
+        return const _BootstrapAttemptFailure(
+          _BootstrapFailure.localDataUnavailable,
         );
-    return _BootstrapAttemptSuccess(
-      configuration: configuration,
-      databaseStorage: resolvedDatabaseStorage,
-      credentialStore: resolvedCredentialStore,
-      initialStage: initialStage,
-    );
-  } on Object {
-    return const _BootstrapAttemptFailure(
-      _BootstrapFailure.localDataUnavailable,
-    );
+      }
+      if (localDataRetryDelay > Duration.zero) {
+        await Future<void>.delayed(localDataRetryDelay);
+      }
+    }
   }
+  return const _BootstrapAttemptFailure(_BootstrapFailure.localDataUnavailable);
 }
+
+const _localDataOpenAttempts = 3;
+const _localDataOpenRetryDelay = Duration(milliseconds: 250);
 
 final class _BootstrapRecoveryShell extends StatefulWidget {
   const _BootstrapRecoveryShell.loading({required this.startupAttempt})
@@ -142,6 +159,15 @@ final class _BootstrapRecoveryShellState
         }
       });
     }
+  }
+
+  void _retryAttempt() {
+    if (widget.startupAttempt == null) {
+      return;
+    }
+    _attemptStarted = false;
+    setState(() => _failure = null);
+    unawaited(_startAttempt());
   }
 
   Future<void> _startAttempt() async {
@@ -191,7 +217,10 @@ final class _BootstrapRecoveryShellState
       themeMode: ThemeMode.system,
       theme: ThemeData(brightness: Brightness.light, useMaterial3: true),
       darkTheme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-      home: _BootstrapStatusPage(failure: _failure),
+      home: _BootstrapStatusPage(
+        failure: _failure,
+        onRetry: widget.startupAttempt == null ? null : _retryAttempt,
+      ),
     );
   }
 }
@@ -216,23 +245,24 @@ Widget _buildReadyApplication(_BootstrapAttemptSuccess result) {
 }
 
 final class _BootstrapStatusPage extends StatelessWidget {
-  const _BootstrapStatusPage({required this.failure});
+  const _BootstrapStatusPage({required this.failure, this.onRetry});
 
   final _BootstrapFailure? failure;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final failure = this.failure;
     final isLoading = failure == null;
     final message = switch (failure) {
-      null => 'Starting LEB2 Watch…',
+      null => 'Starting…',
       _BootstrapFailure.invalidConfiguration =>
-        'This build has an invalid application configuration. '
-            'Rebuild it with a supported APP_ENV value.',
+        'This build has an invalid configuration. Rebuild it with a '
+            'supported APP_ENV value.',
       _BootstrapFailure.localDataUnavailable =>
-        'LEB2 Watch could not open its local data. Saved data was not deleted.',
+        'Could not open local data. Nothing was deleted.',
       _BootstrapFailure.startupIntegrationUnavailable =>
-        'LEB2 Watch could not finish starting. Saved data was not deleted.',
+        'Could not finish starting. Nothing was deleted.',
     };
     final semanticsLabel = isLoading
         ? 'LEB2 Watch is starting'
@@ -269,6 +299,16 @@ final class _BootstrapStatusPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
+                    if (!isLoading &&
+                        failure != _BootstrapFailure.invalidConfiguration &&
+                        onRetry != null) ...[
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        key: const Key('bootstrap-retry-button'),
+                        onPressed: onRetry,
+                        child: const Text('Try again'),
+                      ),
+                    ],
                   ],
                 ),
               ),

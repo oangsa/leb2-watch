@@ -36,10 +36,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      find.text('Active; operating-system timing may vary'),
-      findsOneWidget,
-    );
+    expect(find.text('Active; timing may vary'), findsOneWidget);
     expect(find.text('Around LOCAL 2026-07-26T15:00:00.000Z'), findsOneWidget);
   });
 

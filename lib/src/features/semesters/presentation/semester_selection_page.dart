@@ -14,6 +14,7 @@ import '../../../core/network/domain/sync_failure.dart';
 import '../../../core/session/session_lifecycle.dart';
 import '../application/semester_selection_service.dart';
 import '../data/semester_selection_store.dart';
+import '../semester_label.dart';
 
 const _catalogMaxWidth = 680.0;
 const _expandedCatalogMaxWidth = 760.0;
@@ -207,12 +208,12 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
         child: switch ((catalog, _loadingCache, _cacheReadFailed)) {
           (_, true, _) => const AppStateView.loading(
             title: 'Loading saved semesters',
-            message: 'Reading data stored on this device.',
+            message: '',
           ),
           (_, false, true) => AppStateView.error(
             title: 'Saved semesters unavailable',
             message:
-                'Local storage could not be opened. Try reading the saved '
+                'Could not open local storage. Try reading the saved '
                 'data again.',
             actionLabel: 'Try again',
             onAction: _loadCached,
@@ -231,14 +232,14 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
     if (_refreshing) {
       return const AppStateView.loading(
         title: 'Loading semesters',
-        message: 'Checking the connected LEB2 session.',
+        message: '',
       );
     }
     if (_isSessionExpired) {
       return AppStateView.error(
         title: 'Reconnect to load semesters',
         message:
-            'Your saved session expired. Reconnect without deleting local '
+            'Session expired. Reconnect without deleting local '
             'data.',
         actionLabel: 'Reconnect',
         onAction: widget.onReconnect,
@@ -246,9 +247,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
     }
     return AppStateView.error(
       title: 'Semesters unavailable',
-      message:
-          'No usable semester list was returned. Your local data was not '
-          'changed.',
+      message: 'Nothing was returned. Local data was not changed.',
       actionLabel: 'Try again',
       onAction: _refresh,
     );
@@ -289,7 +288,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Choose one for assignments and monitoring.',
+                    'Pick one to monitor.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -329,7 +328,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
     if (_navigationPending) {
       return AppStatusBanner.stale(
         key: const Key('semester-navigation-error'),
-        message: 'Semester selected, but assignments could not open.',
+        message: 'Selected, but assignments could not open.',
         actionLabel: 'Open assignments',
         onAction: _retryNavigation,
       );
@@ -338,7 +337,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
       return const AppStatusBanner.stale(
         key: Key('semester-selection-error'),
         message:
-            'The semester selection was not saved. Choose a semester to '
+            'Not saved. Choose a semester to '
             'try again.',
       );
     }
@@ -359,24 +358,21 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
       return switch (reason) {
         AccessKeyFailureReason.storeUnavailable => AppStatusBanner.stale(
           key: Key('semester-access-key-banner'),
-          message:
-              'Access-key verification is temporarily unavailable. Try again later.',
+          message: 'Key check unavailable. Try again later.',
           actionLabel: 'Retry',
           onAction: _refresh,
         ),
         AccessKeyFailureReason.missing ||
         AccessKeyFailureReason.invalid => AppStatusBanner.stale(
           key: const Key('semester-access-key-banner'),
-          message:
-              'This access key is missing or no longer valid. Reconnect '
-              'with a key from your backend operator.',
+          message: 'Access key missing or invalid. Reconnect with a new key.',
           actionLabel: 'Reconnect',
           onAction: widget.onReconnect,
         ),
         AccessKeyFailureReason.notActivated => AppStatusBanner.stale(
           key: const Key('semester-access-key-banner'),
           message:
-              'This access key has not been activated. Use Username / '
+              'Access key not activated. Use username and '
               'password once to activate it.',
           actionLabel: 'Reconnect',
           onAction: widget.onReconnect,
@@ -385,7 +381,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
           AppStatusBanner.stale(
             key: const Key('semester-access-key-banner'),
             message:
-                'This access key needs Username / password reauthentication. '
+                'Sign in again with username and password. '
                 'Reconnect manually.',
             actionLabel: 'Reconnect',
             onAction: widget.onReconnect,
@@ -395,7 +391,7 @@ class _SemesterSelectionPageState extends State<SemesterSelectionPage> {
         AccessKeyFailureReason.identityConflict => AppStatusBanner.stale(
           key: const Key('semester-access-key-banner'),
           message:
-              'This access key cannot be used with this LEB2 account. '
+              'Access key does not match this account. '
               'Reconnect with the correct key.',
           actionLabel: 'Reconnect',
           onAction: widget.onReconnect,
@@ -439,9 +435,7 @@ class _SemesterRow extends StatelessWidget {
     final displayName = semester.name;
     return Semantics(
       key: Key('semester-row-${semester.id}'),
-      label: displayName.startsWith('Semester ')
-          ? displayName
-          : 'Semester $displayName',
+      label: formatSemesterLabel(name: displayName, id: semester.id),
       value: selected ? 'Selected on this device' : null,
       button: true,
       selected: selected,

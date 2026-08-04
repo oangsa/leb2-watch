@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/design_system/app_tokens.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
+import '../../../core/bangkok_time.dart';
 import '../../../core/session/session_lifecycle.dart';
 import '../../background_sync/domain/background_scheduler.dart';
 import '../application/synchronization_diagnostics_service.dart';
@@ -149,7 +150,7 @@ class _SynchronizationDiagnosticsPageState
       _refreshing = false;
       if (announce) {
         _announcement = localFailed
-            ? 'Status refresh finished. Saved diagnostics may be stale.'
+            ? 'Refreshed. Saved values may be stale.'
             : 'Status refresh finished.';
       }
     });
@@ -160,15 +161,15 @@ class _SynchronizationDiagnosticsPageState
     final snapshot = _snapshot;
     if (_localLoading && snapshot == null) {
       return const AppStateView.loading(
-        title: 'Opening synchronization diagnostics',
-        message: 'Reading operational state saved on this device.',
+        title: 'Opening diagnostics',
+        message: '',
       );
     }
     if (snapshot == null) {
       return AppStateView.error(
         title: 'Diagnostics unavailable',
         message:
-            'Saved operational state could not be read. No synchronization '
+            'Could not read saved state. No '
             'was started.',
         actionLabel: 'Retry',
         onAction: () {
@@ -209,7 +210,7 @@ class _SynchronizationDiagnosticsPageState
                   AppStatusBanner.stale(
                     key: const Key('diagnostics-local-stale'),
                     message:
-                        'Saved diagnostics could not be refreshed. Showing the '
+                        'Could not refresh. Showing the '
                         'last local values.',
                     actionLabel: 'Retry',
                     onAction: _refreshStatus,
@@ -289,8 +290,8 @@ class _DiagnosticsHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Local operational state only. Credentials, response data, '
-                'and private error details are never shown.',
+                'Local state only. Credentials and response data are never '
+                'shown.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -415,8 +416,7 @@ class _BackgroundPanel extends StatelessWidget {
         'Around ${timestampFormatter(context, at!)}',
       DiagnosticsNextCheckKind.noEarlierThan =>
         'No earlier than ${timestampFormatter(context, at!)}',
-      DiagnosticsNextCheckKind.osControlled =>
-        'Timing is controlled by the operating system',
+      DiagnosticsNextCheckKind.osControlled => 'The system controls timing',
       DiagnosticsNextCheckKind.eligibleAfter =>
         'Eligible after ${timestampFormatter(context, at!)}; '
             'operating-system timing varies',
@@ -545,10 +545,11 @@ class _DiagnosticsRow extends StatelessWidget {
 }
 
 String formatDiagnosticsTimestamp(BuildContext context, DateTime timestampUtc) {
-  final local = timestampUtc.toUtc().toLocal();
+  final bangkok = bangkokWallTime(timestampUtc);
   final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(local)} at '
-      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))}';
+  return '${localizations.formatMediumDate(bangkok)}, '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(bangkok), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))} '
+      'GMT+7';
 }
 
 String _syncStateLabel(DiagnosticsSyncState state) => switch (state) {
@@ -588,7 +589,7 @@ String _failureLabel(DiagnosticsFailureCategory category) => switch (category) {
 
 String _schedulerLabel(BackgroundScheduleStatus? status) => switch (status) {
   null => 'Checking',
-  BackgroundScheduleActive() => 'Active; operating-system timing may vary',
+  BackgroundScheduleActive() => 'Active; timing may vary',
   BackgroundScheduleInactive() => 'Not scheduled',
   BackgroundScheduleUnsupported() => 'Not supported on this platform',
   BackgroundScheduleUnavailable() => 'Status unavailable',

@@ -9,6 +9,7 @@ import '../../../app/design_system/app_breakpoints.dart';
 import '../../../app/design_system/app_tokens.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
+import '../../semesters/semester_label.dart';
 import '../application/course_preferences_service.dart';
 import '../data/course_preferences_store.dart';
 
@@ -204,15 +205,14 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
         setState(() {
           _pending.remove(key);
           _writeFailureMessage =
-              'The visible course changed before this setting was saved. '
-              'Review the saved controls and try again.';
+              'The course changed before this saved. Try again.';
         });
         return false;
       case CoursePreferenceUpdateFailure():
         setState(() {
           _pending.remove(key);
           _writeFailureMessage =
-              'The course setting was not saved. Your previous setting is '
+              'Not saved. Your previous setting is '
               'still in use; try again.';
         });
         return false;
@@ -232,14 +232,13 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     if (_loading && catalog == null) {
       return const AppStateView.loading(
         title: 'Loading saved courses',
-        message: 'Reading course controls stored on this device.',
+        message: '',
       );
     }
     if (_streamFailed) {
       return AppStateView.error(
         title: 'Saved courses unavailable',
-        message:
-            'Local course data could not be read. No settings were changed.',
+        message: 'Could not read courses. Nothing changed.',
         actionLabel: 'Retry',
         onAction: _subscribe,
       );
@@ -248,7 +247,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
       return AppStateView.empty(
         title: 'Choose a semester first',
         message:
-            'Course controls are tied to the semester selected on this '
+            'Course controls follow your selected '
             'device.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
@@ -258,7 +257,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
       return const AppStateView.empty(
         title: 'No saved courses yet',
         message:
-            'Courses appear here after a successful assignment sync for the '
+            'Courses appear after a sync for the '
             'selected semester.',
       );
     }
@@ -295,7 +294,12 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               AppSpacing.lg,
             ),
             children: [
-              _CourseLedgerHeader(semesterId: catalog.activeSemesterId!),
+              _CourseLedgerHeader(
+                semesterLabel: formatSemesterLabel(
+                  name: catalog.activeSemesterName,
+                  id: catalog.activeSemesterId,
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               _GlobalCourseControls(
                 writing: _globalWriting,
@@ -354,9 +358,9 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
 }
 
 class _CourseLedgerHeader extends StatelessWidget {
-  const _CourseLedgerHeader({required this.semesterId});
+  const _CourseLedgerHeader({required this.semesterLabel});
 
-  final int semesterId;
+  final String semesterLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -376,7 +380,7 @@ class _CourseLedgerHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Semester $semesterId · saved on this device',
+            semesterLabel,
             style: theme.textTheme.titleMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -515,16 +519,14 @@ class _CoursePreferenceRow extends StatelessWidget {
             _CoursePreferenceSwitch(
               key: Key('course-mute-${course.key.courseId}'),
               label: 'Mute notifications',
-              description: 'Suppress local notifications for this course.',
+              description: 'No notifications for this course.',
               value: course.preference.notificationsMuted,
               onChanged: writing ? null : onNotificationsMuted,
             ),
             _CoursePreferenceSwitch(
               key: Key('course-background-${course.key.courseId}'),
               label: 'Background monitoring',
-              description:
-                  'Controls background effects after the semester-wide '
-                  'download; it does not skip that download.',
+              description: 'Skips background effects, not the download itself.',
               value: course.preference.backgroundMonitoringEnabled,
               onChanged: writing ? null : onBackgroundMonitoring,
             ),

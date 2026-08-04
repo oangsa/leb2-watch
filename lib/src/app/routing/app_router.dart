@@ -13,6 +13,7 @@ import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/compatibility/presentation/update_required_page.dart';
 import '../../features/authentication/domain/automatic_session_reauthentication.dart';
+import '../../features/app_update/app_update_banner.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
@@ -174,17 +175,31 @@ class _SessionAwareShell extends ConsumerWidget {
               .value
         : null;
     final message = _automaticReconnectMessage(attempt);
-    return AdaptiveAppShell(
-      navigationShell: navigationShell,
-      globalBanner: lifecycle?.state == SessionLifecycleState.expired
-          ? message == null
-                ? null
-                : AppStatusBanner.sessionExpired(
-                    key: const Key('session-expired-banner'),
-                    message: message,
-                    onAction: () => context.push(AppRoute.authentication.path),
-                  )
-          : null,
+    final sessionBanner = lifecycle?.state == SessionLifecycleState.expired
+        ? message == null
+              ? null
+              : AppStatusBanner.sessionExpired(
+                  key: const Key('session-expired-banner'),
+                  message: message,
+                  onAction: () => context.push(AppRoute.authentication.path),
+                )
+        : null;
+    final compatibility = ref.watch(backendCompatibilityControllerProvider);
+    final channel = ref.watch(appUpdateChannelProvider);
+    final dismissed = ref.watch(appUpdateBannerDismissedProvider);
+    return ListenableBuilder(
+      listenable: Listenable.merge([compatibility, dismissed]),
+      builder: (context, _) => AdaptiveAppShell(
+        navigationShell: navigationShell,
+        globalBanner:
+            sessionBanner ??
+            appUpdateBanner(
+              snapshot: compatibility.snapshot,
+              channel: channel,
+              dismissed: dismissed.value,
+              onDismiss: () => dismissed.value = true,
+            ),
+      ),
     );
   }
 }
@@ -194,56 +209,45 @@ String? _automaticReconnectMessage(AutomaticReauthenticationAttempt? attempt) {
     return null;
   }
   if (attempt?.state == AutomaticReauthenticationAttemptState.running) {
-    return 'Your LEB2 session expired. Reconnecting securely… '
-        'Saved data remains available.';
+    return 'Session expired. Reconnecting… Showing saved data.';
   }
   return switch (attempt?.failureKind) {
     AutomaticReauthenticationFailureKind.invalidCredentials =>
-      'Saved sign-in was not accepted. Reconnect manually.',
+      'Saved sign-in was rejected. Reconnect manually.',
     AutomaticReauthenticationFailureKind.notEnabled =>
-      'Automatic reconnect is not enabled. Reconnect manually. '
-          'Saved data remains available.',
+      'Automatic reconnect is off. Reconnect manually. Showing saved data.',
     AutomaticReauthenticationFailureKind.accessKeyMissing ||
     AutomaticReauthenticationFailureKind.accessKeyInvalid =>
-      'Automatic reconnect has no valid access key. Reconnect manually. '
-          'Saved data remains available.',
+      'No valid access key. Reconnect manually. Showing saved data.',
     AutomaticReauthenticationFailureKind.accessKeyNotActivated =>
-      'This access key is not activated. Use Username / password once, then '
-          'reconnect. Saved data remains available.',
+      'Access key not activated. Sign in once with username and password. '
+          'Showing saved data.',
     AutomaticReauthenticationFailureKind.accessKeyAccountMismatch =>
-      'This access key cannot be used with this LEB2 account. Reconnect with '
-          'the correct key. Saved data remains available.',
+      'Access key does not match this account. Showing saved data.',
     AutomaticReauthenticationFailureKind.accessKeyReauthenticationRequired =>
-      'This access key needs Username / password reauthentication. Reconnect '
-          'manually. Saved data remains available.',
+      'Sign in again with username and password. Showing saved data.',
     AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable =>
-      'Access-key verification is temporarily unavailable. Try again later. '
-          'Saved data remains available.',
+      'Key check unavailable. Try again later. Showing saved data.',
     AutomaticReauthenticationFailureKind.deviceIdentityMissing ||
     AutomaticReauthenticationFailureKind.deviceIdentityInvalid =>
-      'This device could not provide a valid device identifier. '
-          'Saved data remains available.',
+      'Invalid device identifier. Showing saved data.',
     AutomaticReauthenticationFailureKind.deviceNotBound =>
-      'This access key needs to be connected to this device again. '
-          'Reconnect with Username / password. Saved data remains available.',
+      'Reconnect this device: sign in with username and password. '
+          'Showing saved data.',
     AutomaticReauthenticationFailureKind.deviceMismatch =>
-      'This access key is connected to another device. Log out there or ask '
-          'your backend operator to reset the binding. Saved data remains available.',
+      'Key is bound to another device. Log out there first. '
+          'Showing saved data.',
     AutomaticReauthenticationFailureKind.clientVersionRequired ||
     AutomaticReauthenticationFailureKind.clientVersionInvalid =>
-      'This app could not provide a valid client version. '
-          'Saved data remains available.',
+      'Invalid client version. Showing saved data.',
     AutomaticReauthenticationFailureKind.clientUpdateRequired =>
-      'This version is no longer compatible with the backend. Install the '
-          'latest APK to continue.',
+      'This version is too old. Install the latest APK.',
     AutomaticReauthenticationFailureKind.cancelled ||
     AutomaticReauthenticationFailureKind.timedOut ||
     AutomaticReauthenticationFailureKind.superseded =>
       'Automatic reconnect was interrupted. Reconnect manually. '
-          'Saved data remains available.',
-    null => 'Your LEB2 session expired. Showing saved data.',
-    _ =>
-      'Automatic reconnect failed. Reconnect manually. '
-          'Saved data remains available.',
+          'Showing saved data.',
+    null => 'Session expired. Showing saved data.',
+    _ => 'Automatic reconnect failed. Reconnect manually. Showing saved data.',
   };
 }

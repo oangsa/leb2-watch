@@ -19,10 +19,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Opening synchronization diagnostics'), findsOneWidget);
-    expect(
-      find.text('Reading operational state saved on this device.'),
-      findsOneWidget,
-    );
+    expect(find.text(''), findsOneWidget);
 
     pending.complete(const _RouteDiagnosticsService());
     await tester.pumpAndSettle();

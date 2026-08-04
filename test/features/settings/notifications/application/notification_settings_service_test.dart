@@ -165,7 +165,7 @@ void main() {
   );
 
   test(
-    'notification actions initialize before permission and test submission',
+    'notification actions initialize before permission and status reads',
     () async {
       final notifications = _Notifications();
       final drain = _Drain();
@@ -186,7 +186,7 @@ void main() {
       );
 
       final permission = await service.requestNotificationPermission();
-      final testNotification = await service.sendTestNotification();
+      final readStatus = await service.readNotificationPermission();
 
       expect(
         permission,
@@ -196,12 +196,12 @@ void main() {
           NotificationPermissionStatus.granted,
         ),
       );
-      expect(testNotification, isA<TestNotificationActionSubmitted>());
+      expect(readStatus, NotificationPermissionStatus.granted);
       expect(notifications.calls, [
         'initialize',
         'permission',
         'initialize',
-        'test',
+        'readPermission',
       ]);
       expect(drain.calls, 1);
       expect(permissionRefreshes, [isTrue]);
@@ -441,8 +441,10 @@ final class _Notifications implements LocalNotificationService {
   }
 
   @override
-  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async =>
-      NotificationDeliveryPermissionStatus.allowed;
+  Future<NotificationDeliveryPermissionStatus> readDeliveryPermission() async {
+    calls.add('readPermission');
+    return NotificationDeliveryPermissionStatus.allowed;
+  }
 
   @override
   Future<NotificationPermissionStatus> requestPermission() async {

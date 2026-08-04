@@ -22,20 +22,10 @@ void main() {
       await _pumpPage(tester, service: service);
 
       expect(find.text('Connect LEB2'), findsOneWidget);
-      expect(find.textContaining('not affiliated with KMUTT'), findsOneWidget);
+      expect(find.textContaining('Not affiliated with KMUTT'), findsOneWidget);
+      expect(find.text('Not affiliated with KMUTT or LEB2.'), findsOneWidget);
       expect(
-        find.text(
-          'LEB2 Watch is not affiliated with KMUTT or LEB2. Username and '
-          'password are sent only during sign-in or optional reauthentication.',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          'Access key and session cookie stay in OS secure storage. Protected '
-          'requests send them with your LEB2 user ID. The ID stays in local '
-          'SQLite.',
-        ),
+        find.text("Your key and cookie stay in this device's secure storage."),
         findsOneWidget,
       );
       expect(find.text('Username'), findsOneWidget);
@@ -46,10 +36,7 @@ void main() {
       expect(find.byKey(const Key('session-cookie-field')), findsNothing);
       expect(find.byKey(const Key('session-user-id-field')), findsNothing);
       expect(find.text('Saved session ready'), findsOneWidget);
-      expect(
-        find.textContaining('Automatic reauthentication is enabled'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Staying signed in'), findsOneWidget);
       expect(find.textContaining(_secretPassword), findsNothing);
     },
   );
@@ -86,7 +73,7 @@ void main() {
     );
     expect(password.obscureText, isTrue);
     _expectSecretInputHardening(password);
-    expect(find.textContaining('OS secure storage'), findsWidgets);
+    expect(find.textContaining('secure storage'), findsWidgets);
 
     await _tapSecretVisibility(tester, const Key('session-password-field'));
     await tester.pump();
@@ -106,10 +93,7 @@ void main() {
       find.byKey(const Key('session-access-key-field')),
     );
     expect(accessKey.focusNode?.hasFocus, isTrue);
-    expect(
-      find.text('Enter the UUID access key from your backend operator.'),
-      findsOneWidget,
-    );
+    expect(find.text('Enter the UUID access key.'), findsOneWidget);
 
     await tester.enterText(
       find.byKey(const Key('session-access-key-field')),
@@ -142,10 +126,7 @@ void main() {
       );
       await _tapVisible(tester, find.byKey(const Key('session-submit')));
       await tester.pump();
-      expect(
-        find.text('Enter the UUID access key from your backend operator.'),
-        findsOneWidget,
-      );
+      expect(find.text('Enter the UUID access key.'), findsOneWidget);
       expect(service.credentialCalls, 0);
       final errorText = tester
           .widget<TextField>(find.byKey(const Key('session-access-key-field')))
@@ -224,10 +205,7 @@ void main() {
         const SessionSetupFailure(SessionSetupFailureKind.networkUnavailable),
       );
       await tester.pump();
-      expect(
-        find.text('No network connection. Your saved session was not changed.'),
-        findsOneWidget,
-      );
+      expect(find.text('No network. Saved session unchanged.'), findsOneWidget);
     },
   );
 
@@ -292,10 +270,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('session-navigation-retry')), findsOneWidget);
-    expect(
-      find.textContaining('semester selection could not open'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('semesters could not open'), findsOneWidget);
     await _tapVisible(
       tester,
       find.byKey(const Key('session-navigation-retry')),
@@ -331,10 +306,7 @@ void main() {
           ?.text,
       isEmpty,
     );
-    expect(
-      find.text('This session is expired or invalid. Sign in again.'),
-      findsOneWidget,
-    );
+    expect(find.text('Session expired. Sign in again.'), findsOneWidget);
   });
 
   testWidgets('shows concise incomplete saved-session guidance', (
@@ -351,7 +323,7 @@ void main() {
     );
 
     expect(find.text('Setup incomplete'), findsOneWidget);
-    expect(find.text('Sign in above to finish setup.'), findsOneWidget);
+    expect(find.text('Sign in to finish setup.'), findsOneWidget);
     expect(find.byKey(const Key('session-submit')), findsOneWidget);
     expect(find.byKey(const Key('verify-saved-session')), findsNothing);
   });
@@ -386,7 +358,7 @@ void main() {
     final cases = <(SessionSetupFailure, String)>[
       (
         const SessionSetupFailure(SessionSetupFailureKind.invalidInput),
-        'Check the highlighted fields and try again.',
+        'Fix the highlighted fields.',
       ),
       (
         const SessionSetupFailure(
@@ -398,23 +370,23 @@ void main() {
         const SessionSetupFailure(
           SessionSetupFailureKind.invalidOrExpiredSession,
         ),
-        'This session is expired or invalid.',
+        'Session expired.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.invalidCredentials),
-        'The username or password was not accepted.',
+        'Wrong username or password.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.networkUnavailable),
-        'No network connection.',
+        'No network.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.requestTimeout),
-        'The connection check took too long.',
+        'Timed out.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.backendUnavailable),
-        'LEB2 could not be reached.',
+        'LEB2 unreachable.',
       ),
       (
         const SessionSetupFailure(
@@ -425,105 +397,105 @@ void main() {
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.invalidResponse),
-        'Backend returned an unexpected response.',
+        'Unexpected backend response.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.secureStorageUnavailable,
         ),
-        'Secure credential storage is unavailable.',
+        'Secure storage unavailable.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.localStorageUnavailable,
         ),
-        'Local session settings could not be saved.',
+        'Could not save session settings.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.differentAccountData),
-        'Delete local data before connecting a different account.',
+        'Delete local data first.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.accessKeyMissing),
-        'This access key is missing or no longer valid.',
+        'Access key missing or invalid.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.accessKeyInvalid),
-        'This access key is missing or no longer valid.',
+        'Access key missing or invalid.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.accessKeyNotActivated,
         ),
-        'This access key has not been activated.',
+        'Access key not activated.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.accessKeyAccountMismatch,
         ),
-        'This access key cannot be used with this LEB2 account.',
+        'This access key does not match this LEB2 account.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.accessKeyReauthenticationRequired,
         ),
-        'Sign in with Username / password to finish initializing this access key.',
+        'Sign in with username and password to finish setup.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.accessKeyStoreUnavailable,
         ),
-        'Access-key verification is temporarily unavailable.',
+        'Key check unavailable.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.deviceIdentityMissing,
         ),
-        'This device could not provide a valid device identifier.',
+        'Invalid device identifier.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.deviceIdentityInvalid,
         ),
-        'This device could not provide a valid device identifier.',
+        'Invalid device identifier.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.deviceNotBound),
-        'This access key needs to be connected to this device again.',
+        'Reconnect this device: sign in with username and password.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.deviceMismatch),
-        'This access key is currently connected to another device.',
+        'Key is bound to another device.',
       ),
       (
         const SessionSetupFailure(
           SessionSetupFailureKind.clientVersionRequired,
         ),
-        'This app could not provide a valid client version.',
+        'Invalid client version.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.clientVersionInvalid),
-        'This app could not provide a valid client version.',
+        'Invalid client version.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.clientUpdateRequired),
-        'This version of LEB2 Watch is no longer compatible with the backend.',
+        'This version is too old.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.persistenceUncertain),
-        'Saving could not be completed or safely restored.',
+        'Save failed and could not be undone.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.cancelled),
-        'Connection check cancelled.',
+        'Cancelled.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.busy),
-        'A connection check is already running.',
+        'Already checking.',
       ),
       (
         const SessionSetupFailure(SessionSetupFailureKind.unexpected),
-        'The connection could not be completed.',
+        'Could not connect.',
       ),
     ];
     expect(

@@ -19,21 +19,24 @@ void main() {
     await tester.tap(find.byKey(const Key('delete-cached-assignments')));
     await tester.pumpAndSettle();
     expect(find.text('Delete cached assignments?'), findsOneWidget);
-    expect(find.textContaining('Credentials and global preferences'), findsOne);
+    expect(
+      find.textContaining('Credentials and preferences stay'),
+      findsWidgets,
+    );
     await tester.tap(find.byKey(const Key('cancel-local-data-deletion')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('delete-saved-credentials')));
     await tester.pumpAndSettle();
     expect(find.text('Delete saved credentials?'), findsOneWidget);
-    expect(find.textContaining('Cached assignments will remain'), findsOne);
+    expect(find.textContaining('Cached assignments stay'), findsWidgets);
     await tester.tap(find.byKey(const Key('cancel-local-data-deletion')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('delete-all-local-data')));
     await tester.pumpAndSettle();
     expect(find.text('Delete all local data?'), findsOneWidget);
-    expect(find.textContaining('you will stay here and can retry'), findsOne);
+    expect(find.textContaining('you stay here and can retry'), findsOne);
   });
 
   testWidgets(
@@ -84,7 +87,7 @@ void main() {
     await tester.tap(find.byKey(const Key('confirm-local-data-deletion')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Some local data could not be removed.'), findsOne);
+    expect(find.text('Some items could not be removed.'), findsOne);
     expect(find.textContaining('secure credentials'), findsOne);
     expect(find.textContaining('Exception'), findsNothing);
     expect(find.textContaining('/home/'), findsNothing);

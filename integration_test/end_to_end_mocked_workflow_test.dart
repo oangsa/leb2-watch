@@ -122,6 +122,10 @@ void main() {
           authorization: 'Bearer $_cookieB',
           userId: '2001',
           body: sanitizedSnapshotFixture(includeNewAssignment: true),
+          // Recovery retries the interrupted refresh while the dashboard also
+          // launches a synchronization for the new session revision. The two
+          // join only when they overlap, so both orderings must be served.
+          repeatable: true,
         ),
       ]);
       final harness = await E2eAppHarness.create(adapter: adapter);
@@ -146,7 +150,7 @@ void main() {
 
       lifetime = await harness.pumpApp(tester);
 
-      expect(find.text('Assignments, ready when you are'), findsOneWidget);
+      expect(find.text('Your assignments, in one place'), findsOneWidget);
       expect(adapter.requestCount, 0);
       expect(harness.credentials.mutationCount, 0);
       expect(harness.notifications.permissionRequestCount, 0);
@@ -322,10 +326,7 @@ void main() {
       );
       expect(await database.select(database.activities).get(), hasLength(2));
       expect(
-        find.text(
-          'Your LEB2 session expired. Reconnecting securely… '
-          'Saved data remains available.',
-        ),
+        find.text('Session expired. Reconnecting… Showing saved data.'),
         findsOneWidget,
       );
       final scheduleCountBeforeRecovery = harness.background.scheduleCount;
@@ -333,7 +334,7 @@ void main() {
       await pumpUntil(
         tester,
         () =>
-            adapter.requestCount == 11 &&
+            adapter.requestCount >= 11 &&
             find.byKey(_newAssignmentCardKey).evaluate().isNotEmpty,
         reason: 'Automatic recovery did not resume assignment monitoring.',
       );
@@ -491,6 +492,11 @@ void main() {
 
       adapter.verifyComplete();
       expect(adapter.failure, isNull);
+      expect(
+        adapter.requestCount,
+        lessThanOrEqualTo(12),
+        reason: 'Only the recovery synchronization may repeat.',
+      );
       debugDefaultTargetPlatformOverride = null;
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();

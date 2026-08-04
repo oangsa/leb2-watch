@@ -8,9 +8,8 @@ import 'package:leb2_watch/src/features/settings/notifications/application/notif
 import 'package:leb2_watch/src/features/settings/notifications/domain/notification_settings.dart';
 import 'package:leb2_watch/src/features/settings/notifications/domain/new_assignment_notification_settings.dart';
 
-final class FakeNotificationSettingsService
-    implements NotificationSettingsService {
-  const FakeNotificationSettingsService();
+class FakeNotificationSettingsService implements NotificationSettingsService {
+  FakeNotificationSettingsService();
 
   @override
   Stream<NotificationSettingsSnapshot> watch() =>
@@ -51,8 +50,8 @@ final class FakeNotificationSettingsService
       );
 
   @override
-  Future<TestNotificationActionResult> sendTestNotification() async =>
-      const TestNotificationActionSubmitted();
+  Future<NotificationPermissionStatus?> readNotificationPermission() async =>
+      NotificationPermissionStatus.notRequired;
 }
 
 final fakeNotificationSettingsSnapshot = NotificationSettingsSnapshot(

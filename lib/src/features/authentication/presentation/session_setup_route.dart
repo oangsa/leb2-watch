@@ -6,6 +6,7 @@ import '../../../app/app_dependencies.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/routing/app_flow.dart';
 import '../../../app/routing/app_route.dart';
+import '../../onboarding/presentation/post_login_permissions.dart';
 import 'session_setup_page.dart';
 
 class SessionSetupRoute extends ConsumerWidget {
@@ -17,7 +18,14 @@ class SessionSetupRoute extends ConsumerWidget {
     return service.when(
       data: (value) => SessionSetupPage(
         service: value,
-        onCompleted: () {
+        onCompleted: () async {
+          // Asking here means the permissions monitoring depends on are
+          // requested once, in context, instead of waiting for the user to
+          // discover a settings page.
+          await requestPostLoginPermissions(context, ref);
+          if (!context.mounted) {
+            return;
+          }
           final flow = ref.read(appFlowControllerProvider);
           if (flow.stage == AppFlowStage.ready) {
             context.go(AppRoute.assignments.path);
@@ -28,10 +36,8 @@ class SessionSetupRoute extends ConsumerWidget {
       ),
       error: (_, _) => Scaffold(
         body: AppStateView.error(
-          title: 'Connection setup unavailable',
-          message:
-              'Secure local setup could not be opened. Check the backend '
-              'configuration and local storage, then try again.',
+          title: 'Setup unavailable',
+          message: 'Local setup could not be opened. Try again.',
           actionLabel: 'Retry',
           onAction: () {
             ref.invalidate(sessionSetupServiceProvider);
@@ -41,10 +47,7 @@ class SessionSetupRoute extends ConsumerWidget {
         ),
       ),
       loading: () => const Scaffold(
-        body: AppStateView.loading(
-          title: 'Preparing secure connection',
-          message: 'Opening local storage on this device.',
-        ),
+        body: AppStateView.loading(title: 'Preparing…', message: ''),
       ),
     );
   }

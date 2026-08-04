@@ -56,10 +56,7 @@ void main() {
       expect(find.text(expectedDeadline), findsOneWidget);
       expect(find.text('2026-07-25 10:00:00'), findsOneWidget);
       expect(
-        find.text(
-          'Time zone not provided. '
-          'The backend does not define this as publication time.',
-        ),
+        find.text('Time zone not provided. Not the publication time.'),
         findsOneWidget,
       );
     },
@@ -73,27 +70,13 @@ void main() {
     await _pumpPage(tester, service);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        'This assignment no longer appears in the latest saved snapshot.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('No longer in the latest snapshot.'), findsOneWidget);
     expect(find.text('Graph traversal'), findsNothing);
 
     service.controller.add(MissingAssignmentDetail(key: _key, sync: _sync));
     await tester.pumpAndSettle();
-    expect(
-      find.text('This assignment is not saved on this device.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Local assignment data may be out of date based on retained '
-        'synchronization evidence.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Not saved on this device.'), findsOneWidget);
+    expect(find.text('Saved data may be out of date.'), findsOneWidget);
     expect(
       find.textContaining('This saved assignment may be out of date'),
       findsNothing,

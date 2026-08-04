@@ -7,5 +7,6 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         configureDebugWorkmanagerRuntimeInspector(flutterEngine, applicationContext)
+        configureBatteryOptimizationExemption(flutterEngine, this)
     }
 }

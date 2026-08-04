@@ -4,8 +4,8 @@ import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/privacy/presentation/privacy_page.dart';
 
 const _disclaimer =
-    'LEB2 Watch is an independent third-party application and is not '
-    'affiliated with or endorsed by KMUTT or LEB2.';
+    'LEB2 Watch is independent and is not affiliated with or '
+    'endorsed by KMUTT or LEB2.';
 
 void main() {
   testWidgets('renders the verified local-first privacy disclosures', (
@@ -17,36 +17,28 @@ void main() {
     expect(find.text(_disclaimer), findsOneWidget);
     expect(
       find.textContaining(
-        'Assignment snapshots, settings, and notification state stay in a '
-        'local SQLite database',
+        'Assignments, settings, and notification state live in a local '
+        'SQLite database',
       ),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Your LEB2 session cookie is stored in operating-system protected '
-        'storage',
-      ),
+      find.textContaining('Your session cookie lives in OS secure storage'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Checks send your session cookie and LEB2 user ID'),
       findsOneWidget,
     );
     expect(
       find.textContaining(
-        'The credentials needed for a backend request are sent temporarily',
+        'It keeps only short-lived request fingerprints and cached results '
+        'in memory.',
       ),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'It may keep short-lived request fingerprints and cached results in '
-        'process memory.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'New-assignment alerts and deadline reminders are created on this '
-        'device.',
-      ),
+      find.textContaining('Alerts and reminders are created on this device.'),
       findsOneWidget,
     );
     expect(
@@ -54,7 +46,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('cannot promise exact check times'),
+      find.textContaining('Exact timing is never guaranteed'),
       findsOneWidget,
     );
     expect(find.textContaining('Sample assignment'), findsNothing);
@@ -98,7 +90,7 @@ void main() {
       );
 
       final lastStatement = find.textContaining(
-        'Opening or resuming the app provides another opportunity',
+        'Opening the app always refreshes',
       );
       await tester.scrollUntilVisible(
         lastStatement,

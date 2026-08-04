@@ -4,6 +4,9 @@ Compact index of all feature context documents. Each directory contains a `COMPA
 
 ## Features
 
+### [App Update](app-update/COMPACT.md)
+Per-platform update channels and the update banner over backend compatibility metadata.
+
 ### [Assignments](assignments/COMPACT.md)
 Assignment lifecycle: sync from backend, local diffing and baseline tracking, detail view, and the local-first dashboard.
 
@@ -18,6 +21,9 @@ Safe, complete deletion of all local app data including database, secure storage
 
 ### [Infrastructure](infrastructure/COMPACT.md)
 Flutter scaffold, design system, dependencies, application shell, bootstrap recovery, and background scheduler.
+
+### [Minimal UI](minimal-ui/COMPACT.md)
+Copy density rules, GMT+7 time rendering, semester naming, post-login permissions, the per-platform background-reliability grant, and bootstrap recovery.
 
 ### [Notifications](notifications/COMPACT.md)
 Local notifications, new-assignment alerts, deadline reminders, desktop delivery, tray monitoring, and settings.
@@ -41,18 +47,20 @@ Sync retry and backoff policy, plus diagnostics covering sync, session, cache, a
 
 | Area | Context |
 |------|---------|
+| [app-update](app-update/COMPACT.md) | Merged context |
 | [assignments](assignments/COMPACT.md) | Merged context |
 | [backend](backend/COMPACT.md) | Merged context |
 | [database](database/COMPACT.md) | Merged context |
 | [deletion](deletion/COMPACT.md) | Merged context |
 | [infrastructure](infrastructure/COMPACT.md) | Merged context |
+| [minimal-ui](minimal-ui/COMPACT.md) | Merged context |
 | [notifications](notifications/COMPACT.md) | Merged context |
 | [onboarding](onboarding/COMPACT.md) | Merged context |
 | [platform-validation](platform-validation/COMPACT.md) | Merged context |
 | [repository](repository/COMPACT.md) | Merged context |
 | [session](session/COMPACT.md) | Merged context |
 | [synchronization](synchronization/COMPACT.md) | Merged context |
-| **Total** | **11 area contexts** |
+| **Total** | **13 area contexts** |
 
 ## Usage
 

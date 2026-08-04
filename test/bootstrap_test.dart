@@ -41,7 +41,7 @@ void main() {
       expect(hook.initializeCalls, 1);
       expect(applicationAttachments, 0);
       expect(resolver.calls, 0);
-      expect(find.text('Starting LEB2 Watch…'), findsNothing);
+      expect(find.text('Starting…'), findsNothing);
       expect(find.byType(Leb2WatchApp), findsNothing);
 
       hook.release.complete();
@@ -53,13 +53,13 @@ void main() {
       expect(resolver.calls, 1);
       expect(resolver.databaseStorage, same(storage));
       expect(resolver.credentialStore, same(credentials));
-      expect(find.text('Starting LEB2 Watch…'), findsOneWidget);
+      expect(find.text('Starting…'), findsOneWidget);
       expect(find.byType(Leb2WatchApp), findsNothing);
 
       resolver.release.complete(AppFlowStage.authentication);
       await tester.pump();
 
-      expect(find.text('Starting LEB2 Watch…'), findsNothing);
+      expect(find.text('Starting…'), findsNothing);
       expect(find.byType(ProviderScope), findsOneWidget);
       expect(find.byType(Leb2WatchApp), findsOneWidget);
       final providerScope = tester.widget<ProviderScope>(
@@ -113,9 +113,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text(
-        'LEB2 Watch could not finish starting. Saved data was not deleted.',
-      ),
+      find.text('Could not finish starting. Nothing was deleted.'),
       findsOneWidget,
     );
     expect(find.textContaining('sensitive native detail'), findsNothing);
@@ -153,8 +151,8 @@ void main() {
 
     expect(
       find.text(
-        'This build has an invalid application configuration. '
-        'Rebuild it with a supported APP_ENV value.',
+        'This build has an invalid configuration. Rebuild it with a '
+        'supported APP_ENV value.',
       ),
       findsOneWidget,
     );
@@ -171,13 +169,16 @@ void main() {
   testWidgets('shows fixed local-data copy after local startup throws', (
     tester,
   ) async {
+    var resolverCalls = 0;
     await bootstrap(
       desktopPreRunAppHook: const NoOpDesktopPreRunAppHook(),
       configurationLoader: AppConfiguration.fromEnvironment,
       databaseStorage: LocalDatabaseStorage(),
       credentialStore: _CredentialStore(),
+      localDataRetryDelay: Duration.zero,
       startupFlowResolver:
           ({required databaseStorage, required credentialStore}) {
+            resolverCalls += 1;
             throw StateError(
               'credential=<SESSION_COOKIE>; '
               'path=/private/user/leb2_watch.sqlite',
@@ -186,17 +187,55 @@ void main() {
     );
     await tester.pump();
 
+    // Transient database contention is retried a bounded number of times
+    // before the durable failure screen is shown.
+    expect(resolverCalls, greaterThan(1));
+
     expect(
-      find.text(
-        'LEB2 Watch could not open its local data. Saved data was not deleted.',
-      ),
+      find.text('Could not open local data. Nothing was deleted.'),
       findsOneWidget,
     );
     expect(find.textContaining('<SESSION_COOKIE>'), findsNothing);
     expect(find.textContaining('/private/user'), findsNothing);
     expect(find.textContaining('StateError'), findsNothing);
-    expect(find.byType(FilledButton), findsNothing);
+    expect(find.byKey(const Key('bootstrap-retry-button')), findsOneWidget);
     expect(find.byType(Leb2WatchApp), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await _removeApp(tester);
+  });
+
+  testWidgets('retry button recovers from a transient local-data failure', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await bootstrap(
+      desktopPreRunAppHook: const NoOpDesktopPreRunAppHook(),
+      configurationLoader: AppConfiguration.fromEnvironment,
+      databaseStorage: LocalDatabaseStorage(),
+      credentialStore: _CredentialStore(),
+      localDataRetryDelay: Duration.zero,
+      startupFlowResolver:
+          ({required databaseStorage, required credentialStore}) async {
+            attempts += 1;
+            if (attempts <= 3) {
+              throw StateError('transient contention');
+            }
+            return AppFlowStage.ready;
+          },
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('bootstrap-retry-button')), findsOneWidget);
+    expect(find.byType(Leb2WatchApp), findsNothing);
+
+    await tester.tap(find.byKey(const Key('bootstrap-retry-button')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('bootstrap-failure-status')), findsNothing);
+    expect(find.byType(Leb2WatchApp), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await _removeApp(tester);
@@ -217,7 +256,7 @@ void main() {
     await tester.pump();
     await resolver.started.future;
 
-    expect(find.text('Starting LEB2 Watch…'), findsOneWidget);
+    expect(find.text('Starting…'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     resolver.release.complete(AppFlowStage.ready);

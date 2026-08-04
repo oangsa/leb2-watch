@@ -5,10 +5,10 @@ import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/onboarding/presentation/privacy_onboarding_page.dart';
 
 const _titles = <String>[
-  'Assignments, ready when you are',
-  'Stored locally, protected separately',
-  'What each backend request receives',
-  'Notifications are your choice',
+  'Your assignments, in one place',
+  'Stored on this device',
+  'What the backend receives',
+  'Notifications are optional',
   'Background checks are best effort',
 ];
 
@@ -42,7 +42,7 @@ void main() {
       }
     }
 
-    expect(find.text('Continue to sign in'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
     await _tapPrimary(tester);
     expect(completionCount, 1);
   });
@@ -51,7 +51,7 @@ void main() {
     await _pumpPage(tester);
     await _advanceTo(tester, 3);
 
-    expect(find.text('Notifications are your choice'), findsWidgets);
+    expect(find.text('Notifications are optional'), findsWidgets);
     expect(find.textContaining('system permission prompt'), findsNothing);
   });
 
