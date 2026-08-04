@@ -69,10 +69,7 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Update information could not be loaded.'),
-      findsOneWidget,
-    );
+    expect(find.text('Update details unavailable.'), findsOneWidget);
     expect(find.byKey(const Key('retry-update-information')), findsOneWidget);
     expect(find.byKey(const Key('download-update')), findsNothing);
 
@@ -100,7 +97,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Could not load update information. Try again.'),
+      find.text('Could not load update details. Try again.'),
       findsOneWidget,
     );
     expect(find.byKey(const Key('retry-update-information')), findsOneWidget);

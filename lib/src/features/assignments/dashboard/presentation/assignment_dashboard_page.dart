@@ -9,7 +9,9 @@ import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
+import '../../../../core/bangkok_time.dart';
 import '../../../../core/session/session_lifecycle.dart';
+import '../../../semesters/semester_label.dart';
 import '../../sync/assignment_sync_service.dart';
 import '../../detail/domain/assignment_detail_key.dart';
 import '../application/assignment_dashboard_preferences.dart';
@@ -181,7 +183,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               _showPreferenceMessage(
-                'Saved filters could not be loaded. Default filters are in use.',
+                'Saved filters unavailable. Using defaults.',
               );
             }
           });
@@ -285,9 +287,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         await service.savePreferences(preferences);
       } on Object {
         if (mounted && generation == _serviceGeneration) {
-          _showPreferenceMessage(
-            'Filters changed, but could not be saved on this device.',
-          );
+          _showPreferenceMessage('Filters applied but not saved.');
         }
       }
     });
@@ -311,14 +311,14 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
     if (_loading && cache == null) {
       return const AppStateView.loading(
         title: 'Loading saved assignments',
-        message: 'Reading the assignment cache on this device.',
+        message: '',
       );
     }
     if (_streamFailed && cache == null) {
       return AppStateView.error(
         title: 'Saved assignments unavailable',
         message:
-            'Local assignment data could not be read. No saved data was '
+            'Could not read saved assignments. No data was '
             'changed.',
         actionLabel: 'Retry',
         onAction: _subscribe,
@@ -327,8 +327,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
     if (cache == null || !cache.hasActiveSemester) {
       return AppStateView.empty(
         title: 'Choose a semester first',
-        message:
-            'Assignments are shown from the semester selected on this device.',
+        message: 'Showing your selected semester.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
       );
@@ -519,9 +518,9 @@ class _DashboardWorklist extends StatelessWidget {
                         ? 'No saved assignments yet'
                         : 'No assignments match',
                     message: cache.assignments.isEmpty
-                        ? 'Saved assignments appear after a successful refresh.'
+                        ? 'Assignments appear after a refresh.'
                         : isFiltered
-                        ? 'Change the section, status, course, deadline, or search to see more.'
+                        ? 'Change the filters to see more.'
                         : 'Try a different search.',
                   ),
                 )
@@ -597,9 +596,8 @@ class _DashboardHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final success = cache.latestSuccess?.completedAtUtc;
     final statusText = success == null
-        ? 'Last successful sync unavailable'
-        : 'Last successful sync '
-              '${timestampFormatter(context, success)}';
+        ? 'Never synced'
+        : 'Synced ${timestampFormatter(context, success)}';
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -619,7 +617,10 @@ class _DashboardHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
-                  'Semester ${cache.activeSemesterId} · saved on this device',
+                  formatSemesterLabel(
+                    name: cache.activeSemesterName,
+                    id: cache.activeSemesterId,
+                  ),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -1266,7 +1267,7 @@ Widget? _statusBanner(
     return const AppStatusBanner.stale(
       key: Key('assignment-local-read-banner'),
       message:
-          'The saved assignment view could not be updated. Showing the last '
+          'Could not update the view. Showing the last '
           'available data.',
     );
   }
@@ -1276,37 +1277,35 @@ Widget? _statusBanner(
   };
   final accessKeyMessage = switch (failureCategory) {
     'accessKey.missing' || 'accessKey.invalid' =>
-      'This access key is missing or no longer valid. Reconnect with a key '
-          'from your backend operator. Showing saved assignments.',
+      'Access key missing or invalid. Reconnect with a new key. '
+          'Showing saved data.',
     'accessKey.notActivated' || 'accessKey.reauthenticationRequired' =>
-      'This access key needs activation. Use Username / password in '
-          'connection setup. Showing saved assignments.',
+      'Access key not activated. Sign in with username and password. '
+          'Showing saved data.',
     'accessKey.alreadyAssigned' ||
     'accessKey.identityMismatch' ||
     'accessKey.identityConflict' =>
-      'This access key cannot be used with this LEB2 account. Reconnect with '
-          'the correct key. Showing saved assignments.',
+      'Access key does not match this account. Showing saved data.',
     'accessKey.storeUnavailable' =>
-      'Access-key verification is temporarily unavailable. Try again later. '
+      'Key check unavailable. Try again later. '
           'Showing saved assignments.',
     'deviceBinding.deviceIdentityMissing' ||
     'deviceBinding.deviceIdentityInvalid' =>
-      'This device could not provide a valid device identifier. Showing saved '
+      'Invalid device identifier. Showing saved '
           'assignments.',
     'deviceBinding.notBound' =>
-      'This access key needs to be connected to this device again. Reconnect '
-          'with Username / password. Showing saved assignments.',
+      'Reconnect this device: sign in with username and password. '
+          'Showing saved data.',
     'deviceBinding.boundToAnotherDevice' =>
-      'This access key is connected to another device. Log out there or ask '
-          'your backend operator to reset the binding. Showing saved assignments.',
+      'Key is bound to another device. Log out there first. '
+          'Showing saved data.',
     'clientCompatibility.clientVersionRequired' ||
     'clientCompatibility.clientVersionInvalid' =>
-      'This app could not provide a valid client version. Showing saved '
+      'Invalid client version. Showing saved '
           'assignments.',
     'clientCompatibility.updateRequired' ||
     'clientCompatibility.unsupportedApiVersion' =>
-      'This version of LEB2 Watch is no longer compatible with the backend. '
-          'Install the latest APK to continue.',
+      'This version is too old. Install the latest APK.',
     _ => null,
   };
   if (accessKeyMessage != null) {
@@ -1320,8 +1319,7 @@ Widget? _statusBanner(
       latestAttempt?.failureCategory == 'networkUnavailable') {
     return const AppStatusBanner.offline(
       key: Key('assignment-offline-banner'),
-      message:
-          'The last refresh could not reach the network. Showing saved data.',
+      message: 'No network. Showing saved data.',
     );
   }
   if (latestAttempt != null &&
@@ -1332,12 +1330,12 @@ Widget? _statusBanner(
       refreshResult is AssignmentDashboardRefreshCancelled) {
     final message = switch (refreshResult) {
       AssignmentDashboardRefreshDeferred() =>
-        'Automatic refresh is waiting before another attempt. Showing saved data.',
+        'Waiting to retry. Showing saved data.',
       AssignmentDashboardRefreshCancelled() =>
-        'The last refresh was cancelled. Showing saved data.',
+        'Refresh cancelled. Showing saved data.',
       AssignmentDashboardRefreshFailure() =>
-        'The last refresh did not complete. Showing saved data.',
-      _ => 'Saved assignment data may be out of date.',
+        'Refresh failed. Showing saved data.',
+      _ => 'Saved data may be out of date.',
     };
     return AppStatusBanner.stale(
       key: const Key('assignment-stale-banner'),
@@ -1376,10 +1374,7 @@ String _deadlineSemantic(AssignmentDeadline deadline, String formatted) {
 }
 
 String formatAssignmentTimestamp(BuildContext context, DateTime utc) {
-  final local = utc.toLocal();
-  final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(local)} at '
-      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+  return _formatBangkokWallTime(context, bangkokWallTime(utc));
 }
 
 String formatAssignmentDeadline(
@@ -1389,27 +1384,35 @@ String formatAssignmentDeadline(
   return switch (deadline) {
     ZonedAssignmentDeadline(:final instantUtc) => _formatBangkokWallTime(
       context,
-      instantUtc.add(const Duration(hours: 7)),
+      bangkokWallTime(instantUtc),
     ),
-    UnzonedAssignmentDeadline(:final source) =>
-      '${source.replaceFirst('T', ' ')} · GMT+7 (Bangkok)',
+    // Unzoned sources are already Bangkok wall time, so the components render
+    // directly instead of being shifted a second time.
+    UnzonedAssignmentDeadline(
+      :final year,
+      :final month,
+      :final day,
+      :final hour,
+      :final minute,
+    ) =>
+      _formatBangkokWallTime(context, DateTime(year, month, day, hour, minute)),
     MissingAssignmentDeadline() => 'No deadline',
-    InvalidAssignmentDeadline() => 'Deadline format unavailable',
+    InvalidAssignmentDeadline() => 'Deadline unavailable',
   };
 }
 
 String _formatBangkokWallTime(BuildContext context, DateTime bangkok) {
   final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(bangkok)} at '
+  return '${localizations.formatMediumDate(bangkok)}, '
       '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(bangkok))} '
-      '· GMT+7 (Bangkok)';
+      'GMT+7';
 }
 
 Future<DateTime?> pickAssignmentDeadlineBangkok(
   BuildContext context,
   DateTime? initialValue,
 ) async {
-  final nowBangkok = DateTime.now().toUtc().add(const Duration(hours: 7));
+  final nowBangkok = bangkokWallTime(DateTime.now());
   final initial = initialValue ?? nowBangkok;
   final date = await showDatePicker(
     context: context,

@@ -105,7 +105,7 @@ class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
     setState(() {
       _retrying = false;
       if (snapshot == null) {
-        _retryError = 'Could not load update information. Try again.';
+        _retryError = 'Could not load update details. Try again.';
       } else {
         _snapshot = snapshot;
       }
@@ -150,8 +150,8 @@ class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           unsupported
-                              ? 'This backend contract is not supported by LEB2 Watch.'
-                              : 'This version of LEB2 Watch is no longer compatible with the server.',
+                              ? 'This backend is not supported.'
+                              : 'This version is too old.',
                         ),
                         if (snapshot.installedClientVersion != null) ...[
                           const SizedBox(height: AppSpacing.md),
@@ -172,7 +172,7 @@ class _UpdateRequiredPageState extends State<UpdateRequiredPage> {
                         ],
                         if (metadata == null) ...[
                           const SizedBox(height: AppSpacing.md),
-                          const Text('Update information could not be loaded.'),
+                          const Text('Update details unavailable.'),
                           const SizedBox(height: AppSpacing.sm),
                           OutlinedButton(
                             key: const Key('retry-update-information'),

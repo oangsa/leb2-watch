@@ -70,10 +70,12 @@ final class CourseSummary {
 final class ActiveCourseCatalog {
   ActiveCourseCatalog({
     required this.activeSemesterId,
+    this.activeSemesterName,
     required Iterable<CourseSummary> courses,
   }) : courses = List<CourseSummary>.unmodifiable(courses);
 
   final int? activeSemesterId;
+  final String? activeSemesterName;
   final List<CourseSummary> courses;
 
   bool get hasActiveSemester => activeSemesterId != null;
@@ -147,6 +149,12 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
 
   Selectable<TypedResult> get _catalogQuery {
     return (_database.select(_database.appSettings).join([
+        leftOuterJoin(
+          _database.semesters,
+          _database.semesters.semesterId.equalsExp(
+            _database.appSettings.activeSemesterId,
+          ),
+        ),
         leftOuterJoin(
           _database.courses,
           _database.courses.semesterId.equalsExp(
@@ -418,6 +426,9 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
       });
     return ActiveCourseCatalog(
       activeSemesterId: activeSemesterId,
+      activeSemesterName: rows.isEmpty
+          ? null
+          : rows.first.readTableOrNull(_database.semesters)?.name,
       courses: accumulators
           .map(
             (course) => CourseSummary(

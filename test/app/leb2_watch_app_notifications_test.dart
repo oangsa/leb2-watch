@@ -83,10 +83,7 @@ void main() {
 
       expect(details.keys, <AssignmentDetailKey>[target]);
       expect(events, ['window.reveal', 'route:${target.identityKey}']);
-      expect(
-        find.text('This assignment is not saved on this device.'),
-        findsOneWidget,
-      );
+      expect(find.text('Not saved on this device.'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       notifications.emit(

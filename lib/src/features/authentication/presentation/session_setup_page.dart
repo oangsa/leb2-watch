@@ -147,8 +147,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
   bool _validateAccessKey() {
     if (normalizeAccessKey(_accessKeyController.text) == null) {
       setState(() {
-        _accessKeyError =
-            'Enter the UUID access key from your backend operator.';
+        _accessKeyError = 'Enter the UUID access key.';
       });
       _accessKeyFocus.requestFocus();
       return false;
@@ -162,7 +161,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     }
     if (result is SessionSetupSuccess) {
       setState(() {
-        _status = 'Session verified. Opening semester selection…';
+        _status = 'Signed in. Opening semesters…';
         _statusIsError = false;
         _cancellation = null;
       });
@@ -190,8 +189,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
         _busy = false;
         _navigationPending = true;
         _statusIsError = true;
-        _status =
-            'Your session is saved, but semester selection could not open.';
+        _status = 'Signed in, but semesters could not open.';
       });
     }
   }
@@ -203,81 +201,79 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
     setState(() {
       _busy = true;
       _statusIsError = false;
-      _status = 'Opening semester selection…';
+      _status = 'Opening semesters…';
     });
     await _completeNavigation();
   }
 
   String _failureMessage(SessionSetupFailure failure) {
     return switch (failure.kind) {
-      SessionSetupFailureKind.invalidInput =>
-        'Check the highlighted fields and try again.',
+      SessionSetupFailureKind.invalidInput => 'Fix the highlighted fields.',
       SessionSetupFailureKind.incompleteSavedSession =>
-        'Setup incomplete. Sign in above to continue.',
+        'Setup incomplete. Sign in to continue.',
       SessionSetupFailureKind.invalidOrExpiredSession =>
-        'This session is expired or invalid. Sign in again.',
+        'Session expired. Sign in again.',
       SessionSetupFailureKind.invalidCredentials =>
-        'The username or password was not accepted.',
+        'Wrong username or password.',
       SessionSetupFailureKind.networkUnavailable =>
-        'No network connection. Your saved session was not changed.',
+        'No network. Saved session unchanged.',
       SessionSetupFailureKind.requestTimeout =>
-        'The connection check took too long. Your saved session was not changed.',
+        'Timed out. Saved session unchanged.',
       SessionSetupFailureKind.backendUnavailable =>
-        'LEB2 could not be reached. Try again later.',
+        'LEB2 unreachable. Try again later.',
       SessionSetupFailureKind.rateLimited => _rateLimitMessage(
         failure.retryAfter,
       ),
       SessionSetupFailureKind.invalidResponse =>
-        'Backend returned an unexpected response. Saved session unchanged.',
+        'Unexpected backend response. Saved session unchanged.',
       SessionSetupFailureKind.secureStorageUnavailable =>
-        'Secure credential storage is unavailable. No new session was saved.',
+        'Secure storage unavailable. Nothing was saved.',
       SessionSetupFailureKind.localStorageUnavailable =>
-        'Local session settings could not be saved.',
+        'Could not save session settings.',
       SessionSetupFailureKind.differentAccountData =>
-        'This device has data for another LEB2 account. Delete local data before connecting a different account.',
+        'This device holds another account. Delete local data first.',
       SessionSetupFailureKind.accessKeyMissing ||
       SessionSetupFailureKind.accessKeyInvalid =>
-        'This access key is missing or no longer valid. Enter a key provided by your backend operator.',
+        'Access key missing or invalid. Ask your operator for a key.',
       SessionSetupFailureKind.accessKeyNotActivated =>
-        'This access key has not been activated. Sign in with Username / password once to activate it.',
+        'Access key not activated. Sign in once with username and password.',
       SessionSetupFailureKind.accessKeyAccountMismatch =>
-        'This access key cannot be used with this LEB2 account.',
+        'This access key does not match this LEB2 account.',
       SessionSetupFailureKind.accessKeyReauthenticationRequired =>
-        'Sign in with Username / password to finish initializing this access key.',
+        'Sign in with username and password to finish setup.',
       SessionSetupFailureKind.accessKeyStoreUnavailable =>
-        'Access-key verification is temporarily unavailable. Try again later.',
+        'Key check unavailable. Try again later.',
       SessionSetupFailureKind.deviceIdentityMissing =>
-        'This device could not provide a valid device identifier.',
+        'Invalid device identifier.',
       SessionSetupFailureKind.deviceIdentityInvalid =>
-        'This device could not provide a valid device identifier.',
+        'Invalid device identifier.',
       SessionSetupFailureKind.deviceNotBound =>
-        'This access key needs to be connected to this device again. Sign in with your LEB2 username and password.',
+        'Reconnect this device: sign in with username and password.',
       SessionSetupFailureKind.deviceMismatch =>
-        'This access key is currently connected to another device. Log out on that device first, or ask your backend operator to reset the device binding.',
+        'Key is bound to another device. Log out there, or ask your operator to reset it.',
       SessionSetupFailureKind.clientVersionRequired ||
-      SessionSetupFailureKind.clientVersionInvalid =>
-        'This app could not provide a valid client version.',
+      SessionSetupFailureKind.clientVersionInvalid => 'Invalid client version.',
       SessionSetupFailureKind.clientUpdateRequired =>
-        'This version of LEB2 Watch is no longer compatible with the backend. Install the latest APK to continue.',
+        'This version is too old. Install the latest APK.',
       SessionSetupFailureKind.persistenceUncertain =>
-        'Saving could not be completed or safely restored. Review the saved-session status before trying again.',
-      SessionSetupFailureKind.cancelled => 'Connection check cancelled.',
-      SessionSetupFailureKind.busy => 'A connection check is already running.',
+        'Save failed and could not be undone. Check saved-session status below.',
+      SessionSetupFailureKind.cancelled => 'Cancelled.',
+      SessionSetupFailureKind.busy => 'Already checking.',
       SessionSetupFailureKind.unexpected =>
-        'The connection could not be completed. Your saved session was not changed.',
+        'Could not connect. Saved session unchanged.',
     };
   }
 
   String _rateLimitMessage(Duration? retryAfter) {
     if (retryAfter == null) {
-      return 'Too many checks are running. Try again later.';
+      return 'Too many attempts. Try again later.';
     }
     final seconds = retryAfter.inSeconds;
     if (seconds < 60) {
-      return 'Too many checks are running. Try again in ${seconds < 1 ? 1 : seconds} seconds.';
+      return 'Too many attempts. Try again in ${seconds < 1 ? 1 : seconds} seconds.';
     }
     final minutes = (seconds / 60).ceil();
-    return 'Too many checks are running. Try again in $minutes minutes.';
+    return 'Too many attempts. Try again in $minutes minutes.';
   }
 
   @override
@@ -357,13 +353,13 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
               FilledButton(
                 key: const Key('session-navigation-retry'),
                 onPressed: _busy ? null : _retryNavigation,
-                child: const Text('Continue to semesters'),
+                child: const Text('Continue'),
               )
             else
               FilledButton(
                 key: const Key('session-submit'),
                 onPressed: _busy || _summaryLoading ? null : _submit,
-                child: Text(_busy ? 'Checking…' : 'Verify and continue'),
+                child: Text(_busy ? 'Checking…' : 'Sign in'),
               ),
             const SizedBox(height: AppSpacing.lg),
             Divider(color: Theme.of(context).colorScheme.outlineVariant),
@@ -391,7 +387,7 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         labelText: 'Access key',
-        helperText: 'Provided by your LEB2 Watch backend operator.',
+        helperText: 'From your backend operator.',
         errorText: _accessKeyError,
         suffixIcon: _SecretVisibilityButton(
           visible: _showAccessKey,
@@ -459,10 +455,8 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
               : (value) {
                   setState(() => _automaticReauthentication = value);
                 },
-          title: const Text('Save credentials for automatic reauthentication'),
-          subtitle: const Text(
-            'Off by default. Saves credentials only in OS secure storage.',
-          ),
+          title: const Text('Stay signed in'),
+          subtitle: const Text('Saves credentials in secure storage.'),
         ),
       ],
     );
@@ -519,20 +513,19 @@ class _SessionSetupPageState extends State<SessionSetupPage> {
       SavedSessionState.ready => 'Saved session ready',
       SavedSessionState.incomplete => 'Setup incomplete',
       SavedSessionState.secureStorageUnavailable ||
-      SavedSessionState.localStorageUnavailable =>
-        'Saved-session status unavailable',
+      SavedSessionState.localStorageUnavailable => 'Status unavailable',
     };
     final detail = switch (summary.state) {
-      SavedSessionState.none => 'Connect above to continue.',
+      SavedSessionState.none => 'Sign in to continue.',
       SavedSessionState.ready =>
         summary.automaticReauthenticationEnabled
-            ? 'Automatic reauthentication is enabled.'
-            : 'Automatic reauthentication is off.',
-      SavedSessionState.incomplete => 'Sign in above to finish setup.',
+            ? 'Staying signed in.'
+            : 'Not staying signed in.',
+      SavedSessionState.incomplete => 'Sign in to finish setup.',
       SavedSessionState.secureStorageUnavailable =>
-        'Secure storage could not be read.',
+        'Could not read secure storage.',
       SavedSessionState.localStorageUnavailable =>
-        'Local session settings could not be read.',
+        'Could not read session settings.',
     };
 
     return Semantics(
@@ -599,11 +592,7 @@ class _ConnectionIntroduction extends StatelessWidget {
           child: Text('Connect LEB2', style: textTheme.headlineLarge),
         ),
         const SizedBox(height: AppSpacing.md),
-        Text(
-          'LEB2 Watch is not affiliated with KMUTT or LEB2. Username and '
-          'password are sent only during sign-in or optional reauthentication.',
-          style: textTheme.bodyLarge,
-        ),
+        Text('Not affiliated with KMUTT or LEB2.', style: textTheme.bodyLarge),
         const SizedBox(height: AppSpacing.lg),
         Container(
           padding: const EdgeInsets.only(left: AppSpacing.md),
@@ -616,9 +605,7 @@ class _ConnectionIntroduction extends StatelessWidget {
             ),
           ),
           child: Text(
-            'Access key and session cookie stay in OS secure storage. Protected '
-            'requests send them with your LEB2 user ID. The ID stays in local '
-            'SQLite.',
+            'Your key and cookie stay in this device\'s secure storage.',
             style: textTheme.bodyLarge,
           ),
         ),

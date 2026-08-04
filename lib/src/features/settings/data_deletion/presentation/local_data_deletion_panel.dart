@@ -96,9 +96,7 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               title: Text('Removing local data'),
-              subtitle: Text(
-                'Please keep LEB2 Watch open while device cleanup finishes.',
-              ),
+              subtitle: Text('Keep LEB2 Watch open until cleanup finishes.'),
             ),
           ),
         if (result != null) _DeletionResultView(result: result, onRetry: _run),
@@ -106,10 +104,7 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
           key: const Key('delete-cached-assignments'),
           leading: const Icon(Icons.delete_sweep_outlined),
           title: const Text('Delete cached assignments'),
-          subtitle: const Text(
-            'Remove saved semesters, courses, assignments, sync history, and '
-            'reminder records. Saved credentials and global preferences stay.',
-          ),
+          subtitle: const Text('Credentials and preferences stay.'),
           enabled: _pending == null,
           onTap: () =>
               _confirmAndDelete(LocalDataDeletionOperation.cachedAssignments),
@@ -118,10 +113,7 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
           key: const Key('delete-saved-credentials'),
           leading: const Icon(Icons.key_off_outlined),
           title: const Text('Delete saved credentials'),
-          subtitle: const Text(
-            'Remove the session and optional sign-in credentials from secure '
-            'storage. Cached assignments stay available.',
-          ),
+          subtitle: const Text('Cached assignments stay.'),
           enabled: _pending == null,
           onTap: () =>
               _confirmAndDelete(LocalDataDeletionOperation.savedCredentials),
@@ -137,8 +129,7 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
           subtitle: const Text(
-            'Cancel app-owned background work and notifications, remove '
-            'credentials, settings, database files, and app cache.',
+            'Removes everything, including credentials and settings.',
           ),
           enabled: _pending == null,
           onTap: () =>
@@ -160,15 +151,13 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
   String _confirmationMessage(LocalDataDeletionOperation operation) =>
       switch (operation) {
         LocalDataDeletionOperation.cachedAssignments =>
-          'Assignments, courses, semesters, sync history, and local reminder '
-              'records will be removed from this device. Credentials and '
-              'global preferences will remain.',
+          'Assignments, courses, semesters, and sync history go. '
+              'Credentials and preferences stay.',
         LocalDataDeletionOperation.savedCredentials =>
-          'The saved session and any optional sign-in credentials will be '
-              'removed from secure storage. Cached assignments will remain.',
+          'The session and saved credentials go. Cached assignments stay.',
         LocalDataDeletionOperation.allLocalData =>
-          'All LEB2 Watch data on this device will be removed. If any '
-              'required device cleanup fails, you will stay here and can '
+          'Every LEB2 Watch item on this device goes. If cleanup fails, '
+              'you stay here and can '
               'retry.',
       };
 
@@ -212,8 +201,8 @@ class _DeletionResultView extends StatelessWidget {
           children: [
             Text(
               result.isComplete
-                  ? 'Local data cleanup completed.'
-                  : 'Some local data could not be removed.',
+                  ? 'Cleanup done.'
+                  : 'Some items could not be removed.',
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(color: foreground),
@@ -221,7 +210,7 @@ class _DeletionResultView extends StatelessWidget {
             if (failed.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Retry these device cleanup categories: '
+                'Retry: '
                 '${failed.map(_stepLabel).join(', ')}.',
                 style: TextStyle(color: foreground),
               ),

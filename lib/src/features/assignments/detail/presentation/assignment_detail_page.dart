@@ -102,14 +102,14 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
     if (_loading && detail == null) {
       return const AppStateView.loading(
         title: 'Opening saved assignment',
-        message: 'Reading assignment details from this device.',
+        message: '',
       );
     }
     if (_localReadFailed && detail == null) {
       return AppStateView.error(
         title: 'Saved assignment unavailable',
         message:
-            'Local assignment details could not be read. No saved data was '
+            'Could not read details. No saved data was '
             'changed.',
         actionLabel: 'Retry',
         onAction: _subscribe,
@@ -140,7 +140,7 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
                     const AppStatusBanner.stale(
                       key: Key('assignment-detail-local-read-banner'),
                       message:
-                          'The saved detail could not be updated. Showing the '
+                          'Could not update. Showing the '
                           'last available local record.',
                     ),
                   ],
@@ -148,9 +148,7 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
                     const SizedBox(height: AppSpacing.sm),
                     const AppStatusBanner.stale(
                       key: Key('assignment-detail-stale-banner'),
-                      message:
-                          'Local assignment data may be out of date based on '
-                          'retained synchronization evidence.',
+                      message: 'Saved data may be out of date.',
                     ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
@@ -237,12 +235,12 @@ class _CurrentRecord extends StatelessWidget {
               label: 'Deadline status',
               value: detail.backendReportedDeadlineExceeded
                   ? 'Reported overdue by the backend'
-                  : 'Not reported overdue by the backend',
+                  : 'Not overdue',
             ),
             _TimestampFact(
               label: 'Source-created time',
               timestamp: detail.sourceCreatedAt,
-              note: 'The backend does not define this as publication time.',
+              note: 'Not the publication time.',
             ),
           ],
         ),
@@ -291,7 +289,7 @@ class _SeenOnlyRecord extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'This assignment no longer appears in the latest saved snapshot.',
+          'No longer in the latest snapshot.',
           style: theme.textTheme.bodyLarge,
         ),
         if (detail.courseName case final course?) ...[
@@ -300,8 +298,8 @@ class _SeenOnlyRecord extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.md),
         Text(
-          'The local record does not prove deletion, completion, or '
-          'cancellation. Its title and description are no longer retained.',
+          'This does not mean it was deleted or completed. Title and '
+          'description are no longer kept.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -340,10 +338,7 @@ class _MissingRecord extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            'This assignment is not saved on this device.',
-            style: theme.textTheme.bodyLarge,
-          ),
+          Text('Not saved on this device.', style: theme.textTheme.bodyLarge),
         ],
       ),
     );
@@ -416,8 +411,8 @@ class _Evidence extends StatelessWidget {
         _Fact(
           label: 'Observation',
           value: isBaseline
-              ? 'Part of the initial saved baseline'
-              : 'Observed after the initial saved baseline',
+              ? 'In the first baseline'
+              : 'Found after the first baseline',
         ),
         _Fact(
           label: 'Course preference',
@@ -433,7 +428,7 @@ class _Evidence extends StatelessWidget {
         _Fact(
           label: 'Last successful sync',
           value: sync.latestSuccessCompletedAtUtc == null
-              ? 'Retained success time unavailable'
+              ? 'Unavailable'
               : _formatUtcTimestamp(context, sync.latestSuccessCompletedAtUtc!),
         ),
       ],
@@ -566,7 +561,7 @@ String _formatUtcTimestamp(BuildContext context, DateTime timestampUtc) {
 
 String _reminderCopy(AssignmentDetailReminderEvidence evidence) {
   if (evidence.totalCount == 0) {
-    return 'No deadline reminders are recorded on this device';
+    return 'No reminders recorded';
   }
   final records = evidence.totalCount == 1 ? 'record' : 'records';
   if (evidence.pendingReconciliationCount == 0) {
@@ -578,7 +573,7 @@ String _reminderCopy(AssignmentDetailReminderEvidence evidence) {
 
 String _historyCopy(AssignmentDetailNotificationEvidence evidence) {
   if (evidence.recordCount == 0) {
-    return 'No local notification history is recorded';
+    return 'No notification history';
   }
   final records = evidence.recordCount == 1 ? 'record' : 'records';
   return '${evidence.recordCount} notification history $records saved locally';

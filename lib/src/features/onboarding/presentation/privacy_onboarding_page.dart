@@ -329,7 +329,7 @@ class _Actions extends StatelessWidget {
     final primaryButton = FilledButton(
       key: const Key('onboarding-primary-button'),
       onPressed: completionPending ? null : onAdvance,
-      child: Text(isFinalStep ? 'Continue to sign in' : 'Next'),
+      child: Text(isFinalStep ? 'Sign in' : 'Next'),
     );
 
     if (stacked) {
@@ -360,19 +360,16 @@ class _OnboardingStep {
 
 const _steps = <_OnboardingStep>[
   _OnboardingStep(
-    title: 'Assignments, ready when you are',
+    title: 'Your assignments, in one place',
     icon: Icons.assignment_outlined,
   ),
+  _OnboardingStep(title: 'Stored on this device', icon: Icons.shield_outlined),
   _OnboardingStep(
-    title: 'Stored locally, protected separately',
-    icon: Icons.shield_outlined,
-  ),
-  _OnboardingStep(
-    title: 'What each backend request receives',
+    title: 'What the backend receives',
     icon: Icons.sync_alt_outlined,
   ),
   _OnboardingStep(
-    title: 'Notifications are your choice',
+    title: 'Notifications are optional',
     icon: Icons.notifications_none_outlined,
   ),
   _OnboardingStep(

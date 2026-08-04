@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leb2_watch/src/platform/background/background_reliability_grant.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
@@ -34,7 +35,7 @@ void main() {
       height: 1400,
     );
 
-    expect(find.text('Notification settings'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
     expect(find.byKey(const Key('background-monitoring-switch')), findsOne);
     expect(
       find.byKey(const Key('new-assignment-notifications-switch')),
@@ -45,7 +46,7 @@ void main() {
     expect(find.byKey(const Key('deadline-1-hour-switch')), findsOne);
     expect(find.byKey(const Key('desktop-autostart-switch')), findsNothing);
     expect(service.permissionCalls, 0);
-    expect(service.testCalls, 0);
+    expect(service.permissionReads, 1);
 
     final scrollable = find.descendant(
       of: find.byKey(const Key('notification-settings-list')),
@@ -59,20 +60,12 @@ void main() {
     await tester.tap(find.byKey(const Key('request-notification-permission')));
     await tester.pump();
     expect(service.permissionCalls, 1);
-    expect(find.text('Notification permission was granted.'), findsWidgets);
-
-    await tester.tap(find.byKey(const Key('send-test-notification')));
-    await tester.pump();
-    expect(service.testCalls, 1);
     await tester.scrollUntilVisible(
       find.byKey(const Key('notification-settings-feedback')),
       -300,
       scrollable: scrollable,
     );
-    expect(
-      find.text('Test notification request submitted to the operating system.'),
-      findsWidgets,
-    );
+    expect(find.text('Allowed.'), findsWidgets);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('manage-course-notifications')),
@@ -89,6 +82,67 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('open-privacy')));
     expect(privacyCalls, 1);
+  });
+
+  testWidgets('granted permission removes the permission section entirely', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.android),
+    )..permissionStatus = NotificationPermissionStatus.granted;
+
+    await _pump(tester, service, height: 1400);
+
+    expect(service.permissionReads, 1);
+    expect(service.permissionCalls, 0);
+    expect(
+      find.byKey(const Key('request-notification-permission')),
+      findsNothing,
+    );
+    expect(find.text('Notification permission'), findsNothing);
+  });
+
+  for (final (status, expected) in [
+    (BackgroundReliabilityStatus.notGranted, findsOneWidget),
+    (BackgroundReliabilityStatus.granted, findsNothing),
+    (BackgroundReliabilityStatus.unknown, findsNothing),
+  ]) {
+    testWidgets('background reliability tile follows a ${status.name} grant', (
+      tester,
+    ) async {
+      final service = _SettingsService(
+        _snapshot(platform: NotificationSettingsPlatform.android),
+      );
+
+      await _pump(
+        tester,
+        service,
+        height: 1400,
+        backgroundGrant: _BackgroundGrant(status: status),
+      );
+
+      expect(find.byKey(const Key('background-reliability-tile')), expected);
+    });
+  }
+
+  testWidgets('desktop never duplicates start-at-login as a separate tile', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.linux),
+    );
+
+    await _pump(
+      tester,
+      service,
+      height: 1400,
+      backgroundGrant: const _BackgroundGrant(
+        status: BackgroundReliabilityStatus.notGranted,
+      ),
+    );
+
+    expect(find.byKey(const Key('background-reliability-tile')), findsNothing);
+    expect(find.byKey(const Key('desktop-autostart-switch')), findsOneWidget);
   });
 
   testWidgets('keeps persisted switch value until its stream confirms write', (
@@ -131,7 +185,7 @@ void main() {
     expect(tester.widget<SwitchListTile>(control).onChanged, isNotNull);
   });
 
-  testWidgets('desktop visibility and reliability copy stay truthful', (
+  testWidgets('desktop autostart is offered only on desktop platforms', (
     tester,
   ) async {
     final service = _SettingsService(
@@ -148,16 +202,7 @@ void main() {
       ),
     );
     expect(find.byKey(const Key('desktop-autostart-switch')), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.textContaining('best-effort process timers'),
-      300,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('notification-settings-list')),
-        matching: find.byType(Scrollable),
-      ),
-    );
-    expect(find.textContaining('best-effort process timers'), findsOneWidget);
-    expect(find.textContaining('exact schedule guarantee'), findsNothing);
+    expect(find.text('Start at login'), findsOneWidget);
   });
 
   for (final width in [320.0, 375.0, 600.0, 768.0, 1200.0]) {
@@ -174,7 +219,7 @@ void main() {
         textScaler: const TextScaler.linear(2),
       );
       await tester.scrollUntilVisible(
-        find.text('Reliability'),
+        find.text('Local data'),
         500,
         scrollable: find.descendant(
           of: find.byKey(const Key('notification-settings-list')),
@@ -182,7 +227,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Reliability'), findsOneWidget);
+      expect(find.text('Local data'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -196,6 +241,7 @@ Future<void> _pump(
   double width = 800,
   double height = 900,
   TextScaler textScaler = TextScaler.noScaling,
+  BackgroundReliabilityGrant backgroundGrant = const _BackgroundGrant(),
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, height);
@@ -209,6 +255,7 @@ Future<void> _pump(
         data: MediaQueryData(size: Size(width, height), textScaler: textScaler),
         child: NotificationSettingsPage(
           service: service,
+          backgroundGrant: backgroundGrant,
           deletionService: const _DeletionService(),
           onDeletionCompleted: (_) {},
           logoutService: const _LogoutService(),
@@ -273,7 +320,8 @@ final class _SettingsService implements NotificationSettingsService {
   final List<bool> backgroundWrites = [];
   Future<BackgroundMonitoringUpdateResult>? backgroundResult;
   int permissionCalls = 0;
-  int testCalls = 0;
+  int permissionReads = 0;
+  NotificationPermissionStatus? permissionStatus;
 
   void emit(NotificationSettingsSnapshot value) {
     snapshot = value;
@@ -328,10 +376,25 @@ final class _SettingsService implements NotificationSettingsService {
   }
 
   @override
-  Future<TestNotificationActionResult> sendTestNotification() async {
-    testCalls += 1;
-    return const TestNotificationActionSubmitted();
+  Future<NotificationPermissionStatus?> readNotificationPermission() async {
+    permissionReads += 1;
+    return permissionStatus;
   }
+}
+
+final class _BackgroundGrant implements BackgroundReliabilityGrant {
+  const _BackgroundGrant({this.status = BackgroundReliabilityStatus.granted});
+
+  final BackgroundReliabilityStatus status;
+
+  @override
+  String get promptMessage => 'Keep checking in the background.';
+
+  @override
+  Future<BackgroundReliabilityStatus> read() async => status;
+
+  @override
+  Future<void> request() async {}
 }
 
 final class _LogoutService implements LogoutService {

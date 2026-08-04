@@ -127,7 +127,7 @@ void main() {
       (
         AppFlowStage.onboarding,
         '/assignments',
-        'Assignments, ready when you are',
+        'Your assignments, in one place',
       ),
       (AppFlowStage.authentication, '/assignments', 'Connect LEB2'),
       (AppFlowStage.semesterSelection, '/assignments', 'Choose semester'),
@@ -169,8 +169,8 @@ void main() {
         expect(find.byKey(const Key('privacy-page')), findsOneWidget);
         expect(
           find.text(
-            'LEB2 Watch is an independent third-party application and is not '
-            'affiliated with or endorsed by KMUTT or LEB2.',
+            'LEB2 Watch is independent and is not affiliated with or '
+            'endorsed by KMUTT or LEB2.',
           ),
           findsOneWidget,
         );
@@ -231,7 +231,7 @@ void main() {
 
       await tester.pumpWidget(_RouterHarness(router: router));
       await tester.pumpAndSettle();
-      expect(find.text('Assignments, ready when you are'), findsWidgets);
+      expect(find.text('Your assignments, in one place'), findsWidgets);
 
       controller.updateStage(AppFlowStage.authentication);
       await tester.pumpAndSettle();
@@ -265,7 +265,7 @@ void main() {
       await tester.pumpWidget(_RouterHarness(router: router));
       await tester.pumpAndSettle();
 
-      expect(find.text('Assignments, ready when you are'), findsWidgets);
+      expect(find.text('Your assignments, in one place'), findsWidgets);
       expect(find.text('Connect LEB2'), findsNothing);
 
       for (var step = 0; step < 5; step++) {
@@ -277,7 +277,7 @@ void main() {
 
       expect(controller.stage, AppFlowStage.authentication);
       expect(find.text('Connect LEB2'), findsOneWidget);
-      expect(find.text('Assignments, ready when you are'), findsNothing);
+      expect(find.text('Your assignments, in one place'), findsNothing);
     });
 
     testWidgets('authentication success advances the existing router', (
@@ -391,7 +391,7 @@ void main() {
         in <({AutomaticReauthenticationFailureKind kind, String message})>[
           (
             kind: AutomaticReauthenticationFailureKind.accessKeyInvalid,
-            message: 'no valid access key',
+            message: 'No valid access key',
           ),
           (
             kind: AutomaticReauthenticationFailureKind.accessKeyNotActivated,
@@ -399,17 +399,17 @@ void main() {
           ),
           (
             kind: AutomaticReauthenticationFailureKind.accessKeyAccountMismatch,
-            message: 'cannot be used with this LEB2 account',
+            message: 'does not match this account',
           ),
           (
             kind: AutomaticReauthenticationFailureKind
                 .accessKeyReauthenticationRequired,
-            message: 'needs Username / password reauthentication',
+            message: 'Sign in again with username and password',
           ),
           (
             kind:
                 AutomaticReauthenticationFailureKind.accessKeyStoreUnavailable,
-            message: 'temporarily unavailable. Try again later.',
+            message: 'unavailable. Try again later.',
           ),
         ]) {
       testWidgets('expired banner gives ${testCase.kind.name} guidance', (
@@ -470,11 +470,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Preparing secure connection'), findsOneWidget);
-      expect(
-        find.text('Opening local storage on this device.'),
-        findsOneWidget,
-      );
+      expect(find.text('Preparing…'), findsOneWidget);
+
       expect(find.text('Connect LEB2'), findsNothing);
 
       pending.complete(_RouteSessionSetupService());
@@ -510,7 +507,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Connection setup unavailable'), findsOneWidget);
+      expect(find.text('Setup unavailable'), findsOneWidget);
       expect(find.textContaining(privateError), findsNothing);
       expect(find.text('Retry'), findsOneWidget);
 
@@ -761,7 +758,7 @@ void main() {
           );
           expect(find.byKey(const Key('diagnostics-surface')), findsNothing);
         } else if (destination == AppDestination.settings) {
-          expect(find.text('Notification settings'), findsOneWidget);
+          expect(find.text('Settings'), findsWidgets);
           expect(
             find.byKey(const Key('notification-settings-page')),
             findsOneWidget,
@@ -932,10 +929,7 @@ void main() {
         expect(detailService.keys, [
           AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001'),
         ]);
-        expect(
-          find.text('This assignment is not saved on this device.'),
-          findsOneWidget,
-        );
+        expect(find.text('Not saved on this device.'), findsOneWidget);
 
         await tester.tap(find.text('Back'));
         await tester.pumpAndSettle();
@@ -1038,7 +1032,7 @@ void main() {
         expect(detailService.keys, isEmpty);
         expect(
           find.text(switch (stage) {
-            AppFlowStage.onboarding => 'Assignments, ready when you are',
+            AppFlowStage.onboarding => 'Your assignments, in one place',
             AppFlowStage.authentication => 'Connect LEB2',
             AppFlowStage.semesterSelection => 'Choose semester',
             AppFlowStage.ready => throw StateError('unreachable'),
@@ -1106,7 +1100,7 @@ class _RouterHarness extends StatelessWidget {
               const _RouteDiagnosticsService(),
         ),
         notificationSettingsServiceProvider.overrideWith(
-          (_) => const FakeNotificationSettingsService(),
+          (_) => FakeNotificationSettingsService(),
         ),
         logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         sessionLifecycleProvider.overrideWith((_) => Stream.value(lifecycle)),
@@ -1159,7 +1153,7 @@ final class _RouteDiagnosticsService
 
 String _labelForRoute(AppRoute route) {
   return switch (route) {
-    AppRoute.onboarding => 'Assignments, ready when you are',
+    AppRoute.onboarding => 'Your assignments, in one place',
     AppRoute.authentication => 'Connect LEB2',
     _ => throw ArgumentError.value(route),
   };

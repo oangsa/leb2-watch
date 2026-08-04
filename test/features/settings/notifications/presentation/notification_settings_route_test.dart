@@ -39,7 +39,7 @@ void main() {
             if (loadCalls == 1) {
               return pending.future;
             }
-            return const FakeNotificationSettingsService();
+            return FakeNotificationSettingsService();
           }),
           logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         ],
@@ -51,13 +51,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Preparing notification settings'), findsOneWidget);
+    expect(find.text('Preparing settings'), findsOneWidget);
     expect(loadCalls, 1);
 
     pending.completeError(StateError('<PRIVATE_SETTINGS_ERROR>'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Notification settings unavailable'), findsOneWidget);
+    expect(find.text('Settings unavailable'), findsOneWidget);
     expect(find.textContaining('<PRIVATE_SETTINGS_ERROR>'), findsNothing);
 
     await tester.tap(find.text('Retry'));
@@ -94,7 +94,7 @@ void main() {
           overrides: [
             appFlowControllerProvider.overrideWithValue(flow),
             notificationSettingsServiceProvider.overrideWith(
-              (_) => const FakeNotificationSettingsService(),
+              (_) => FakeNotificationSettingsService(),
             ),
             logoutServiceProvider.overrideWithValue(
               const _RouteLogoutService(),
@@ -192,7 +192,7 @@ void main() {
               return resetSettingsPending.future;
             }
             await ref.watch(appDatabaseProvider.future);
-            return const FakeNotificationSettingsService();
+            return FakeNotificationSettingsService();
           }),
           logoutServiceProvider.overrideWithValue(const _RouteLogoutService()),
         ],

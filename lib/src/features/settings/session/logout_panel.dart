@@ -31,9 +31,8 @@ class _LogoutPanelState extends State<LogoutPanel> {
         key: const Key('confirm-logout'),
         title: const Text('Log out?'),
         content: const Text(
-          'Cached assignment data stays on this device. Logging out releases '
-          'this access key from the current device so the same LEB2 account '
-          'can connect elsewhere. The key can never move to another account.',
+          'Frees this access key for another device. Cached assignments '
+          'stay here.',
         ),
         actions: [
           TextButton(
@@ -80,31 +79,30 @@ class _LogoutPanelState extends State<LogoutPanel> {
   }
 
   String _failureMessage(LogoutFailureKind kind) => switch (kind) {
-    LogoutFailureKind.noSavedAccessKey =>
-      'No saved access key was found on this device.',
+    LogoutFailureKind.noSavedAccessKey => 'No saved access key on this device.',
     LogoutFailureKind.secureStorageUnavailable =>
-      'Secure storage is unavailable. Local secrets were not changed.',
+      'Secure storage unavailable. Nothing changed.',
     LogoutFailureKind.networkUnavailable ||
     LogoutFailureKind.requestTimeout ||
     LogoutFailureKind.backendUnavailable ||
     LogoutFailureKind.rateLimited =>
-      'Logout could not reach the backend. Local secrets were not changed.',
+      'Could not reach the backend. Nothing changed.',
     LogoutFailureKind.invalidResponse =>
-      'The backend returned an unexpected logout response. Local secrets were not changed.',
+      'Unexpected backend response. Nothing changed.',
     LogoutFailureKind.deviceIdentityMissing ||
     LogoutFailureKind.deviceIdentityInvalid =>
-      'This device could not provide a valid device identifier. Local secrets were not changed.',
+      'Invalid device identifier. Nothing changed.',
     LogoutFailureKind.deviceNotBound =>
-      'This access key is not bound to this device. Local secrets were not changed.',
+      'Key is not bound to this device. Nothing changed.',
     LogoutFailureKind.deviceMismatch =>
-      'This access key is bound to another device. Log out there first or ask your backend operator to reset the binding.',
+      'Key is bound to another device. Log out there, or ask your operator to reset it.',
     LogoutFailureKind.clientVersionRequired ||
     LogoutFailureKind.clientVersionInvalid =>
-      'This app could not provide a valid client version. Local secrets were not changed.',
+      'Invalid client version. Nothing changed.',
     LogoutFailureKind.clientUpdateRequired =>
       'Install the latest APK before logging out.',
     LogoutFailureKind.localCleanupUncertain =>
-      'The backend released the device, but local cleanup is incomplete. Retry cleanup before continuing.',
+      'Device released, but local cleanup is incomplete. Retry it.',
   };
 
   @override
@@ -117,8 +115,7 @@ class _LogoutPanelState extends State<LogoutPanel> {
           leading: const Icon(Icons.logout),
           title: const Text('Log out'),
           subtitle: const Text(
-            'Release this device binding and clear saved secrets. Cached '
-            'assignments remain available.',
+            'Clears saved secrets. Cached assignments stay.',
           ),
           enabled: !_pending,
           onTap: _confirm,

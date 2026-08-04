@@ -34,7 +34,11 @@ abstract interface class NotificationSettingsService {
 
   Future<NotificationPermissionActionResult> requestNotificationPermission();
 
-  Future<TestNotificationActionResult> sendTestNotification();
+  /// Reads the current permission without ever prompting the user.
+  ///
+  /// Returns `null` when the platform cannot report a status, so the caller
+  /// keeps showing the request affordance instead of hiding it wrongly.
+  Future<NotificationPermissionStatus?> readNotificationPermission();
 }
 
 sealed class NotificationPermissionActionResult {
@@ -54,24 +58,6 @@ final class NotificationPermissionActionCompleted
 final class NotificationPermissionActionFailed
     extends NotificationPermissionActionResult {
   const NotificationPermissionActionFailed(this.message);
-
-  final String message;
-}
-
-sealed class TestNotificationActionResult {
-  const TestNotificationActionResult();
-
-  @override
-  String toString() => '$runtimeType(redacted: true)';
-}
-
-final class TestNotificationActionSubmitted
-    extends TestNotificationActionResult {
-  const TestNotificationActionSubmitted();
-}
-
-final class TestNotificationActionFailed extends TestNotificationActionResult {
-  const TestNotificationActionFailed(this.message);
 
   final String message;
 }
@@ -292,23 +278,26 @@ final class LocalNotificationSettingsService
       return NotificationPermissionActionFailed(failure.message);
     } on Object {
       return const NotificationPermissionActionFailed(
-        'The operating system could not check notification permission.',
+        'Could not check notification permission.',
       );
     }
   }
 
   @override
-  Future<TestNotificationActionResult> sendTestNotification() async {
+  Future<NotificationPermissionStatus?> readNotificationPermission() async {
     try {
       await _notifications.initialize();
-      await _notifications.showTestNotification();
-      return const TestNotificationActionSubmitted();
-    } on LocalNotificationFailure catch (failure) {
-      return TestNotificationActionFailed(failure.message);
+      return switch (await _notifications.readDeliveryPermission()) {
+        NotificationDeliveryPermissionStatus.allowed =>
+          NotificationPermissionStatus.granted,
+        NotificationDeliveryPermissionStatus.blocked =>
+          NotificationPermissionStatus.denied,
+        NotificationDeliveryPermissionStatus.notRequired =>
+          NotificationPermissionStatus.notRequired,
+        NotificationDeliveryPermissionStatus.unavailable => null,
+      };
     } on Object {
-      return const TestNotificationActionFailed(
-        'The operating system could not submit the test notification.',
-      );
+      return null;
     }
   }
 

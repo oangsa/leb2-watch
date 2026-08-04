@@ -183,7 +183,7 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
       await tester.pump();
-      expect(find.textContaining('GMT+7 (Bangkok)'), findsWidgets);
+      expect(find.textContaining('GMT+7'), findsWidgets);
       expect(
         find.byKey(const Key('assignment-deadline-filter-clear')),
         findsOneWidget,
@@ -247,7 +247,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Aug 3'), findsWidgets);
-    expect(find.textContaining('GMT+7 (Bangkok)'), findsWidgets);
+    expect(find.textContaining('GMT+7'), findsWidgets);
 
     await _openFilters(tester);
     await tester.tap(find.byKey(const Key('assignment-section-filter')));
@@ -552,9 +552,7 @@ void main() {
 
     expect(find.text('Filters'), findsOneWidget);
     expect(
-      find.text(
-        'Saved filters could not be loaded. Default filters are in use.',
-      ),
+      find.text('Saved filters unavailable. Using defaults.'),
       findsOneWidget,
     );
     expect(find.textContaining('<PRIVATE_'), findsNothing);
@@ -564,10 +562,7 @@ void main() {
     await _applyFilters(tester);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Filters changed, but could not be saved on this device.'),
-      findsOneWidget,
-    );
+    expect(find.text('Filters applied but not saved.'), findsOneWidget);
     expect(
       find.byKey(const Key('assignment-filter-chip-submission')),
       findsOneWidget,
@@ -681,7 +676,7 @@ void main() {
         .data!;
     final selectedLabel = deadlineLabel();
     expect(selectedLabel, contains('Aug 2'));
-    expect(selectedLabel, contains('GMT+7 (Bangkok)'));
+    expect(selectedLabel, contains('GMT+7'));
     expect(find.text('Packet analysis'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('assignment-deadline-filter')));
@@ -867,12 +862,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('assignment-offline-banner')), findsOneWidget);
-    expect(
-      find.text(
-        'The last refresh could not reach the network. Showing saved data.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('No network. Showing saved data.'), findsOneWidget);
     expect(find.text('Graph traversal'), findsOneWidget);
   });
 
@@ -894,10 +884,7 @@ void main() {
       find.byKey(const Key('assignment-access-key-banner')),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Reconnect with a key from your backend operator.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Reconnect with a new key.'), findsOneWidget);
     expect(find.text('Graph traversal'), findsOneWidget);
     expect(find.textContaining('expired'), findsNothing);
   });
@@ -926,14 +913,8 @@ void main() {
   });
 
   for (final testCase in const [
-    (
-      category: 'accessKey.invalid',
-      message: 'Reconnect with a key from your backend operator.',
-    ),
-    (
-      category: 'accessKey.storeUnavailable',
-      message: 'Access-key verification is temporarily unavailable.',
-    ),
+    (category: 'accessKey.invalid', message: 'Reconnect with a new key.'),
+    (category: 'accessKey.storeUnavailable', message: 'Key check unavailable.'),
   ]) {
     testWidgets(
       'durable ${testCase.category} status remains actionable after reopen',

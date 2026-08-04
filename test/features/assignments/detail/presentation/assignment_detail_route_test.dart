@@ -56,10 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('This assignment is not saved on this device.'),
-      findsOneWidget,
-    );
+    expect(find.text('Not saved on this device.'), findsOneWidget);
     expect(service.keys, [
       AssignmentDetailKey(semesterId: 101, identityKey: 'backend:1001'),
     ]);

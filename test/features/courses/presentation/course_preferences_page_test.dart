@@ -19,7 +19,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Course controls'), findsOneWidget);
-    expect(find.text('Semester 101 · saved on this device'), findsOneWidget);
+    expect(find.text('Semester 101'), findsOneWidget);
     expect(
       find.textContaining('viewing this page does not clear them'),
       findsNothing,
@@ -29,7 +29,7 @@ void main() {
     expect(find.text('Disable all background monitoring'), findsOneWidget);
     expect(find.text('New activities: 2'), findsOneWidget);
     expect(find.text('Upcoming deadlines: 3'), findsOneWidget);
-    expect(find.textContaining('does not skip that download'), findsOneWidget);
+    expect(find.textContaining('not the download itself'), findsOneWidget);
 
     final row = tester.getSemantics(
       find.byKey(const Key('course-preference-row-3001')),
@@ -147,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_switchTile(tester, const Key('course-mute-3001')).value, isFalse);
-    expect(find.textContaining('visible course changed'), findsOneWidget);
+    expect(find.textContaining('course changed'), findsOneWidget);
     expect(
       _switchTile(tester, const Key('course-background-3001')).onChanged,
       isNotNull,
@@ -171,7 +171,7 @@ void main() {
     service.emit(ActiveCourseCatalog(activeSemesterId: 101, courses: const []));
     await tester.pump();
     expect(find.text('No saved courses yet'), findsOneWidget);
-    expect(find.textContaining('successful assignment sync'), findsOneWidget);
+    expect(find.textContaining('sync'), findsOneWidget);
   });
 
   testWidgets('stream errors are redacted and retry subscribes again', (
@@ -203,7 +203,7 @@ void main() {
 
     tester.semantics.tap(
       find.semantics.byLabel(
-        'Mute notifications. Suppress local notifications for this course.',
+        'Mute notifications. No notifications for this course.',
       ),
     );
     await tester.pump();

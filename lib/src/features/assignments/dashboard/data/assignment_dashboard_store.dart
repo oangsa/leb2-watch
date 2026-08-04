@@ -100,6 +100,7 @@ final class AssignmentDashboardTargetKey {
 final class AssignmentDashboardCache {
   AssignmentDashboardCache({
     required this.activeSemesterId,
+    this.activeSemesterName,
     required this.session,
     required Iterable<AssignmentDashboardCourse> courses,
     required Iterable<CachedAssignment> assignments,
@@ -109,6 +110,7 @@ final class AssignmentDashboardCache {
        assignments = List.unmodifiable(assignments);
 
   final int? activeSemesterId;
+  final String? activeSemesterName;
   final SessionLifecycleSnapshot session;
   final List<AssignmentDashboardCourse> courses;
   final List<CachedAssignment> assignments;
@@ -250,6 +252,7 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
       'SELECT 1 AS dashboard_signal',
       readsFrom: {
         _database.appSettings,
+        _database.semesters,
         _database.courses,
         _database.activities,
         _database.seenActivities,
@@ -305,6 +308,10 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
         latestSuccess: null,
       );
     }
+
+    final semesterRow = await (_database.select(
+      _database.semesters,
+    )..where((row) => row.semesterId.equals(semesterId))).getSingleOrNull();
 
     final courseRows =
         await (_database.select(_database.courses)
@@ -392,6 +399,7 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
 
     return AssignmentDashboardCache(
       activeSemesterId: semesterId,
+      activeSemesterName: semesterRow?.name,
       session: session,
       courses: courses,
       assignments: assignments,

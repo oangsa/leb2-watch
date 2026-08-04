@@ -6,6 +6,7 @@ import '../../../../app/app_dependencies.dart';
 import '../../../../app/routing/app_flow.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/routing/app_route.dart';
+import '../../../onboarding/presentation/post_login_permissions.dart';
 import '../../data_deletion/data_deletion_dependencies.dart';
 import '../notification_settings_dependencies.dart';
 import 'notification_settings_page.dart';
@@ -20,6 +21,7 @@ class NotificationSettingsRoute extends ConsumerWidget {
     return settings.when(
       data: (settingsService) => NotificationSettingsPage(
         service: settingsService,
+        backgroundGrant: ref.watch(backgroundReliabilityGrantProvider),
         deletionService: deletion,
         onDeletionCompleted: (_) {},
         logoutService: ref.watch(logoutServiceProvider),
@@ -33,10 +35,8 @@ class NotificationSettingsRoute extends ConsumerWidget {
         onOpenPrivacy: () => context.push(AppRoute.privacy.path),
       ),
       error: (_, _) => AppStateView.error(
-        title: 'Notification settings unavailable',
-        message:
-            'Saved notification settings could not be opened. No preferences '
-            'were changed.',
+        title: 'Settings unavailable',
+        message: 'Saved settings could not be opened. Nothing changed.',
         actionLabel: 'Retry',
         onAction: () {
           ref.invalidate(notificationSettingsServiceProvider);
@@ -47,10 +47,8 @@ class NotificationSettingsRoute extends ConsumerWidget {
           ref.invalidate(appDatabaseProvider);
         },
       ),
-      loading: () => const AppStateView.loading(
-        title: 'Preparing notification settings',
-        message: 'Opening preferences saved on this device.',
-      ),
+      loading: () =>
+          const AppStateView.loading(title: 'Preparing settings', message: ''),
     );
   }
 }

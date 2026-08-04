@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
+import '../../../../platform/background/background_reliability_grant.dart';
+import '../../../authentication/application/logout_service.dart';
 import '../../../background_sync/domain/background_scheduler.dart';
 import '../../../background_sync/domain/desktop_autostart_service.dart';
 import '../../../notifications/application/deadline_reminder_preferences_service.dart';
 import '../../../notifications/domain/deadline_reminder_preferences.dart';
 import '../../../notifications/domain/local_notification_models.dart';
+import '../../../onboarding/presentation/post_login_permissions.dart';
 import '../../data_deletion/domain/local_data_deletion.dart';
 import '../../data_deletion/presentation/local_data_deletion_panel.dart';
 import '../../session/logout_panel.dart';
-import '../../../authentication/application/logout_service.dart';
 import '../application/new_assignment_notification_preferences_service.dart';
 import '../application/notification_settings_service.dart';
 import '../domain/notification_settings.dart';
@@ -28,12 +30,12 @@ enum _SettingControl {
   oneHour,
   desktopAutostart,
   permission,
-  testNotification,
 }
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({
     required this.service,
+    required this.backgroundGrant,
     required this.deletionService,
     required this.onDeletionCompleted,
     required this.logoutService,
@@ -44,6 +46,7 @@ class NotificationSettingsPage extends StatefulWidget {
   });
 
   final NotificationSettingsService service;
+  final BackgroundReliabilityGrant backgroundGrant;
   final LocalDataDeletionService deletionService;
   final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
   final LogoutService logoutService;
@@ -63,6 +66,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   final Set<_SettingControl> _pendingActions = {};
   _SettingsFeedback? _feedback;
   NotificationPermissionStatus? _permissionStatus;
+  BackgroundReliabilityStatus? _backgroundGrantStatus;
   bool _loading = true;
   bool _streamFailed = false;
   int _subscriptionGeneration = 0;
@@ -71,6 +75,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   void initState() {
     super.initState();
     _subscribe();
+    unawaited(_refreshPermissionStatus());
+    unawaited(_refreshBackgroundGrant());
   }
 
   @override
@@ -145,7 +151,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
             expected,
       _SettingControl.desktopAutostart =>
         snapshot.desktopAutostart.enabled == expected,
-      _SettingControl.permission || _SettingControl.testNotification => false,
+      _SettingControl.permission => false,
     };
   }
 
@@ -191,15 +197,13 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _finishSuccessfulSetting(
           control,
           status is BackgroundScheduleUnavailable
-              ? 'Monitoring preference saved, but the operating system could '
-                    'not update its schedule.'
-              : 'Background monitoring preference saved.',
+              ? 'Saved, but the system did not update its schedule.'
+              : 'Saved.',
         );
       case BackgroundMonitoringUpdateFailure():
         _finishFailedSetting(
           control,
-          'Background monitoring was not saved. The previous preference is '
-          'still in use.',
+          'Not saved. Previous setting still in use.',
         );
     }
   }
@@ -217,16 +221,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
       case NewAssignmentNotificationPreferenceUpdateSuccess():
         _finishSuccessfulSetting(
           control,
-          enabled
-              ? 'New-assignment notifications enabled for future discoveries.'
-              : 'New-assignment notifications disabled. Pending discoveries '
-                    'were suppressed.',
+          enabled ? 'On for future assignments.' : 'Off.',
         );
       case NewAssignmentNotificationPreferenceUpdateFailure():
         _finishFailedSetting(
           control,
-          'The new-assignment preference was not saved. The previous '
-          'preference is still in use.',
+          'Not saved. Previous setting still in use.',
         );
     }
   }
@@ -238,11 +238,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     if (!mounted) {
       return;
     }
-    _finishDeadlineResult(
-      control,
-      result,
-      'Deadline reminder preference saved.',
-    );
+    _finishDeadlineResult(control, result, 'Saved.');
   }
 
   Future<void> _setOffset(DeadlineReminderOffset offset, bool enabled) async {
@@ -258,7 +254,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     if (!mounted) {
       return;
     }
-    _finishDeadlineResult(control, result, 'Reminder offset preference saved.');
+    _finishDeadlineResult(control, result, 'Saved.');
   }
 
   void _finishDeadlineResult(
@@ -272,8 +268,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
       case DeadlineReminderPreferenceUpdateFailure():
         _finishFailedSetting(
           control,
-          'The deadline reminder preference was not saved. The previous '
-          'preference is still in use.',
+          'Not saved. Previous setting still in use.',
         );
     }
   }
@@ -287,11 +282,11 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     }
     switch (result) {
       case DesktopAutostartUpdateApplied():
-        _finishSuccessfulSetting(control, 'Start-at-login preference updated.');
+        _finishSuccessfulSetting(control, 'Saved.');
       case DesktopAutostartUpdateUnavailable():
         _finishFailedSetting(
           control,
-          'The operating system could not update start at login.',
+          'The system could not update start at login.',
         );
     }
   }
@@ -329,47 +324,54 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     }
   }
 
-  Future<void> _sendTestNotification() async {
-    const control = _SettingControl.testNotification;
-    if (_pendingActions.contains(control)) {
-      return;
-    }
-    setState(() {
-      _pendingActions.add(control);
-      _feedback = null;
-    });
-    final result = await widget.service.sendTestNotification();
+  Future<void> _refreshBackgroundGrant() async {
+    final status = await widget.backgroundGrant.read();
     if (!mounted) {
       return;
     }
-    switch (result) {
-      case TestNotificationActionSubmitted():
-        setState(() {
-          _pendingActions.remove(control);
-          _feedback = const _SettingsFeedback(
-            'Test notification request submitted to the operating system.',
-            isError: false,
-          );
-        });
-      case TestNotificationActionFailed(:final message):
-        setState(() {
-          _pendingActions.remove(control);
-          _feedback = _SettingsFeedback(message, isError: true);
-        });
+    setState(() => _backgroundGrantStatus = status);
+  }
+
+  Future<void> _requestBackgroundGrant() async {
+    final accepted = await showBackgroundReliabilityPrompt(
+      context,
+      widget.backgroundGrant,
+    );
+    if (accepted != true) {
+      return;
     }
+    await widget.backgroundGrant.request();
+    // Several platforms hand the user to a settings screen and report nothing
+    // back, so the current state is re-read instead of assumed.
+    await _refreshBackgroundGrant();
+  }
+
+  Future<void> _refreshPermissionStatus() async {
+    final status = await widget.service.readNotificationPermission();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _permissionStatus = status);
+  }
+
+  /// The section only exists to fix a missing permission, so a granted (or
+  /// unnecessary) permission removes it entirely.
+  bool _permissionSectionVisible(NotificationSettingsSnapshot snapshot) {
+    if (!snapshot.platform.requiresPermissionRequest) {
+      return false;
+    }
+    return _permissionStatus != NotificationPermissionStatus.granted &&
+        _permissionStatus != NotificationPermissionStatus.notRequired;
   }
 
   String _permissionMessage(NotificationPermissionStatus status) {
     return switch (status) {
-      NotificationPermissionStatus.granted =>
-        'Notification permission was granted.',
+      NotificationPermissionStatus.granted => 'Allowed.',
       NotificationPermissionStatus.denied =>
-        'Notification permission was denied. You can change it in system '
-            'settings.',
-      NotificationPermissionStatus.notRequired =>
-        'This platform does not require an in-app notification permission.',
+        'Blocked. Allow it in system settings.',
+      NotificationPermissionStatus.notRequired => 'Not needed here.',
       NotificationPermissionStatus.unavailable =>
-        'Notification permission is unavailable on this platform.',
+        'Unavailable on this platform.',
     };
   }
 
@@ -385,17 +387,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   Widget _buildContent(BuildContext context) {
     final snapshot = _snapshot;
     if (_loading && snapshot == null) {
-      return const AppStateView.loading(
-        title: 'Loading notification settings',
-        message: 'Reading preferences stored on this device.',
-      );
+      return const AppStateView.loading(title: 'Loading settings', message: '');
     }
     if (_streamFailed || snapshot == null) {
       return AppStateView.error(
-        title: 'Saved settings unavailable',
-        message:
-            'Local notification preferences could not be read. No settings '
-            'were changed.',
+        title: 'Settings unavailable',
+        message: 'Saved preferences could not be read. Nothing changed.',
         actionLabel: 'Retry',
         onAction: _subscribe,
       );
@@ -427,9 +424,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Monitoring',
-                description:
-                    'Periodic checks use the selected semester and remain '
-                    'subject to operating-system limits.',
                 children: [
                   SwitchListTile.adaptive(
                     key: const Key('background-monitoring-switch'),
@@ -448,22 +442,25 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                         ? null
                         : _setBackgroundMonitoring,
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
-                title: 'New assignments',
-                description:
-                    'Notifications are created locally after a successful '
-                    'sync and never for the first historical baseline.',
-                children: [
+                  // Desktop already exposes this as the start-at-login switch
+                  // below, so the tile would be a second control for one
+                  // setting.
+                  if (_backgroundGrantStatus ==
+                          BackgroundReliabilityStatus.notGranted &&
+                      !snapshot.platform.isDesktop)
+                    ListTile(
+                      key: const Key('background-reliability-tile'),
+                      title: const Text('Allow background checks'),
+                      subtitle: const Text(
+                        'The system is currently pausing them.',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _requestBackgroundGrant,
+                    ),
                   SwitchListTile.adaptive(
                     key: const Key('new-assignment-notifications-switch'),
-                    title: const Text('New-assignment notifications'),
-                    subtitle: const Text(
-                      'Turning this off suppresses pending and future '
-                      'discoveries without replaying them later.',
-                    ),
+                    title: const Text('New assignments'),
+                    subtitle: const Text('Notify when work appears.'),
                     value: snapshot.newAssignmentNotifications.enabled,
                     onChanged:
                         _pendingSettings.containsKey(
@@ -477,17 +474,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Deadline reminders',
-                description:
-                    'Reminder timing is best effort. Selected offsets stay '
-                    'saved when reminders are turned off.',
                 children: [
                   SwitchListTile.adaptive(
                     key: const Key('deadline-reminders-switch'),
                     title: const Text('Deadline reminders'),
                     subtitle: Text(
-                      offsetsEmpty
-                          ? 'No reminder offsets are selected.'
-                          : 'Use the selected offsets below.',
+                      offsetsEmpty ? 'No times selected.' : 'Times below.',
                     ),
                     value: snapshot.deadlineReminders.enabled,
                     onChanged:
@@ -500,9 +492,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   SwitchListTile.adaptive(
                     key: const Key('deadline-24-hours-switch'),
                     title: const Text('24 hours before'),
-                    subtitle: const Text(
-                      'Schedule one local reminder about a day before.',
-                    ),
                     value: snapshot.deadlineReminders.offsets.contains(
                       DeadlineReminderOffset.twentyFourHours,
                     ),
@@ -519,9 +508,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   SwitchListTile.adaptive(
                     key: const Key('deadline-1-hour-switch'),
                     title: const Text('1 hour before'),
-                    subtitle: const Text(
-                      'Schedule one local reminder near the deadline.',
-                    ),
                     value: snapshot.deadlineReminders.offsets.contains(
                       DeadlineReminderOffset.oneHour,
                     ),
@@ -537,106 +523,62 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               ),
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
-                title: 'Course controls',
-                description:
-                    'Mute notifications or background effects for individual '
-                    'courses using the saved course list.',
+                title: 'Courses',
                 children: [
                   ListTile(
                     key: const Key('manage-course-notifications'),
                     title: const Text('Manage course notifications'),
-                    subtitle: const Text(
-                      'Open per-course notification and monitoring controls.',
-                    ),
+                    subtitle: const Text('Mute or unmute each course.'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onManageCourses,
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
-                title: 'Permission and test',
-                description:
-                    'Permission is requested only when you choose the action '
-                    'below. Opening this page never requests it.',
-                children: [
-                  if (snapshot.platform.requiresPermissionRequest)
+              if (_permissionSectionVisible(snapshot)) ...[
+                const SizedBox(height: AppSpacing.md),
+                _SettingsSection(
+                  title: 'Notification permission',
+                  children: [
                     ListTile(
-                      title: const Text('Notification permission'),
-                      subtitle: Text(
+                      title: Text(
                         _permissionStatus == null
-                            ? 'Not checked in this session.'
+                            ? 'Not granted yet.'
                             : _permissionMessage(_permissionStatus!),
                       ),
-                    )
-                  else
-                    const ListTile(
-                      title: Text('Notification permission'),
-                      subtitle: Text(
-                        'No in-app permission request is required on this '
-                        'platform.',
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                      ),
+                      child: FilledButton.tonalIcon(
+                        key: const Key('request-notification-permission'),
+                        onPressed:
+                            _pendingActions.contains(_SettingControl.permission)
+                            ? null
+                            : _requestPermission,
+                        icon: const Icon(Icons.notifications_active),
+                        label: const Text('Allow notifications'),
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      0,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                    ),
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: [
-                        if (snapshot.platform.requiresPermissionRequest)
-                          FilledButton.tonalIcon(
-                            key: const Key('request-notification-permission'),
-                            onPressed:
-                                _pendingActions.contains(
-                                  _SettingControl.permission,
-                                )
-                                ? null
-                                : _requestPermission,
-                            icon: const Icon(Icons.notifications_active),
-                            label: const Text(
-                              'Request notification permission',
-                            ),
-                          ),
-                        FilledButton.tonalIcon(
-                          key: const Key('send-test-notification'),
-                          onPressed:
-                              !snapshot
-                                      .platform
-                                      .supportsImmediateNotifications ||
-                                  _pendingActions.contains(
-                                    _SettingControl.testNotification,
-                                  )
-                              ? null
-                              : _sendTestNotification,
-                          icon: const Icon(Icons.send_outlined),
-                          label: const Text('Send test notification'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
               if (snapshot.platform.isDesktop) ...[
                 const SizedBox(height: AppSpacing.md),
                 _SettingsSection(
                   title: 'Desktop',
-                  description:
-                      'Start at login is stored by the operating system and '
-                      'does not guarantee continuous monitoring.',
                   children: [
                     SwitchListTile.adaptive(
                       key: const Key('desktop-autostart-switch'),
-                      title: const Text('Start LEB2 Watch at login'),
+                      title: const Text('Start at login'),
                       subtitle: Text(
                         snapshot.desktopAutostart.support ==
                                 DesktopAutostartSupport.available
-                            ? 'Use the operating system start-at-login entry.'
-                            : 'Start at login is unavailable on this device.',
+                            ? 'Open LEB2 Watch when you sign in.'
+                            : 'Unavailable on this device.',
                       ),
                       value: snapshot.desktopAutostart.enabled,
                       onChanged:
@@ -653,23 +595,11 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               ],
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
-                title: 'Reliability',
-                description: snapshot.platform.reliabilityMessage,
-                children: const [],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
                 title: 'Privacy',
-                description:
-                    'Review what stays on this device, what each backend '
-                    'request receives, and platform limitations.',
                 children: [
                   ListTile(
                     key: const Key('open-privacy'),
                     title: const Text('Privacy and local data'),
-                    subtitle: const Text(
-                      'Open the privacy and third-party disclosures.',
-                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenPrivacy,
                   ),
@@ -678,9 +608,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Account',
-                description:
-                    'Logout releases the temporary device binding but keeps '
-                    'cached local assignment data.',
                 children: [
                   LogoutPanel(
                     service: widget.logoutService,
@@ -691,9 +618,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Local data',
-                description:
-                    'Choose exactly which LEB2 Watch data to remove from this '
-                    'device. Nothing is deleted from LEB2 or the backend.',
+                description: 'Nothing is deleted from LEB2 itself.',
                 children: [
                   LocalDataDeletionPanel(
                     service: widget.deletionService,
@@ -712,18 +637,15 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     bool desiredEnabled,
     BackgroundScheduleStatus status,
   ) {
-    final desired = desiredEnabled ? 'Saved as on.' : 'Saved as off.';
-    final effective = switch (status) {
-      BackgroundScheduleUnsupported() =>
-        ' Background scheduling is unsupported on this platform.',
-      BackgroundScheduleInactive() =>
-        ' No periodic check is currently registered.',
-      BackgroundScheduleActive() =>
-        ' A periodic check is registered; its next run is approximate.',
-      BackgroundScheduleUnavailable() =>
-        ' The operating system schedule status is currently unavailable.',
+    if (!desiredEnabled) {
+      return 'Off.';
+    }
+    return switch (status) {
+      BackgroundScheduleUnsupported() => 'Unsupported on this platform.',
+      BackgroundScheduleInactive() => 'On, but no check is registered.',
+      BackgroundScheduleActive() => 'Checks about every 15 minutes.',
+      BackgroundScheduleUnavailable() => 'On. Schedule status unknown.',
     };
-    return '$desired$effective';
   }
 }
 
@@ -786,15 +708,11 @@ class _SettingsHeader extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            child: Text(
-              'Notification settings',
-              style: theme.textTheme.headlineMedium,
-            ),
+            child: Text('Settings', style: theme.textTheme.headlineMedium),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Preferences stay on this device. Operating systems may delay or '
-            'skip background work and reminders.',
+            'Saved on this device. Timing is best effort.',
             style: theme.textTheme.bodyLarge,
           ),
         ],
@@ -806,12 +724,12 @@ class _SettingsHeader extends StatelessWidget {
 class _SettingsSection extends StatelessWidget {
   const _SettingsSection({
     required this.title,
-    required this.description,
+    this.description,
     required this.children,
   });
 
   final String title;
-  final String description;
+  final String? description;
   final List<Widget> children;
 
   @override
@@ -837,16 +755,18 @@ class _SettingsSection extends StatelessWidget {
                 child: Text(title, style: theme.textTheme.titleLarge),
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Text(
-                description,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            if (description case final description?) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-            ),
+            ],
             if (children.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xs),
               ...children,

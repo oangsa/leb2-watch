@@ -37,7 +37,7 @@ class SynchronizationDiagnosticsRoute extends ConsumerWidget {
           ),
           loading: () => const AppStateView.loading(
             title: 'Opening synchronization diagnostics',
-            message: 'Reading operational state saved on this device.',
+            message: '',
           ),
         );
   }
