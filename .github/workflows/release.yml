@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.44.8'
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake libayatana-appindicator3-dev libgtk-3-dev \
+            libsecret-1-dev ninja-build pkg-config
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter config --enable-linux-desktop
+      - run: flutter pub get
+      - name: Build Linux release bundle
+        env:
+          BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+        run: |
+          case "$BACKEND_BASE_URL" in
+            https://*) ;;
+            *) echo 'Repository variable BACKEND_BASE_URL must be an https:// origin.' >&2; exit 1 ;;
+          esac
+          flutter build linux --release \
+            --dart-define=APP_ENV=production \
+            "--dart-define=BACKEND_BASE_URL=${BACKEND_BASE_URL}"
+      - name: Package bundle
+        run: |
+          mkdir -p dist
+          tar -czf "dist/leb2-watch-${GITHUB_REF_NAME}-linux-x64.tar.gz" \
+            -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux
+          path: dist/
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter config --enable-windows-desktop
+      - run: flutter pub get
+      - name: Build Windows release
+        shell: pwsh
+        env:
+          BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+        run: |
+          if ($env:BACKEND_BASE_URL -notlike 'https://*') {
+            throw 'Repository variable BACKEND_BASE_URL must be an https:// origin.'
+          }
+          flutter build windows --release `
+            --dart-define=APP_ENV=production `
+            "--dart-define=BACKEND_BASE_URL=$env:BACKEND_BASE_URL"
+      - name: Package release directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build/windows/x64/runner/Release/* `
+            -DestinationPath "dist/leb2-watch-$env:GITHUB_REF_NAME-windows-x64.zip"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows
+          path: dist/
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get
+      - name: Build Android release APK
+        env:
+          BACKEND_BASE_URL: ${{ vars.BACKEND_BASE_URL }}
+        run: |
+          case "$BACKEND_BASE_URL" in
+            https://*) ;;
+            *) echo 'Repository variable BACKEND_BASE_URL must be an https:// origin.' >&2; exit 1 ;;
+          esac
+          flutter build apk --release \
+            --dart-define=APP_ENV=production \
+            "--dart-define=BACKEND_BASE_URL=${BACKEND_BASE_URL}"
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          apk="$(find build/app/outputs -name '*-release*.apk' -print -quit)"
+          [ -n "$apk" ] || { echo 'No release APK produced.' >&2; exit 1; }
+          cp "$apk" "dist/leb2-watch-${GITHUB_REF_NAME}-android-unsigned.apk"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android
+          path: dist/
+
+  publish:
+    needs: [linux, windows, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/*/*

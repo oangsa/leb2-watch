@@ -38,6 +38,34 @@ native builds, or as complete Android runtime validation.
 - No platform uses push notifications, a privileged daemon, or an always-on
   foreground service.
 
+## Updates
+
+The app never installs anything by itself. The backend `/meta` response the
+app already reads at launch carries `latestClientVersion` and `downloadUrl`;
+when the installed version is lower, a dismissible global banner appears. No
+extra endpoint is contacted for update checks.
+
+| Platform | Update delivery | In-app behavior |
+| --- | --- | --- |
+| Android | Sideloaded APK; no Play Store | Banner opens `downloadUrl` in the browser |
+| Windows | Release artifact; no Microsoft Store | Banner opens `downloadUrl` in the browser |
+| Linux (Flatpak) | Flatpak; the sandbox cannot replace read-only `/app` | Banner tells the user to run `flatpak update` or use their software centre; no download button |
+| Linux (bundle) | Release artifact | Banner opens `downloadUrl` in the browser |
+| iOS | Not in development | No banner |
+| macOS | Not in development | No banner |
+
+Limitations:
+
+- The check is whatever the launch-time `/meta` request returned; an offline
+  launch shows no banner until the next launch.
+- A Flatpak build published to a remote may lag the published version, so the
+  banner can appear before `flatpak update` has the new version.
+- An Android update must keep the same application ID, signing certificate,
+  and a higher `versionCode`; install over the old app rather than
+  uninstalling first.
+- `downloadUrl` is validated where `/meta` is parsed: absolute `http` or
+  `https`, non-empty host, no user info.
+
 ## Android
 
 Android uses one unique WorkManager periodic request:
@@ -160,7 +188,8 @@ For this preview:
   reported unsupported without MSIX;
 - future deadline events use a local process timer and immediate show while the
   app remains alive; this is not an OS-retained schedule;
-- no MSIX, installer, update, signing, or store pipeline is configured; and
+- no MSIX, installer, self-installing update, signing, or store pipeline is
+  configured; the app only reports that a newer release exists; and
 - the complete `build/windows/x64/runner/Release` directory is the preview
   artifact, not `leb2-watch.exe` by itself.
 

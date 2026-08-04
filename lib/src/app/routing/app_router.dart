@@ -13,6 +13,7 @@ import '../../core/session/session_lifecycle.dart';
 import '../../features/authentication/presentation/session_setup_route.dart';
 import '../../features/compatibility/presentation/update_required_page.dart';
 import '../../features/authentication/domain/automatic_session_reauthentication.dart';
+import '../../features/app_update/app_update_banner.dart';
 import '../../features/assignments/dashboard/presentation/assignment_dashboard_route.dart';
 import '../../features/assignments/detail/presentation/assignment_detail_route.dart';
 import '../../features/courses/presentation/course_preferences_route.dart';
@@ -174,17 +175,31 @@ class _SessionAwareShell extends ConsumerWidget {
               .value
         : null;
     final message = _automaticReconnectMessage(attempt);
-    return AdaptiveAppShell(
-      navigationShell: navigationShell,
-      globalBanner: lifecycle?.state == SessionLifecycleState.expired
-          ? message == null
-                ? null
-                : AppStatusBanner.sessionExpired(
-                    key: const Key('session-expired-banner'),
-                    message: message,
-                    onAction: () => context.push(AppRoute.authentication.path),
-                  )
-          : null,
+    final sessionBanner = lifecycle?.state == SessionLifecycleState.expired
+        ? message == null
+              ? null
+              : AppStatusBanner.sessionExpired(
+                  key: const Key('session-expired-banner'),
+                  message: message,
+                  onAction: () => context.push(AppRoute.authentication.path),
+                )
+        : null;
+    final compatibility = ref.watch(backendCompatibilityControllerProvider);
+    final channel = ref.watch(appUpdateChannelProvider);
+    final dismissed = ref.watch(appUpdateBannerDismissedProvider);
+    return ListenableBuilder(
+      listenable: Listenable.merge([compatibility, dismissed]),
+      builder: (context, _) => AdaptiveAppShell(
+        navigationShell: navigationShell,
+        globalBanner:
+            sessionBanner ??
+            appUpdateBanner(
+              snapshot: compatibility.snapshot,
+              channel: channel,
+              dismissed: dismissed.value,
+              onDismiss: () => dismissed.value = true,
+            ),
+      ),
     );
   }
 }

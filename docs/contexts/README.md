@@ -4,6 +4,9 @@ Compact index of all feature context documents. Each directory contains a `COMPA
 
 ## Features
 
+### [App Update](app-update/COMPACT.md)
+Per-platform update channels and the update banner over backend compatibility metadata.
+
 ### [Assignments](assignments/COMPACT.md)
 Assignment lifecycle: sync from backend, local diffing and baseline tracking, detail view, and the local-first dashboard.
 
@@ -44,6 +47,7 @@ Sync retry and backoff policy, plus diagnostics covering sync, session, cache, a
 
 | Area | Context |
 |------|---------|
+| [app-update](app-update/COMPACT.md) | Merged context |
 | [assignments](assignments/COMPACT.md) | Merged context |
 | [backend](backend/COMPACT.md) | Merged context |
 | [database](database/COMPACT.md) | Merged context |
@@ -56,7 +60,7 @@ Sync retry and backoff policy, plus diagnostics covering sync, session, cache, a
 | [repository](repository/COMPACT.md) | Merged context |
 | [session](session/COMPACT.md) | Merged context |
 | [synchronization](synchronization/COMPACT.md) | Merged context |
-| **Total** | **12 area contexts** |
+| **Total** | **13 area contexts** |
 
 ## Usage
 

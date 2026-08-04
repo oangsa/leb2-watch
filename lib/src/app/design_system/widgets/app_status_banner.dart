@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_status_colors.dart';
 import '../app_tokens.dart';
 
-enum _AppStatusBannerKind { offline, stale, sessionExpired }
+enum _AppStatusBannerKind { offline, stale, sessionExpired, updateAvailable }
 
 class AppStatusBanner extends StatelessWidget {
   const AppStatusBanner.offline({
@@ -12,6 +12,8 @@ class AppStatusBanner extends StatelessWidget {
     this.onAction,
     super.key,
   }) : assert((actionLabel == null) == (onAction == null)),
+       secondaryActionLabel = null,
+       onSecondaryAction = null,
        _kind = _AppStatusBannerKind.offline;
 
   const AppStatusBanner.stale({
@@ -20,6 +22,8 @@ class AppStatusBanner extends StatelessWidget {
     this.onAction,
     super.key,
   }) : assert((actionLabel == null) == (onAction == null)),
+       secondaryActionLabel = null,
+       onSecondaryAction = null,
        _kind = _AppStatusBannerKind.stale;
 
   const AppStatusBanner.sessionExpired({
@@ -27,11 +31,26 @@ class AppStatusBanner extends StatelessWidget {
     this.actionLabel = 'Reconnect',
     required this.onAction,
     super.key,
-  }) : _kind = _AppStatusBannerKind.sessionExpired;
+  }) : secondaryActionLabel = null,
+       onSecondaryAction = null,
+       _kind = _AppStatusBannerKind.sessionExpired;
+
+  const AppStatusBanner.updateAvailable({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
+    super.key,
+  }) : assert((actionLabel == null) == (onAction == null)),
+       assert((secondaryActionLabel == null) == (onSecondaryAction == null)),
+       _kind = _AppStatusBannerKind.updateAvailable;
 
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
   final _AppStatusBannerKind _kind;
 
   @override
@@ -60,6 +79,12 @@ class AppStatusBanner extends StatelessWidget {
         statusColors.onWarningContainer,
         Icons.lock_clock_outlined,
         'Session expired',
+      ),
+      _AppStatusBannerKind.updateAvailable => (
+        statusColors.informationContainer,
+        statusColors.onInformationContainer,
+        Icons.system_update_outlined,
+        'Update available',
       ),
     };
 
@@ -99,14 +124,29 @@ class AppStatusBanner extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (actionLabel != null) ...[
+                    if (actionLabel != null ||
+                        secondaryActionLabel != null) ...[
                       const SizedBox(height: AppSpacing.xs),
-                      TextButton(
-                        onPressed: onAction,
-                        style: TextButton.styleFrom(
-                          foregroundColor: foregroundColor,
-                        ),
-                        child: Text(actionLabel!),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        children: [
+                          if (actionLabel != null)
+                            TextButton(
+                              onPressed: onAction,
+                              style: TextButton.styleFrom(
+                                foregroundColor: foregroundColor,
+                              ),
+                              child: Text(actionLabel!),
+                            ),
+                          if (secondaryActionLabel != null)
+                            TextButton(
+                              onPressed: onSecondaryAction,
+                              style: TextButton.styleFrom(
+                                foregroundColor: foregroundColor,
+                              ),
+                              child: Text(secondaryActionLabel!),
+                            ),
+                        ],
                       ),
                     ],
                   ],
