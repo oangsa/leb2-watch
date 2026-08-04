@@ -13,6 +13,13 @@ import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_p
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
 
+// Heartbeat-liveness fixtures run on the real clock against real database
+// files, so the lease has to outlast a loaded CI runner's scheduling and I/O
+// stalls or a healthy owner loses it. The observation window stays longer than
+// the lease so a broken heartbeat still surrenders ownership before the check.
+const _heartbeatLease = Duration(seconds: 1);
+const _pastLeaseExpiry = Duration(milliseconds: 1500);
+
 void main() {
   for (final mutation in _UndesiredMutation.values) {
     test(
@@ -167,18 +174,7 @@ void main() {
       DeadlineReminderCoordinator coordinator(
         AppDatabase database,
         String owner,
-      ) {
-        return DeadlineReminderCoordinator(
-          DriftDeadlineReminderStore(database),
-          notifications,
-          policy: DeadlineReminderSchedulingPolicy.android,
-          nowUtc: _movingFixtureClock(),
-          ownerTokenFactory: () => owner,
-          wait: (duration) => Future<void>.delayed(duration),
-          leaseDuration: const Duration(milliseconds: 300),
-          leaseHeartbeatFraction: 0.2,
-        );
-      }
+      ) => _shortLeaseCoordinator(database, notifications, owner);
 
       final first = coordinator(
         firstDatabase,
@@ -189,7 +185,7 @@ void main() {
         secondDatabase,
         'owner-b',
       ).reconcileAfterPreferenceChange();
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(_pastLeaseExpiry);
       final during = await secondDatabase
           .select(secondDatabase.deadlineReminderReconciliations)
           .getSingle();
@@ -231,7 +227,7 @@ void main() {
         secondDatabase,
         'owner-b',
       ).reconcileAfterPreferenceChange();
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(_pastLeaseExpiry);
       expect(
         (await secondDatabase
                 .select(secondDatabase.deadlineReminderReconciliations)
@@ -283,7 +279,7 @@ void main() {
         notifications,
         'owner-b',
       ).reconcileAfterPreferenceChange();
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(_pastLeaseExpiry);
       expect(
         (await secondDatabase
                 .select(secondDatabase.deadlineReminderReconciliations)
@@ -778,8 +774,8 @@ DeadlineReminderCoordinator _shortLeaseCoordinator(
     nowUtc: _movingFixtureClock(),
     ownerTokenFactory: () => owner,
     wait: (duration) => Future<void>.delayed(duration),
-    leaseDuration: const Duration(milliseconds: 300),
-    leaseHeartbeatFraction: 0.2,
+    leaseDuration: _heartbeatLease,
+    leaseHeartbeatFraction: 0.1,
   );
 }
 
