@@ -61,7 +61,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 18);
+      expect(database.schemaVersion, 19);
       expect(
         await database.select(database.notificationHistory).get(),
         hasLength(1),
@@ -75,7 +75,7 @@ void main() {
             .customSelect('PRAGMA user_version')
             .getSingle()
             .then((row) => row.read<int>('user_version')),
-        18,
+        19,
       );
     },
   );

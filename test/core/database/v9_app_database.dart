@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:leb2_watch/src/core/database/database_tables.dart';
 import 'package:leb2_watch/src/core/database/utc_date_time_converter.dart';
 
+import 'v8_app_database.dart';
+
 part 'v9_app_database.g.dart';
 
 @DriftDatabase(
@@ -12,7 +14,7 @@ part 'v9_app_database.g.dart';
     Activities,
     SeenActivities,
     ActivityFingerprints,
-    ScheduledReminders,
+    V8ScheduledReminders,
     NotificationHistory,
     SyncRuns,
     SyncOperations,

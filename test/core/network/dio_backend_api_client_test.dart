@@ -1402,6 +1402,7 @@ void _clockSkewTests() {
 
   Future<List<Duration>> observe({
     String? dateHeader,
+    String? ageHeader,
     Duration roundTrip = Duration.zero,
   }) async {
     final observed = <Duration>[];
@@ -1413,11 +1414,10 @@ void _clockSkewTests() {
         inFlight = true;
         return jsonResponse(
           const <int>[],
-          headers: dateHeader == null
-              ? const {}
-              : {
-                  'date': [dateHeader],
-                },
+          headers: {
+            if (dateHeader != null) 'date': [dateHeader],
+            if (ageHeader != null) 'age': [ageHeader],
+          },
         );
       }),
       utcNow: () => inFlight ? device.add(roundTrip) : device,
@@ -1455,6 +1455,40 @@ void _clockSkewTests() {
 
   test('an unparseable Date header reports nothing', () async {
     expect(await observe(dateHeader: 'not-a-date'), isEmpty);
+  });
+
+  test('a cached response reports nothing', () async {
+    // The `Date` a cache serves is the one it stored the entry under, so the
+    // reading would measure how stale the entry is, not this device's clock.
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 1))),
+        ageHeader: '3600',
+      ),
+      isEmpty,
+    );
+  });
+
+  test('a zero age still reports', () async {
+    // A CDN that stamps `Age: 0` on every miss must not disable the
+    // measurement everywhere.
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 3))),
+        ageHeader: '0',
+      ),
+      [const Duration(hours: -3)],
+    );
+  });
+
+  test('an unparseable Age header still reports', () async {
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 3))),
+        ageHeader: 'not-a-number',
+      ),
+      [const Duration(hours: -3)],
+    );
   });
 
   test('a slow round trip reports nothing', () async {

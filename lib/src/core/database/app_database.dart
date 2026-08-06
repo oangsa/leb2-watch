@@ -124,7 +124,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +134,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 17 || to != 18) {
+        if (from < 1 || from > 18 || to != 19) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -229,14 +229,19 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  /// Adds the column reminders record their clock correction in.
+  /// Adds the column a reminder records the clock correction it was placed
+  /// under in.
   ///
-  /// Probed rather than added outright: the schemas at or below 7 create the
+  /// Probed rather than added outright: the schemas at or below 2 rebuild the
   /// table from its current definition during this same upgrade, so it already
   /// carries the column by the time this runs.
+  ///
+  /// Zero for existing rows is accurate, not merely safe — no build that
+  /// shipped these schemas corrected the clock at all, so every alarm they
+  /// handed the OS was placed uncorrected.
   Future<void> _ensureClockOffsetColumn() async {
     final columns = await customSelect(
-      'PRAGMA table_info(deadline_reminder_reconciliations)',
+      'PRAGMA table_info(scheduled_reminders)',
     ).get();
     final hasClockOffsetColumn = columns.any(
       (column) => column.read<String>('name') == 'clock_offset_microseconds',
@@ -245,7 +250,7 @@ class AppDatabase extends _$AppDatabase {
       return;
     }
     await customStatement(
-      'ALTER TABLE deadline_reminder_reconciliations '
+      'ALTER TABLE scheduled_reminders '
       'ADD COLUMN clock_offset_microseconds INTEGER NOT NULL DEFAULT 0',
     );
   }
@@ -390,6 +395,9 @@ class AppDatabase extends _$AppDatabase {
         newColumns: [
           scheduledReminders.needsReconciliation,
           scheduledReminders.scheduleState,
+          // Rebuilt from the current definition, so every column the old table
+          // lacks has to be named here or drift selects it from the old one.
+          scheduledReminders.clockOffsetMicroseconds,
         ],
       ),
     );

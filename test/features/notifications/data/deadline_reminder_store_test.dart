@@ -13,13 +13,16 @@ import 'package:leb2_watch/src/features/notifications/domain/local_notification_
 void main() {
   late AppDatabase database;
   late DriftDeadlineReminderStore store;
+  late Duration placedOffset;
   final now = DateTime.utc(2026, 8, 1, 10);
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
+    placedOffset = Duration.zero;
     store = DriftDeadlineReminderStore(
       database,
       idFactory: const LocalNotificationIdFactory(),
+      clockOffset: () => placedOffset,
     );
     await _seedAssignment(
       database,
@@ -505,12 +508,114 @@ void main() {
     }
   });
 
+  test(
+    'alarms placed before the first measurement of a launch are still swept',
+    () async {
+      // A launch measures the correction and hands every alarm over under it.
+      placedOffset = const Duration(hours: 2);
+      await store.adoptClockOffset(placedOffset);
+      await _reconcile(store, ownerToken: 'owner-a', nowUtc: now);
+
+      // The next launch restarts the in-memory correction at zero. A newly
+      // synced assignment is reconciled by a preference change before the
+      // first backend response has measured anything, so its alarm goes out
+      // uncorrected.
+      placedOffset = Duration.zero;
+      await _seedAssignment(
+        database,
+        semesterId: 101,
+        courseId: 3001,
+        activityId: 1002,
+        dueDateSource: '2026-08-03T12:00:00Z',
+      );
+      final placed = await _reconcile(
+        store,
+        ownerToken: 'owner-b',
+        nowUtc: now,
+      );
+      expect(placed, isNotEmpty);
+
+      // The measurement matches what the *earlier* launch placed under, so
+      // only a record written where each alarm was placed can spot that this
+      // one was not.
+      expect(
+        await store.adoptClockOffset(const Duration(hours: 2)),
+        isNot(equals(null)),
+      );
+    },
+  );
+
+  test(
+    'a partial pass leaves the alarms it never touched open to the sweep',
+    () async {
+      // A launch measures the device two hours slow and hands every alarm over
+      // corrected by it.
+      placedOffset = const Duration(hours: 2);
+      expect(await store.adoptClockOffset(placedOffset), equals(null));
+      final corrected = await _reconcile(
+        store,
+        ownerToken: 'owner-a',
+        nowUtc: now,
+      );
+      expect(corrected, isNotEmpty);
+
+      // The user repairs the clock while the app is closed. The next launch
+      // starts at zero, and a preference change reconciles a newly synced
+      // assignment before the first backend response — so that alarm alone
+      // goes out uncorrected, and the ones already `scheduled` are left alone.
+      placedOffset = Duration.zero;
+      await _seedAssignment(
+        database,
+        semesterId: 101,
+        courseId: 3001,
+        activityId: 1002,
+        dueDateSource: '2026-08-03T12:00:00Z',
+      );
+      final partial = await _reconcile(
+        store,
+        ownerToken: 'owner-b',
+        nowUtc: now,
+      );
+      expect(partial, isNotEmpty);
+      expect(partial.toSet().intersection(corrected.toSet()), isEmpty);
+
+      // The measurement now agrees with what that partial pass placed. One
+      // offset recorded for the whole reconciliation would read as no movement
+      // and leave the two-hour alarms the pass never touched firing wrong.
+      final requested = await store.adoptClockOffset(Duration.zero);
+      expect(requested, isNot(equals(null)));
+      await store.tryClaim(
+        ownerToken: 'owner-c',
+        nowUtc: now,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      final replanned = await store.plan(
+        ownerToken: 'owner-c',
+        generation: requested!,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      expect(
+        replanned.schedules.map((item) => item.request.id.value).toSet(),
+        corrected.toSet(),
+      );
+    },
+  );
+
   test('a clock correction with nothing scheduled requests no work', () async {
-    expect(await store.adoptClockOffset(const Duration(hours: 2)), equals(null));
+    expect(
+      await store.adoptClockOffset(const Duration(hours: 2)),
+      equals(null),
+    );
   });
 
   test('re-measuring the same correction leaves the alarms alone', () async {
-    await store.adoptClockOffset(const Duration(hours: 2));
+    placedOffset = const Duration(hours: 2);
+    expect(
+      await _reconcile(store, ownerToken: 'owner-a', nowUtc: now),
+      isNotEmpty,
+    );
 
     // Same offset, and a drift under the deadband: the alarms the OS holds
     // were placed under this correction and are still right.
@@ -531,28 +636,13 @@ void main() {
     () async {
       // A previous launch measured the device two hours slow and handed every
       // alarm over corrected by it.
-      final generation = await store.requestGeneration();
-      await store.tryClaim(
+      placedOffset = const Duration(hours: 2);
+      final placed = await _reconcile(
+        store,
         ownerToken: 'owner-a',
         nowUtc: now,
-        leaseDuration: const Duration(minutes: 1),
       );
-      final plan = await store.plan(
-        ownerToken: 'owner-a',
-        generation: generation,
-        nowUtc: now,
-        policy: DeadlineReminderSchedulingPolicy.android,
-        leaseDuration: const Duration(minutes: 1),
-      );
-      expect(plan.schedules, isNotEmpty);
-      await store.adoptClockOffset(const Duration(hours: 2));
-      for (final item in plan.schedules) {
-        await store.markScheduled(
-          ownerToken: 'owner-a',
-          generation: generation,
-          item: item,
-        );
-      }
+      expect(placed, isNotEmpty);
 
       // The user fixes the clock while the app is closed, so the next launch
       // measures no skew at all. Its in-memory offset also starts at zero, so
@@ -561,16 +651,21 @@ void main() {
       final requested = await store.adoptClockOffset(Duration.zero);
 
       expect(requested, isNot(equals(null)));
+      await store.tryClaim(
+        ownerToken: 'owner-b',
+        nowUtc: now,
+        leaseDuration: const Duration(minutes: 1),
+      );
       final replanned = await store.plan(
-        ownerToken: 'owner-a',
+        ownerToken: 'owner-b',
         generation: requested!,
         nowUtc: now,
         policy: DeadlineReminderSchedulingPolicy.android,
         leaseDuration: const Duration(minutes: 1),
       );
       expect(
-        replanned.schedules.map((item) => item.request.id.value),
-        plan.schedules.map((item) => item.request.id.value),
+        replanned.schedules.map((item) => item.request.id.value).toSet(),
+        placed.toSet(),
       );
     },
   );
@@ -1223,6 +1318,41 @@ AppDatabase _fileDatabase(File file) {
       },
     ),
   );
+}
+
+/// Drives one full reconciliation and returns the ids handed to the platform.
+Future<List<int>> _reconcile(
+  DriftDeadlineReminderStore store, {
+  required String ownerToken,
+  required DateTime nowUtc,
+}) async {
+  const lease = Duration(minutes: 1);
+  final generation = await store.requestGeneration();
+  await store.tryClaim(
+    ownerToken: ownerToken,
+    nowUtc: nowUtc,
+    leaseDuration: lease,
+  );
+  final plan = await store.plan(
+    ownerToken: ownerToken,
+    generation: generation,
+    nowUtc: nowUtc,
+    policy: DeadlineReminderSchedulingPolicy.android,
+    leaseDuration: lease,
+  );
+  for (final item in plan.schedules) {
+    await store.markScheduled(
+      ownerToken: ownerToken,
+      generation: generation,
+      item: item,
+    );
+  }
+  await store.completeGeneration(
+    ownerToken: ownerToken,
+    generation: generation,
+  );
+  await store.release(ownerToken: ownerToken);
+  return plan.schedules.map((item) => item.request.id.value).toList();
 }
 
 Future<void> _seedAssignment(

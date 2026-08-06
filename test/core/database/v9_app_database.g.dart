@@ -3539,12 +3539,12 @@ class ActivityFingerprintsCompanion
   }
 }
 
-class $ScheduledRemindersTable extends ScheduledReminders
-    with TableInfo<$ScheduledRemindersTable, ScheduledReminder> {
+class $V8ScheduledRemindersTable extends V8ScheduledReminders
+    with TableInfo<$V8ScheduledRemindersTable, V8ScheduledReminder> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $ScheduledRemindersTable(this.attachedDatabase, [this._alias]);
+  $V8ScheduledRemindersTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _notificationIdMeta = const VerificationMeta(
     'notificationId',
   );
@@ -3598,7 +3598,7 @@ class $ScheduledRemindersTable extends ScheduledReminders
         type: DriftSqlType.int,
         requiredDuringInsert: true,
       ).withConverter<DateTime>(
-        $ScheduledRemindersTable.$converterdeadlineAtUtc,
+        $V8ScheduledRemindersTable.$converterdeadlineAtUtc,
       );
   @override
   late final GeneratedColumnWithTypeConverter<DateTime, int> scheduledForUtc =
@@ -3609,7 +3609,7 @@ class $ScheduledRemindersTable extends ScheduledReminders
         type: DriftSqlType.int,
         requiredDuringInsert: true,
       ).withConverter<DateTime>(
-        $ScheduledRemindersTable.$converterscheduledForUtc,
+        $V8ScheduledRemindersTable.$converterscheduledForUtc,
       );
   @override
   late final GeneratedColumnWithTypeConverter<DateTime, int> createdAtUtc =
@@ -3620,7 +3620,7 @@ class $ScheduledRemindersTable extends ScheduledReminders
         type: DriftSqlType.int,
         requiredDuringInsert: true,
       ).withConverter<DateTime>(
-        $ScheduledRemindersTable.$convertercreatedAtUtc,
+        $V8ScheduledRemindersTable.$convertercreatedAtUtc,
       );
   static const VerificationMeta _needsReconciliationMeta =
       const VerificationMeta('needsReconciliation');
@@ -3667,7 +3667,7 @@ class $ScheduledRemindersTable extends ScheduledReminders
   static const String $name = 'scheduled_reminders';
   @override
   VerificationContext validateIntegrity(
-    Insertable<ScheduledReminder> instance, {
+    Insertable<V8ScheduledReminder> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -3735,9 +3735,9 @@ class $ScheduledRemindersTable extends ScheduledReminders
   @override
   Set<GeneratedColumn> get $primaryKey => {notificationId};
   @override
-  ScheduledReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+  V8ScheduledReminder map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ScheduledReminder(
+    return V8ScheduledReminder(
       notificationId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}notification_id'],
@@ -3754,20 +3754,20 @@ class $ScheduledRemindersTable extends ScheduledReminders
         DriftSqlType.int,
         data['${effectivePrefix}offset_minutes'],
       )!,
-      deadlineAtUtc: $ScheduledRemindersTable.$converterdeadlineAtUtc.fromSql(
+      deadlineAtUtc: $V8ScheduledRemindersTable.$converterdeadlineAtUtc.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
           data['${effectivePrefix}deadline_at_utc'],
         )!,
       ),
-      scheduledForUtc: $ScheduledRemindersTable.$converterscheduledForUtc
+      scheduledForUtc: $V8ScheduledRemindersTable.$converterscheduledForUtc
           .fromSql(
             attachedDatabase.typeMapping.read(
               DriftSqlType.int,
               data['${effectivePrefix}scheduled_for_utc'],
             )!,
           ),
-      createdAtUtc: $ScheduledRemindersTable.$convertercreatedAtUtc.fromSql(
+      createdAtUtc: $V8ScheduledRemindersTable.$convertercreatedAtUtc.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
           data['${effectivePrefix}created_at_utc'],
@@ -3785,8 +3785,8 @@ class $ScheduledRemindersTable extends ScheduledReminders
   }
 
   @override
-  $ScheduledRemindersTable createAlias(String alias) {
-    return $ScheduledRemindersTable(attachedDatabase, alias);
+  $V8ScheduledRemindersTable createAlias(String alias) {
+    return $V8ScheduledRemindersTable(attachedDatabase, alias);
   }
 
   static TypeConverter<DateTime, int> $converterdeadlineAtUtc =
@@ -3797,8 +3797,8 @@ class $ScheduledRemindersTable extends ScheduledReminders
       const UtcDateTimeConverter();
 }
 
-class ScheduledReminder extends DataClass
-    implements Insertable<ScheduledReminder> {
+class V8ScheduledReminder extends DataClass
+    implements Insertable<V8ScheduledReminder> {
   final int notificationId;
   final int semesterId;
   final String identityKey;
@@ -3808,7 +3808,7 @@ class ScheduledReminder extends DataClass
   final DateTime createdAtUtc;
   final bool needsReconciliation;
   final String scheduleState;
-  const ScheduledReminder({
+  const V8ScheduledReminder({
     required this.notificationId,
     required this.semesterId,
     required this.identityKey,
@@ -3828,19 +3828,19 @@ class ScheduledReminder extends DataClass
     map['offset_minutes'] = Variable<int>(offsetMinutes);
     {
       map['deadline_at_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$converterdeadlineAtUtc.toSql(deadlineAtUtc),
+        $V8ScheduledRemindersTable.$converterdeadlineAtUtc.toSql(deadlineAtUtc),
       );
     }
     {
       map['scheduled_for_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$converterscheduledForUtc.toSql(
+        $V8ScheduledRemindersTable.$converterscheduledForUtc.toSql(
           scheduledForUtc,
         ),
       );
     }
     {
       map['created_at_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$convertercreatedAtUtc.toSql(createdAtUtc),
+        $V8ScheduledRemindersTable.$convertercreatedAtUtc.toSql(createdAtUtc),
       );
     }
     map['needs_reconciliation'] = Variable<bool>(needsReconciliation);
@@ -3848,8 +3848,8 @@ class ScheduledReminder extends DataClass
     return map;
   }
 
-  ScheduledRemindersCompanion toCompanion(bool nullToAbsent) {
-    return ScheduledRemindersCompanion(
+  V8ScheduledRemindersCompanion toCompanion(bool nullToAbsent) {
+    return V8ScheduledRemindersCompanion(
       notificationId: Value(notificationId),
       semesterId: Value(semesterId),
       identityKey: Value(identityKey),
@@ -3862,12 +3862,12 @@ class ScheduledReminder extends DataClass
     );
   }
 
-  factory ScheduledReminder.fromJson(
+  factory V8ScheduledReminder.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ScheduledReminder(
+    return V8ScheduledReminder(
       notificationId: serializer.fromJson<int>(json['notificationId']),
       semesterId: serializer.fromJson<int>(json['semesterId']),
       identityKey: serializer.fromJson<String>(json['identityKey']),
@@ -3897,7 +3897,7 @@ class ScheduledReminder extends DataClass
     };
   }
 
-  ScheduledReminder copyWith({
+  V8ScheduledReminder copyWith({
     int? notificationId,
     int? semesterId,
     String? identityKey,
@@ -3907,7 +3907,7 @@ class ScheduledReminder extends DataClass
     DateTime? createdAtUtc,
     bool? needsReconciliation,
     String? scheduleState,
-  }) => ScheduledReminder(
+  }) => V8ScheduledReminder(
     notificationId: notificationId ?? this.notificationId,
     semesterId: semesterId ?? this.semesterId,
     identityKey: identityKey ?? this.identityKey,
@@ -3918,8 +3918,8 @@ class ScheduledReminder extends DataClass
     needsReconciliation: needsReconciliation ?? this.needsReconciliation,
     scheduleState: scheduleState ?? this.scheduleState,
   );
-  ScheduledReminder copyWithCompanion(ScheduledRemindersCompanion data) {
-    return ScheduledReminder(
+  V8ScheduledReminder copyWithCompanion(V8ScheduledRemindersCompanion data) {
+    return V8ScheduledReminder(
       notificationId: data.notificationId.present
           ? data.notificationId.value
           : this.notificationId,
@@ -3952,7 +3952,7 @@ class ScheduledReminder extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('ScheduledReminder(')
+    return (StringBuffer('V8ScheduledReminder(')
           ..write('notificationId: $notificationId, ')
           ..write('semesterId: $semesterId, ')
           ..write('identityKey: $identityKey, ')
@@ -3981,7 +3981,7 @@ class ScheduledReminder extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ScheduledReminder &&
+      (other is V8ScheduledReminder &&
           other.notificationId == this.notificationId &&
           other.semesterId == this.semesterId &&
           other.identityKey == this.identityKey &&
@@ -3993,7 +3993,8 @@ class ScheduledReminder extends DataClass
           other.scheduleState == this.scheduleState);
 }
 
-class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
+class V8ScheduledRemindersCompanion
+    extends UpdateCompanion<V8ScheduledReminder> {
   final Value<int> notificationId;
   final Value<int> semesterId;
   final Value<String> identityKey;
@@ -4003,7 +4004,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
   final Value<DateTime> createdAtUtc;
   final Value<bool> needsReconciliation;
   final Value<String> scheduleState;
-  const ScheduledRemindersCompanion({
+  const V8ScheduledRemindersCompanion({
     this.notificationId = const Value.absent(),
     this.semesterId = const Value.absent(),
     this.identityKey = const Value.absent(),
@@ -4014,7 +4015,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     this.needsReconciliation = const Value.absent(),
     this.scheduleState = const Value.absent(),
   });
-  ScheduledRemindersCompanion.insert({
+  V8ScheduledRemindersCompanion.insert({
     this.notificationId = const Value.absent(),
     required int semesterId,
     required String identityKey,
@@ -4030,7 +4031,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
        deadlineAtUtc = Value(deadlineAtUtc),
        scheduledForUtc = Value(scheduledForUtc),
        createdAtUtc = Value(createdAtUtc);
-  static Insertable<ScheduledReminder> custom({
+  static Insertable<V8ScheduledReminder> custom({
     Expression<int>? notificationId,
     Expression<int>? semesterId,
     Expression<String>? identityKey,
@@ -4055,7 +4056,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     });
   }
 
-  ScheduledRemindersCompanion copyWith({
+  V8ScheduledRemindersCompanion copyWith({
     Value<int>? notificationId,
     Value<int>? semesterId,
     Value<String>? identityKey,
@@ -4066,7 +4067,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Value<bool>? needsReconciliation,
     Value<String>? scheduleState,
   }) {
-    return ScheduledRemindersCompanion(
+    return V8ScheduledRemindersCompanion(
       notificationId: notificationId ?? this.notificationId,
       semesterId: semesterId ?? this.semesterId,
       identityKey: identityKey ?? this.identityKey,
@@ -4096,21 +4097,21 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     }
     if (deadlineAtUtc.present) {
       map['deadline_at_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$converterdeadlineAtUtc.toSql(
+        $V8ScheduledRemindersTable.$converterdeadlineAtUtc.toSql(
           deadlineAtUtc.value,
         ),
       );
     }
     if (scheduledForUtc.present) {
       map['scheduled_for_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$converterscheduledForUtc.toSql(
+        $V8ScheduledRemindersTable.$converterscheduledForUtc.toSql(
           scheduledForUtc.value,
         ),
       );
     }
     if (createdAtUtc.present) {
       map['created_at_utc'] = Variable<int>(
-        $ScheduledRemindersTable.$convertercreatedAtUtc.toSql(
+        $V8ScheduledRemindersTable.$convertercreatedAtUtc.toSql(
           createdAtUtc.value,
         ),
       );
@@ -4126,7 +4127,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
 
   @override
   String toString() {
-    return (StringBuffer('ScheduledRemindersCompanion(')
+    return (StringBuffer('V8ScheduledRemindersCompanion(')
           ..write('notificationId: $notificationId, ')
           ..write('semesterId: $semesterId, ')
           ..write('identityKey: $identityKey, ')
@@ -7743,18 +7744,6 @@ class $DeadlineReminderReconciliationsTable
         ),
         defaultValue: const Constant(false),
       );
-  static const VerificationMeta _clockOffsetMicrosecondsMeta =
-      const VerificationMeta('clockOffsetMicroseconds');
-  @override
-  late final GeneratedColumn<int> clockOffsetMicroseconds =
-      GeneratedColumn<int>(
-        'clock_offset_microseconds',
-        aliasedName,
-        false,
-        type: DriftSqlType.int,
-        requiredDuringInsert: false,
-        defaultValue: const Constant(0),
-      );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -7763,7 +7752,6 @@ class $DeadlineReminderReconciliationsTable
     ownerToken,
     leaseExpiresAtUtc,
     backgroundEffectsOnly,
-    clockOffsetMicroseconds,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7819,15 +7807,6 @@ class $DeadlineReminderReconciliationsTable
         ),
       );
     }
-    if (data.containsKey('clock_offset_microseconds')) {
-      context.handle(
-        _clockOffsetMicrosecondsMeta,
-        clockOffsetMicroseconds.isAcceptableOrUnknown(
-          data['clock_offset_microseconds']!,
-          _clockOffsetMicrosecondsMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -7868,10 +7847,6 @@ class $DeadlineReminderReconciliationsTable
         DriftSqlType.bool,
         data['${effectivePrefix}background_effects_only'],
       )!,
-      clockOffsetMicroseconds: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}clock_offset_microseconds'],
-      )!,
     );
   }
 
@@ -7894,16 +7869,6 @@ class DeadlineReminderReconciliation extends DataClass
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
   final bool backgroundEffectsOnly;
-
-  /// The clock correction the reminders the OS currently holds were placed
-  /// under.
-  ///
-  /// The instant handed to the OS is device time, so it only stays right while
-  /// the correction does. This has to outlive the process: the in-memory
-  /// offset restarts at zero every launch, so without a durable record a
-  /// device clock repaired between launches looks like no change at all and
-  /// the stale alarms are never re-placed.
-  final int clockOffsetMicroseconds;
   const DeadlineReminderReconciliation({
     required this.singletonId,
     required this.requestedGeneration,
@@ -7911,7 +7876,6 @@ class DeadlineReminderReconciliation extends DataClass
     this.ownerToken,
     this.leaseExpiresAtUtc,
     required this.backgroundEffectsOnly,
-    required this.clockOffsetMicroseconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7929,7 +7893,6 @@ class DeadlineReminderReconciliation extends DataClass
       );
     }
     map['background_effects_only'] = Variable<bool>(backgroundEffectsOnly);
-    map['clock_offset_microseconds'] = Variable<int>(clockOffsetMicroseconds);
     return map;
   }
 
@@ -7945,7 +7908,6 @@ class DeadlineReminderReconciliation extends DataClass
           ? const Value.absent()
           : Value(leaseExpiresAtUtc),
       backgroundEffectsOnly: Value(backgroundEffectsOnly),
-      clockOffsetMicroseconds: Value(clockOffsetMicroseconds),
     );
   }
 
@@ -7969,9 +7931,6 @@ class DeadlineReminderReconciliation extends DataClass
       backgroundEffectsOnly: serializer.fromJson<bool>(
         json['backgroundEffectsOnly'],
       ),
-      clockOffsetMicroseconds: serializer.fromJson<int>(
-        json['clockOffsetMicroseconds'],
-      ),
     );
   }
   @override
@@ -7984,9 +7943,6 @@ class DeadlineReminderReconciliation extends DataClass
       'ownerToken': serializer.toJson<String?>(ownerToken),
       'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
       'backgroundEffectsOnly': serializer.toJson<bool>(backgroundEffectsOnly),
-      'clockOffsetMicroseconds': serializer.toJson<int>(
-        clockOffsetMicroseconds,
-      ),
     };
   }
 
@@ -7997,7 +7953,6 @@ class DeadlineReminderReconciliation extends DataClass
     Value<String?> ownerToken = const Value.absent(),
     Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
     bool? backgroundEffectsOnly,
-    int? clockOffsetMicroseconds,
   }) => DeadlineReminderReconciliation(
     singletonId: singletonId ?? this.singletonId,
     requestedGeneration: requestedGeneration ?? this.requestedGeneration,
@@ -8007,8 +7962,6 @@ class DeadlineReminderReconciliation extends DataClass
         ? leaseExpiresAtUtc.value
         : this.leaseExpiresAtUtc,
     backgroundEffectsOnly: backgroundEffectsOnly ?? this.backgroundEffectsOnly,
-    clockOffsetMicroseconds:
-        clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
   );
   DeadlineReminderReconciliation copyWithCompanion(
     DeadlineReminderReconciliationsCompanion data,
@@ -8032,9 +7985,6 @@ class DeadlineReminderReconciliation extends DataClass
       backgroundEffectsOnly: data.backgroundEffectsOnly.present
           ? data.backgroundEffectsOnly.value
           : this.backgroundEffectsOnly,
-      clockOffsetMicroseconds: data.clockOffsetMicroseconds.present
-          ? data.clockOffsetMicroseconds.value
-          : this.clockOffsetMicroseconds,
     );
   }
 
@@ -8046,8 +7996,7 @@ class DeadlineReminderReconciliation extends DataClass
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('backgroundEffectsOnly: $backgroundEffectsOnly, ')
-          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
           ..write(')'))
         .toString();
   }
@@ -8060,7 +8009,6 @@ class DeadlineReminderReconciliation extends DataClass
     ownerToken,
     leaseExpiresAtUtc,
     backgroundEffectsOnly,
-    clockOffsetMicroseconds,
   );
   @override
   bool operator ==(Object other) =>
@@ -8071,8 +8019,7 @@ class DeadlineReminderReconciliation extends DataClass
           other.completedGeneration == this.completedGeneration &&
           other.ownerToken == this.ownerToken &&
           other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
-          other.backgroundEffectsOnly == this.backgroundEffectsOnly &&
-          other.clockOffsetMicroseconds == this.clockOffsetMicroseconds);
+          other.backgroundEffectsOnly == this.backgroundEffectsOnly);
 }
 
 class DeadlineReminderReconciliationsCompanion
@@ -8083,7 +8030,6 @@ class DeadlineReminderReconciliationsCompanion
   final Value<String?> ownerToken;
   final Value<DateTime?> leaseExpiresAtUtc;
   final Value<bool> backgroundEffectsOnly;
-  final Value<int> clockOffsetMicroseconds;
   const DeadlineReminderReconciliationsCompanion({
     this.singletonId = const Value.absent(),
     this.requestedGeneration = const Value.absent(),
@@ -8091,7 +8037,6 @@ class DeadlineReminderReconciliationsCompanion
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.backgroundEffectsOnly = const Value.absent(),
-    this.clockOffsetMicroseconds = const Value.absent(),
   });
   DeadlineReminderReconciliationsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -8100,7 +8045,6 @@ class DeadlineReminderReconciliationsCompanion
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.backgroundEffectsOnly = const Value.absent(),
-    this.clockOffsetMicroseconds = const Value.absent(),
   });
   static Insertable<DeadlineReminderReconciliation> custom({
     Expression<int>? singletonId,
@@ -8109,7 +8053,6 @@ class DeadlineReminderReconciliationsCompanion
     Expression<String>? ownerToken,
     Expression<int>? leaseExpiresAtUtc,
     Expression<bool>? backgroundEffectsOnly,
-    Expression<int>? clockOffsetMicroseconds,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -8121,8 +8064,6 @@ class DeadlineReminderReconciliationsCompanion
       if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
       if (backgroundEffectsOnly != null)
         'background_effects_only': backgroundEffectsOnly,
-      if (clockOffsetMicroseconds != null)
-        'clock_offset_microseconds': clockOffsetMicroseconds,
     });
   }
 
@@ -8133,7 +8074,6 @@ class DeadlineReminderReconciliationsCompanion
     Value<String?>? ownerToken,
     Value<DateTime?>? leaseExpiresAtUtc,
     Value<bool>? backgroundEffectsOnly,
-    Value<int>? clockOffsetMicroseconds,
   }) {
     return DeadlineReminderReconciliationsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -8143,8 +8083,6 @@ class DeadlineReminderReconciliationsCompanion
       leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
       backgroundEffectsOnly:
           backgroundEffectsOnly ?? this.backgroundEffectsOnly,
-      clockOffsetMicroseconds:
-          clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
     );
   }
 
@@ -8174,11 +8112,6 @@ class DeadlineReminderReconciliationsCompanion
         backgroundEffectsOnly.value,
       );
     }
-    if (clockOffsetMicroseconds.present) {
-      map['clock_offset_microseconds'] = Variable<int>(
-        clockOffsetMicroseconds.value,
-      );
-    }
     return map;
   }
 
@@ -8190,8 +8123,7 @@ class DeadlineReminderReconciliationsCompanion
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('backgroundEffectsOnly: $backgroundEffectsOnly, ')
-          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
           ..write(')'))
         .toString();
   }
@@ -8883,8 +8815,8 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
   late final $SeenActivitiesTable seenActivities = $SeenActivitiesTable(this);
   late final $ActivityFingerprintsTable activityFingerprints =
       $ActivityFingerprintsTable(this);
-  late final $ScheduledRemindersTable scheduledReminders =
-      $ScheduledRemindersTable(this);
+  late final $V8ScheduledRemindersTable v8ScheduledReminders =
+      $V8ScheduledRemindersTable(this);
   late final $NotificationHistoryTable notificationHistory =
       $NotificationHistoryTable(this);
   late final $SyncRunsTable syncRuns = $SyncRunsTable(this);
@@ -8917,22 +8849,6 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
   late final Index activityFingerprintsByValue = Index(
     'activity_fingerprints_by_value',
     'CREATE UNIQUE INDEX activity_fingerprints_by_value ON activity_fingerprints (semester_id, fingerprint_version, fingerprint)',
-  );
-  late final Index scheduledRemindersByAssignmentOffset = Index(
-    'scheduled_reminders_by_assignment_offset',
-    'CREATE UNIQUE INDEX scheduled_reminders_by_assignment_offset ON scheduled_reminders (semester_id, identity_key, offset_minutes)',
-  );
-  late final Index scheduledRemindersByScheduledTime = Index(
-    'scheduled_reminders_by_scheduled_time',
-    'CREATE INDEX scheduled_reminders_by_scheduled_time ON scheduled_reminders (scheduled_for_utc)',
-  );
-  late final Index scheduledRemindersEventVersion = Index(
-    'scheduled_reminders_event_version',
-    'CREATE UNIQUE INDEX scheduled_reminders_event_version ON scheduled_reminders (notification_id, semester_id, identity_key, offset_minutes, deadline_at_utc, scheduled_for_utc)',
-  );
-  late final Index scheduledRemindersPendingReconciliation = Index(
-    'scheduled_reminders_pending_reconciliation',
-    'CREATE INDEX scheduled_reminders_pending_reconciliation ON scheduled_reminders (semester_id, identity_key) WHERE needs_reconciliation = 1',
   );
   late final Index notificationHistoryByAssignmentKind = Index(
     'notification_history_by_assignment_kind',
@@ -8977,7 +8893,7 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
     activities,
     seenActivities,
     activityFingerprints,
-    scheduledReminders,
+    v8ScheduledReminders,
     notificationHistory,
     syncRuns,
     syncOperations,
@@ -8992,10 +8908,6 @@ abstract class _$V9AppDatabase extends GeneratedDatabase {
     activitiesByCourse,
     seenActivitiesByCourseAndLastSeen,
     activityFingerprintsByValue,
-    scheduledRemindersByAssignmentOffset,
-    scheduledRemindersByScheduledTime,
-    scheduledRemindersEventVersion,
-    scheduledRemindersPendingReconciliation,
     notificationHistoryByAssignmentKind,
     syncRunsByStartedTime,
     syncOperationsOneRunning,
@@ -10715,8 +10627,8 @@ typedef $$ActivityFingerprintsTableProcessedTableManager =
       ActivityFingerprint,
       PrefetchHooks Function()
     >;
-typedef $$ScheduledRemindersTableCreateCompanionBuilder =
-    ScheduledRemindersCompanion Function({
+typedef $$V8ScheduledRemindersTableCreateCompanionBuilder =
+    V8ScheduledRemindersCompanion Function({
       Value<int> notificationId,
       required int semesterId,
       required String identityKey,
@@ -10727,8 +10639,8 @@ typedef $$ScheduledRemindersTableCreateCompanionBuilder =
       Value<bool> needsReconciliation,
       Value<String> scheduleState,
     });
-typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
-    ScheduledRemindersCompanion Function({
+typedef $$V8ScheduledRemindersTableUpdateCompanionBuilder =
+    V8ScheduledRemindersCompanion Function({
       Value<int> notificationId,
       Value<int> semesterId,
       Value<String> identityKey,
@@ -10740,9 +10652,9 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
       Value<String> scheduleState,
     });
 
-class $$ScheduledRemindersTableFilterComposer
-    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
-  $$ScheduledRemindersTableFilterComposer({
+class $$V8ScheduledRemindersTableFilterComposer
+    extends Composer<_$V9AppDatabase, $V8ScheduledRemindersTable> {
+  $$V8ScheduledRemindersTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -10798,9 +10710,9 @@ class $$ScheduledRemindersTableFilterComposer
   );
 }
 
-class $$ScheduledRemindersTableOrderingComposer
-    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
-  $$ScheduledRemindersTableOrderingComposer({
+class $$V8ScheduledRemindersTableOrderingComposer
+    extends Composer<_$V9AppDatabase, $V8ScheduledRemindersTable> {
+  $$V8ScheduledRemindersTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -10853,9 +10765,9 @@ class $$ScheduledRemindersTableOrderingComposer
   );
 }
 
-class $$ScheduledRemindersTableAnnotationComposer
-    extends Composer<_$V9AppDatabase, $ScheduledRemindersTable> {
-  $$ScheduledRemindersTableAnnotationComposer({
+class $$V8ScheduledRemindersTableAnnotationComposer
+    extends Composer<_$V9AppDatabase, $V8ScheduledRemindersTable> {
+  $$V8ScheduledRemindersTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -10911,41 +10823,44 @@ class $$ScheduledRemindersTableAnnotationComposer
   );
 }
 
-class $$ScheduledRemindersTableTableManager
+class $$V8ScheduledRemindersTableTableManager
     extends
         RootTableManager<
           _$V9AppDatabase,
-          $ScheduledRemindersTable,
-          ScheduledReminder,
-          $$ScheduledRemindersTableFilterComposer,
-          $$ScheduledRemindersTableOrderingComposer,
-          $$ScheduledRemindersTableAnnotationComposer,
-          $$ScheduledRemindersTableCreateCompanionBuilder,
-          $$ScheduledRemindersTableUpdateCompanionBuilder,
+          $V8ScheduledRemindersTable,
+          V8ScheduledReminder,
+          $$V8ScheduledRemindersTableFilterComposer,
+          $$V8ScheduledRemindersTableOrderingComposer,
+          $$V8ScheduledRemindersTableAnnotationComposer,
+          $$V8ScheduledRemindersTableCreateCompanionBuilder,
+          $$V8ScheduledRemindersTableUpdateCompanionBuilder,
           (
-            ScheduledReminder,
+            V8ScheduledReminder,
             BaseReferences<
               _$V9AppDatabase,
-              $ScheduledRemindersTable,
-              ScheduledReminder
+              $V8ScheduledRemindersTable,
+              V8ScheduledReminder
             >,
           ),
-          ScheduledReminder,
+          V8ScheduledReminder,
           PrefetchHooks Function()
         > {
-  $$ScheduledRemindersTableTableManager(
+  $$V8ScheduledRemindersTableTableManager(
     _$V9AppDatabase db,
-    $ScheduledRemindersTable table,
+    $V8ScheduledRemindersTable table,
   ) : super(
         TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$ScheduledRemindersTableFilterComposer($db: db, $table: table),
+              $$V8ScheduledRemindersTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$ScheduledRemindersTableOrderingComposer($db: db, $table: table),
+              $$V8ScheduledRemindersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
           createComputedFieldComposer: () =>
-              $$ScheduledRemindersTableAnnotationComposer(
+              $$V8ScheduledRemindersTableAnnotationComposer(
                 $db: db,
                 $table: table,
               ),
@@ -10960,7 +10875,7 @@ class $$ScheduledRemindersTableTableManager
                 Value<DateTime> createdAtUtc = const Value.absent(),
                 Value<bool> needsReconciliation = const Value.absent(),
                 Value<String> scheduleState = const Value.absent(),
-              }) => ScheduledRemindersCompanion(
+              }) => V8ScheduledRemindersCompanion(
                 notificationId: notificationId,
                 semesterId: semesterId,
                 identityKey: identityKey,
@@ -10982,7 +10897,7 @@ class $$ScheduledRemindersTableTableManager
                 required DateTime createdAtUtc,
                 Value<bool> needsReconciliation = const Value.absent(),
                 Value<String> scheduleState = const Value.absent(),
-              }) => ScheduledRemindersCompanion.insert(
+              }) => V8ScheduledRemindersCompanion.insert(
                 notificationId: notificationId,
                 semesterId: semesterId,
                 identityKey: identityKey,
@@ -11001,25 +10916,25 @@ class $$ScheduledRemindersTableTableManager
       );
 }
 
-typedef $$ScheduledRemindersTableProcessedTableManager =
+typedef $$V8ScheduledRemindersTableProcessedTableManager =
     ProcessedTableManager<
       _$V9AppDatabase,
-      $ScheduledRemindersTable,
-      ScheduledReminder,
-      $$ScheduledRemindersTableFilterComposer,
-      $$ScheduledRemindersTableOrderingComposer,
-      $$ScheduledRemindersTableAnnotationComposer,
-      $$ScheduledRemindersTableCreateCompanionBuilder,
-      $$ScheduledRemindersTableUpdateCompanionBuilder,
+      $V8ScheduledRemindersTable,
+      V8ScheduledReminder,
+      $$V8ScheduledRemindersTableFilterComposer,
+      $$V8ScheduledRemindersTableOrderingComposer,
+      $$V8ScheduledRemindersTableAnnotationComposer,
+      $$V8ScheduledRemindersTableCreateCompanionBuilder,
+      $$V8ScheduledRemindersTableUpdateCompanionBuilder,
       (
-        ScheduledReminder,
+        V8ScheduledReminder,
         BaseReferences<
           _$V9AppDatabase,
-          $ScheduledRemindersTable,
-          ScheduledReminder
+          $V8ScheduledRemindersTable,
+          V8ScheduledReminder
         >,
       ),
-      ScheduledReminder,
+      V8ScheduledReminder,
       PrefetchHooks Function()
     >;
 typedef $$NotificationHistoryTableCreateCompanionBuilder =
@@ -12848,7 +12763,6 @@ typedef $$DeadlineReminderReconciliationsTableCreateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> backgroundEffectsOnly,
-      Value<int> clockOffsetMicroseconds,
     });
 typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
     DeadlineReminderReconciliationsCompanion Function({
@@ -12858,7 +12772,6 @@ typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> backgroundEffectsOnly,
-      Value<int> clockOffsetMicroseconds,
     });
 
 class $$DeadlineReminderReconciliationsTableFilterComposer
@@ -12898,11 +12811,6 @@ class $$DeadlineReminderReconciliationsTableFilterComposer
 
   ColumnFilters<bool> get backgroundEffectsOnly => $composableBuilder(
     column: $table.backgroundEffectsOnly,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get clockOffsetMicroseconds => $composableBuilder(
-    column: $table.clockOffsetMicroseconds,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12945,11 +12853,6 @@ class $$DeadlineReminderReconciliationsTableOrderingComposer
     column: $table.backgroundEffectsOnly,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get clockOffsetMicroseconds => $composableBuilder(
-    column: $table.clockOffsetMicroseconds,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$DeadlineReminderReconciliationsTableAnnotationComposer
@@ -12989,11 +12892,6 @@ class $$DeadlineReminderReconciliationsTableAnnotationComposer
 
   GeneratedColumn<bool> get backgroundEffectsOnly => $composableBuilder(
     column: $table.backgroundEffectsOnly,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get clockOffsetMicroseconds => $composableBuilder(
-    column: $table.clockOffsetMicroseconds,
     builder: (column) => column,
   );
 }
@@ -13050,7 +12948,6 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> backgroundEffectsOnly = const Value.absent(),
-                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
@@ -13058,7 +12955,6 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 backgroundEffectsOnly: backgroundEffectsOnly,
-                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           createCompanionCallback:
               ({
@@ -13068,7 +12964,6 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> backgroundEffectsOnly = const Value.absent(),
-                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion.insert(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
@@ -13076,7 +12971,6 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 backgroundEffectsOnly: backgroundEffectsOnly,
-                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -13508,8 +13402,8 @@ class $V9AppDatabaseManager {
       $$SeenActivitiesTableTableManager(_db, _db.seenActivities);
   $$ActivityFingerprintsTableTableManager get activityFingerprints =>
       $$ActivityFingerprintsTableTableManager(_db, _db.activityFingerprints);
-  $$ScheduledRemindersTableTableManager get scheduledReminders =>
-      $$ScheduledRemindersTableTableManager(_db, _db.scheduledReminders);
+  $$V8ScheduledRemindersTableTableManager get v8ScheduledReminders =>
+      $$V8ScheduledRemindersTableTableManager(_db, _db.v8ScheduledReminders);
   $$NotificationHistoryTableTableManager get notificationHistory =>
       $$NotificationHistoryTableTableManager(_db, _db.notificationHistory);
   $$SyncRunsTableTableManager get syncRuns =>

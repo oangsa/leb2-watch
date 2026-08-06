@@ -405,7 +405,8 @@ final deadlineReminderStoreProvider = FutureProvider<DeadlineReminderStore>((
   ref,
 ) async {
   final database = await ref.watch(appDatabaseProvider.future);
-  return DriftDeadlineReminderStore(database);
+  final clock = ref.watch(trustedClockProvider);
+  return DriftDeadlineReminderStore(database, clockOffset: () => clock.offset);
 });
 
 final desktopDeadlineReminderDeliveryStoreProvider =

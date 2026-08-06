@@ -31,6 +31,17 @@ void main() {
           .then((row) => row.monitoringEnabled),
       isTrue,
     );
+    // The fixture has to be a real schema 9, not the live tables under an old
+    // version number: a snapshot that tracks the current definition arrives
+    // already carrying today's columns, and the upgrade under test then never
+    // runs the `ALTER TABLE` that adds them.
+    expect(
+      await legacy
+          .customSelect('PRAGMA table_info(scheduled_reminders)')
+          .get()
+          .then((rows) => rows.map((row) => row.read<String>('name'))),
+      isNot(contains('clock_offset_microseconds')),
+    );
     await legacy.close();
 
     final database = AppDatabase.forTesting(NativeDatabase(file));
@@ -43,6 +54,13 @@ void main() {
           .then((row) => row.enabled),
       isTrue,
     );
+    expect(
+      await database
+          .customSelect('PRAGMA table_info(scheduled_reminders)')
+          .get()
+          .then((rows) => rows.map((row) => row.read<String>('name'))),
+      contains('clock_offset_microseconds'),
+    );
     final background = await database
         .select(database.backgroundScheduleSettings)
         .getSingle();
@@ -53,7 +71,7 @@ void main() {
           .customSelect('PRAGMA user_version')
           .getSingle()
           .then((row) => row.read<int>('user_version')),
-      18,
+      19,
     );
   });
 }

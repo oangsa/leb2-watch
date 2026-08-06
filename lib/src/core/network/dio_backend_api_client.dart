@@ -380,6 +380,20 @@ final class DioBackendApiClient
     if (sentAtUtc is! DateTime) {
       return;
     }
+    // A cache serves the `Date` it stored the response under, so the reading
+    // would report how stale the entry is rather than how wrong this clock is.
+    // A cache that reveals itself at all does so through `Age`.
+    //
+    // Tested for a positive value rather than for presence: a CDN that stamps
+    // `Age: 0` on every miss is common, and skipping those would disable the
+    // measurement everywhere, silently, with nothing downstream able to tell
+    // "this clock is fine" from "this clock was never read". A zero age is a
+    // response served fresh, and it can be off by at most the whole second
+    // the header is truncated to — far inside [clockSkewMinimumCorrection].
+    final age = int.tryParse(response.headers.value('age') ?? '');
+    if (age != null && age > 0) {
+      return;
+    }
     final header = response.headers.value('date');
     if (header == null) {
       return;
