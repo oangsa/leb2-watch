@@ -828,6 +828,13 @@ ORDER BY activities.semester_id, activities.identity_key
   /// a device clock repaired while the app was closed would otherwise measure
   /// no movement at all and leave every alarm firing at the old instant.
   ///
+  /// Rows already `unknown` are swept too, so the generation advances while a
+  /// reconciliation is mid-flight. A row is moved to `unknown` before it is
+  /// handed to the platform, so matching only `scheduled` would miss exactly
+  /// the alarms being placed under the offset this call replaces, and
+  /// [markScheduled] would then record the stale placement as good — its
+  /// generation guard is what fences it.
+  ///
   /// Rows awaiting process delivery are left alone: they are delivered by
   /// polling this store, not by an OS alarm, so no correction is baked into
   /// them.
@@ -851,7 +858,8 @@ ORDER BY activities.semester_id, activities.identity_key
         final changed = await _database.customUpdate(
           'UPDATE scheduled_reminders SET needs_reconciliation = 1, '
           "schedule_state = '$_reminderStateUnknown' "
-          "WHERE schedule_state = '$_reminderStateScheduled'",
+          "WHERE schedule_state IN ('$_reminderStateScheduled', "
+          "'$_reminderStateUnknown')",
           updates: {_database.scheduledReminders},
         );
         if (changed == 0) {

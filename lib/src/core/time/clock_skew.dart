@@ -18,21 +18,24 @@ library;
 /// asked for it, so credential reads and other on-device preflight work stay
 /// out of the window. What remains is the exchange itself, which on a cold
 /// connection still includes DNS and the TLS handshake — a tighter bound
-/// discards the launch measurement that matters most. Half of this stays under
-/// [clockSkewMinimumCorrection], so the deadband still absorbs the uncertainty
-/// a slow reading carries.
+/// discards the launch measurement that matters most. One reading is therefore
+/// uncertain by half of this plus the header's whole second, and
+/// [clockSkewMinimumCorrection] clears twice that, so no pair of readings can
+/// clash hard enough to move a clock that never moved.
 const clockSkewMaximumRoundTrip = Duration(seconds: 5);
 
 /// Smallest *movement* in the offset worth acting on.
 ///
-/// Comfortably above the measurement's own uncertainty, so ordinary jitter
-/// never moves the clock and a device that is merely a second out is left
-/// alone.
+/// Judged on the difference between two readings, so it has to clear twice a
+/// single reading's uncertainty — half of [clockSkewMaximumRoundTrip] plus the
+/// whole second the `Date` header is truncated to, i.e. about 3.5s each way.
+/// A deadband merely above one reading's error would let two noisy readings of
+/// an unmoved clock re-place every alarm the OS holds.
 ///
 /// Applied to the change rather than to the reading, so a device sitting near
 /// this bound cannot flip between "corrected" and "uncorrected" on consecutive
-/// responses — each flip would re-place every alarm the OS holds.
-const clockSkewMinimumCorrection = Duration(seconds: 5);
+/// responses.
+const clockSkewMinimumCorrection = Duration(seconds: 10);
 
 /// Largest skew that is treated as a device-clock error at all.
 ///

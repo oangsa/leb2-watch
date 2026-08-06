@@ -466,6 +466,45 @@ void main() {
     );
   });
 
+  test('a clock correction fences an in-flight placement', () async {
+    final generation = await store.requestGeneration();
+    await store.tryClaim(
+      ownerToken: 'owner-a',
+      nowUtc: now,
+      leaseDuration: const Duration(minutes: 1),
+    );
+    // Planning moves every row it is about to hand over to `unknown`, so an
+    // alarm in flight is never in the `scheduled` state the sweep is named for.
+    final plan = await store.plan(
+      ownerToken: 'owner-a',
+      generation: generation,
+      nowUtc: now,
+      policy: DeadlineReminderSchedulingPolicy.android,
+      leaseDuration: const Duration(minutes: 1),
+    );
+    expect(plan.schedules, isNotEmpty);
+
+    // The alarms are already with the platform, placed under the old offset,
+    // when the first accepted measurement of the launch lands.
+    expect(
+      await store.adoptClockOffset(const Duration(hours: 2)),
+      isNot(equals(null)),
+    );
+
+    // Finalizing them now would record a stale placement as good, and no later
+    // launch would see the offset move again.
+    for (final item in plan.schedules) {
+      expect(
+        await store.markScheduled(
+          ownerToken: 'owner-a',
+          generation: generation,
+          item: item,
+        ),
+        isFalse,
+      );
+    }
+  });
+
   test('a clock correction with nothing scheduled requests no work', () async {
     expect(await store.adoptClockOffset(const Duration(hours: 2)), equals(null));
   });
