@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/time/clock_skew.dart';
 import '../../assignments/detail/application/assignment_detail_service.dart';
 import '../../assignments/detail/domain/assignment_detail_key.dart';
 import '../domain/deadline_reminder_policy.dart';
@@ -199,7 +200,7 @@ abstract interface class DeadlineReminderStore {
     required Iterable<LocalNotificationId> ids,
   });
 
-  Future<int?> markAllScheduledUnknownAndRequestReconciliation();
+  Future<int?> adoptClockOffset(Duration offset);
 
   Future<bool> completeGeneration({
     required String ownerToken,
@@ -812,20 +813,41 @@ ORDER BY activities.semester_id, activities.identity_key
     }
   }
 
-  /// Forces every reminder currently held by the OS back through scheduling.
+  /// Records [offset] as the correction OS-held reminders are placed under,
+  /// and forces them back through scheduling when it moved far enough to
+  /// matter. Returns the requested generation to reconcile, or null when
+  /// nothing had to move.
   ///
   /// The instant handed to the OS is expressed in device time, so it goes
   /// stale the moment the clock correction moves. Nothing else in a plan
   /// notices — the stored deadline and scheduled instant are backend time and
   /// do not change — so the schedule state is the flag that has to be cleared.
   ///
+  /// The comparison is against the recorded offset rather than a caller's
+  /// in-memory one because the in-memory offset restarts at zero every launch:
+  /// a device clock repaired while the app was closed would otherwise measure
+  /// no movement at all and leave every alarm firing at the old instant.
+  ///
   /// Rows awaiting process delivery are left alone: they are delivered by
   /// polling this store, not by an OS alarm, so no correction is baked into
   /// them.
   @override
-  Future<int?> markAllScheduledUnknownAndRequestReconciliation() async {
+  Future<int?> adoptClockOffset(Duration offset) async {
     try {
       return await _database.transaction(() async {
+        final row = await _database
+            .select(_database.deadlineReminderReconciliations)
+            .getSingle();
+        final placed = Duration(microseconds: row.clockOffsetMicroseconds);
+        if ((offset - placed).abs() < clockSkewMinimumCorrection) {
+          return null;
+        }
+        await _database.customUpdate(
+          'UPDATE deadline_reminder_reconciliations '
+          'SET clock_offset_microseconds = ? WHERE singleton_id = 1',
+          variables: [Variable<int>(offset.inMicroseconds)],
+          updates: {_database.deadlineReminderReconciliations},
+        );
         final changed = await _database.customUpdate(
           'UPDATE scheduled_reminders SET needs_reconciliation = 1, '
           "schedule_state = '$_reminderStateUnknown' "

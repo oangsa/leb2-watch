@@ -43,6 +43,10 @@ final class DioBackendApiClient
       publicDio.httpClientAdapter = httpClientAdapter;
     }
     dio.interceptors.add(_CredentialInterceptor(credentialStore, runtime));
+    final now = utcNow ?? DateTime.now;
+    for (final client in [dio, sessionDio, publicDio]) {
+      client.interceptors.add(_SendTimeInterceptor(now));
+    }
 
     return DioBackendApiClient._(
       dio: dio,
@@ -52,7 +56,7 @@ final class DioBackendApiClient
       eventSink: configuration.environment == AppEnvironment.development
           ? eventSink ?? _developmentEventSink
           : null,
-      utcNow: utcNow ?? DateTime.now,
+      utcNow: now,
       onClientUpdateRequired: onClientUpdateRequired,
       onClockSkewObserved: onClockSkewObserved,
     );
@@ -275,14 +279,13 @@ final class DioBackendApiClient
           ...?headers,
         },
       );
-      final sentAtUtc = _utcNow().toUtc();
       final response = await client.request<List<int>>(
         path,
         data: data,
         options: options,
         cancelToken: cancelToken,
       );
-      _observeServerClock(response.headers, sentAtUtc);
+      _observeServerClock(response);
       statusCode = response.statusCode;
       if (statusCode == null) {
         throw const BackendTransportException(
@@ -365,13 +368,19 @@ final class DioBackendApiClient
 
   /// Reports how far this device's clock sits from the backend's, measured
   /// against the round-trip midpoint. Every response carries a `Date` header,
-  /// so this needs no extra request.
-  void _observeServerClock(Headers headers, DateTime sentAtUtc) {
+  /// so this needs no extra request. Non-2xx responses are measured too: the
+  /// client accepts every status, so they arrive here rather than as a
+  /// [DioException], and their `Date` header is just as good.
+  void _observeServerClock(Response<List<int>> response) {
     final observer = _onClockSkewObserved;
     if (observer == null) {
       return;
     }
-    final header = headers.value('date');
+    final sentAtUtc = response.requestOptions.extra[_sentAtUtcExtraKey];
+    if (sentAtUtc is! DateTime) {
+      return;
+    }
+    final header = response.headers.value('date');
     if (header == null) {
       return;
     }
@@ -603,6 +612,27 @@ Dio _createDio(String baseUrl) {
       validateStatus: (_) => true,
     ),
   );
+}
+
+const _sentAtUtcExtraKey = 'leb2_watch_sent_at_utc';
+
+/// Stamps the moment a request actually goes out, for the clock-skew reading.
+///
+/// Added last, so it runs after [_CredentialInterceptor] and its two OS
+/// secure-storage reads — work that happens entirely on this device before a
+/// byte is sent. Timing from before the interceptor chain would fold that into
+/// the measured round trip, which both biases the midpoint towards "backend
+/// ahead" and eats the round-trip budget the reading is judged against.
+final class _SendTimeInterceptor extends Interceptor {
+  _SendTimeInterceptor(this._utcNow);
+
+  final DateTime Function() _utcNow;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra[_sentAtUtcExtraKey] = _utcNow().toUtc();
+    handler.next(options);
+  }
 }
 
 final class _CredentialInterceptor extends Interceptor {

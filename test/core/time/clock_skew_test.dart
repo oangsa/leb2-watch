@@ -38,13 +38,17 @@ void main() {
       );
     });
 
-    test('treats sub-threshold readings as no correction', () {
+    test('reports a small reading as measured rather than clamping it', () {
+      // The deadband belongs to TrustedClock.adopt, which applies it to the
+      // movement. Clamping here would make a device near the bound alternate
+      // between zero and the reading, and every alternation would read as a
+      // correction worth re-placing every alarm for.
       expect(
         skewFor(
           roundTrip: const Duration(milliseconds: 100),
           serverAhead: const Duration(seconds: 3),
         ),
-        Duration.zero,
+        const Duration(seconds: 3),
       );
     });
 
@@ -91,37 +95,62 @@ void main() {
     });
 
     test('refuses an offset past the ceiling and keeps the last one', () {
-      var changes = 0;
+      final reported = <Duration>[];
       final clock = TrustedClock(
         deviceNow: () => DateTime.utc(2026, 8, 6, 9),
         offset: const Duration(hours: 1),
-        onOffsetChanged: () => changes += 1,
+        onOffsetChanged: reported.add,
       );
 
       clock.adopt(clockSkewMaximumCorrection + const Duration(hours: 1));
 
       expect(clock.offset, const Duration(hours: 1));
-      expect(changes, 0);
+      expect(reported, isEmpty);
     });
 
     test('a correction worth applying reports that alarms went stale', () {
-      var changes = 0;
-      final clock = TrustedClock(onOffsetChanged: () => changes += 1);
+      final reported = <Duration>[];
+      final clock = TrustedClock(onOffsetChanged: reported.add);
 
-      // Below the smallest correction worth making: nothing was placed wrongly.
-      clock.adopt(clockSkewMinimumCorrection - const Duration(seconds: 1));
-      expect(changes, 0);
-
+      // The first reading of a launch always reports: the in-memory offset
+      // starts at zero and knows nothing about what a previous launch handed
+      // to the OS, so only the durable record can answer that.
       clock.adopt(const Duration(hours: 2));
-      expect(changes, 1);
+      expect(reported, [const Duration(hours: 2)]);
 
       // Re-measuring the same offset leaves every placed alarm correct.
       clock.adopt(const Duration(hours: 2));
-      expect(changes, 1);
+      expect(reported, hasLength(1));
 
       // The device clock gets fixed, so the correction has to be unwound.
       clock.adopt(Duration.zero);
-      expect(changes, 2);
+      expect(reported, hasLength(2));
+      expect(clock.offset, Duration.zero);
+    });
+
+    test('jitter around the deadband neither moves the clock nor reports', () {
+      final reported = <Duration>[];
+      final clock = TrustedClock(onOffsetChanged: reported.add);
+
+      // A device sitting just past the bound. Readings carry the Date
+      // header's whole-second granularity plus half the round trip, so
+      // consecutive ones straddle it.
+      clock.adopt(const Duration(milliseconds: 5200));
+      expect(reported, hasLength(1));
+
+      for (final reading in const [
+        Duration(milliseconds: 4800),
+        Duration(milliseconds: 5300),
+        Duration(milliseconds: 2600),
+        Duration(milliseconds: 5100),
+      ]) {
+        clock.adopt(reading);
+      }
+
+      // Every one of those is under a five-second move, so the offset the
+      // alarms were placed under never shifts and nothing is re-placed.
+      expect(reported, hasLength(1));
+      expect(clock.offset, const Duration(milliseconds: 5200));
     });
 
     test('an alarm is moved back onto the device clock to fire on time', () {

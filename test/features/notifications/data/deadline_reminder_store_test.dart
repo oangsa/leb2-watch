@@ -447,11 +447,10 @@ void main() {
       );
     }
 
-    // Nothing an ordinary plan looks at has changed — the deadline is backend
-    // time and the offset lives outside this store — so without the sweep the
-    // next plan is empty and the OS keeps every stale alarm.
-    final requested = await store
-        .markAllScheduledUnknownAndRequestReconciliation();
+    // Nothing an ordinary plan looks at has changed — the deadline and the
+    // scheduled instant are both backend time — so without the sweep the next
+    // plan is empty and the OS keeps every stale alarm.
+    final requested = await store.adoptClockOffset(const Duration(hours: 2));
 
     expect(requested, 2);
     final replanned = await store.plan(
@@ -468,11 +467,74 @@ void main() {
   });
 
   test('a clock correction with nothing scheduled requests no work', () async {
+    expect(await store.adoptClockOffset(const Duration(hours: 2)), equals(null));
+  });
+
+  test('re-measuring the same correction leaves the alarms alone', () async {
+    await store.adoptClockOffset(const Duration(hours: 2));
+
+    // Same offset, and a drift under the deadband: the alarms the OS holds
+    // were placed under this correction and are still right.
     expect(
-      await store.markAllScheduledUnknownAndRequestReconciliation(),
+      await store.adoptClockOffset(const Duration(hours: 2)),
+      equals(null),
+    );
+    expect(
+      await store.adoptClockOffset(
+        const Duration(hours: 2) + const Duration(seconds: 4),
+      ),
       equals(null),
     );
   });
+
+  test(
+    'a clock repaired between launches re-plans the alarms it left behind',
+    () async {
+      // A previous launch measured the device two hours slow and handed every
+      // alarm over corrected by it.
+      final generation = await store.requestGeneration();
+      await store.tryClaim(
+        ownerToken: 'owner-a',
+        nowUtc: now,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      final plan = await store.plan(
+        ownerToken: 'owner-a',
+        generation: generation,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      expect(plan.schedules, isNotEmpty);
+      await store.adoptClockOffset(const Duration(hours: 2));
+      for (final item in plan.schedules) {
+        await store.markScheduled(
+          ownerToken: 'owner-a',
+          generation: generation,
+          item: item,
+        );
+      }
+
+      // The user fixes the clock while the app is closed, so the next launch
+      // measures no skew at all. Its in-memory offset also starts at zero, so
+      // only the recorded one shows that the OS is holding alarms two hours
+      // out.
+      final requested = await store.adoptClockOffset(Duration.zero);
+
+      expect(requested, isNot(equals(null)));
+      final replanned = await store.plan(
+        ownerToken: 'owner-a',
+        generation: requested!,
+        nowUtc: now,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        leaseDuration: const Duration(minutes: 1),
+      );
+      expect(
+        replanned.schedules.map((item) => item.request.id.value),
+        plan.schedules.map((item) => item.request.id.value),
+      );
+    },
+  );
 
   test(
     'strict time, exceeded, and mute rules exclude or cancel owners',

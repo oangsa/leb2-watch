@@ -7743,6 +7743,18 @@ class $DeadlineReminderReconciliationsTable
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _clockOffsetMicrosecondsMeta =
+      const VerificationMeta('clockOffsetMicroseconds');
+  @override
+  late final GeneratedColumn<int> clockOffsetMicroseconds =
+      GeneratedColumn<int>(
+        'clock_offset_microseconds',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -7751,6 +7763,7 @@ class $DeadlineReminderReconciliationsTable
     ownerToken,
     leaseExpiresAtUtc,
     backgroundEffectsOnly,
+    clockOffsetMicroseconds,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7806,6 +7819,15 @@ class $DeadlineReminderReconciliationsTable
         ),
       );
     }
+    if (data.containsKey('clock_offset_microseconds')) {
+      context.handle(
+        _clockOffsetMicrosecondsMeta,
+        clockOffsetMicroseconds.isAcceptableOrUnknown(
+          data['clock_offset_microseconds']!,
+          _clockOffsetMicrosecondsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -7846,6 +7868,10 @@ class $DeadlineReminderReconciliationsTable
         DriftSqlType.bool,
         data['${effectivePrefix}background_effects_only'],
       )!,
+      clockOffsetMicroseconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}clock_offset_microseconds'],
+      )!,
     );
   }
 
@@ -7868,6 +7894,16 @@ class DeadlineReminderReconciliation extends DataClass
   final String? ownerToken;
   final DateTime? leaseExpiresAtUtc;
   final bool backgroundEffectsOnly;
+
+  /// The clock correction the reminders the OS currently holds were placed
+  /// under.
+  ///
+  /// The instant handed to the OS is device time, so it only stays right while
+  /// the correction does. This has to outlive the process: the in-memory
+  /// offset restarts at zero every launch, so without a durable record a
+  /// device clock repaired between launches looks like no change at all and
+  /// the stale alarms are never re-placed.
+  final int clockOffsetMicroseconds;
   const DeadlineReminderReconciliation({
     required this.singletonId,
     required this.requestedGeneration,
@@ -7875,6 +7911,7 @@ class DeadlineReminderReconciliation extends DataClass
     this.ownerToken,
     this.leaseExpiresAtUtc,
     required this.backgroundEffectsOnly,
+    required this.clockOffsetMicroseconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7892,6 +7929,7 @@ class DeadlineReminderReconciliation extends DataClass
       );
     }
     map['background_effects_only'] = Variable<bool>(backgroundEffectsOnly);
+    map['clock_offset_microseconds'] = Variable<int>(clockOffsetMicroseconds);
     return map;
   }
 
@@ -7907,6 +7945,7 @@ class DeadlineReminderReconciliation extends DataClass
           ? const Value.absent()
           : Value(leaseExpiresAtUtc),
       backgroundEffectsOnly: Value(backgroundEffectsOnly),
+      clockOffsetMicroseconds: Value(clockOffsetMicroseconds),
     );
   }
 
@@ -7930,6 +7969,9 @@ class DeadlineReminderReconciliation extends DataClass
       backgroundEffectsOnly: serializer.fromJson<bool>(
         json['backgroundEffectsOnly'],
       ),
+      clockOffsetMicroseconds: serializer.fromJson<int>(
+        json['clockOffsetMicroseconds'],
+      ),
     );
   }
   @override
@@ -7942,6 +7984,9 @@ class DeadlineReminderReconciliation extends DataClass
       'ownerToken': serializer.toJson<String?>(ownerToken),
       'leaseExpiresAtUtc': serializer.toJson<DateTime?>(leaseExpiresAtUtc),
       'backgroundEffectsOnly': serializer.toJson<bool>(backgroundEffectsOnly),
+      'clockOffsetMicroseconds': serializer.toJson<int>(
+        clockOffsetMicroseconds,
+      ),
     };
   }
 
@@ -7952,6 +7997,7 @@ class DeadlineReminderReconciliation extends DataClass
     Value<String?> ownerToken = const Value.absent(),
     Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
     bool? backgroundEffectsOnly,
+    int? clockOffsetMicroseconds,
   }) => DeadlineReminderReconciliation(
     singletonId: singletonId ?? this.singletonId,
     requestedGeneration: requestedGeneration ?? this.requestedGeneration,
@@ -7961,6 +8007,8 @@ class DeadlineReminderReconciliation extends DataClass
         ? leaseExpiresAtUtc.value
         : this.leaseExpiresAtUtc,
     backgroundEffectsOnly: backgroundEffectsOnly ?? this.backgroundEffectsOnly,
+    clockOffsetMicroseconds:
+        clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
   );
   DeadlineReminderReconciliation copyWithCompanion(
     DeadlineReminderReconciliationsCompanion data,
@@ -7984,6 +8032,9 @@ class DeadlineReminderReconciliation extends DataClass
       backgroundEffectsOnly: data.backgroundEffectsOnly.present
           ? data.backgroundEffectsOnly.value
           : this.backgroundEffectsOnly,
+      clockOffsetMicroseconds: data.clockOffsetMicroseconds.present
+          ? data.clockOffsetMicroseconds.value
+          : this.clockOffsetMicroseconds,
     );
   }
 
@@ -7995,7 +8046,8 @@ class DeadlineReminderReconciliation extends DataClass
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly, ')
+          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
           ..write(')'))
         .toString();
   }
@@ -8008,6 +8060,7 @@ class DeadlineReminderReconciliation extends DataClass
     ownerToken,
     leaseExpiresAtUtc,
     backgroundEffectsOnly,
+    clockOffsetMicroseconds,
   );
   @override
   bool operator ==(Object other) =>
@@ -8018,7 +8071,8 @@ class DeadlineReminderReconciliation extends DataClass
           other.completedGeneration == this.completedGeneration &&
           other.ownerToken == this.ownerToken &&
           other.leaseExpiresAtUtc == this.leaseExpiresAtUtc &&
-          other.backgroundEffectsOnly == this.backgroundEffectsOnly);
+          other.backgroundEffectsOnly == this.backgroundEffectsOnly &&
+          other.clockOffsetMicroseconds == this.clockOffsetMicroseconds);
 }
 
 class DeadlineReminderReconciliationsCompanion
@@ -8029,6 +8083,7 @@ class DeadlineReminderReconciliationsCompanion
   final Value<String?> ownerToken;
   final Value<DateTime?> leaseExpiresAtUtc;
   final Value<bool> backgroundEffectsOnly;
+  final Value<int> clockOffsetMicroseconds;
   const DeadlineReminderReconciliationsCompanion({
     this.singletonId = const Value.absent(),
     this.requestedGeneration = const Value.absent(),
@@ -8036,6 +8091,7 @@ class DeadlineReminderReconciliationsCompanion
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.backgroundEffectsOnly = const Value.absent(),
+    this.clockOffsetMicroseconds = const Value.absent(),
   });
   DeadlineReminderReconciliationsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -8044,6 +8100,7 @@ class DeadlineReminderReconciliationsCompanion
     this.ownerToken = const Value.absent(),
     this.leaseExpiresAtUtc = const Value.absent(),
     this.backgroundEffectsOnly = const Value.absent(),
+    this.clockOffsetMicroseconds = const Value.absent(),
   });
   static Insertable<DeadlineReminderReconciliation> custom({
     Expression<int>? singletonId,
@@ -8052,6 +8109,7 @@ class DeadlineReminderReconciliationsCompanion
     Expression<String>? ownerToken,
     Expression<int>? leaseExpiresAtUtc,
     Expression<bool>? backgroundEffectsOnly,
+    Expression<int>? clockOffsetMicroseconds,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -8063,6 +8121,8 @@ class DeadlineReminderReconciliationsCompanion
       if (leaseExpiresAtUtc != null) 'lease_expires_at_utc': leaseExpiresAtUtc,
       if (backgroundEffectsOnly != null)
         'background_effects_only': backgroundEffectsOnly,
+      if (clockOffsetMicroseconds != null)
+        'clock_offset_microseconds': clockOffsetMicroseconds,
     });
   }
 
@@ -8073,6 +8133,7 @@ class DeadlineReminderReconciliationsCompanion
     Value<String?>? ownerToken,
     Value<DateTime?>? leaseExpiresAtUtc,
     Value<bool>? backgroundEffectsOnly,
+    Value<int>? clockOffsetMicroseconds,
   }) {
     return DeadlineReminderReconciliationsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -8082,6 +8143,8 @@ class DeadlineReminderReconciliationsCompanion
       leaseExpiresAtUtc: leaseExpiresAtUtc ?? this.leaseExpiresAtUtc,
       backgroundEffectsOnly:
           backgroundEffectsOnly ?? this.backgroundEffectsOnly,
+      clockOffsetMicroseconds:
+          clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
     );
   }
 
@@ -8111,6 +8174,11 @@ class DeadlineReminderReconciliationsCompanion
         backgroundEffectsOnly.value,
       );
     }
+    if (clockOffsetMicroseconds.present) {
+      map['clock_offset_microseconds'] = Variable<int>(
+        clockOffsetMicroseconds.value,
+      );
+    }
     return map;
   }
 
@@ -8122,7 +8190,8 @@ class DeadlineReminderReconciliationsCompanion
           ..write('completedGeneration: $completedGeneration, ')
           ..write('ownerToken: $ownerToken, ')
           ..write('leaseExpiresAtUtc: $leaseExpiresAtUtc, ')
-          ..write('backgroundEffectsOnly: $backgroundEffectsOnly')
+          ..write('backgroundEffectsOnly: $backgroundEffectsOnly, ')
+          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
           ..write(')'))
         .toString();
   }
@@ -12779,6 +12848,7 @@ typedef $$DeadlineReminderReconciliationsTableCreateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> backgroundEffectsOnly,
+      Value<int> clockOffsetMicroseconds,
     });
 typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
     DeadlineReminderReconciliationsCompanion Function({
@@ -12788,6 +12858,7 @@ typedef $$DeadlineReminderReconciliationsTableUpdateCompanionBuilder =
       Value<String?> ownerToken,
       Value<DateTime?> leaseExpiresAtUtc,
       Value<bool> backgroundEffectsOnly,
+      Value<int> clockOffsetMicroseconds,
     });
 
 class $$DeadlineReminderReconciliationsTableFilterComposer
@@ -12827,6 +12898,11 @@ class $$DeadlineReminderReconciliationsTableFilterComposer
 
   ColumnFilters<bool> get backgroundEffectsOnly => $composableBuilder(
     column: $table.backgroundEffectsOnly,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12869,6 +12945,11 @@ class $$DeadlineReminderReconciliationsTableOrderingComposer
     column: $table.backgroundEffectsOnly,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DeadlineReminderReconciliationsTableAnnotationComposer
@@ -12908,6 +12989,11 @@ class $$DeadlineReminderReconciliationsTableAnnotationComposer
 
   GeneratedColumn<bool> get backgroundEffectsOnly => $composableBuilder(
     column: $table.backgroundEffectsOnly,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
     builder: (column) => column,
   );
 }
@@ -12964,6 +13050,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> backgroundEffectsOnly = const Value.absent(),
+                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
@@ -12971,6 +13058,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 backgroundEffectsOnly: backgroundEffectsOnly,
+                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           createCompanionCallback:
               ({
@@ -12980,6 +13068,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 Value<String?> ownerToken = const Value.absent(),
                 Value<DateTime?> leaseExpiresAtUtc = const Value.absent(),
                 Value<bool> backgroundEffectsOnly = const Value.absent(),
+                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => DeadlineReminderReconciliationsCompanion.insert(
                 singletonId: singletonId,
                 requestedGeneration: requestedGeneration,
@@ -12987,6 +13076,7 @@ class $$DeadlineReminderReconciliationsTableTableManager
                 ownerToken: ownerToken,
                 leaseExpiresAtUtc: leaseExpiresAtUtc,
                 backgroundEffectsOnly: backgroundEffectsOnly,
+                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

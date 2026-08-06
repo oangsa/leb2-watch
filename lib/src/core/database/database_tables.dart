@@ -639,6 +639,17 @@ class DeadlineReminderReconciliations extends Table {
   BoolColumn get backgroundEffectsOnly =>
       boolean().withDefault(const Constant(false))();
 
+  /// The clock correction the reminders the OS currently holds were placed
+  /// under.
+  ///
+  /// The instant handed to the OS is device time, so it only stays right while
+  /// the correction does. This has to outlive the process: the in-memory
+  /// offset restarts at zero every launch, so without a durable record a
+  /// device clock repaired between launches looks like no change at all and
+  /// the stale alarms are never re-placed.
+  IntColumn get clockOffsetMicroseconds =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
 

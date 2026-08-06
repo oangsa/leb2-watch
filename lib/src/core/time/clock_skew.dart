@@ -14,18 +14,24 @@ library;
 /// about a second. A slow response widens that by half the round trip, and
 /// past this bound the reading says less than it costs to apply.
 ///
-/// Measured across the whole exchange, which on a cold connection includes
-/// DNS, the TLS handshake and any token refresh — a tighter bound discards
-/// the launch measurement that matters most. Half of this stays under
-/// [clockSkewMinimumCorrection], so the deadband still absorbs the
-/// uncertainty a slow reading carries.
+/// Timed from the moment the request leaves rather than from the call that
+/// asked for it, so credential reads and other on-device preflight work stay
+/// out of the window. What remains is the exchange itself, which on a cold
+/// connection still includes DNS and the TLS handshake — a tighter bound
+/// discards the launch measurement that matters most. Half of this stays under
+/// [clockSkewMinimumCorrection], so the deadband still absorbs the uncertainty
+/// a slow reading carries.
 const clockSkewMaximumRoundTrip = Duration(seconds: 5);
 
-/// Smallest skew worth correcting.
+/// Smallest *movement* in the offset worth acting on.
 ///
 /// Comfortably above the measurement's own uncertainty, so ordinary jitter
 /// never moves the clock and a device that is merely a second out is left
 /// alone.
+///
+/// Applied to the change rather than to the reading, so a device sitting near
+/// this bound cannot flip between "corrected" and "uncorrected" on consecutive
+/// responses — each flip would re-place every alarm the OS holds.
 const clockSkewMinimumCorrection = Duration(seconds: 5);
 
 /// Largest skew that is treated as a device-clock error at all.
@@ -58,7 +64,11 @@ Duration? resolveClockSkew({
   if (skew.abs() > clockSkewMaximumCorrection) {
     return null;
   }
-  return skew.abs() < clockSkewMinimumCorrection ? Duration.zero : skew;
+  // Reported as measured. The deadband belongs to [TrustedClock.adopt], which
+  // applies it to the movement: clamping a small reading to zero here would
+  // make a device sitting near the bound alternate between zero and the
+  // reading, and every alternation reads as a correction worth applying.
+  return skew;
 }
 
 /// A clock that reports backend time, using the device clock plus the latest
@@ -66,19 +76,22 @@ Duration? resolveClockSkew({
 ///
 /// Held in memory only: the first backend response of a launch re-measures the
 /// same offset within seconds, and nothing schedules before the first sync.
+/// What alarms the OS already holds were placed under is durable and lives
+/// beside the schedule state — see [onOffsetChanged].
 final class TrustedClock {
   TrustedClock({
     DateTime Function()? deviceNow,
     Duration offset = Duration.zero,
-    void Function()? onOffsetChanged,
+    void Function(Duration offset)? onOffsetChanged,
   }) : _deviceNow = deviceNow ?? DateTime.now {
-    _onOffsetChanged = onOffsetChanged;
     _offset = offset;
+    _onOffsetChanged = onOffsetChanged;
   }
 
   final DateTime Function() _deviceNow;
-  late final void Function()? _onOffsetChanged;
-  late Duration _offset;
+  void Function(Duration offset)? _onOffsetChanged;
+  Duration _offset = Duration.zero;
+  bool _measured = false;
 
   /// True time minus device time, so `deviceNow + offset == trueNow`.
   Duration get offset => _offset;
@@ -101,18 +114,26 @@ final class TrustedClock {
   /// last accepted offset is a better answer than pretending the device agrees
   /// with the backend.
   ///
-  /// Anything already handed to the OS was placed against the previous offset
-  /// and now fires at the wrong instant, so a move worth correcting reports
-  /// itself through `onOffsetChanged`.
+  /// A reading that moves the offset by less than
+  /// [clockSkewMinimumCorrection] is dropped whole rather than adopted
+  /// quietly, so jitter neither shifts the clock nor reports a change.
+  ///
+  /// Anything already handed to the OS was placed against whatever offset was
+  /// current then, so an accepted offset reports itself through
+  /// `onOffsetChanged`. The first reading of a launch always reports: the
+  /// in-memory offset starts at zero and carries no evidence of what the OS is
+  /// already holding, so only the durable record can answer that, and the
+  /// listener owns the comparison.
   void adopt(Duration offset) {
     if (offset.abs() > clockSkewMaximumCorrection) {
       return;
     }
-    final previous = _offset;
-    _offset = offset;
-    if ((offset - previous).abs() >= clockSkewMinimumCorrection) {
-      _onOffsetChanged?.call();
+    if (_measured && (offset - _offset).abs() < clockSkewMinimumCorrection) {
+      return;
     }
+    _measured = true;
+    _offset = offset;
+    _onOffsetChanged?.call(offset);
   }
 
   @override

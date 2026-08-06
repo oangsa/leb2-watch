@@ -124,7 +124,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +134,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 16 || to != 17) {
+        if (from < 1 || from > 17 || to != 18) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -204,6 +204,7 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 16) {
           await _ensureSemesterNameColumn();
         }
+        await _ensureClockOffsetColumn();
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -225,6 +226,27 @@ class AppDatabase extends _$AppDatabase {
           'PRAGMA busy_timeout = ${sqliteBusyTimeout.inMilliseconds}',
         );
       },
+    );
+  }
+
+  /// Adds the column reminders record their clock correction in.
+  ///
+  /// Probed rather than added outright: the schemas at or below 7 create the
+  /// table from its current definition during this same upgrade, so it already
+  /// carries the column by the time this runs.
+  Future<void> _ensureClockOffsetColumn() async {
+    final columns = await customSelect(
+      'PRAGMA table_info(deadline_reminder_reconciliations)',
+    ).get();
+    final hasClockOffsetColumn = columns.any(
+      (column) => column.read<String>('name') == 'clock_offset_microseconds',
+    );
+    if (hasClockOffsetColumn) {
+      return;
+    }
+    await customStatement(
+      'ALTER TABLE deadline_reminder_reconciliations '
+      'ADD COLUMN clock_offset_microseconds INTEGER NOT NULL DEFAULT 0',
     );
   }
 

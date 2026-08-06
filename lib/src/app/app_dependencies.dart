@@ -225,14 +225,19 @@ Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
 /// background sync isolate builds its own container and measures its own
 /// offset from its own first response.
 ///
-// ponytail: the offset is per-isolate and unshared, so an isolate that
-// touches a reminder lease before its own first response reads expiries the
-// other isolate wrote in corrected time. Both converge seconds after the
-// first response and owner-token checks fence the stale writer; persist the
-// offset if lease contention ever shows up in diagnostics.
+/// What the OS-held alarms were placed under is *not* held here — that record
+/// has to survive the process, so the store owns it.
+///
+// ponytail: the in-memory offset is per-isolate and unshared, so an isolate
+// that touches a reminder lease before its own first response reads expiries
+// the other isolate wrote in corrected time. Both converge seconds after the
+// first response and owner-token checks fence the stale writer; seed the
+// clock from the stored offset if lease contention ever shows up in
+// diagnostics.
 final trustedClockProvider = Provider<TrustedClock>((ref) {
   return TrustedClock(
-    onOffsetChanged: () => unawaited(_rescheduleForClockCorrection(ref)),
+    onOffsetChanged: (offset) =>
+        unawaited(_rescheduleForClockCorrection(ref, offset)),
   );
 });
 
@@ -243,10 +248,15 @@ final trustedClockProvider = Provider<TrustedClock>((ref) {
 /// before the first measurement landed — keep firing at the old instant. A
 /// plan on its own will not notice, because the stored backend-time deadline
 /// has not changed.
-Future<void> _rescheduleForClockCorrection(Ref ref) async {
+///
+/// Whether [offset] moved at all is the store's call, against the offset it
+/// recorded when those alarms were placed: this runs on the first measurement
+/// of every launch, when the in-memory offset is still zero and knows nothing
+/// about what a previous launch handed over.
+Future<void> _rescheduleForClockCorrection(Ref ref, Duration offset) async {
   try {
     final store = await ref.read(deadlineReminderStoreProvider.future);
-    if (await store.markAllScheduledUnknownAndRequestReconciliation() == null) {
+    if (await store.adoptClockOffset(offset) == null) {
       return;
     }
     final coordinator = await ref.read(
