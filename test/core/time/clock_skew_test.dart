@@ -90,15 +90,38 @@ void main() {
       expect(clock.nowUtc(), DateTime.utc(2026, 8, 6, 10));
     });
 
-    test('refuses an offset past the ceiling', () {
+    test('refuses an offset past the ceiling and keeps the last one', () {
+      var changes = 0;
       final clock = TrustedClock(
         deviceNow: () => DateTime.utc(2026, 8, 6, 9),
         offset: const Duration(hours: 1),
+        onOffsetChanged: () => changes += 1,
       );
 
       clock.adopt(clockSkewMaximumCorrection + const Duration(hours: 1));
 
-      expect(clock.offset, Duration.zero);
+      expect(clock.offset, const Duration(hours: 1));
+      expect(changes, 0);
+    });
+
+    test('a correction worth applying reports that alarms went stale', () {
+      var changes = 0;
+      final clock = TrustedClock(onOffsetChanged: () => changes += 1);
+
+      // Below the smallest correction worth making: nothing was placed wrongly.
+      clock.adopt(clockSkewMinimumCorrection - const Duration(seconds: 1));
+      expect(changes, 0);
+
+      clock.adopt(const Duration(hours: 2));
+      expect(changes, 1);
+
+      // Re-measuring the same offset leaves every placed alarm correct.
+      clock.adopt(const Duration(hours: 2));
+      expect(changes, 1);
+
+      // The device clock gets fixed, so the correction has to be unwound.
+      clock.adopt(Duration.zero);
+      expect(changes, 2);
     });
 
     test('an alarm is moved back onto the device clock to fire on time', () {

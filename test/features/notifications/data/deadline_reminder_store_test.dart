@@ -424,6 +424,56 @@ void main() {
     },
   );
 
+  test('a clock correction re-plans every alarm the OS is holding', () async {
+    final generation = await store.requestGeneration();
+    await store.tryClaim(
+      ownerToken: 'owner-a',
+      nowUtc: now,
+      leaseDuration: const Duration(minutes: 1),
+    );
+    final plan = await store.plan(
+      ownerToken: 'owner-a',
+      generation: generation,
+      nowUtc: now,
+      policy: DeadlineReminderSchedulingPolicy.android,
+      leaseDuration: const Duration(minutes: 1),
+    );
+    expect(plan.schedules, isNotEmpty);
+    for (final item in plan.schedules) {
+      await store.markScheduled(
+        ownerToken: 'owner-a',
+        generation: generation,
+        item: item,
+      );
+    }
+
+    // Nothing an ordinary plan looks at has changed — the deadline is backend
+    // time and the offset lives outside this store — so without the sweep the
+    // next plan is empty and the OS keeps every stale alarm.
+    final requested = await store
+        .markAllScheduledUnknownAndRequestReconciliation();
+
+    expect(requested, 2);
+    final replanned = await store.plan(
+      ownerToken: 'owner-a',
+      generation: requested!,
+      nowUtc: now,
+      policy: DeadlineReminderSchedulingPolicy.android,
+      leaseDuration: const Duration(minutes: 1),
+    );
+    expect(
+      replanned.schedules.map((item) => item.request.id.value),
+      plan.schedules.map((item) => item.request.id.value),
+    );
+  });
+
+  test('a clock correction with nothing scheduled requests no work', () async {
+    expect(
+      await store.markAllScheduledUnknownAndRequestReconciliation(),
+      equals(null),
+    );
+  });
+
   test(
     'strict time, exceeded, and mute rules exclude or cancel owners',
     () async {

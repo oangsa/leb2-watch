@@ -224,7 +224,40 @@ Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
 /// response applies to every later scheduling decision in that isolate. The
 /// background sync isolate builds its own container and measures its own
 /// offset from its own first response.
-final trustedClockProvider = Provider<TrustedClock>((ref) => TrustedClock());
+///
+// ponytail: the offset is per-isolate and unshared, so an isolate that
+// touches a reminder lease before its own first response reads expiries the
+// other isolate wrote in corrected time. Both converge seconds after the
+// first response and owner-token checks fence the stale writer; persist the
+// offset if lease contention ever shows up in diagnostics.
+final trustedClockProvider = Provider<TrustedClock>((ref) {
+  return TrustedClock(
+    onOffsetChanged: () => unawaited(_rescheduleForClockCorrection(ref)),
+  );
+});
+
+/// Re-hands every OS-held reminder over after the clock correction moves.
+///
+/// The correction is applied when an alarm is handed to the platform, so
+/// alarms placed under the previous offset — including every alarm placed
+/// before the first measurement landed — keep firing at the old instant. A
+/// plan on its own will not notice, because the stored backend-time deadline
+/// has not changed.
+Future<void> _rescheduleForClockCorrection(Ref ref) async {
+  try {
+    final store = await ref.read(deadlineReminderStoreProvider.future);
+    if (await store.markAllScheduledUnknownAndRequestReconciliation() == null) {
+      return;
+    }
+    final coordinator = await ref.read(
+      deadlineReminderCoordinatorProvider.future,
+    );
+    await coordinator.reconcileAfterPreferenceChange();
+  } on Object {
+    // Best effort: the generation is already advanced, so the next sync
+    // reconciles even when this pass could not.
+  }
+}
 
 final Provider<DioBackendApiClient> backendTransportClientProvider =
     Provider<DioBackendApiClient>((ref) {

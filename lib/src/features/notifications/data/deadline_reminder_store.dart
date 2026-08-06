@@ -199,6 +199,8 @@ abstract interface class DeadlineReminderStore {
     required Iterable<LocalNotificationId> ids,
   });
 
+  Future<int?> markAllScheduledUnknownAndRequestReconciliation();
+
   Future<bool> completeGeneration({
     required String ownerToken,
     required int generation,
@@ -800,6 +802,36 @@ ORDER BY activities.semester_id, activities.identity_key
             updates: {_database.scheduledReminders},
           );
         }
+        if (changed == 0) {
+          return null;
+        }
+        return _advanceRequestedGeneration();
+      });
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  /// Forces every reminder currently held by the OS back through scheduling.
+  ///
+  /// The instant handed to the OS is expressed in device time, so it goes
+  /// stale the moment the clock correction moves. Nothing else in a plan
+  /// notices — the stored deadline and scheduled instant are backend time and
+  /// do not change — so the schedule state is the flag that has to be cleared.
+  ///
+  /// Rows awaiting process delivery are left alone: they are delivered by
+  /// polling this store, not by an OS alarm, so no correction is baked into
+  /// them.
+  @override
+  Future<int?> markAllScheduledUnknownAndRequestReconciliation() async {
+    try {
+      return await _database.transaction(() async {
+        final changed = await _database.customUpdate(
+          'UPDATE scheduled_reminders SET needs_reconciliation = 1, '
+          "schedule_state = '$_reminderStateUnknown' "
+          "WHERE schedule_state = '$_reminderStateScheduled'",
+          updates: {_database.scheduledReminders},
+        );
         if (changed == 0) {
           return null;
         }

@@ -1,10 +1,85 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leb2_watch/src/core/time/clock_skew.dart';
 import 'package:leb2_watch/src/features/notifications/data/flutter_local_notifications_adapter.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('clock correction reaches the platform alarm', () {
+    const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+
+    setUpAll(() {
+      tz_data.initializeTimeZones();
+      tz.setLocalLocation(tz.UTC);
+      // Plugin registration is what normally installs this; the test drives
+      // the Android implementation directly over its mocked channel.
+      FlutterLocalNotificationsPlatform.instance =
+          AndroidFlutterLocalNotificationsPlugin();
+    });
+
+    Future<String?> capturedScheduledDate(TrustedClock clock) async {
+      String? scheduledDate;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'zonedSchedule') {
+              scheduledDate =
+                  (call.arguments as Map)['scheduledDateTime'] as String?;
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null),
+      );
+      final adapter = FlutterLocalNotificationsAdapter(
+        runtimePlatform: NotificationRuntimePlatform.android,
+        clock: clock,
+        windowsTeardown: () {},
+      );
+      addTearDown(adapter.dispose);
+
+      await adapter.schedule(
+        PlatformScheduledNotification(
+          notification: const PlatformNotification(
+            id: 7,
+            kind: PlatformNotificationKind.deadlineReminder,
+            title: 'Course',
+            body: 'Due soon',
+            payload: 'payload',
+            groupKey: 'leb2.course.1.2',
+          ),
+          scheduledForUtc: DateTime.utc(2030, 5, 1, 12),
+          precision: PlatformSchedulePrecision.inexact,
+        ),
+      );
+      return scheduledDate;
+    }
+
+    test('an uncorrected clock hands over the instant unchanged', () async {
+      expect(
+        await capturedScheduledDate(TrustedClock()),
+        '2030-05-01T12:00:00',
+      );
+    });
+
+    test('a corrected clock hands over a device-clock instant', () async {
+      // The device runs two hours slow, so the alarm has to be placed two
+      // hours earlier by that clock to fire at the true instant.
+      expect(
+        await capturedScheduledDate(
+          TrustedClock(offset: const Duration(hours: 2)),
+        ),
+        '2030-05-01T10:00:00',
+      );
+    });
+  });
+
   test('initialization settings never request Darwin permission', () {
     final iOS = localNotificationInitializationSettings.iOS!;
     final macOS = localNotificationInitializationSettings.macOS!;

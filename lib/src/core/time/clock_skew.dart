@@ -13,7 +13,13 @@ library;
 /// not at the round-trip midpoint, so the measurement is already uncertain by
 /// about a second. A slow response widens that by half the round trip, and
 /// past this bound the reading says less than it costs to apply.
-const clockSkewMaximumRoundTrip = Duration(seconds: 2);
+///
+/// Measured across the whole exchange, which on a cold connection includes
+/// DNS, the TLS handshake and any token refresh — a tighter bound discards
+/// the launch measurement that matters most. Half of this stays under
+/// [clockSkewMinimumCorrection], so the deadband still absorbs the
+/// uncertainty a slow reading carries.
+const clockSkewMaximumRoundTrip = Duration(seconds: 5);
 
 /// Smallest skew worth correcting.
 ///
@@ -64,11 +70,14 @@ final class TrustedClock {
   TrustedClock({
     DateTime Function()? deviceNow,
     Duration offset = Duration.zero,
+    void Function()? onOffsetChanged,
   }) : _deviceNow = deviceNow ?? DateTime.now {
+    _onOffsetChanged = onOffsetChanged;
     _offset = offset;
   }
 
   final DateTime Function() _deviceNow;
+  late final void Function()? _onOffsetChanged;
   late Duration _offset;
 
   /// True time minus device time, so `deviceNow + offset == trueNow`.
@@ -86,10 +95,24 @@ final class TrustedClock {
   DateTime deviceInstantFor(DateTime trueInstantUtc) =>
       trueInstantUtc.toUtc().subtract(_offset);
 
+  /// Accepts a freshly measured [offset].
+  ///
+  /// A reading past [clockSkewMaximumCorrection] is discarded outright: the
+  /// last accepted offset is a better answer than pretending the device agrees
+  /// with the backend.
+  ///
+  /// Anything already handed to the OS was placed against the previous offset
+  /// and now fires at the wrong instant, so a move worth correcting reports
+  /// itself through `onOffsetChanged`.
   void adopt(Duration offset) {
-    _offset = offset.abs() > clockSkewMaximumCorrection
-        ? Duration.zero
-        : offset;
+    if (offset.abs() > clockSkewMaximumCorrection) {
+      return;
+    }
+    final previous = _offset;
+    _offset = offset;
+    if ((offset - previous).abs() >= clockSkewMinimumCorrection) {
+      _onOffsetChanged?.call();
+    }
   }
 
   @override
