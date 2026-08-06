@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/design_system/app_tokens.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
-import '../../../core/bangkok_time.dart';
+import '../../../core/time/app_time_zone.dart';
 import '../../../core/session/session_lifecycle.dart';
 import '../../background_sync/domain/background_scheduler.dart';
 import '../application/synchronization_diagnostics_service.dart';
@@ -545,11 +545,11 @@ class _DiagnosticsRow extends StatelessWidget {
 }
 
 String formatDiagnosticsTimestamp(BuildContext context, DateTime timestampUtc) {
-  final bangkok = bangkokWallTime(timestampUtc);
+  final wallClock = appTimeZone.wallTime(timestampUtc);
   final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(bangkok)}, '
-      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(bangkok), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))} '
-      'GMT+7';
+  return '${localizations.formatMediumDate(wallClock)}, '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(wallClock), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))} '
+      '${appTimeZone.label}';
 }
 
 String _syncStateLabel(DiagnosticsSyncState state) => switch (state) {

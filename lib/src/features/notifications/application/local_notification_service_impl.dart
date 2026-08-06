@@ -14,7 +14,7 @@ final class LocalNotificationServiceImpl
   LocalNotificationServiceImpl(
     this._platform, {
     this._payloadCodec = const LocalNotificationPayloadCodec(),
-    this._deadlineFormatter = const DeviceLocalNotificationDeadlineFormatter(),
+    this._deadlineFormatter = const AppZoneNotificationDeadlineFormatter(),
     DateTime Function()? nowUtc,
   }) : _nowUtc = nowUtc ?? _systemUtcNow;
 

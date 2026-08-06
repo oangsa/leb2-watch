@@ -1204,8 +1204,6 @@ Future<void> _pumpPage(
             deadlineFormatter: (_, deadline) => switch (deadline) {
               ZonedAssignmentDeadline() =>
                 'Aug 1, 2026 at 4:30 PM · GMT+7 (Bangkok)',
-              UnzonedAssignmentDeadline() =>
-                '2026-08-03 09:00 · GMT+7 (Bangkok)',
               MissingAssignmentDeadline() => 'No deadline',
               InvalidAssignmentDeadline() => 'Deadline format unavailable',
             },

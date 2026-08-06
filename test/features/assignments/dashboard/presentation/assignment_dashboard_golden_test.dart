@@ -114,11 +114,12 @@ Future<void> _pumpGolden(
               onOpenAssignment: (_) {},
               timestampFormatter: (_, _) => 'Jul 26, 2026 at 8:01 AM',
               deadlineFormatter: (_, deadline) => switch (deadline) {
-                ZonedAssignmentDeadline(:final instantUtc)
-                    when instantUtc.day == 1 =>
-                  'Aug 1, 2026 at 9:30 AM',
-                ZonedAssignmentDeadline() => 'Aug 5, 2026 at 7:00 PM',
-                UnzonedAssignmentDeadline() => '2026-08-03 09:00',
+                ZonedAssignmentDeadline(:final instantUtc) =>
+                  switch (instantUtc.day) {
+                    1 => 'Aug 1, 2026 at 9:30 AM',
+                    3 => 'Aug 3, 2026 at 9:00 AM',
+                    _ => 'Aug 5, 2026 at 7:00 PM',
+                  },
                 MissingAssignmentDeadline() => 'No deadline',
                 InvalidAssignmentDeadline() => 'Deadline format unavailable',
               },

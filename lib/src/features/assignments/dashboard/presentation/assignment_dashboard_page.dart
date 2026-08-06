@@ -9,7 +9,7 @@ import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
-import '../../../../core/bangkok_time.dart';
+import '../../../../core/time/app_time_zone.dart';
 import '../../../../core/session/session_lifecycle.dart';
 import '../../../semesters/semester_label.dart';
 import '../../sync/assignment_sync_service.dart';
@@ -35,7 +35,7 @@ class AssignmentDashboardPage extends StatefulWidget {
     required this.onOpenAssignment,
     this.deadlineFormatter = formatAssignmentDeadline,
     this.timestampFormatter = formatAssignmentTimestamp,
-    this.deadlinePicker = pickAssignmentDeadlineBangkok,
+    this.deadlinePicker = pickAssignmentDeadlineInAppZone,
     super.key,
   });
 
@@ -727,7 +727,7 @@ class _DashboardControls extends StatelessWidget {
       if (deadlineAtOrBeforeBangkok case final deadline?)
         InputChip(
           key: const Key('assignment-filter-chip-deadline'),
-          label: Text('Due by: ${_formatBangkokWallTime(context, deadline)}'),
+          label: Text('Due by: ${_formatZoneWallTime(context, deadline)}'),
           onDeleted: onDeadlineCleared,
         ),
       if (submissionFilter == AssignmentSubmissionFilter.all)
@@ -979,7 +979,7 @@ class _DeadlineFilterControl extends StatelessWidget {
     final selected = value;
     final label = selected == null
         ? 'Due by · Any date'
-        : 'Due by · ${_formatBangkokWallTime(context, selected)}';
+        : 'Due by · ${_formatZoneWallTime(context, selected)}';
     return Row(
       children: [
         Expanded(
@@ -1374,7 +1374,7 @@ String _deadlineSemantic(AssignmentDeadline deadline, String formatted) {
 }
 
 String formatAssignmentTimestamp(BuildContext context, DateTime utc) {
-  return _formatBangkokWallTime(context, bangkokWallTime(utc));
+  return _formatZoneWallTime(context, appTimeZone.wallTime(utc));
 }
 
 String formatAssignmentDeadline(
@@ -1382,44 +1382,34 @@ String formatAssignmentDeadline(
   AssignmentDeadline deadline,
 ) {
   return switch (deadline) {
-    ZonedAssignmentDeadline(:final instantUtc) => _formatBangkokWallTime(
+    ZonedAssignmentDeadline(:final instantUtc) => _formatZoneWallTime(
       context,
-      bangkokWallTime(instantUtc),
+      appTimeZone.wallTime(instantUtc),
     ),
-    // Unzoned sources are already Bangkok wall time, so the components render
-    // directly instead of being shifted a second time.
-    UnzonedAssignmentDeadline(
-      :final year,
-      :final month,
-      :final day,
-      :final hour,
-      :final minute,
-    ) =>
-      _formatBangkokWallTime(context, DateTime(year, month, day, hour, minute)),
     MissingAssignmentDeadline() => 'No deadline',
     InvalidAssignmentDeadline() => 'Deadline unavailable',
   };
 }
 
-String _formatBangkokWallTime(BuildContext context, DateTime bangkok) {
+String _formatZoneWallTime(BuildContext context, DateTime wallClock) {
   final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(bangkok)}, '
-      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(bangkok))} '
-      'GMT+7';
+  return '${localizations.formatMediumDate(wallClock)}, '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(wallClock))} '
+      '${appTimeZone.label}';
 }
 
-Future<DateTime?> pickAssignmentDeadlineBangkok(
+Future<DateTime?> pickAssignmentDeadlineInAppZone(
   BuildContext context,
   DateTime? initialValue,
 ) async {
-  final nowBangkok = bangkokWallTime(DateTime.now());
-  final initial = initialValue ?? nowBangkok;
+  final nowInZone = appTimeZone.wallTime(DateTime.now());
+  final initial = initialValue ?? nowInZone;
   final date = await showDatePicker(
     context: context,
     initialDate: initial,
     firstDate: DateTime(2000),
-    lastDate: DateTime(nowBangkok.year + 20),
-    helpText: 'Due by date · GMT+7 (Bangkok)',
+    lastDate: DateTime(nowInZone.year + 20),
+    helpText: 'Due by date · ${appTimeZone.label} (${appTimeZone.displayName})',
   );
   if (date == null || !context.mounted) {
     return null;
@@ -1427,7 +1417,7 @@ Future<DateTime?> pickAssignmentDeadlineBangkok(
   final time = await showTimePicker(
     context: context,
     initialTime: TimeOfDay.fromDateTime(initial),
-    helpText: 'Due by time · GMT+7 (Bangkok)',
+    helpText: 'Due by time · ${appTimeZone.label} (${appTimeZone.displayName})',
   );
   if (time == null) {
     return null;

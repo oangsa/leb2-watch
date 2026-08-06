@@ -1,3 +1,4 @@
+import '../../../../core/time/app_time_zone.dart';
 import '../data/assignment_detail_store.dart';
 import '../domain/assignment_detail_key.dart';
 import 'assignment_description_sanitizer.dart';
@@ -18,7 +19,10 @@ sealed class AssignmentDetailTimestamp {
       return const InvalidAssignmentDetailTimestamp();
     }
     if (match.namedGroup('zone') == null) {
-      return UnzonedAssignmentDetailTimestamp(source);
+      // LEB2 omits the offset and publishes the app zone's wall time. Reading
+      // it as the device zone (what DateTime.parse does) would shift every
+      // deadline reminder, so resolve it instead of discarding the timestamp.
+      return ZonedAssignmentDetailTimestamp(appTimeZone.instantAt(parsed));
     }
     return ZonedAssignmentDetailTimestamp(parsed.toUtc());
   }
@@ -31,12 +35,6 @@ final class ZonedAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
   const ZonedAssignmentDetailTimestamp(this.instantUtc);
 
   final DateTime instantUtc;
-}
-
-final class UnzonedAssignmentDetailTimestamp extends AssignmentDetailTimestamp {
-  const UnzonedAssignmentDetailTimestamp(this.source);
-
-  final String source;
 }
 
 final class MissingAssignmentDetailTimestamp extends AssignmentDetailTimestamp {

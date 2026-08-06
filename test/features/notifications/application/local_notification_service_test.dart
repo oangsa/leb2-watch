@@ -74,21 +74,7 @@ void main() {
     final service = LocalNotificationServiceImpl(
       platform,
       nowUtc: () => now,
-      deadlineFormatter: DeviceLocalNotificationDeadlineFormatter(
-        projectLocalTime: (instantUtc) {
-          final wallClock = instantUtc.add(const Duration(hours: 7));
-          return LocalNotificationTime(
-            wallClock: DateTime(
-              wallClock.year,
-              wallClock.month,
-              wallClock.day,
-              wallClock.hour,
-              wallClock.minute,
-            ),
-            utcOffset: const Duration(hours: 7),
-          );
-        },
-      ),
+      deadlineFormatter: const AppZoneNotificationDeadlineFormatter(),
     );
     addTearDown(service.dispose);
     return service;
@@ -456,7 +442,7 @@ void main() {
       expect(
         shown.body,
         'New assignment: Finite state machines\n'
-        'Due: 2026-08-02 19:05 (UTC+07:00)',
+        'Due: 2026-08-02 19:05 GMT+7',
       );
       expect(shown.kind, PlatformNotificationKind.newAssignment);
       expect(shown.groupKey, 'leb2.course.123.9');
@@ -491,7 +477,7 @@ void main() {
       expect(
         platform.scheduled.single.notification.body,
         'Due soon: Finite state machines\n'
-        'Due: 2026-08-02 19:00 (UTC+07:00)',
+        'Due: 2026-08-02 19:00 GMT+7',
       );
       expect(
         platform.scheduled.single.scheduledForUtc,
@@ -527,7 +513,7 @@ void main() {
         expect(
           shown.body,
           'Due soon: Finite state machines\n'
-          'Due: 2026-08-02 15:00 (UTC+07:00)',
+          'Due: 2026-08-02 15:00 GMT+7',
         );
         expect(shown.groupKey, 'leb2.course.123.9');
         expect(

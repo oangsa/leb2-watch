@@ -439,7 +439,9 @@ void main() {
         semesterId: 101,
         courseId: 3001,
         activityId: 1003,
-        dueDateSource: '2026-08-02T12:00:00',
+        // Offset-less LEB2 sources are Bangkok wall time, so this is the same
+        // instant as the zoned rows above.
+        dueDateSource: '2026-08-02T19:00:00',
       );
       await _seedAssignment(
         database,
@@ -485,12 +487,12 @@ void main() {
         leaseDuration: const Duration(minutes: 1),
       );
 
-      expect(plan.schedules, hasLength(6));
+      expect(plan.schedules, hasLength(8));
       expect(
         plan.schedules
             .map((item) => item.request.assignment.identityKey)
             .toSet(),
-        {'backend:1001', 'backend:1002', 'backend:1006'},
+        {'backend:1001', 'backend:1002', 'backend:1003', 'backend:1006'},
       );
       expect(
         plan.schedules.every(

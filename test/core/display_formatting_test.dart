@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leb2_watch/src/core/bangkok_time.dart';
+import 'package:leb2_watch/src/core/time/app_time_zone.dart';
 import 'package:leb2_watch/src/features/semesters/semester_label.dart';
 
 void main() {
@@ -11,14 +11,14 @@ void main() {
     expect(formatSemesterLabel(name: null, id: null), 'Semester');
   });
 
-  test('bangkok wall time shifts any instant to GMT+7 regardless of zone', () {
+  test('app zone wall time shifts any instant to GMT+7 regardless of zone', () {
     expect(
-      bangkokWallTime(DateTime.utc(2026, 1, 19, 5)),
+      appTimeZone.wallTime(DateTime.utc(2026, 1, 19, 5)),
       DateTime.utc(2026, 1, 19, 12),
     );
     // An instant already carrying an offset is normalised before shifting.
     expect(
-      bangkokWallTime(DateTime.parse('2026-01-19T00:00:00-05:00')),
+      appTimeZone.wallTime(DateTime.parse('2026-01-19T00:00:00-05:00')),
       DateTime.utc(2026, 1, 19, 12),
     );
   });

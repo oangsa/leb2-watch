@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
+import 'package:leb2_watch/src/core/time/app_time_zone.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/assignments/detail/presentation/assignment_detail_page.dart';
@@ -38,27 +39,26 @@ void main() {
   );
 
   testWidgets(
-    'renders zoned time locally and preserves unzoned source wall clock',
+    'renders timestamps in Bangkok time regardless of the device zone',
     (tester) async {
       final service = _FakeService(_current());
       addTearDown(service.close);
       await _pumpPage(tester, service);
       await tester.pumpAndSettle();
 
-      final localDeadline = DateTime.utc(2026, 8, 1, 9).toLocal();
       final localizations = MaterialLocalizations.of(
         tester.element(find.byKey(const Key('assignment-detail-scroll'))),
       );
-      final expectedDeadline =
-          '${localizations.formatMediumDate(localDeadline)} at '
-          '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(localDeadline))}';
+      String rendered(DateTime instantUtc) {
+        final bangkok = appTimeZone.wallTime(instantUtc);
+        return '${localizations.formatMediumDate(bangkok)} at '
+            '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(bangkok))} '
+            'GMT+7';
+      }
 
-      expect(find.text(expectedDeadline), findsOneWidget);
-      expect(find.text('2026-07-25 10:00:00'), findsOneWidget);
-      expect(
-        find.text('Time zone not provided. Not the publication time.'),
-        findsOneWidget,
-      );
+      expect(find.text(rendered(DateTime.utc(2026, 8, 1, 9))), findsOneWidget);
+      expect(find.text(rendered(DateTime.utc(2026, 7, 25, 3))), findsOneWidget);
+      expect(find.text('Not the publication time.'), findsOneWidget);
     },
   );
 
@@ -184,8 +184,8 @@ CurrentAssignmentDetail _current({String title = 'Graph traversal'}) {
     activityType: 'ASM',
     deadline: ZonedAssignmentDetailTimestamp(DateTime.utc(2026, 8, 1, 9)),
     backendReportedDeadlineExceeded: true,
-    sourceCreatedAt: const UnzonedAssignmentDetailTimestamp(
-      '2026-07-25T10:00:00',
+    sourceCreatedAt: ZonedAssignmentDetailTimestamp(
+      DateTime.utc(2026, 7, 25, 3),
     ),
     firstSeenAtUtc: DateTime.utc(2026, 7, 25),
     lastSeenAtUtc: DateTime.utc(2026, 7, 26),

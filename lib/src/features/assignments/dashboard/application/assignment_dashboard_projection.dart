@@ -1,3 +1,4 @@
+import '../../../../core/time/app_time_zone.dart';
 import '../data/assignment_dashboard_store.dart';
 import 'assignment_dashboard_preferences.dart';
 
@@ -28,15 +29,22 @@ sealed class AssignmentDeadline {
         subMicrosecondNanoseconds: fractionNanoseconds % 1000,
       );
     }
-    return UnzonedAssignmentDeadline(
-      source: source,
-      year: int.parse(match.namedGroup('year')!),
-      month: int.parse(match.namedGroup('month')!),
-      day: int.parse(match.namedGroup('day')!),
-      hour: int.parse(match.namedGroup('hour')!),
-      minute: int.parse(match.namedGroup('minute')!),
-      second: int.tryParse(match.namedGroup('second') ?? '') ?? 0,
-      fractionNanoseconds: fractionNanoseconds,
+    // LEB2 omits the offset and publishes the app zone's wall time, so resolve
+    // it there rather than reading the components in the device time zone.
+    return ZonedAssignmentDeadline(
+      instantUtc: appTimeZone.instantAt(
+        DateTime.utc(
+          int.parse(match.namedGroup('year')!),
+          int.parse(match.namedGroup('month')!),
+          int.parse(match.namedGroup('day')!),
+          int.parse(match.namedGroup('hour')!),
+          int.parse(match.namedGroup('minute')!),
+          int.tryParse(match.namedGroup('second') ?? '') ?? 0,
+          0,
+          fractionNanoseconds ~/ 1000,
+        ),
+      ),
+      subMicrosecondNanoseconds: fractionNanoseconds % 1000,
     );
   }
 
@@ -59,53 +67,18 @@ final class ZonedAssignmentDeadline extends AssignmentDeadline {
   int get sortGroup => 0;
 }
 
-final class UnzonedAssignmentDeadline extends AssignmentDeadline {
-  const UnzonedAssignmentDeadline({
-    required this.source,
-    required this.year,
-    required this.month,
-    required this.day,
-    required this.hour,
-    required this.minute,
-    required this.second,
-    required this.fractionNanoseconds,
-  });
-
-  final String source;
-  final int year;
-  final int month;
-  final int day;
-  final int hour;
-  final int minute;
-  final int second;
-  final int fractionNanoseconds;
-
-  List<int> get wallClockTuple => [
-    year,
-    month,
-    day,
-    hour,
-    minute,
-    second,
-    fractionNanoseconds,
-  ];
-
-  @override
-  int get sortGroup => 1;
-}
-
 final class MissingAssignmentDeadline extends AssignmentDeadline {
   const MissingAssignmentDeadline();
 
   @override
-  int get sortGroup => 2;
+  int get sortGroup => 1;
 }
 
 final class InvalidAssignmentDeadline extends AssignmentDeadline {
   const InvalidAssignmentDeadline();
 
   @override
-  int get sortGroup => 2;
+  int get sortGroup => 1;
 }
 
 final class AssignmentDashboardRow {
@@ -190,7 +163,7 @@ AssignmentDashboardProjection projectAssignmentDashboard({
       .where(
         (assignment) =>
             deadlineAtOrBeforeBangkok == null ||
-            _fallsWithinBangkokDeadlineFilter(
+            _fallsWithinDeadlineFilter(
               AssignmentDeadline.fromSource(assignment.dueDateSource),
               deadlineAtOrBeforeBangkok,
             ),
@@ -238,7 +211,7 @@ AssignmentDashboardProjection projectAssignmentDashboard({
   );
 }
 
-bool _fallsWithinBangkokDeadlineFilter(
+bool _fallsWithinDeadlineFilter(
   AssignmentDeadline deadline,
   DateTime selectedMinute,
 ) {
@@ -248,10 +221,9 @@ bool _fallsWithinBangkokDeadlineFilter(
       :final subMicrosecondNanoseconds,
     ) =>
       _dateTimeTuple(
-        instantUtc.add(const Duration(hours: 7)),
+        appTimeZone.wallTime(instantUtc),
         subMicrosecondNanoseconds: subMicrosecondNanoseconds,
       ),
-    UnzonedAssignmentDeadline(:final wallClockTuple) => wallClockTuple,
     MissingAssignmentDeadline() || InvalidAssignmentDeadline() => null,
   };
   if (deadlineTuple == null) {
@@ -303,11 +275,6 @@ int compareAssignmentDeadlines(
       instantUtc.compareTo(rightInstant) != 0
           ? instantUtc.compareTo(rightInstant)
           : subMicrosecondNanoseconds.compareTo(rightSubMicrosecondNanoseconds),
-    (
-      UnzonedAssignmentDeadline(:final wallClockTuple),
-      UnzonedAssignmentDeadline(wallClockTuple: final rightTuple),
-    ) =>
-      _compareIntLists(wallClockTuple, rightTuple),
     _ => 0,
   };
   return direction == AssignmentDeadlineDirection.ascending
