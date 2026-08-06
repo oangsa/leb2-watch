@@ -450,8 +450,34 @@ void main() {
       expect(harness.notifications.cancelAllCount, 1);
       expect(harness.notifications.permissionRequestCount, 0);
       expect(harness.notifications.shown, hasLength(1));
-      expect(harness.notifications.scheduled, isEmpty);
-      expect(harness.notifications.cancelledIds, isEmpty);
+      // The fixture publishes its future deadline as `2026-08-15T23:59:00`,
+      // with no offset — 16:59Z once resolved in the app time zone. Both
+      // reminder offsets are placed against that instant, and the fixture's
+      // past deadline produces none.
+      //
+      // These were empty before offset-less deadlines were resolved at all:
+      // an unzoned deadline carried no instant, so it silently scheduled
+      // nothing. Asserting the instants keeps that from regressing quietly.
+      expect(
+        harness.notifications.scheduled
+            .map((item) => item.scheduledForUtc)
+            .toList(),
+        unorderedEquals(<DateTime>[
+          DateTime.utc(2026, 8, 14, 16, 59),
+          DateTime.utc(2026, 8, 15, 15, 59),
+        ]),
+      );
+      // Deleting all local data withdraws every reminder that was placed, so
+      // this tracks whatever the assertion above scheduled rather than being
+      // empty as it was when no deadline resolved to an instant at all.
+      expect(
+        harness.notifications.cancelledIds,
+        unorderedEquals(
+          harness.notifications.scheduled
+              .map((item) => item.notification.id)
+              .toList(),
+        ),
+      );
       expect(harness.background.scheduleCount, greaterThan(0));
       expect(
         harness.background.cancelCount,
