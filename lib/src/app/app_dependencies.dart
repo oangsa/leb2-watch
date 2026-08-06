@@ -13,6 +13,7 @@ import '../core/network/backend_runtime_identity.dart';
 import '../core/security/credential_store.dart';
 import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
+import '../core/time/clock_skew.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/assignments/sync/quiescence_aware_assignment_sync_service.dart';
@@ -62,7 +63,9 @@ final appConfigurationProvider = Provider<AppConfiguration>((ref) {
 
 final localNotificationsPlatformProvider = Provider<LocalNotificationsPlatform>(
   (ref) {
-    return FlutterLocalNotificationsAdapter();
+    return FlutterLocalNotificationsAdapter(
+      clock: ref.watch(trustedClockProvider),
+    );
   },
 );
 
@@ -71,6 +74,7 @@ final localNotificationServiceProvider = Provider<LocalNotificationService>((
 ) {
   final service = LocalNotificationServiceImpl(
     ref.watch(localNotificationsPlatformProvider),
+    nowUtc: ref.watch(trustedClockProvider).nowUtc,
   );
   final guarded = QuiescenceAwareLocalNotificationService(
     service,
@@ -214,6 +218,14 @@ Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
   }
 }
 
+/// Scheduling clock, corrected towards the backend once an offset is known.
+///
+/// Held for the container's lifetime so the correction measured on one
+/// response applies to every later scheduling decision in that isolate. The
+/// background sync isolate builds its own container and measures its own
+/// offset from its own first response.
+final trustedClockProvider = Provider<TrustedClock>((ref) => TrustedClock());
+
 final Provider<DioBackendApiClient> backendTransportClientProvider =
     Provider<DioBackendApiClient>((ref) {
       return DioBackendApiClient(
@@ -225,6 +237,7 @@ final Provider<DioBackendApiClient> backendTransportClientProvider =
               .read(backendCompatibilityCoordinatorProvider)
               .handleClientUpdateRequired(),
         ),
+        onClockSkewObserved: ref.read(trustedClockProvider).adopt,
       );
     });
 
@@ -341,6 +354,7 @@ final newAssignmentNotificationCoordinatorProvider =
       return NewAssignmentNotificationCoordinator(
         store,
         ref.watch(localNotificationServiceProvider),
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
       );
     });
 
@@ -370,6 +384,7 @@ final desktopDeadlineReminderDeliveryCoordinatorProvider =
       final coordinator = DesktopDeadlineReminderDeliveryCoordinator(
         await ref.watch(desktopDeadlineReminderDeliveryStoreProvider.future),
         ref.watch(localNotificationServiceProvider),
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
         runWithActivityLease: <T>(Future<T> Function() action) async {
           final lease = await storage.acquireActivityLease();
           try {
@@ -400,6 +415,7 @@ final deadlineReminderCoordinatorProvider =
         store,
         ref.watch(localNotificationServiceProvider),
         policy: policy,
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
       );
     });
 

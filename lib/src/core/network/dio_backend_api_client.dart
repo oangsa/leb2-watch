@@ -25,6 +25,7 @@ final class DioBackendApiClient
     DateTime Function()? utcNow,
     BackendClientIdentityProvider? runtimeIdentityProvider,
     void Function()? onClientUpdateRequired,
+    void Function(Duration skew)? onClockSkewObserved,
   }) {
     final baseUrl = _validatedBaseUrl(configuration);
     final dio = _createDio(baseUrl);
@@ -53,6 +54,7 @@ final class DioBackendApiClient
           : null,
       utcNow: utcNow ?? DateTime.now,
       onClientUpdateRequired: onClientUpdateRequired,
+      onClockSkewObserved: onClockSkewObserved,
     );
   }
 
@@ -64,6 +66,7 @@ final class DioBackendApiClient
     required this._eventSink,
     required this._utcNow,
     required this._onClientUpdateRequired,
+    required this._onClockSkewObserved,
   });
 
   final Dio _dio;
@@ -73,6 +76,7 @@ final class DioBackendApiClient
   final BackendTransportEventSink? _eventSink;
   final DateTime Function() _utcNow;
   final void Function()? _onClientUpdateRequired;
+  final void Function(Duration skew)? _onClockSkewObserved;
 
   @override
   Future<List<Semester>> getSemesters({
@@ -271,12 +275,14 @@ final class DioBackendApiClient
           ...?headers,
         },
       );
+      final sentAtUtc = _utcNow().toUtc();
       final response = await client.request<List<int>>(
         path,
         data: data,
         options: options,
         cancelToken: cancelToken,
       );
+      _observeServerClock(response.headers, sentAtUtc);
       statusCode = response.statusCode;
       if (statusCode == null) {
         throw const BackendTransportException(
@@ -354,6 +360,39 @@ final class DioBackendApiClient
           outcome: outcome,
         ),
       );
+    }
+  }
+
+  /// Reports how far this device's clock sits from the backend's, measured
+  /// against the round-trip midpoint. Every response carries a `Date` header,
+  /// so this needs no extra request.
+  void _observeServerClock(Headers headers, DateTime sentAtUtc) {
+    final observer = _onClockSkewObserved;
+    if (observer == null) {
+      return;
+    }
+    final header = headers.value('date');
+    if (header == null) {
+      return;
+    }
+    final DateTime serverUtc;
+    try {
+      serverUtc = HttpDate.parse(header);
+    } on Object {
+      return;
+    }
+    final skew = resolveClockSkew(
+      sentAtUtc: sentAtUtc,
+      receivedAtUtc: _utcNow().toUtc(),
+      serverUtc: serverUtc,
+    );
+    if (skew == null) {
+      return;
+    }
+    try {
+      observer(skew);
+    } on Object {
+      // Clock correction is an optimisation; it must never fail a request.
     }
   }
 
