@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show HttpDate;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/retry_after_parser.dart';
 import 'package:leb2_watch/src/core/network/transport/backend_dtos.dart';
 import 'package:leb2_watch/src/core/security/credential_store.dart';
+import 'package:leb2_watch/src/core/time/clock_skew.dart';
 
 import 'backend_compatibility.dart';
 import 'backend_runtime_identity.dart';

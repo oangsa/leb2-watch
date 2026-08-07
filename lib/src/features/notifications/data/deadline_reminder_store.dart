@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/time/clock_skew.dart';
 import '../../assignments/detail/application/assignment_detail_service.dart';
 import '../../assignments/detail/domain/assignment_detail_key.dart';
 import '../domain/deadline_reminder_policy.dart';
@@ -199,6 +200,8 @@ abstract interface class DeadlineReminderStore {
     required Iterable<LocalNotificationId> ids,
   });
 
+  Future<int?> adoptClockOffset(Duration offset);
+
   Future<bool> completeGeneration({
     required String ownerToken,
     required int generation,
@@ -211,10 +214,21 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
   const DriftDeadlineReminderStore(
     this._database, {
     this.idFactory = const LocalNotificationIdFactory(),
+    this.clockOffset = _noClockOffset,
   });
 
   final AppDatabase _database;
   final LocalNotificationIdFactory idFactory;
+
+  /// The clock correction alarms are currently being placed under.
+  ///
+  /// Read at [markScheduled], so each row records what the OS was actually
+  /// handed rather than what was last measured. Recording the measurement
+  /// instead would leave rows claiming a correction the OS never received:
+  /// this offset restarts at zero every launch, so a reconciliation driven by
+  /// a preference change before the launch's first backend response places its
+  /// alarms uncorrected.
+  final Duration Function() clockOffset;
 
   @override
   Future<int> requestGeneration({bool backgroundTriggered = false}) async {
@@ -678,6 +692,13 @@ ORDER BY activities.semester_id, activities.identity_key
     }
   }
 
+  /// Also records the correction this alarm was placed under.
+  ///
+  /// [clockOffset] is read here rather than captured when the platform call
+  /// was made because a correction landing in between advances the requested
+  /// generation, and this statement's generation guard then rejects the write
+  /// outright — so the only placements that reach the column are ones whose
+  /// offset never moved.
   @override
   Future<bool> markScheduled({
     required String ownerToken,
@@ -688,7 +709,7 @@ ORDER BY activities.semester_id, activities.identity_key
     try {
       final updated = await _database.customUpdate(
         "UPDATE scheduled_reminders SET needs_reconciliation = 0, "
-        "schedule_state = 'scheduled' "
+        "schedule_state = 'scheduled', clock_offset_microseconds = ? "
         'WHERE notification_id = ? AND semester_id = ? '
         'AND identity_key = ? AND offset_minutes = ? '
         'AND deadline_at_utc = ? AND scheduled_for_utc = ? '
@@ -697,6 +718,7 @@ ORDER BY activities.semester_id, activities.identity_key
         'WHERE singleton_id = 1 AND owner_token = ? '
         'AND requested_generation = ?)',
         variables: [
+          Variable.withInt(clockOffset().inMicroseconds),
           Variable.withInt(request.id.value),
           Variable.withInt(request.assignment.semesterId),
           Variable.withString(request.assignment.identityKey),
@@ -800,6 +822,62 @@ ORDER BY activities.semester_id, activities.identity_key
             updates: {_database.scheduledReminders},
           );
         }
+        if (changed == 0) {
+          return null;
+        }
+        return _advanceRequestedGeneration();
+      });
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  /// Forces every OS-held reminder placed under a different correction than
+  /// [offset] back through scheduling. Returns the requested generation to
+  /// reconcile, or null when nothing had to move.
+  ///
+  /// The instant handed to the OS is expressed in device time, so it goes
+  /// stale the moment the clock correction moves. Nothing else in a plan
+  /// notices — the stored deadline and scheduled instant are backend time and
+  /// do not change — so the schedule state is the flag that has to be cleared.
+  ///
+  /// The comparison is per row, against the offset [markScheduled] recorded
+  /// when that alarm was placed, not against a caller's in-memory one: the
+  /// in-memory offset restarts at zero every launch, so a device clock
+  /// repaired while the app was closed would otherwise measure no movement at
+  /// all and leave every alarm firing at the old instant. Per row rather than
+  /// once for the reconciliation because a generation only re-places the rows
+  /// that needed work, so no single recorded offset describes every alarm the
+  /// OS holds.
+  ///
+  /// Rows already `unknown` are swept unconditionally, so the generation
+  /// advances while a reconciliation is mid-flight. A row is moved to
+  /// `unknown` before it is handed to the platform, so its recorded offset is
+  /// still the previous placement's — or zero, if it was never placed — and
+  /// testing it would miss exactly the alarms going out under the offset this
+  /// call replaces. [markScheduled] would then record the stale placement as
+  /// good; its generation guard is what fences that, and this advance is what
+  /// arms the guard.
+  ///
+  /// Rows awaiting process delivery are left alone: they are delivered by
+  /// polling this store, not by an OS alarm, so no correction is baked into
+  /// them.
+  @override
+  Future<int?> adoptClockOffset(Duration offset) async {
+    try {
+      return await _database.transaction(() async {
+        final changed = await _database.customUpdate(
+          'UPDATE scheduled_reminders SET needs_reconciliation = 1, '
+          "schedule_state = '$_reminderStateUnknown' "
+          "WHERE schedule_state = '$_reminderStateUnknown' "
+          "OR (schedule_state = '$_reminderStateScheduled' "
+          'AND ABS(clock_offset_microseconds - ?) >= ?)',
+          variables: [
+            Variable.withInt(offset.inMicroseconds),
+            Variable.withInt(clockSkewMinimumCorrection.inMicroseconds),
+          ],
+          updates: {_database.scheduledReminders},
+        );
         if (changed == 0) {
           return null;
         }
@@ -1098,6 +1176,8 @@ LEFT JOIN course_preferences
   @override
   String toString() => 'DriftDeadlineReminderStore(redacted: true)';
 }
+
+Duration _noClockOffset() => Duration.zero;
 
 final class _DesiredReminder {
   const _DesiredReminder({

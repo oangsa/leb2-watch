@@ -194,6 +194,26 @@ class ScheduledReminders extends Table {
   TextColumn get scheduleState =>
       text().withDefault(const Constant('unknown'))();
 
+  /// The clock correction this row's OS alarm was placed under.
+  ///
+  /// The instant handed to the OS is device time, so it only stays right while
+  /// the correction does. This has to outlive the process: the in-memory
+  /// offset restarts at zero every launch, so without a durable record a
+  /// device clock repaired between launches looks like no change at all and
+  /// the stale alarms are never re-placed.
+  ///
+  /// Recorded per row rather than once for the whole reconciliation, because a
+  /// generation only re-places the rows that needed work — a single value
+  /// would describe a partial placement as if it covered every alarm the OS
+  /// holds, and then either sweep alarms that were already right or, worse,
+  /// match a later measurement and sweep none of the ones that were not.
+  ///
+  /// Zero is the right default for a row that predates the column: the
+  /// correction did not exist before it, so every such alarm was placed
+  /// uncorrected.
+  IntColumn get clockOffsetMicroseconds =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {notificationId};
 

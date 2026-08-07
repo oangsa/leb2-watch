@@ -25,6 +25,7 @@ final class DioBackendApiClient
     DateTime Function()? utcNow,
     BackendClientIdentityProvider? runtimeIdentityProvider,
     void Function()? onClientUpdateRequired,
+    void Function(Duration skew)? onClockSkewObserved,
   }) {
     final baseUrl = _validatedBaseUrl(configuration);
     final dio = _createDio(baseUrl);
@@ -42,6 +43,10 @@ final class DioBackendApiClient
       publicDio.httpClientAdapter = httpClientAdapter;
     }
     dio.interceptors.add(_CredentialInterceptor(credentialStore, runtime));
+    final now = utcNow ?? DateTime.now;
+    for (final client in [dio, sessionDio, publicDio]) {
+      client.interceptors.add(_SendTimeInterceptor(now));
+    }
 
     return DioBackendApiClient._(
       dio: dio,
@@ -51,8 +56,9 @@ final class DioBackendApiClient
       eventSink: configuration.environment == AppEnvironment.development
           ? eventSink ?? _developmentEventSink
           : null,
-      utcNow: utcNow ?? DateTime.now,
+      utcNow: now,
       onClientUpdateRequired: onClientUpdateRequired,
+      onClockSkewObserved: onClockSkewObserved,
     );
   }
 
@@ -64,6 +70,7 @@ final class DioBackendApiClient
     required this._eventSink,
     required this._utcNow,
     required this._onClientUpdateRequired,
+    required this._onClockSkewObserved,
   });
 
   final Dio _dio;
@@ -73,6 +80,7 @@ final class DioBackendApiClient
   final BackendTransportEventSink? _eventSink;
   final DateTime Function() _utcNow;
   final void Function()? _onClientUpdateRequired;
+  final void Function(Duration skew)? _onClockSkewObserved;
 
   @override
   Future<List<Semester>> getSemesters({
@@ -277,6 +285,7 @@ final class DioBackendApiClient
         options: options,
         cancelToken: cancelToken,
       );
+      _observeServerClock(response);
       statusCode = response.statusCode;
       if (statusCode == null) {
         throw const BackendTransportException(
@@ -354,6 +363,59 @@ final class DioBackendApiClient
           outcome: outcome,
         ),
       );
+    }
+  }
+
+  /// Reports how far this device's clock sits from the backend's, measured
+  /// against the round-trip midpoint. Every response carries a `Date` header,
+  /// so this needs no extra request. Non-2xx responses are measured too: the
+  /// client accepts every status, so they arrive here rather than as a
+  /// [DioException], and their `Date` header is just as good.
+  void _observeServerClock(Response<List<int>> response) {
+    final observer = _onClockSkewObserved;
+    if (observer == null) {
+      return;
+    }
+    final sentAtUtc = response.requestOptions.extra[_sentAtUtcExtraKey];
+    if (sentAtUtc is! DateTime) {
+      return;
+    }
+    // A cache serves the `Date` it stored the response under, so the reading
+    // would report how stale the entry is rather than how wrong this clock is.
+    // A cache that reveals itself at all does so through `Age`.
+    //
+    // Tested for a positive value rather than for presence: a CDN that stamps
+    // `Age: 0` on every miss is common, and skipping those would disable the
+    // measurement everywhere, silently, with nothing downstream able to tell
+    // "this clock is fine" from "this clock was never read". A zero age is a
+    // response served fresh, and it can be off by at most the whole second
+    // the header is truncated to — far inside [clockSkewMinimumCorrection].
+    final age = int.tryParse(response.headers.value('age') ?? '');
+    if (age != null && age > 0) {
+      return;
+    }
+    final header = response.headers.value('date');
+    if (header == null) {
+      return;
+    }
+    final DateTime serverUtc;
+    try {
+      serverUtc = HttpDate.parse(header);
+    } on Object {
+      return;
+    }
+    final skew = resolveClockSkew(
+      sentAtUtc: sentAtUtc,
+      receivedAtUtc: _utcNow().toUtc(),
+      serverUtc: serverUtc,
+    );
+    if (skew == null) {
+      return;
+    }
+    try {
+      observer(skew);
+    } on Object {
+      // Clock correction is an optimisation; it must never fail a request.
     }
   }
 
@@ -564,6 +626,27 @@ Dio _createDio(String baseUrl) {
       validateStatus: (_) => true,
     ),
   );
+}
+
+const _sentAtUtcExtraKey = 'leb2_watch_sent_at_utc';
+
+/// Stamps the moment a request actually goes out, for the clock-skew reading.
+///
+/// Added last, so it runs after [_CredentialInterceptor] and its two OS
+/// secure-storage reads — work that happens entirely on this device before a
+/// byte is sent. Timing from before the interceptor chain would fold that into
+/// the measured round trip, which both biases the midpoint towards "backend
+/// ahead" and eats the round-trip budget the reading is judged against.
+final class _SendTimeInterceptor extends Interceptor {
+  _SendTimeInterceptor(this._utcNow);
+
+  final DateTime Function() _utcNow;
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    options.extra[_sentAtUtcExtraKey] = _utcNow().toUtc();
+    handler.next(options);
+  }
 }
 
 final class _CredentialInterceptor extends Interceptor {

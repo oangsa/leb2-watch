@@ -3648,6 +3648,18 @@ class $ScheduledRemindersTable extends ScheduledReminders
     requiredDuringInsert: false,
     defaultValue: const Constant('unknown'),
   );
+  static const VerificationMeta _clockOffsetMicrosecondsMeta =
+      const VerificationMeta('clockOffsetMicroseconds');
+  @override
+  late final GeneratedColumn<int> clockOffsetMicroseconds =
+      GeneratedColumn<int>(
+        'clock_offset_microseconds',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     notificationId,
@@ -3659,6 +3671,7 @@ class $ScheduledRemindersTable extends ScheduledReminders
     createdAtUtc,
     needsReconciliation,
     scheduleState,
+    clockOffsetMicroseconds,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3729,6 +3742,15 @@ class $ScheduledRemindersTable extends ScheduledReminders
         ),
       );
     }
+    if (data.containsKey('clock_offset_microseconds')) {
+      context.handle(
+        _clockOffsetMicrosecondsMeta,
+        clockOffsetMicroseconds.isAcceptableOrUnknown(
+          data['clock_offset_microseconds']!,
+          _clockOffsetMicrosecondsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3781,6 +3803,10 @@ class $ScheduledRemindersTable extends ScheduledReminders
         DriftSqlType.string,
         data['${effectivePrefix}schedule_state'],
       )!,
+      clockOffsetMicroseconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}clock_offset_microseconds'],
+      )!,
     );
   }
 
@@ -3808,6 +3834,25 @@ class ScheduledReminder extends DataClass
   final DateTime createdAtUtc;
   final bool needsReconciliation;
   final String scheduleState;
+
+  /// The clock correction this row's OS alarm was placed under.
+  ///
+  /// The instant handed to the OS is device time, so it only stays right while
+  /// the correction does. This has to outlive the process: the in-memory
+  /// offset restarts at zero every launch, so without a durable record a
+  /// device clock repaired between launches looks like no change at all and
+  /// the stale alarms are never re-placed.
+  ///
+  /// Recorded per row rather than once for the whole reconciliation, because a
+  /// generation only re-places the rows that needed work — a single value
+  /// would describe a partial placement as if it covered every alarm the OS
+  /// holds, and then either sweep alarms that were already right or, worse,
+  /// match a later measurement and sweep none of the ones that were not.
+  ///
+  /// Zero is the right default for a row that predates the column: the
+  /// correction did not exist before it, so every such alarm was placed
+  /// uncorrected.
+  final int clockOffsetMicroseconds;
   const ScheduledReminder({
     required this.notificationId,
     required this.semesterId,
@@ -3818,6 +3863,7 @@ class ScheduledReminder extends DataClass
     required this.createdAtUtc,
     required this.needsReconciliation,
     required this.scheduleState,
+    required this.clockOffsetMicroseconds,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3845,6 +3891,7 @@ class ScheduledReminder extends DataClass
     }
     map['needs_reconciliation'] = Variable<bool>(needsReconciliation);
     map['schedule_state'] = Variable<String>(scheduleState);
+    map['clock_offset_microseconds'] = Variable<int>(clockOffsetMicroseconds);
     return map;
   }
 
@@ -3859,6 +3906,7 @@ class ScheduledReminder extends DataClass
       createdAtUtc: Value(createdAtUtc),
       needsReconciliation: Value(needsReconciliation),
       scheduleState: Value(scheduleState),
+      clockOffsetMicroseconds: Value(clockOffsetMicroseconds),
     );
   }
 
@@ -3879,6 +3927,9 @@ class ScheduledReminder extends DataClass
         json['needsReconciliation'],
       ),
       scheduleState: serializer.fromJson<String>(json['scheduleState']),
+      clockOffsetMicroseconds: serializer.fromJson<int>(
+        json['clockOffsetMicroseconds'],
+      ),
     );
   }
   @override
@@ -3894,6 +3945,9 @@ class ScheduledReminder extends DataClass
       'createdAtUtc': serializer.toJson<DateTime>(createdAtUtc),
       'needsReconciliation': serializer.toJson<bool>(needsReconciliation),
       'scheduleState': serializer.toJson<String>(scheduleState),
+      'clockOffsetMicroseconds': serializer.toJson<int>(
+        clockOffsetMicroseconds,
+      ),
     };
   }
 
@@ -3907,6 +3961,7 @@ class ScheduledReminder extends DataClass
     DateTime? createdAtUtc,
     bool? needsReconciliation,
     String? scheduleState,
+    int? clockOffsetMicroseconds,
   }) => ScheduledReminder(
     notificationId: notificationId ?? this.notificationId,
     semesterId: semesterId ?? this.semesterId,
@@ -3917,6 +3972,8 @@ class ScheduledReminder extends DataClass
     createdAtUtc: createdAtUtc ?? this.createdAtUtc,
     needsReconciliation: needsReconciliation ?? this.needsReconciliation,
     scheduleState: scheduleState ?? this.scheduleState,
+    clockOffsetMicroseconds:
+        clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
   );
   ScheduledReminder copyWithCompanion(ScheduledRemindersCompanion data) {
     return ScheduledReminder(
@@ -3947,6 +4004,9 @@ class ScheduledReminder extends DataClass
       scheduleState: data.scheduleState.present
           ? data.scheduleState.value
           : this.scheduleState,
+      clockOffsetMicroseconds: data.clockOffsetMicroseconds.present
+          ? data.clockOffsetMicroseconds.value
+          : this.clockOffsetMicroseconds,
     );
   }
 
@@ -3961,7 +4021,8 @@ class ScheduledReminder extends DataClass
           ..write('scheduledForUtc: $scheduledForUtc, ')
           ..write('createdAtUtc: $createdAtUtc, ')
           ..write('needsReconciliation: $needsReconciliation, ')
-          ..write('scheduleState: $scheduleState')
+          ..write('scheduleState: $scheduleState, ')
+          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
           ..write(')'))
         .toString();
   }
@@ -3977,6 +4038,7 @@ class ScheduledReminder extends DataClass
     createdAtUtc,
     needsReconciliation,
     scheduleState,
+    clockOffsetMicroseconds,
   );
   @override
   bool operator ==(Object other) =>
@@ -3990,7 +4052,8 @@ class ScheduledReminder extends DataClass
           other.scheduledForUtc == this.scheduledForUtc &&
           other.createdAtUtc == this.createdAtUtc &&
           other.needsReconciliation == this.needsReconciliation &&
-          other.scheduleState == this.scheduleState);
+          other.scheduleState == this.scheduleState &&
+          other.clockOffsetMicroseconds == this.clockOffsetMicroseconds);
 }
 
 class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
@@ -4003,6 +4066,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
   final Value<DateTime> createdAtUtc;
   final Value<bool> needsReconciliation;
   final Value<String> scheduleState;
+  final Value<int> clockOffsetMicroseconds;
   const ScheduledRemindersCompanion({
     this.notificationId = const Value.absent(),
     this.semesterId = const Value.absent(),
@@ -4013,6 +4077,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     this.createdAtUtc = const Value.absent(),
     this.needsReconciliation = const Value.absent(),
     this.scheduleState = const Value.absent(),
+    this.clockOffsetMicroseconds = const Value.absent(),
   });
   ScheduledRemindersCompanion.insert({
     this.notificationId = const Value.absent(),
@@ -4024,6 +4089,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     required DateTime createdAtUtc,
     this.needsReconciliation = const Value.absent(),
     this.scheduleState = const Value.absent(),
+    this.clockOffsetMicroseconds = const Value.absent(),
   }) : semesterId = Value(semesterId),
        identityKey = Value(identityKey),
        offsetMinutes = Value(offsetMinutes),
@@ -4040,6 +4106,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Expression<int>? createdAtUtc,
     Expression<bool>? needsReconciliation,
     Expression<String>? scheduleState,
+    Expression<int>? clockOffsetMicroseconds,
   }) {
     return RawValuesInsertable({
       if (notificationId != null) 'notification_id': notificationId,
@@ -4052,6 +4119,8 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       if (needsReconciliation != null)
         'needs_reconciliation': needsReconciliation,
       if (scheduleState != null) 'schedule_state': scheduleState,
+      if (clockOffsetMicroseconds != null)
+        'clock_offset_microseconds': clockOffsetMicroseconds,
     });
   }
 
@@ -4065,6 +4134,7 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     Value<DateTime>? createdAtUtc,
     Value<bool>? needsReconciliation,
     Value<String>? scheduleState,
+    Value<int>? clockOffsetMicroseconds,
   }) {
     return ScheduledRemindersCompanion(
       notificationId: notificationId ?? this.notificationId,
@@ -4076,6 +4146,8 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
       createdAtUtc: createdAtUtc ?? this.createdAtUtc,
       needsReconciliation: needsReconciliation ?? this.needsReconciliation,
       scheduleState: scheduleState ?? this.scheduleState,
+      clockOffsetMicroseconds:
+          clockOffsetMicroseconds ?? this.clockOffsetMicroseconds,
     );
   }
 
@@ -4121,6 +4193,11 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
     if (scheduleState.present) {
       map['schedule_state'] = Variable<String>(scheduleState.value);
     }
+    if (clockOffsetMicroseconds.present) {
+      map['clock_offset_microseconds'] = Variable<int>(
+        clockOffsetMicroseconds.value,
+      );
+    }
     return map;
   }
 
@@ -4135,7 +4212,8 @@ class ScheduledRemindersCompanion extends UpdateCompanion<ScheduledReminder> {
           ..write('scheduledForUtc: $scheduledForUtc, ')
           ..write('createdAtUtc: $createdAtUtc, ')
           ..write('needsReconciliation: $needsReconciliation, ')
-          ..write('scheduleState: $scheduleState')
+          ..write('scheduleState: $scheduleState, ')
+          ..write('clockOffsetMicroseconds: $clockOffsetMicroseconds')
           ..write(')'))
         .toString();
   }
@@ -13398,6 +13476,7 @@ typedef $$ScheduledRemindersTableCreateCompanionBuilder =
       required DateTime createdAtUtc,
       Value<bool> needsReconciliation,
       Value<String> scheduleState,
+      Value<int> clockOffsetMicroseconds,
     });
 typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
     ScheduledRemindersCompanion Function({
@@ -13410,6 +13489,7 @@ typedef $$ScheduledRemindersTableUpdateCompanionBuilder =
       Value<DateTime> createdAtUtc,
       Value<bool> needsReconciliation,
       Value<String> scheduleState,
+      Value<int> clockOffsetMicroseconds,
     });
 
 class $$ScheduledRemindersTableFilterComposer
@@ -13468,6 +13548,11 @@ class $$ScheduledRemindersTableFilterComposer
     column: $table.scheduleState,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$ScheduledRemindersTableOrderingComposer
@@ -13521,6 +13606,11 @@ class $$ScheduledRemindersTableOrderingComposer
 
   ColumnOrderings<String> get scheduleState => $composableBuilder(
     column: $table.scheduleState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -13581,6 +13671,11 @@ class $$ScheduledRemindersTableAnnotationComposer
     column: $table.scheduleState,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get clockOffsetMicroseconds => $composableBuilder(
+    column: $table.clockOffsetMicroseconds,
+    builder: (column) => column,
+  );
 }
 
 class $$ScheduledRemindersTableTableManager
@@ -13632,6 +13727,7 @@ class $$ScheduledRemindersTableTableManager
                 Value<DateTime> createdAtUtc = const Value.absent(),
                 Value<bool> needsReconciliation = const Value.absent(),
                 Value<String> scheduleState = const Value.absent(),
+                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => ScheduledRemindersCompanion(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -13642,6 +13738,7 @@ class $$ScheduledRemindersTableTableManager
                 createdAtUtc: createdAtUtc,
                 needsReconciliation: needsReconciliation,
                 scheduleState: scheduleState,
+                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           createCompanionCallback:
               ({
@@ -13654,6 +13751,7 @@ class $$ScheduledRemindersTableTableManager
                 required DateTime createdAtUtc,
                 Value<bool> needsReconciliation = const Value.absent(),
                 Value<String> scheduleState = const Value.absent(),
+                Value<int> clockOffsetMicroseconds = const Value.absent(),
               }) => ScheduledRemindersCompanion.insert(
                 notificationId: notificationId,
                 semesterId: semesterId,
@@ -13664,6 +13762,7 @@ class $$ScheduledRemindersTableTableManager
                 createdAtUtc: createdAtUtc,
                 needsReconciliation: needsReconciliation,
                 scheduleState: scheduleState,
+                clockOffsetMicroseconds: clockOffsetMicroseconds,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

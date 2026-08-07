@@ -10,6 +10,7 @@ import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
+import '../../../../core/time/app_time_zone.dart';
 import '../application/assignment_detail_service.dart';
 import '../domain/assignment_detail_key.dart';
 
@@ -522,14 +523,10 @@ class _TimestampFact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final zoneNote = timestamp is UnzonedAssignmentDetailTimestamp
-        ? 'Time zone not provided.'
-        : null;
-    final notes = [zoneNote, note].whereType<String>().join(' ');
     return _Fact(
       label: label,
       value: formatAssignmentDetailTimestamp(context, timestamp),
-      note: notes.isEmpty ? null : notes,
+      note: note,
     );
   }
 }
@@ -543,20 +540,17 @@ String formatAssignmentDetailTimestamp(
       context,
       instantUtc,
     ),
-    UnzonedAssignmentDetailTimestamp(:final source) => source.replaceFirst(
-      'T',
-      ' ',
-    ),
     MissingAssignmentDetailTimestamp() => 'Not provided',
     InvalidAssignmentDetailTimestamp() => 'Format unavailable',
   };
 }
 
 String _formatUtcTimestamp(BuildContext context, DateTime timestampUtc) {
-  final local = timestampUtc.toLocal();
+  final wallClock = appTimeZone.wallTime(timestampUtc);
   final localizations = MaterialLocalizations.of(context);
-  return '${localizations.formatMediumDate(local)} at '
-      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+  return '${localizations.formatMediumDate(wallClock)} at '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(wallClock))} '
+      '${appTimeZone.label}';
 }
 
 String _reminderCopy(AssignmentDetailReminderEvidence evidence) {

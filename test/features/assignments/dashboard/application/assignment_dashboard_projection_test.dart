@@ -267,7 +267,7 @@ void main() {
     expect(projection.courses.map((course) => course.id), [1, 3, 2]);
   });
 
-  test('sorts known zones, then unzoned wall clocks, then absent values', () {
+  test('sorts every readable deadline by instant, then absent values', () {
     final cache = dashboardCache(
       assignments: [
         dashboardAssignment(
@@ -292,9 +292,9 @@ void main() {
     );
 
     expect(_keys(_project(cache, AssignmentDashboardSection.all)), [
+      'unzoned-early',
       'zoned-early',
       'zoned-late',
-      'unzoned-early',
       'unzoned-late',
       'invalid',
       'missing',
@@ -308,9 +308,9 @@ void main() {
         ),
       ),
       [
+        'unzoned-late',
         'zoned-late',
         'zoned-early',
-        'unzoned-late',
         'unzoned-early',
         'invalid',
         'missing',
@@ -318,23 +318,23 @@ void main() {
     );
   });
 
-  test('does not assign an instant or timezone to an unzoned deadline', () {
+  test('reads an offset-less deadline as Bangkok wall time', () {
     const source = '+012345-08-01T09:30:45.123456789';
     final deadline = AssignmentDeadline.fromSource(source);
     expect(
       deadline,
-      isA<UnzonedAssignmentDeadline>()
-          .having((value) => value.source, 'source', source)
-          .having((value) => value.year, 'year', 12345)
-          .having((value) => value.hour, 'hour', 9)
-          .having((value) => value.second, 'second', 45)
+      isA<ZonedAssignmentDeadline>()
           .having(
-            (value) => value.fractionNanoseconds,
-            'fraction nanoseconds',
-            123456789,
+            (value) => value.instantUtc,
+            'UTC instant',
+            DateTime.utc(12345, 8, 1, 2, 30, 45, 123, 456),
+          )
+          .having(
+            (value) => value.subMicrosecondNanoseconds,
+            'sub-microsecond nanoseconds',
+            789,
           ),
     );
-    expect(deadline, isNot(isA<ZonedAssignmentDeadline>()));
     expect(
       AssignmentDeadline.fromSource(null),
       isA<MissingAssignmentDeadline>(),
@@ -370,11 +370,13 @@ void main() {
         ],
       );
 
+      // Offset-less sources are Bangkok wall time, so they land seven hours
+      // ahead of the same components read as UTC.
       expect(_keys(_project(cache, AssignmentDashboardSection.all)), [
-        'zoned-earlier',
-        'zoned-later',
         'unzoned-earlier',
         'unzoned-later',
+        'zoned-earlier',
+        'zoned-later',
       ]);
     },
   );

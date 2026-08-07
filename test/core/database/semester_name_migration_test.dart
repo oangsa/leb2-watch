@@ -35,7 +35,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 17);
+      expect(database.schemaVersion, 19);
       final semester = await database.select(database.semesters).getSingle();
       expect(semester.semesterId, 46);
       expect(semester.name, isNull);
@@ -61,4 +61,37 @@ void main() {
       expect(await database.select(database.courses).get(), hasLength(1));
     },
   );
+
+  test('a legacy schema gains the reminder clock-offset column', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'leb2-watch-v16-clock-offset-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/leb2_watch.sqlite');
+
+    final legacy = v16.V16AppDatabase(NativeDatabase(file));
+    await legacy.close();
+
+    final database = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(database.close);
+
+    final columns = await database
+        .customSelect('PRAGMA table_info(scheduled_reminders)')
+        .get();
+    expect(
+      columns.map((column) => column.read<String>('name')),
+      contains('clock_offset_microseconds'),
+    );
+    // Zero, because no schema this old corrected the clock at all: every alarm
+    // it handed the OS was placed uncorrected.
+    expect(
+      columns
+          .firstWhere(
+            (column) =>
+                column.read<String>('name') == 'clock_offset_microseconds',
+          )
+          .read<String>('dflt_value'),
+      '0',
+    );
+  });
 }

@@ -13,6 +13,7 @@ import '../core/network/backend_runtime_identity.dart';
 import '../core/security/credential_store.dart';
 import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
+import '../core/time/clock_skew.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/assignments/sync/quiescence_aware_assignment_sync_service.dart';
@@ -62,7 +63,9 @@ final appConfigurationProvider = Provider<AppConfiguration>((ref) {
 
 final localNotificationsPlatformProvider = Provider<LocalNotificationsPlatform>(
   (ref) {
-    return FlutterLocalNotificationsAdapter();
+    return FlutterLocalNotificationsAdapter(
+      clock: ref.watch(trustedClockProvider),
+    );
   },
 );
 
@@ -71,6 +74,7 @@ final localNotificationServiceProvider = Provider<LocalNotificationService>((
 ) {
   final service = LocalNotificationServiceImpl(
     ref.watch(localNotificationsPlatformProvider),
+    nowUtc: ref.watch(trustedClockProvider).nowUtc,
   );
   final guarded = QuiescenceAwareLocalNotificationService(
     service,
@@ -214,6 +218,57 @@ Future<void> _closeDatabaseManager(AppDatabaseManager manager) async {
   }
 }
 
+/// Scheduling clock, corrected towards the backend once an offset is known.
+///
+/// Held for the container's lifetime so the correction measured on one
+/// response applies to every later scheduling decision in that isolate. The
+/// background sync isolate builds its own container and measures its own
+/// offset from its own first response.
+///
+/// What the OS-held alarms were placed under is *not* held here — that record
+/// has to survive the process, so the store owns it.
+///
+// ponytail: the in-memory offset is per-isolate and unshared, so an isolate
+// that touches a reminder lease before its own first response reads expiries
+// the other isolate wrote in corrected time. Both converge seconds after the
+// first response and owner-token checks fence the stale writer; seed the
+// clock from the stored offset if lease contention ever shows up in
+// diagnostics.
+final trustedClockProvider = Provider<TrustedClock>((ref) {
+  return TrustedClock(
+    onOffsetChanged: (offset) =>
+        unawaited(_rescheduleForClockCorrection(ref, offset)),
+  );
+});
+
+/// Re-hands every OS-held reminder over after the clock correction moves.
+///
+/// The correction is applied when an alarm is handed to the platform, so
+/// alarms placed under the previous offset — including every alarm placed
+/// before the first measurement landed — keep firing at the old instant. A
+/// plan on its own will not notice, because the stored backend-time deadline
+/// has not changed.
+///
+/// Whether [offset] moved at all is the store's call, against the offset it
+/// recorded when those alarms were placed: this runs on the first measurement
+/// of every launch, when the in-memory offset is still zero and knows nothing
+/// about what a previous launch handed over.
+Future<void> _rescheduleForClockCorrection(Ref ref, Duration offset) async {
+  try {
+    final store = await ref.read(deadlineReminderStoreProvider.future);
+    if (await store.adoptClockOffset(offset) == null) {
+      return;
+    }
+    final coordinator = await ref.read(
+      deadlineReminderCoordinatorProvider.future,
+    );
+    await coordinator.reconcileAfterPreferenceChange();
+  } on Object {
+    // Best effort: the generation is already advanced, so the next sync
+    // reconciles even when this pass could not.
+  }
+}
+
 final Provider<DioBackendApiClient> backendTransportClientProvider =
     Provider<DioBackendApiClient>((ref) {
       return DioBackendApiClient(
@@ -225,6 +280,7 @@ final Provider<DioBackendApiClient> backendTransportClientProvider =
               .read(backendCompatibilityCoordinatorProvider)
               .handleClientUpdateRequired(),
         ),
+        onClockSkewObserved: ref.read(trustedClockProvider).adopt,
       );
     });
 
@@ -341,6 +397,7 @@ final newAssignmentNotificationCoordinatorProvider =
       return NewAssignmentNotificationCoordinator(
         store,
         ref.watch(localNotificationServiceProvider),
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
       );
     });
 
@@ -348,7 +405,8 @@ final deadlineReminderStoreProvider = FutureProvider<DeadlineReminderStore>((
   ref,
 ) async {
   final database = await ref.watch(appDatabaseProvider.future);
-  return DriftDeadlineReminderStore(database);
+  final clock = ref.watch(trustedClockProvider);
+  return DriftDeadlineReminderStore(database, clockOffset: () => clock.offset);
 });
 
 final desktopDeadlineReminderDeliveryStoreProvider =
@@ -370,6 +428,7 @@ final desktopDeadlineReminderDeliveryCoordinatorProvider =
       final coordinator = DesktopDeadlineReminderDeliveryCoordinator(
         await ref.watch(desktopDeadlineReminderDeliveryStoreProvider.future),
         ref.watch(localNotificationServiceProvider),
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
         runWithActivityLease: <T>(Future<T> Function() action) async {
           final lease = await storage.acquireActivityLease();
           try {
@@ -400,6 +459,7 @@ final deadlineReminderCoordinatorProvider =
         store,
         ref.watch(localNotificationServiceProvider),
         policy: policy,
+        nowUtc: ref.watch(trustedClockProvider).nowUtc,
       );
     });
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../../core/time/clock_skew.dart';
 import '../domain/local_notification_models.dart';
 import 'local_notifications_platform.dart';
 
@@ -40,8 +41,10 @@ final class FlutterLocalNotificationsAdapter
     FlutterLocalNotificationsPlugin? plugin,
     NotificationRuntimePlatform? runtimePlatform,
     bool? windowsPackaged,
+    TrustedClock? clock,
     @visibleForTesting VoidCallback? windowsTeardown,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin() {
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
+       _clock = clock ?? TrustedClock() {
     _runtimePlatform = runtimePlatform ?? _detectRuntimePlatform();
     final isPackaged =
         windowsPackaged ??
@@ -92,6 +95,7 @@ final class FlutterLocalNotificationsAdapter
   static const String deadlineRemindersChannelId = 'leb2_deadline_reminders_v1';
 
   final FlutterLocalNotificationsPlugin _plugin;
+  final TrustedClock _clock;
   late final NotificationRuntimePlatform _runtimePlatform;
   late final VoidCallback _windowsTeardown;
 
@@ -173,7 +177,12 @@ final class FlutterLocalNotificationsAdapter
       id: scheduled.notification.id,
       title: scheduled.notification.title,
       body: scheduled.notification.body,
-      scheduledDate: tz.TZDateTime.from(scheduled.scheduledForUtc, tz.UTC),
+      // The OS fires this alarm by the device clock, so the instant handed
+      // over has to be expressed in device time rather than backend time.
+      scheduledDate: tz.TZDateTime.from(
+        _clock.deviceInstantFor(scheduled.scheduledForUtc),
+        tz.UTC,
+      ),
       notificationDetails: _notificationDetails(scheduled.notification),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       payload: scheduled.notification.payload,

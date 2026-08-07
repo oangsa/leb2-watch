@@ -13,6 +13,8 @@ import 'package:leb2_watch/src/core/network/backend_transport_event.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/backend_runtime_identity.dart';
 
+import 'package:leb2_watch/src/core/time/clock_skew.dart';
+
 import 'network_test_support.dart';
 
 const _baseUrl = 'https://example.invalid';
@@ -1391,6 +1393,113 @@ void main() {
       },
     );
   });
+
+  group('device clock skew', _clockSkewTests);
+}
+
+void _clockSkewTests() {
+  final device = DateTime.utc(2026, 7, 24, 12);
+
+  Future<List<Duration>> observe({
+    String? dateHeader,
+    String? ageHeader,
+    Duration roundTrip = Duration.zero,
+  }) async {
+    final observed = <Duration>[];
+    // Advances once the request is in flight, so the measurement sees a real
+    // round trip without depending on how many times the clock is read.
+    var inFlight = false;
+    final client = _client(
+      CallbackHttpClientAdapter((_, _, _) {
+        inFlight = true;
+        return jsonResponse(
+          const <int>[],
+          headers: {
+            if (dateHeader != null) 'date': [dateHeader],
+            if (ageHeader != null) 'age': [ageHeader],
+          },
+        );
+      }),
+      utcNow: () => inFlight ? device.add(roundTrip) : device,
+      onClockSkewObserved: observed.add,
+    );
+    await client.getSemesters();
+    return observed;
+  }
+
+  test('reports a device clock running slow against the Date header', () async {
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.add(const Duration(hours: 1))),
+      ),
+      [const Duration(hours: 1)],
+    );
+  });
+
+  test('reports a device clock running fast as a negative offset', () async {
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 3))),
+      ),
+      [const Duration(hours: -3)],
+    );
+  });
+
+  test('an agreeing backend reports no correction', () async {
+    expect(await observe(dateHeader: HttpDate.format(device)), [Duration.zero]);
+  });
+
+  test('a response without a Date header reports nothing', () async {
+    expect(await observe(), isEmpty);
+  });
+
+  test('an unparseable Date header reports nothing', () async {
+    expect(await observe(dateHeader: 'not-a-date'), isEmpty);
+  });
+
+  test('a cached response reports nothing', () async {
+    // The `Date` a cache serves is the one it stored the entry under, so the
+    // reading would measure how stale the entry is, not this device's clock.
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 1))),
+        ageHeader: '3600',
+      ),
+      isEmpty,
+    );
+  });
+
+  test('a zero age still reports', () async {
+    // A CDN that stamps `Age: 0` on every miss must not disable the
+    // measurement everywhere.
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 3))),
+        ageHeader: '0',
+      ),
+      [const Duration(hours: -3)],
+    );
+  });
+
+  test('an unparseable Age header still reports', () async {
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.subtract(const Duration(hours: 3))),
+        ageHeader: 'not-a-number',
+      ),
+      [const Duration(hours: -3)],
+    );
+  });
+
+  test('a slow round trip reports nothing', () async {
+    expect(
+      await observe(
+        dateHeader: HttpDate.format(device.add(const Duration(hours: 1))),
+        roundTrip: clockSkewMaximumRoundTrip + const Duration(seconds: 1),
+      ),
+      isEmpty,
+    );
+  });
 }
 
 DioBackendApiClient _client(
@@ -1401,6 +1510,8 @@ DioBackendApiClient _client(
   BackendTransportEventSink? eventSink,
   BackendClientIdentityProvider? runtimeIdentityProvider,
   void Function()? onClientUpdateRequired,
+  void Function(Duration skew)? onClockSkewObserved,
+  DateTime Function()? utcNow,
 }) {
   return DioBackendApiClient(
     configuration: AppConfiguration.parse(
@@ -1410,10 +1521,11 @@ DioBackendApiClient _client(
     credentialStore: credentials ?? MemoryCredentialStore(),
     httpClientAdapter: adapter,
     eventSink: eventSink ?? (_) {},
-    utcNow: () => DateTime.utc(2026, 7, 24, 12),
+    utcNow: utcNow ?? () => DateTime.utc(2026, 7, 24, 12),
     runtimeIdentityProvider:
         runtimeIdentityProvider ?? const FixedBackendClientIdentityProvider(),
     onClientUpdateRequired: onClientUpdateRequired,
+    onClockSkewObserved: onClockSkewObserved,
   );
 }
 

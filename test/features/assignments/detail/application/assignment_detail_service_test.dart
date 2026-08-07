@@ -85,7 +85,11 @@ void main() {
       );
       expect(
         AssignmentDetailTimestamp.fromSource('2024-02-29T16:30'),
-        isA<UnzonedAssignmentDetailTimestamp>(),
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'offset-less source read as Bangkok wall time',
+          DateTime.utc(2024, 2, 29, 9, 30),
+        ),
       );
     },
   );
@@ -131,7 +135,14 @@ void main() {
           DateTime.utc(2026, 8, 1, 9, 30),
         ),
       );
-      expect(current.sourceCreatedAt, isA<UnzonedAssignmentDetailTimestamp>());
+      expect(
+        current.sourceCreatedAt,
+        isA<ZonedAssignmentDetailTimestamp>().having(
+          (value) => value.instantUtc,
+          'UTC instant',
+          DateTime.utc(2026, 7, 25, 3),
+        ),
+      );
       expect(current.backendReportedDeadlineExceeded, isTrue);
       expect(current.courseNotificationsMuted, isTrue);
       expect(current.reminders.totalCount, 2);
