@@ -11,6 +11,8 @@ enum NotificationDeliveryPermissionStatus {
   unavailable,
 }
 
+enum ExactAlarmPermissionStatus { allowed, blocked, notRequired, unavailable }
+
 enum LocalNotificationFailureKind {
   notInitialized,
   invalidRequest,

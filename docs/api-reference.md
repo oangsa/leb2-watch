@@ -386,6 +386,15 @@ off and mandatory after enforcement is enabled.
 
 Activity endpoints use the following object. Nullable fields can contain `null`.
 Dates emitted by ASP.NET Core use ISO 8601 JSON strings.
+An activity `dueDate` without an explicit numeric offset or `Z` represents
+GMT+7 Bangkok wall time.
+
+`dueDateExceed` is a backend expiry signal, but clients must not treat `false`
+as proof that the deadline is still open. Deadline-reminder eligibility first
+rejects `dueDateExceed == true`, then independently parses `dueDate` and rejects
+`trustedNowUtc >= dueDateUtc`. This local rule is strictly for reminder expiry;
+the backend remains authoritative for whether a submission is accepted at the
+exact deadline instant.
 
 ```json
 {

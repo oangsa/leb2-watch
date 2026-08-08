@@ -52,6 +52,17 @@ class FakeNotificationSettingsService implements NotificationSettingsService {
   @override
   Future<NotificationPermissionStatus?> readNotificationPermission() async =>
       NotificationPermissionStatus.notRequired;
+
+  @override
+  Future<ExactAlarmPermissionActionResult>
+  requestExactAlarmPermission() async =>
+      const ExactAlarmPermissionActionCompleted(
+        ExactAlarmPermissionStatus.notRequired,
+      );
+
+  @override
+  Future<ExactAlarmPermissionStatus?> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.notRequired;
 }
 
 final fakeNotificationSettingsSnapshot = NotificationSettingsSnapshot(

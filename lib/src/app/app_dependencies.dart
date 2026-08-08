@@ -40,6 +40,7 @@ import '../features/courses/data/course_preferences_store.dart';
 import '../features/notifications/application/deadline_reminder_coordinator.dart';
 import '../features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
 import '../features/notifications/application/deadline_reminder_preferences_service.dart';
+import '../features/notifications/application/exact_alarm_schedule_recovery.dart';
 import '../features/notifications/application/local_notification_service_impl.dart';
 import '../features/notifications/application/new_assignment_notification_coordinator.dart';
 import '../features/notifications/application/new_assignment_notification_drain.dart';
@@ -63,9 +64,7 @@ final appConfigurationProvider = Provider<AppConfiguration>((ref) {
 
 final localNotificationsPlatformProvider = Provider<LocalNotificationsPlatform>(
   (ref) {
-    return FlutterLocalNotificationsAdapter(
-      clock: ref.watch(trustedClockProvider),
-    );
+    return FlutterLocalNotificationsAdapter();
   },
 );
 
@@ -75,6 +74,7 @@ final localNotificationServiceProvider = Provider<LocalNotificationService>((
   final service = LocalNotificationServiceImpl(
     ref.watch(localNotificationsPlatformProvider),
     nowUtc: ref.watch(trustedClockProvider).nowUtc,
+    clockOffset: () => ref.read(trustedClockProvider).offset,
   );
   final guarded = QuiescenceAwareLocalNotificationService(
     service,
@@ -405,8 +405,7 @@ final deadlineReminderStoreProvider = FutureProvider<DeadlineReminderStore>((
   ref,
 ) async {
   final database = await ref.watch(appDatabaseProvider.future);
-  final clock = ref.watch(trustedClockProvider);
-  return DriftDeadlineReminderStore(database, clockOffset: () => clock.offset);
+  return DriftDeadlineReminderStore(database);
 });
 
 final desktopDeadlineReminderDeliveryStoreProvider =
@@ -462,6 +461,20 @@ final deadlineReminderCoordinatorProvider =
         nowUtc: ref.watch(trustedClockProvider).nowUtc,
       );
     });
+
+final exactAlarmScheduleRecoveryProvider = Provider<ExactAlarmScheduleRecovery>(
+  (ref) {
+    return LocalExactAlarmScheduleRecovery(
+      ref.watch(localNotificationServiceProvider),
+      () async {
+        final coordinator = await ref.read(
+          deadlineReminderCoordinatorProvider.future,
+        );
+        await coordinator.rescheduleAfterExactAlarmPermissionChange();
+      },
+    );
+  },
+);
 
 final deadlineReminderPreferencesServiceProvider =
     FutureProvider<DeadlineReminderPreferencesService>((ref) async {

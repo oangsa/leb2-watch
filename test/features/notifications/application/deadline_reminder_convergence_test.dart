@@ -933,11 +933,12 @@ final class _OsNotifications implements LocalNotificationService {
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
     await onSchedule?.call(request);
     os[request.id.value] = request;
+    return Duration.zero;
   }
 
   @override
@@ -1023,6 +1024,14 @@ final class _AttemptAwareNotificationsPlatform
 
   @override
   Future<bool?> requestPermission() async => true;
+
+  @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
 
   @override
   Future<void> schedule(PlatformScheduledNotification notification) async {

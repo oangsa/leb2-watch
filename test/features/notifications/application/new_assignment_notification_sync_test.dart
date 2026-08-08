@@ -584,11 +584,12 @@ final class _RecordingNotificationService implements LocalNotificationService {
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
     await onSchedule?.call(request);
     scheduled.add(request);
+    return Duration.zero;
   }
 
   @override

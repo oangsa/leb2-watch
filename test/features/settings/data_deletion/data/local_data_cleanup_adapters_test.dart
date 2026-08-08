@@ -904,9 +904,9 @@ final class _Notifications
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showDueDeadlineReminder(

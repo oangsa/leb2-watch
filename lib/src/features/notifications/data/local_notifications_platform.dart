@@ -95,7 +95,7 @@ final class LocalNotificationPlatformCapabilities {
 
 enum PlatformNotificationKind { test, newAssignment, deadlineReminder }
 
-enum PlatformSchedulePrecision { inexact }
+enum PlatformSchedulePrecision { exactWhenAllowed, inexact }
 
 final class PlatformNotification {
   const PlatformNotification({
@@ -122,11 +122,13 @@ final class PlatformScheduledNotification {
   const PlatformScheduledNotification({
     required this.notification,
     required this.scheduledForUtc,
+    required this.clockOffset,
     required this.precision,
   });
 
   final PlatformNotification notification;
   final DateTime scheduledForUtc;
+  final Duration clockOffset;
   final PlatformSchedulePrecision precision;
 
   @override
@@ -145,6 +147,10 @@ abstract interface class LocalNotificationsPlatform {
   Future<NotificationDeliveryPermissionStatus> readDeliveryPermission();
 
   Future<bool?> requestPermission();
+
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission();
+
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission();
 
   Future<void> show(PlatformNotification notification);
 

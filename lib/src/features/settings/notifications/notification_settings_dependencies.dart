@@ -51,6 +51,7 @@ final notificationSettingsServiceProvider =
         ),
         ref.watch(backgroundScheduleStatusRefreshSignalProvider),
         deadlineDelivery?.refresh,
+        ref.watch(exactAlarmScheduleRecoveryProvider).refresh,
       );
       ref.onDispose(service.dispose);
       return service;

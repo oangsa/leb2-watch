@@ -75,6 +75,14 @@ final class _TrackingNotificationsPlatform
   Future<bool?> requestPermission() async => null;
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.unavailable;
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.unavailable;
+
+  @override
   Future<void> schedule(PlatformScheduledNotification notification) async {}
 
   @override

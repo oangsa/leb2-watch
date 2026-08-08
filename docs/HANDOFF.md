@@ -729,10 +729,22 @@ The frontend uses the canonical `/api/v1` prefix. The cookie is opaque, not a JW
 Only exact HTTP 401 plus `SESSION_EXPIRED` expires a session. Timeouts, HTML,
 malformed JSON, `AUTHENTICATION_REQUIRED`, and other 401 responses do not.
 
-Unzoned activity timestamps must not be treated silently as UTC or
-Asia/Bangkok. `createdAt` is not verified as publication time. Attachment,
-external-link, completion, and removal schemas remain unverified; do not
-invent them.
+An activity `dueDate` without an explicit offset is GMT+7 Bangkok wall time;
+the client resolves those wall-clock components in the app zone before using
+the deadline as an instant. The timezone semantics of other unzoned activity
+timestamps remain unverified. `createdAt` is not verified as publication time.
+Deadline reminders treat `dueDateExceed == true` as an immediate backend expiry
+signal but do not trust `false`: the strict parser and trusted UTC clock also
+expire reminders at `now >= dueDate`. Android prefers exact-while-idle alarms
+when the user grants Alarms & reminders access and safely falls back to
+inexact-while-idle scheduling if access is absent, unreadable, or revoked during
+scheduling. A successful exact-access action durably re-hands existing OS-held
+reminders through cancel-first reconciliation. Foreground startup and resume
+also passively re-read exact-alarm access; the first known state and later
+transitions re-register existing reminders, including alarms Android may have
+removed while the app was stopped.
+Attachment, external-link, completion, and removal schemas remain unverified;
+do not invent them.
 
 Live localhost validation on 2026-07-29 found and corrected one frontend
 contract mismatch: documented `activitySubmissionSubmittedAt.date` values can

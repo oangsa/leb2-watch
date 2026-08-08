@@ -46,13 +46,13 @@ user could not act on.
 ### Time
 
 All user-facing timestamps render as Bangkok wall time regardless of device
-time zone, via `bangkokWallTime` in `lib/src/core/bangkok_time.dart`.
+time zone, via `appTimeZone` in `lib/src/core/time/app_time_zone.dart`.
 
-`formatAssignmentDeadline` renders every deadline shape through one formatter:
+`AssignmentDeadline.fromSource` first turns every valid backend deadline into
+an instant. Explicitly zoned values retain their instant; by backend contract,
+offset-less `dueDate` values are GMT+7 Bangkok wall time and are resolved in
+`appTimeZone`. `formatAssignmentDeadline` then renders the instant in GMT+7.
 
-- `ZonedAssignmentDeadline` is an instant and is shifted into GMT+7.
-- `UnzonedAssignmentDeadline` is **already** Bangkok wall time. Its structured
-  components render directly. Shifting it again would move it seven hours.
 - Missing and invalid deadlines get fixed short copy.
 
 Output is `Mon, Jan 19, 12:00 PM GMT+7`. The previous unzoned path leaked the
@@ -72,6 +72,14 @@ status without ever prompting, returning `null` when the platform cannot
 answer. The settings page calls it on open and hides the permission section
 entirely once the permission is granted or not required — the section exists
 only to fix a missing permission.
+
+Android exposes a separate `Precise deadline reminders` section only while
+deadline reminders are enabled and exact-alarm access is missing. Its explicit
+action opens the Alarms & reminders grant through the notification plugin. The
+app does not request this special access after sign-in or during scheduling;
+without it, reminders continue with approximate timing. Startup and resume
+passively re-read access so existing reminders are re-registered after a grant
+or a revocation; this check never opens system settings by itself.
 
 `requestPostLoginPermissions` runs from `SessionSetupRoute.onCompleted`, so
 notification permission and the background-reliability grant are both requested
@@ -142,7 +150,7 @@ which no retry can fix.
 
 | File | Role |
 |------|------|
-| `lib/src/core/bangkok_time.dart` | `bangkokWallTime`, the single GMT+7 conversion |
+| `lib/src/core/time/app_time_zone.dart` | Fixed GMT+7 wall-time/instant conversion and display metadata |
 | `lib/src/features/semesters/semester_label.dart` | `formatSemesterLabel` |
 | `lib/src/features/onboarding/presentation/post_login_permissions.dart` | Post-login permission flow and reliability prompt |
 | `lib/src/platform/background/background_reliability_grant.dart` | Per-platform grant contract and factory |
@@ -193,7 +201,8 @@ which no retry can fix.
 
 | Test | Covers |
 |------|--------|
-| `test/core/display_formatting_test.dart` | `formatSemesterLabel`, `bangkokWallTime` |
+| `test/core/display_formatting_test.dart` | `formatSemesterLabel`, `appTimeZone` display conversion |
+| `test/core/time/app_time_zone_test.dart` | Fixed GMT+7 instant/wall-time conversion |
 | `test/features/assignments/dashboard/presentation/assignment_deadline_formatting_test.dart` | Every deadline shape, GMT+7 timestamps |
 | `test/features/assignments/dashboard/data/assignment_dashboard_store_test.dart` | `activeSemesterName` read |
 | `test/features/onboarding/presentation/post_login_permissions_test.dart` | Post-login permission and battery prompt paths |

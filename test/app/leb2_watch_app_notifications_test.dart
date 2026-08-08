@@ -21,6 +21,7 @@ import 'package:leb2_watch/src/features/background_sync/domain/background_schedu
 import 'package:leb2_watch/src/features/authentication/application/automatic_session_reauthentication_service.dart';
 import 'package:leb2_watch/src/features/authentication/domain/automatic_session_reauthentication.dart';
 import 'package:leb2_watch/src/features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
+import 'package:leb2_watch/src/features/notifications/application/exact_alarm_schedule_recovery.dart';
 import 'package:leb2_watch/src/features/notifications/data/desktop_deadline_reminder_delivery_store.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_service.dart';
@@ -169,6 +170,7 @@ void main() {
       notifications,
       runWithActivityLease: <T>(action) => action(),
     );
+    final exactAlarmRecovery = _AppExactAlarmScheduleRecovery();
     var statusRefreshRequests = 0;
     final statusRefreshSubscription = statusRefreshes.requests.listen((_) {
       statusRefreshRequests += 1;
@@ -205,6 +207,9 @@ void main() {
           desktopDeadlineReminderDeliveryCoordinatorProvider.overrideWith(
             (_) async => deadlineDelivery,
           ),
+          exactAlarmScheduleRecoveryProvider.overrideWith(
+            (_) => exactAlarmRecovery,
+          ),
         ],
         child: Leb2WatchApp(configuration: AppConfiguration.parse()),
       ),
@@ -220,6 +225,7 @@ void main() {
 
     expect(reconciler.executionAllowedValues, [isTrue]);
     expect(statusRefreshRequests, 1);
+    expect(exactAlarmRecovery.calls, 1);
 
     sessions.add(
       const SessionLifecycleSnapshot(
@@ -239,6 +245,7 @@ void main() {
     expect(sync.reasons, [SyncReason.appResume]);
     expect(statusRefreshRequests, 3);
     expect(deadlineStore.clearPermissionBlockedCalls, 1);
+    expect(exactAlarmRecovery.calls, 2);
   });
 
   testWidgets('a newer active revision supersedes delayed expired work', (
@@ -437,6 +444,16 @@ final class _AppNotificationDrain implements NewAssignmentNotificationDrain {
   }
 }
 
+final class _AppExactAlarmScheduleRecovery
+    implements ExactAlarmScheduleRecovery {
+  int calls = 0;
+
+  @override
+  Future<void> refresh() async {
+    calls += 1;
+  }
+}
+
 final class _AppDeadlineDeliveryStore
     implements DesktopDeadlineReminderDeliveryStore {
   int clearPermissionBlockedCalls = 0;
@@ -537,9 +554,9 @@ final class _AppNotificationService implements LocalNotificationService {
       NotificationPermissionStatus.notRequired;
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showDueDeadlineReminder(

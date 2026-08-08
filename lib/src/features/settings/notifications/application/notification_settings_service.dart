@@ -34,11 +34,15 @@ abstract interface class NotificationSettingsService {
 
   Future<NotificationPermissionActionResult> requestNotificationPermission();
 
+  Future<ExactAlarmPermissionActionResult> requestExactAlarmPermission();
+
   /// Reads the current permission without ever prompting the user.
   ///
   /// Returns `null` when the platform cannot report a status, so the caller
   /// keeps showing the request affordance instead of hiding it wrongly.
   Future<NotificationPermissionStatus?> readNotificationPermission();
+
+  Future<ExactAlarmPermissionStatus?> readExactAlarmPermission();
 }
 
 sealed class NotificationPermissionActionResult {
@@ -62,6 +66,27 @@ final class NotificationPermissionActionFailed
   final String message;
 }
 
+sealed class ExactAlarmPermissionActionResult {
+  const ExactAlarmPermissionActionResult();
+
+  @override
+  String toString() => '$runtimeType(redacted: true)';
+}
+
+final class ExactAlarmPermissionActionCompleted
+    extends ExactAlarmPermissionActionResult {
+  const ExactAlarmPermissionActionCompleted(this.status);
+
+  final ExactAlarmPermissionStatus status;
+}
+
+final class ExactAlarmPermissionActionFailed
+    extends ExactAlarmPermissionActionResult {
+  const ExactAlarmPermissionActionFailed(this.message);
+
+  final String message;
+}
+
 final class LocalNotificationSettingsService
     implements NotificationSettingsService {
   LocalNotificationSettingsService(
@@ -75,6 +100,7 @@ final class LocalNotificationSettingsService
     this._platform,
     this._scheduleStatusRefreshes, [
     this._desktopDeadlineDeliveryRefresh,
+    this._exactAlarmPermissionRefresh,
   ]);
 
   final BackgroundMonitoringSettingsService _backgroundSettings;
@@ -88,6 +114,7 @@ final class LocalNotificationSettingsService
   final BackgroundScheduleStatusRefreshSignal _scheduleStatusRefreshes;
   final Future<void> Function({bool permissionMayHaveChanged})?
   _desktopDeadlineDeliveryRefresh;
+  final Future<void> Function()? _exactAlarmPermissionRefresh;
   final StreamController<BackgroundScheduleStatus> _scheduleStatusUpdates =
       StreamController<BackgroundScheduleStatus>.broadcast(sync: true);
 
@@ -296,6 +323,47 @@ final class LocalNotificationSettingsService
           NotificationPermissionStatus.notRequired,
         NotificationDeliveryPermissionStatus.unavailable => null,
       };
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  Future<ExactAlarmPermissionActionResult> requestExactAlarmPermission() async {
+    try {
+      await _notifications.initialize();
+      final notifications = _notifications;
+      final status = notifications is ExactAlarmPermissionControl
+          ? await (notifications as ExactAlarmPermissionControl)
+                .requestExactAlarmPermission()
+          : ExactAlarmPermissionStatus.unavailable;
+      if (status == ExactAlarmPermissionStatus.allowed) {
+        try {
+          await _exactAlarmPermissionRefresh?.call();
+        } on Object {
+          // The durable generation remains recoverable by the next trigger.
+        }
+      }
+      return ExactAlarmPermissionActionCompleted(status);
+    } on LocalNotificationFailure catch (failure) {
+      return ExactAlarmPermissionActionFailed(failure.message);
+    } on Object {
+      return const ExactAlarmPermissionActionFailed(
+        'Could not check precise reminder access.',
+      );
+    }
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus?> readExactAlarmPermission() async {
+    try {
+      await _notifications.initialize();
+      final notifications = _notifications;
+      final status = notifications is ExactAlarmPermissionControl
+          ? await (notifications as ExactAlarmPermissionControl)
+                .readExactAlarmPermission()
+          : ExactAlarmPermissionStatus.unavailable;
+      return status == ExactAlarmPermissionStatus.unavailable ? null : status;
     } on Object {
       return null;
     }

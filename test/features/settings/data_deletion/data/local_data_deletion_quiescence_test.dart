@@ -424,7 +424,7 @@ final class _BlockingNotificationService implements LocalNotificationService {
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
     events.add('schedule:start');
@@ -432,6 +432,7 @@ final class _BlockingNotificationService implements LocalNotificationService {
     await scheduleGate.future;
     scheduledNotificationIds.add(request.id.value);
     events.add('schedule:end');
+    return Duration.zero;
   }
 
   @override

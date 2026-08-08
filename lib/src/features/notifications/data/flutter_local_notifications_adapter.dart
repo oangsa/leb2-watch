@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../../core/time/clock_skew.dart';
 import '../domain/local_notification_models.dart';
 import 'local_notifications_platform.dart';
 
@@ -41,10 +41,10 @@ final class FlutterLocalNotificationsAdapter
     FlutterLocalNotificationsPlugin? plugin,
     NotificationRuntimePlatform? runtimePlatform,
     bool? windowsPackaged,
-    TrustedClock? clock,
     @visibleForTesting VoidCallback? windowsTeardown,
-  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
-       _clock = clock ?? TrustedClock() {
+    @visibleForTesting Future<bool?> Function()? exactAlarmPermissionReader,
+    @visibleForTesting Future<bool?> Function()? exactAlarmPermissionRequester,
+  }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin() {
     _runtimePlatform = runtimePlatform ?? _detectRuntimePlatform();
     final isPackaged =
         windowsPackaged ??
@@ -55,6 +55,10 @@ final class FlutterLocalNotificationsAdapter
       windowsPackaged: isPackaged,
     );
     _windowsTeardown = windowsTeardown ?? _disposeWindowsPlugin;
+    _exactAlarmPermissionReader =
+        exactAlarmPermissionReader ?? _readAndroidExactAlarmPermission;
+    _exactAlarmPermissionRequester =
+        exactAlarmPermissionRequester ?? _requestAndroidExactAlarmPermission;
   }
 
   @override
@@ -95,9 +99,10 @@ final class FlutterLocalNotificationsAdapter
   static const String deadlineRemindersChannelId = 'leb2_deadline_reminders_v1';
 
   final FlutterLocalNotificationsPlugin _plugin;
-  final TrustedClock _clock;
   late final NotificationRuntimePlatform _runtimePlatform;
   late final VoidCallback _windowsTeardown;
+  late final Future<bool?> Function() _exactAlarmPermissionReader;
+  late final Future<bool?> Function() _exactAlarmPermissionRequester;
 
   @override
   late final LocalNotificationPlatformCapabilities capabilities;
@@ -161,6 +166,54 @@ final class FlutterLocalNotificationsAdapter
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async {
+    if (_runtimePlatform != NotificationRuntimePlatform.android) {
+      return _runtimePlatform == NotificationRuntimePlatform.unsupported
+          ? ExactAlarmPermissionStatus.unavailable
+          : ExactAlarmPermissionStatus.notRequired;
+    }
+    final result = await _exactAlarmPermissionReader();
+    return switch (result) {
+      true => ExactAlarmPermissionStatus.allowed,
+      false => ExactAlarmPermissionStatus.blocked,
+      null => ExactAlarmPermissionStatus.unavailable,
+    };
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async {
+    if (_runtimePlatform != NotificationRuntimePlatform.android) {
+      return _runtimePlatform == NotificationRuntimePlatform.unsupported
+          ? ExactAlarmPermissionStatus.unavailable
+          : ExactAlarmPermissionStatus.notRequired;
+    }
+    final result = await _exactAlarmPermissionRequester();
+    return switch (result) {
+      true => ExactAlarmPermissionStatus.allowed,
+      false => ExactAlarmPermissionStatus.blocked,
+      null => ExactAlarmPermissionStatus.unavailable,
+    };
+  }
+
+  Future<bool?> _readAndroidExactAlarmPermission() {
+    return _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.canScheduleExactNotifications() ??
+        Future<bool?>.value();
+  }
+
+  Future<bool?> _requestAndroidExactAlarmPermission() {
+    return _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestExactAlarmsPermission() ??
+        Future<bool?>.value();
+  }
+
+  @override
   Future<void> show(PlatformNotification notification) {
     return _plugin.show(
       id: notification.id,
@@ -172,7 +225,37 @@ final class FlutterLocalNotificationsAdapter
   }
 
   @override
-  Future<void> schedule(PlatformScheduledNotification scheduled) {
+  Future<void> schedule(PlatformScheduledNotification scheduled) async {
+    var mode = AndroidScheduleMode.inexactAllowWhileIdle;
+    if (_runtimePlatform == NotificationRuntimePlatform.android &&
+        scheduled.precision == PlatformSchedulePrecision.exactWhenAllowed) {
+      try {
+        if (await readExactAlarmPermission() ==
+            ExactAlarmPermissionStatus.allowed) {
+          mode = AndroidScheduleMode.exactAllowWhileIdle;
+        }
+      } on Object {
+        // Losing the precision probe must not lose the reminder itself.
+      }
+    }
+    try {
+      await _zonedSchedule(scheduled, mode);
+    } on PlatformException catch (error) {
+      if (mode != AndroidScheduleMode.exactAllowWhileIdle ||
+          error.code != 'exact_alarms_not_permitted') {
+        rethrow;
+      }
+      await _zonedSchedule(
+        scheduled,
+        AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  Future<void> _zonedSchedule(
+    PlatformScheduledNotification scheduled,
+    AndroidScheduleMode mode,
+  ) {
     return _plugin.zonedSchedule(
       id: scheduled.notification.id,
       title: scheduled.notification.title,
@@ -180,11 +263,11 @@ final class FlutterLocalNotificationsAdapter
       // The OS fires this alarm by the device clock, so the instant handed
       // over has to be expressed in device time rather than backend time.
       scheduledDate: tz.TZDateTime.from(
-        _clock.deviceInstantFor(scheduled.scheduledForUtc),
+        scheduled.scheduledForUtc.subtract(scheduled.clockOffset),
         tz.UTC,
       ),
       notificationDetails: _notificationDetails(scheduled.notification),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: mode,
       payload: scheduled.notification.payload,
     );
   }

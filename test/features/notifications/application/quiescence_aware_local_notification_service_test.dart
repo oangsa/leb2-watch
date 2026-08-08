@@ -75,7 +75,7 @@ void main() {
     expect(delegate.events, ['schedule:start']);
 
     delegate.scheduleGate.complete();
-    await schedule;
+    expect(await schedule, const Duration(hours: 2));
     await gate.waitForActivityQuiescence();
     await service.cancelAllAfterQuiescence();
     expect(delegate.events, ['schedule:start', 'schedule:end', 'cancelAll']);
@@ -176,13 +176,14 @@ final class _BlockingNotificationService implements LocalNotificationService {
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
     events.add('schedule:start');
     scheduleStarted.complete();
     await scheduleGate.future;
     events.add('schedule:end');
+    return const Duration(hours: 2);
   }
 
   @override

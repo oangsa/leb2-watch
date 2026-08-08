@@ -244,6 +244,46 @@ void main() {
     }
   });
 
+  test('exact-alarm grant reschedules existing deadline reminders', () async {
+    final notifications = _Notifications(
+      exactAlarmPermissionStatus: ExactAlarmPermissionStatus.allowed,
+    );
+    var refreshes = 0;
+    final service = LocalNotificationSettingsService(
+      _BackgroundSettings(),
+      _Scheduler(),
+      _NewAssignments(),
+      _Deadlines(),
+      _Autostart(),
+      notifications,
+      _Drain(),
+      NotificationSettingsPlatform.android,
+      BackgroundScheduleStatusRefreshSignal(),
+      null,
+      () async => refreshes += 1,
+    );
+
+    final result = await service.requestExactAlarmPermission();
+    final status = await service.readExactAlarmPermission();
+
+    expect(
+      result,
+      isA<ExactAlarmPermissionActionCompleted>().having(
+        (completed) => completed.status,
+        'status',
+        ExactAlarmPermissionStatus.allowed,
+      ),
+    );
+    expect(status, ExactAlarmPermissionStatus.allowed);
+    expect(refreshes, 1);
+    expect(notifications.calls, [
+      'initialize',
+      'exactPermission',
+      'initialize',
+      'readExactPermission',
+    ]);
+  });
+
   test('drain failure preserves successful permission result', () async {
     final notifications = _Notifications();
     final drain = _Drain()..error = StateError('PRIVATE_DRAIN_FAILURE');
@@ -424,13 +464,16 @@ final class _Autostart implements DesktopAutostartService {
   );
 }
 
-final class _Notifications implements LocalNotificationService {
+final class _Notifications
+    implements LocalNotificationService, ExactAlarmPermissionControl {
   _Notifications({
     this.permissionStatus = NotificationPermissionStatus.granted,
+    this.exactAlarmPermissionStatus = ExactAlarmPermissionStatus.blocked,
   });
 
   final List<String> calls = [];
   final NotificationPermissionStatus permissionStatus;
+  final ExactAlarmPermissionStatus exactAlarmPermissionStatus;
 
   @override
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
@@ -453,6 +496,18 @@ final class _Notifications implements LocalNotificationService {
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async {
+    calls.add('readExactPermission');
+    return exactAlarmPermissionStatus;
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async {
+    calls.add('exactPermission');
+    return exactAlarmPermissionStatus;
+  }
+
+  @override
   Future<void> showTestNotification() async {
     calls.add('test');
   }
@@ -467,9 +522,9 @@ final class _Notifications implements LocalNotificationService {
   void dispose() {}
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showDueDeadlineReminder(

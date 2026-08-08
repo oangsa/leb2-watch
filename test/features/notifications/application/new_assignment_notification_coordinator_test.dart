@@ -740,9 +740,9 @@ final class _NotificationService implements LocalNotificationService {
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showDueDeadlineReminder(

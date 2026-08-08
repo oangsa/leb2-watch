@@ -22,7 +22,6 @@ void main() {
     store = DriftDeadlineReminderStore(
       database,
       idFactory: const LocalNotificationIdFactory(),
-      clockOffset: () => placedOffset,
     );
     await _seedAssignment(
       database,
@@ -95,6 +94,7 @@ void main() {
             ownerToken: 'owner-a',
             generation: firstGeneration,
             item: schedule,
+            clockOffset: placedOffset,
           ),
           isTrue,
         );
@@ -148,6 +148,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: firstGeneration,
           item: item,
+          clockOffset: placedOffset,
         );
       }
       await store.completeGeneration(
@@ -223,6 +224,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: firstGeneration,
           item: item,
+          clockOffset: placedOffset,
         );
       }
       await store.completeGeneration(
@@ -332,6 +334,7 @@ void main() {
         ownerToken: 'owner-a',
         generation: firstGeneration,
         item: item,
+        clockOffset: placedOffset,
       );
     }
     await store.completeGeneration(
@@ -396,6 +399,7 @@ void main() {
         ownerToken: 'owner-a',
         generation: generation,
         item: item,
+        clockOffset: placedOffset,
       );
       final before =
           await (database.select(database.scheduledReminders)..where(
@@ -447,6 +451,7 @@ void main() {
         ownerToken: 'owner-a',
         generation: generation,
         item: item,
+        clockOffset: placedOffset,
       );
     }
 
@@ -502,6 +507,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: generation,
           item: item,
+          clockOffset: placedOffset,
         ),
         isFalse,
       );
@@ -514,7 +520,12 @@ void main() {
       // A launch measures the correction and hands every alarm over under it.
       placedOffset = const Duration(hours: 2);
       await store.adoptClockOffset(placedOffset);
-      await _reconcile(store, ownerToken: 'owner-a', nowUtc: now);
+      await _reconcile(
+        store,
+        ownerToken: 'owner-a',
+        nowUtc: now,
+        clockOffset: placedOffset,
+      );
 
       // The next launch restarts the in-memory correction at zero. A newly
       // synced assignment is reconciled by a preference change before the
@@ -532,6 +543,7 @@ void main() {
         store,
         ownerToken: 'owner-b',
         nowUtc: now,
+        clockOffset: placedOffset,
       );
       expect(placed, isNotEmpty);
 
@@ -556,6 +568,7 @@ void main() {
         store,
         ownerToken: 'owner-a',
         nowUtc: now,
+        clockOffset: placedOffset,
       );
       expect(corrected, isNotEmpty);
 
@@ -575,6 +588,7 @@ void main() {
         store,
         ownerToken: 'owner-b',
         nowUtc: now,
+        clockOffset: placedOffset,
       );
       expect(partial, isNotEmpty);
       expect(partial.toSet().intersection(corrected.toSet()), isEmpty);
@@ -613,7 +627,12 @@ void main() {
   test('re-measuring the same correction leaves the alarms alone', () async {
     placedOffset = const Duration(hours: 2);
     expect(
-      await _reconcile(store, ownerToken: 'owner-a', nowUtc: now),
+      await _reconcile(
+        store,
+        ownerToken: 'owner-a',
+        nowUtc: now,
+        clockOffset: placedOffset,
+      ),
       isNotEmpty,
     );
 
@@ -641,6 +660,7 @@ void main() {
         store,
         ownerToken: 'owner-a',
         nowUtc: now,
+        clockOffset: placedOffset,
       );
       expect(placed, isNotEmpty);
 
@@ -766,6 +786,15 @@ void main() {
         activityId: 1003,
         dueDateSource: '2026-08-01T11:00:00Z',
       );
+      await _seedAssignment(
+        database,
+        semesterId: 101,
+        courseId: 3004,
+        activityId: 1004,
+        // Backend false is only an early-expiry signal. Local GMT+7 parsing
+        // independently recognizes that this deadline is exactly now.
+        dueDateSource: '2026-08-01T17:00:00',
+      );
       final generation = await store.requestGeneration();
       await store.tryClaim(
         ownerToken: 'owner-a',
@@ -795,6 +824,12 @@ void main() {
         ),
         isEmpty,
       );
+      expect(
+        plan.schedules.where(
+          (item) => item.request.assignment.identityKey == 'backend:1004',
+        ),
+        isEmpty,
+      );
     },
   );
 
@@ -819,6 +854,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: firstGeneration,
           item: item,
+          clockOffset: placedOffset,
         );
       }
       await store.completeGeneration(
@@ -915,6 +951,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: firstGeneration,
           item: item,
+          clockOffset: placedOffset,
         );
       }
       await store.completeGeneration(
@@ -1011,6 +1048,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: firstGeneration,
           item: item,
+          clockOffset: placedOffset,
         );
       }
       await store.completeGeneration(
@@ -1245,6 +1283,7 @@ void main() {
           ownerToken: 'owner-a',
           generation: generation,
           item: plan.schedules.first,
+          clockOffset: placedOffset,
         ),
         isFalse,
       );
@@ -1325,6 +1364,7 @@ Future<List<int>> _reconcile(
   DriftDeadlineReminderStore store, {
   required String ownerToken,
   required DateTime nowUtc,
+  Duration clockOffset = Duration.zero,
 }) async {
   const lease = Duration(minutes: 1);
   final generation = await store.requestGeneration();
@@ -1345,6 +1385,7 @@ Future<List<int>> _reconcile(
       ownerToken: ownerToken,
       generation: generation,
       item: item,
+      clockOffset: clockOffset,
     );
   }
   await store.completeGeneration(

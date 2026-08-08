@@ -28,6 +28,14 @@ global ordering/cap, collision-safe ID allocation, unknown/scheduled/cancelled
 ownership, generation fencing, stale-effect recovery, and poison-row isolation
 inside short Drift transactions.
 
+The local notification scheduling boundary snapshots the current trusted-clock
+correction immediately before platform I/O, embeds that correction in the
+platform request, and returns it after acceptance. The guarded finalizer
+persists that returned value rather than rereading mutable clock state. If the
+correction changes while the platform Future is outstanding, the persisted
+owner therefore still describes the actual OS schedule and a later sweep can
+reconcile it.
+
 The coordinator owns a 30-second default timeout for each platform
 initialize, cancel, or schedule call. Tests inject short durations. A timeout
 does not pretend to cancel the Dart Future: it stops lease heartbeats, lets the
@@ -43,7 +51,13 @@ sweep first and deadline reconciliation second after `SyncSuccess`, catching
 the two effects independently and returning the original outcome. Current
 platform background, resume, timer, and tray triggers reuse this decorator and
 reconciler. Notification Settings exposes the preference service and owns the
-explained user-initiated permission flow.
+explained user-initiated notification and Android exact-alarm permission flows.
+Exact-alarm access is never prompted implicitly. One coalesced foreground
+recovery passively reads the access state at startup, app resume, and after the
+explained settings action. Its first known state and each in-process transition
+mark every OS-held reminder unknown, advance the durable generation, and
+re-hand those owners through the existing cancel-first coordinator. The first
+startup pass repairs alarms Android may have removed while the app was stopped.
 
 `DesktopDeadlineReminderDeliveryCoordinator` and
 `DriftDesktopDeadlineReminderDeliveryStore` own the separate process-lifetime
@@ -73,10 +87,15 @@ of causing zero-delay work.
    successful cancellation retains a `cancelled` tombstone. A cancelled and
    still-undesired owner is a no-op.
 7. A `cancelled` or `unknown` desired owner becomes `unknown`, is cancelled
-   first, rechecked against the injected clock, and then scheduled. An
-   unchanged `scheduled` owner is a no-op.
+   first, rechecked against the injected clock, and then scheduled. Scheduling
+   returns the exact trusted-clock correction embedded in the accepted OS
+   request. `dueDateExceed == true` expires the candidate early, while `false`
+   cannot override the independently parsed GMT+7 deadline; equality with the
+   trusted current instant is already expired. An unchanged `scheduled` owner
+   is a no-op.
 8. Short guarded finalizers move matching owners to `scheduled` or
-   `cancelled`; a stale owner cannot finalize or release a replacement owner.
+   `cancelled`; schedule finalization persists the returned correction, and a
+   stale owner cannot finalize or release a replacement owner.
 9. A timeout stops that call's heartbeat and returns failure to the current
    bounded pass without awaiting or claiming to cancel the original Future.
    Rows remain `unknown`, the generation completes, and the lease is released.
@@ -566,6 +585,11 @@ marks retained IDs unknown and advances the requested generation in one
 transaction. It never overwrites the current deadline, scheduled instant, or
 desired cache state.
 
+`LocalNotificationService.scheduleDeadlineReminder` returns the exact
+`Duration` correction used to translate its UTC schedule into the platform
+clock. `DeadlineReminderStore.markScheduled` requires that returned correction;
+it must not sample the live trusted clock during asynchronous finalization.
+
 `deadlineReminderPlatformEffectTimeout` is 30 seconds. It bounds each
 application-owned call into the notification platform while allowing shorter
 durations to be injected in deterministic tests.
@@ -617,7 +641,7 @@ abstract interface class LocalNotificationService {
   Future<void> showDueDeadlineReminder(
     DeadlineReminderNotification request,
   );
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   );
   Future<void> cancelReminder(LocalNotificationId id);
@@ -753,8 +777,10 @@ retaining raw storage errors.
   explicit offset while preserving UTC scheduling instants.
 - Treat every live response callback as a user action; only launch-detail
   lookup is one-shot through successful initialization.
-- Use ordinary inexact Android scheduling rather than special exact-alarm
-  access.
+- Prefer Android exact-while-idle scheduling only when the OS reports exact
+  access. Request `SCHEDULE_EXACT_ALARM` only from the explained settings
+  action, fall back to inexact-while-idle when access is absent or its probe
+  fails, and retry inexactly if access is revoked between the probe and I/O.
 - Expose a deterministic candidate sequence and explicit owner validation
   instead of calling a truncated hash collision-free.
 - Reserve one fixed test ID outside assignment ownership.
@@ -808,8 +834,11 @@ retaining raw storage errors.
 
 ### Known limitations
 
-- The backend does not define a timezone or deadline inclusivity for unzoned
-  source values, so those assignments intentionally receive no reminder.
+- Offset-less backend `dueDate` values are GMT+7 Bangkok wall time and are
+  resolved into instants before reminder planning. Reminder validity is strict:
+  `trustedNowUtc >= deadlineAtUtc` is expired even when the backend reports
+  `dueDateExceed == false`. Whether the backend accepts a submission at exact
+  equality remains outside the reminder contract.
 - SQLite and OS schedulers cannot provide exactly-once effects; stable IDs,
   retained tombstones, durable unknown state, and cancel-first replay provide
   convergence from a later returned effect.
@@ -899,7 +928,12 @@ activation.
 - Android, iOS, macOS, and Windows runtime behavior still requires their native
   hosts. This feature adds no new native implementation.
 - OS permission can change outside the app; the page reports only the result
-  checked in the current session.
+  checked in the current session. Foreground startup and resume independently
+  re-read exact-alarm access and durably reschedule deadline alarms when its
+  known state changes.
+- Android exact-alarm access improves alarm timing but does not prove visible
+  notification delivery. Without access, deadline reminders remain registered
+  with inexact-while-idle timing.
 - Background work, reminders, autostart, and desktop process lifetime remain
   subject to the platform limitations documented on the page.
 - A permission refresh is best effort; operating-system display still is not a
@@ -920,8 +954,8 @@ activation.
   leases, and independent database generation races.
 - Coordinator tests cover intent-before-I/O, cancel-first order, no permission,
   initialization/partial/capacity failures, unsupported platforms,
-  finalization crash windows, lease release/recovery, and same/cross-connection
-  ownership.
+  finalization crash windows, correction changes during platform scheduling,
+  lease release/recovery, and same/cross-connection ownership.
 - Permanent two-WAL adversarial tests cover late schedules after disable,
   mute, and removal; an old schedule after a deadline change; a late cancel
 
@@ -1028,7 +1062,8 @@ Final validation passed:
   disposal before platform entry and during platform/launch waits,
   launch-once/live-repeat response handling, no implicit permission, permission
   mapping, fixed test copy, device-local deadline copy, new-assignment
-  grouping/content, UTC inexact reminders, display-control rejection,
+  grouping/content, UTC exact-when-allowed reminders, inexact fallback,
+  display-control rejection,
   Unicode/emoji preservation, validation-before-I/O, unsupported platforms,
   cancellation, bounded platform failures, and disposal.
 - Deadline-reminder convergence tests exercise the production service wrapper
@@ -1131,6 +1166,17 @@ Flutter/Dart tooling first ran after sourcing `~/.zshrc` once, as requested.
   review-fix regressions.
 - Code generation was not rerun for the review fixes because no schema,
   generator input, or generated source changed.
+- Timezone, clock-correction, and exact-alarm focused suites passed, including
+  strict GMT+7 deadline equality, backend-false/local-expired handling,
+  exact/inexact and permission-revocation fallback, durable cancel-first
+  rescheduling, foreground permission transitions, retry, and lifecycle tests.
+- Full Flutter unit/widget suite: 1,305/1,305 tests passed.
+- Mocked Linux end-to-end workflow: 2/2 scenarios passed.
+- `flutter analyze`: no issues. Code generation was not required because the
+  rework changes no schema, generator input, or generated source.
+- `flutter build apk --debug` was attempted but this host's Java 26/Android
+  toolchain failed in `JdkImageTransform` before app code compilation. Rerun
+  that command under a supported Android JDK to complete native APK evidence.
 
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*

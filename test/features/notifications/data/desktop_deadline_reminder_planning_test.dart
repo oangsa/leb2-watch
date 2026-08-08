@@ -338,6 +338,7 @@ Future<Set<int>> _scheduleOwners(
       ownerToken: 'owner',
       generation: generation,
       item: item,
+      clockOffset: Duration.zero,
     );
   }
   await store.completeGeneration(ownerToken: 'owner', generation: generation);
