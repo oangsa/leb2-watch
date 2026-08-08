@@ -722,6 +722,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               _SettingsSection(
                 title: 'Local data',
                 description: 'Nothing is deleted from LEB2 itself.',
+                danger: true,
                 children: [
                   LocalDataDeletionPanel(
                     service: widget.deletionService,
@@ -828,11 +829,13 @@ class _SettingsSection extends StatelessWidget {
   const _SettingsSection({
     required this.title,
     this.description,
+    this.danger = false,
     required this.children,
   });
 
   final String title;
   final String? description;
+  final bool danger;
   final List<Widget> children;
 
   @override
@@ -841,9 +844,19 @@ class _SettingsSection extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: AppElevation.flat,
-      color: theme.colorScheme.surfaceContainerLow,
+      color: danger
+          ? Color.alphaBlend(
+              theme.colorScheme.error.withValues(alpha: 0.08),
+              theme.colorScheme.surfaceContainerLow,
+            )
+          : theme.colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        side: BorderSide(
+          color: danger
+              ? theme.colorScheme.error
+              : theme.colorScheme.outlineVariant,
+          width: danger ? AppBorders.hairline * 2 : AppBorders.hairline,
+        ),
         borderRadius: BorderRadius.circular(AppRadii.panel),
       ),
       child: Padding(

@@ -233,6 +233,34 @@ void main() {
     expect(find.text('Start at login'), findsOneWidget);
   });
 
+  testWidgets('uses a subtle fill and strong border for local data', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.android),
+    );
+    await _pump(tester, service, height: 1400, themeMode: ThemeMode.dark);
+
+    final card = tester.widget<Card>(
+      find.ancestor(of: find.text('Local data'), matching: find.byType(Card)),
+    );
+    final scheme = AppTheme.dark.colorScheme;
+    expect(
+      card.color,
+      Color.alphaBlend(
+        scheme.error.withValues(alpha: 0.08),
+        scheme.surfaceContainerLow,
+      ),
+    );
+    expect(
+      card.shape,
+      RoundedRectangleBorder(
+        side: BorderSide(color: scheme.error, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  });
+
   for (final width in [320.0, 375.0, 600.0, 768.0, 1200.0]) {
     testWidgets('reflows at $width px with 200 percent text', (tester) async {
       final service = _SettingsService(
@@ -270,6 +298,7 @@ Future<void> _pump(
   double height = 900,
   TextScaler textScaler = TextScaler.noScaling,
   BackgroundReliabilityGrant backgroundGrant = const _BackgroundGrant(),
+  ThemeMode themeMode = ThemeMode.system,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, height);
@@ -279,6 +308,7 @@ Future<void> _pump(
     MaterialApp(
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      themeMode: themeMode,
       home: MediaQuery(
         data: MediaQueryData(size: Size(width, height), textScaler: textScaler),
         child: NotificationSettingsPage(
