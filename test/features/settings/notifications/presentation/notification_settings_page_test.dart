@@ -24,13 +24,11 @@ void main() {
     final service = _SettingsService(
       _snapshot(platform: NotificationSettingsPlatform.android),
     );
-    var courseCalls = 0;
     var privacyCalls = 0;
 
     await _pump(
       tester,
       service,
-      onManageCourses: () => courseCalls += 1,
       onOpenPrivacy: () => privacyCalls += 1,
       height: 1400,
     );
@@ -78,13 +76,8 @@ void main() {
     await tester.pump();
     expect(service.exactAlarmPermissionCalls, 1);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('manage-course-notifications')),
-      300,
-      scrollable: scrollable,
-    );
-    await tester.tap(find.byKey(const Key('manage-course-notifications')));
-    expect(courseCalls, 1);
+    expect(find.text('Courses'), findsNothing);
+    expect(find.byKey(const Key('manage-course-notifications')), findsNothing);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('open-privacy')),
@@ -292,7 +285,6 @@ void main() {
 Future<void> _pump(
   WidgetTester tester,
   _SettingsService service, {
-  VoidCallback? onManageCourses,
   VoidCallback? onOpenPrivacy,
   double width = 800,
   double height = 900,
@@ -318,7 +310,6 @@ Future<void> _pump(
           onDeletionCompleted: (_) {},
           logoutService: const _LogoutService(),
           onLogoutCompleted: () {},
-          onManageCourses: onManageCourses ?? () {},
           onOpenPrivacy: onOpenPrivacy ?? () {},
         ),
       ),

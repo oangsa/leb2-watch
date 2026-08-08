@@ -41,7 +41,6 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.onDeletionCompleted,
     required this.logoutService,
     required this.onLogoutCompleted,
-    required this.onManageCourses,
     required this.onOpenPrivacy,
     super.key,
   });
@@ -52,7 +51,6 @@ class NotificationSettingsPage extends StatefulWidget {
   final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
   final LogoutService logoutService;
   final VoidCallback onLogoutCompleted;
-  final VoidCallback onManageCourses;
   final VoidCallback onOpenPrivacy;
 
   @override
@@ -581,19 +579,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                             DeadlineReminderOffset.oneHour,
                             enabled,
                           ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
-                title: 'Courses',
-                children: [
-                  ListTile(
-                    key: const Key('manage-course-notifications'),
-                    title: const Text('Manage course notifications'),
-                    subtitle: const Text('Mute or unmute each course.'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: widget.onManageCourses,
                   ),
                 ],
               ),
