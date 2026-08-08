@@ -43,6 +43,10 @@ class _LogoutPanelState extends State<LogoutPanel> {
           FilledButton(
             key: const Key('confirm-logout-action'),
             onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             child: const Text('Log out'),
           ),
         ],
@@ -107,13 +111,14 @@ class _LogoutPanelState extends State<LogoutPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ListTile(
           key: const Key('logout-action'),
-          leading: const Icon(Icons.logout),
-          title: const Text('Log out'),
+          leading: Icon(Icons.logout, color: error),
+          title: Text('Log out', style: TextStyle(color: error)),
           subtitle: const Text(
             'Clears saved secrets. Cached assignments stay.',
           ),

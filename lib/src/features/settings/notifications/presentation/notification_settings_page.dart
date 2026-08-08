@@ -853,7 +853,12 @@ class _SettingsSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Semantics(
                 header: true,
-                child: Text(title, style: theme.textTheme.titleLarge),
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: danger ? theme.colorScheme.onErrorContainer : null,
+                  ),
+                ),
               ),
             ),
             if (description case final description?) ...[
