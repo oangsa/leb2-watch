@@ -89,6 +89,18 @@ void main() {
     expect(notifications.events, isEmpty);
   });
 
+  test('an exact-alarm grant re-hands every OS schedule to Android', () async {
+    final service = coordinator();
+    await service.reconcileAfterPreferenceChange();
+    final ids = notifications.scheduled.map((item) => item.id.value).toSet();
+    notifications.clear();
+
+    await service.rescheduleAfterExactAlarmPermissionChange();
+
+    expect(notifications.cancelled.toSet(), ids);
+    expect(notifications.scheduled.map((item) => item.id.value).toSet(), ids);
+  });
+
   test(
     'global disable cancels durable owners and re-enable reconstructs',
     () async {
@@ -442,6 +454,49 @@ void main() {
   );
 
   test(
+    'records the correction used when the platform schedule began',
+    () async {
+      final scheduleStarted = Completer<void>();
+      final release = Completer<void>();
+      int? firstScheduledId;
+      notifications.onSchedule = (request) async {
+        if (firstScheduledId != null) {
+          return;
+        }
+        firstScheduledId = request.id.value;
+        scheduleStarted.complete();
+        await release.future;
+      };
+      final store = DriftDeadlineReminderStore(database);
+      final service = DeadlineReminderCoordinator(
+        store,
+        notifications,
+        policy: DeadlineReminderSchedulingPolicy.android,
+        nowUtc: () => now,
+        ownerTokenFactory: () => 'clock-move-owner',
+        wait: (_) async {},
+        leaseDuration: const Duration(minutes: 1),
+      );
+
+      final reconciliation = service.reconcileAfterPreferenceChange();
+      await scheduleStarted.future;
+      notifications.scheduleClockOffset = const Duration(hours: 2);
+      release.complete();
+      await reconciliation;
+
+      final firstRow =
+          await (database.select(database.scheduledReminders)
+                ..where((row) => row.notificationId.equals(firstScheduledId!)))
+              .getSingle();
+      expect(firstRow.clockOffsetMicroseconds, Duration.zero.inMicroseconds);
+      expect(
+        await store.adoptClockOffset(notifications.scheduleClockOffset),
+        isNot(equals(null)),
+      );
+    },
+  );
+
+  test(
     'committed preference update returns after a platform timeout',
     () async {
       final never = Completer<void>();
@@ -568,6 +623,7 @@ final class _RecordingNotifications implements LocalNotificationService {
   Object? initializeFailure;
   Future<void> Function(LocalNotificationId id)? onCancel;
   Future<void> Function(DeadlineReminderNotification request)? onSchedule;
+  Duration scheduleClockOffset = Duration.zero;
   int permissionCalls = 0;
   int initializationCalls = 0;
 
@@ -596,12 +652,14 @@ final class _RecordingNotifications implements LocalNotificationService {
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
+    final clockOffset = scheduleClockOffset;
     events.add('schedule:${request.id.value}');
     scheduled.add(request);
     await onSchedule?.call(request);
+    return clockOffset;
   }
 
   @override

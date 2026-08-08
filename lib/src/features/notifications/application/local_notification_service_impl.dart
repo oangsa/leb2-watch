@@ -10,13 +10,16 @@ import 'local_notification_deadline_formatter.dart';
 final class LocalNotificationServiceImpl
     implements
         LocalNotificationService,
+        ExactAlarmPermissionControl,
         LocalNotificationInitializationControl {
   LocalNotificationServiceImpl(
     this._platform, {
     this._payloadCodec = const LocalNotificationPayloadCodec(),
     this._deadlineFormatter = const AppZoneNotificationDeadlineFormatter(),
     DateTime Function()? nowUtc,
-  }) : _nowUtc = nowUtc ?? _systemUtcNow;
+    Duration Function()? clockOffset,
+  }) : _nowUtc = nowUtc ?? _systemUtcNow,
+       _clockOffset = clockOffset ?? _noClockOffset;
 
   static const int _maximumCourseNameLength = 80;
   static const int _maximumAssignmentTitleLength = 160;
@@ -29,6 +32,7 @@ final class LocalNotificationServiceImpl
   final LocalNotificationPayloadCodec _payloadCodec;
   final LocalNotificationDeadlineFormatter _deadlineFormatter;
   final DateTime Function() _nowUtc;
+  final Duration Function() _clockOffset;
   final StreamController<LocalNotificationTarget> _responses =
       StreamController<LocalNotificationTarget>.broadcast(sync: true);
 
@@ -176,6 +180,30 @@ final class LocalNotificationServiceImpl
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async {
+    _requireInitialized();
+    try {
+      return await _platform.readExactAlarmPermission();
+    } on Object {
+      throw const LocalNotificationFailure(
+        LocalNotificationFailureKind.platformFailure,
+      );
+    }
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async {
+    _requireInitialized();
+    try {
+      return await _platform.requestExactAlarmPermission();
+    } on Object {
+      throw const LocalNotificationFailure(
+        LocalNotificationFailureKind.platformFailure,
+      );
+    }
+  }
+
+  @override
   Future<void> showTestNotification() async {
     _requireInitialized();
     _requireCapability(_platform.capabilities.supportsImmediate);
@@ -232,19 +260,22 @@ final class LocalNotificationServiceImpl
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
   ) async {
     _requireInitialized();
     _requireCapability(_platform.capabilities.supportsScheduling);
     _validateReminderRequest(request, dueNow: false);
+    final clockOffset = _clockOffset();
     await _schedule(
       PlatformScheduledNotification(
         notification: _deadlineNotification(request),
         scheduledForUtc: request.scheduledForUtc,
-        precision: PlatformSchedulePrecision.inexact,
+        clockOffset: clockOffset,
+        precision: PlatformSchedulePrecision.exactWhenAllowed,
       ),
     );
+    return clockOffset;
   }
 
   @override
@@ -440,6 +471,8 @@ final class LocalNotificationServiceImpl
 }
 
 DateTime _systemUtcNow() => DateTime.now().toUtc();
+
+Duration _noClockOffset() => Duration.zero;
 
 final class _InitializationAttemptState {
   final Completer<void> _completion = Completer<void>();

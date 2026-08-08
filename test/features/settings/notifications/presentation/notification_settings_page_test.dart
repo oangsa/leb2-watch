@@ -47,6 +47,8 @@ void main() {
     expect(find.byKey(const Key('desktop-autostart-switch')), findsNothing);
     expect(service.permissionCalls, 0);
     expect(service.permissionReads, 1);
+    expect(service.exactAlarmPermissionCalls, 0);
+    expect(service.exactAlarmPermissionReads, 1);
 
     final scrollable = find.descendant(
       of: find.byKey(const Key('notification-settings-list')),
@@ -66,6 +68,15 @@ void main() {
       scrollable: scrollable,
     );
     expect(find.text('Allowed.'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('request-exact-alarm-permission')),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.byKey(const Key('request-exact-alarm-permission')));
+    await tester.pump();
+    expect(service.exactAlarmPermissionCalls, 1);
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('manage-course-notifications')),
@@ -100,6 +111,23 @@ void main() {
       findsNothing,
     );
     expect(find.text('Notification permission'), findsNothing);
+  });
+
+  testWidgets('allowed exact alarms remove the precision request', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.android),
+    )..exactAlarmPermissionStatus = ExactAlarmPermissionStatus.allowed;
+
+    await _pump(tester, service, height: 1400);
+
+    expect(service.exactAlarmPermissionReads, 1);
+    expect(
+      find.byKey(const Key('request-exact-alarm-permission')),
+      findsNothing,
+    );
+    expect(find.text('Precise deadline reminders'), findsNothing);
   });
 
   for (final (status, expected) in [
@@ -322,6 +350,9 @@ final class _SettingsService implements NotificationSettingsService {
   int permissionCalls = 0;
   int permissionReads = 0;
   NotificationPermissionStatus? permissionStatus;
+  int exactAlarmPermissionCalls = 0;
+  int exactAlarmPermissionReads = 0;
+  ExactAlarmPermissionStatus? exactAlarmPermissionStatus;
 
   void emit(NotificationSettingsSnapshot value) {
     snapshot = value;
@@ -379,6 +410,20 @@ final class _SettingsService implements NotificationSettingsService {
   Future<NotificationPermissionStatus?> readNotificationPermission() async {
     permissionReads += 1;
     return permissionStatus;
+  }
+
+  @override
+  Future<ExactAlarmPermissionActionResult> requestExactAlarmPermission() async {
+    exactAlarmPermissionCalls += 1;
+    return const ExactAlarmPermissionActionCompleted(
+      ExactAlarmPermissionStatus.allowed,
+    );
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus?> readExactAlarmPermission() async {
+    exactAlarmPermissionReads += 1;
+    return exactAlarmPermissionStatus;
   }
 }
 

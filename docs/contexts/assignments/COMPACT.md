@@ -41,10 +41,13 @@ the optional `Due by` cutoff use one compact filter dialog with draft-only
 Reset, Cancel, and Apply actions. Applied non-default filters appear as
 individually removable chips; search is neither counted nor duplicated as a
 chip. The due control uses the platform date and time pickers. Zoned instants
-are displayed and filtered in fixed GMT+7 Bangkok wall time; by explicit
-product decision, backend deadlines without a zone use their stored wall-clock
-components as Bangkok time for this presentation filter. Raw saved deadline
-sources are not rewritten.
+are displayed and filtered in fixed GMT+7 Bangkok wall time. By backend
+contract, a `dueDate` without an explicit zone is GMT+7 Bangkok wall time; the
+client resolves those components into an instant for display, filtering, and
+notification planning. Raw saved deadline sources are not rewritten.
+Deadline-reminder planning treats a true backend `dueDateExceed` as expired but
+does not trust false: it independently expires the parsed GMT+7 instant when
+the trusted UTC clock reaches it.
 
 Every dashboard control is saved locally: search text, section, course,
 submission filter, and the minute-precision Bangkok deadline cutoff. Modal
@@ -77,9 +80,9 @@ operating-system delivery. Deadline reminders use the same route identity and
 stable-ID namespace.
 
 `LocalAssignmentDetailService` is the security seam: it sanitizes the
-description, classifies timestamps without assigning a timezone, rejects
-date, time, and numeric-offset components that Dart would otherwise normalize,
-maps raw storage values to presentation-owned states, and bounds exceptions.
+description, parses deadlines using the GMT+7 contract, rejects date, time,
+and numeric-offset components that Dart would otherwise normalize, maps raw
+storage values to presentation-owned states, and bounds exceptions.
 
 `AssignmentDetailPage` owns the local stream subscription and preserves its
 last state on a later stream error. `AssignmentDetailRoute` validates path
@@ -280,7 +283,8 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 ### Known limitations
 
 - Retention can prune old semester's success record; UI truthfully shows last-success unavailable
-- No globally meaningful chronological order between zoned and unzoned deadlines
+- Backend submission-cutoff inclusivity remains undefined; reminder expiry is
+  strict at the exact parsed deadline instant.
 - Drift watches coherent for foreground shared DB instance; independent headless/background connections exist — visible foreground views reread after launch/resume/refresh
 - Recently added is durable post-baseline discovery, not time-windowed/unread list
 - Invalid legacy identity rows remain inert (no route construction)
@@ -293,7 +297,7 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Class-based or external-stylesheet visibility is not evaluated. The
   sanitizer enforces the explicit semantic attributes and inline declarations
   documented above without rendering or applying CSS.
-- Exact deadline inclusivity and unzoned timezone semantics remain undefined.
+- Backend submission-cutoff inclusivity remains undefined.
 - Seen-only state retains no title or description because the current row owns
   those fields.
 - Notification history proves only a local record, not OS display or delivery.
@@ -305,7 +309,9 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 
 ### Known limitations
 
-- Backend contract does not define timezone of unzoned deadlines or deadline inclusivity
+- Backend contract defines offset-less `dueDate` values as GMT+7. Reminder
+  expiry is locally strict even when `dueDateExceed` is false; backend
+  submission-cutoff inclusivity remains undefined.
 - Fingerprint v1 is dormant policy; no real valid transport response processed
 - Snapshot/baseline tables are semester-scoped (not user-scoped); cross-account comparison possible until session/account ownership defined
 - Legacy successfully empty semester unrecognizable if bounded success history pruned and no current/seen row remains
@@ -316,7 +322,7 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Lease cannot guarantee zero duplicate dispatch after suspension/process death/wall-clock jumps.
 - Independent instances use 250-ms polling (Drift watch streams don't notify separate connections).
 - 24-hour terminal retention window may lose result reconstruction for long-suspended callers.
-- Deadline timezone/inclusivity semantics unresolved.
+- Backend submission-cutoff inclusivity remains unresolved.
 - No native background entry point runtime-tested yet.
 
 ## Validation Evidence

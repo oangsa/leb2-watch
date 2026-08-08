@@ -590,9 +590,9 @@ final class _FakeNotificationService
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {}
@@ -676,9 +676,9 @@ final class _UncontrolledHungNotificationService
   Stream<LocalNotificationTarget> get responses => const Stream.empty();
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showNewAssignment(NewAssignmentNotification request) async {}

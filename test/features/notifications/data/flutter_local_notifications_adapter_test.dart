@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leb2_watch/src/core/time/clock_skew.dart';
 import 'package:leb2_watch/src/features/notifications/data/flutter_local_notifications_adapter.dart';
 import 'package:leb2_watch/src/features/notifications/data/local_notifications_platform.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
@@ -23,13 +22,33 @@ void main() {
           AndroidFlutterLocalNotificationsPlugin();
     });
 
-    Future<String?> capturedScheduledDate(TrustedClock clock) async {
+    Future<(String?, List<String>)> capturedSchedule(
+      Duration clockOffset, {
+      bool exactAllowed = false,
+      bool probeFails = false,
+      bool permissionRevokedBeforeSchedule = false,
+    }) async {
       String? scheduledDate;
+      final scheduleModes = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'canScheduleExactNotifications') {
+              return exactAllowed;
+            }
             if (call.method == 'zonedSchedule') {
-              scheduledDate =
-                  (call.arguments as Map)['scheduledDateTime'] as String?;
+              final arguments = call.arguments as Map;
+              scheduledDate = arguments['scheduledDateTime'] as String?;
+              final scheduleMode =
+                  (arguments['platformSpecifics'] as Map)['scheduleMode']
+                      as String?;
+              if (scheduleMode != null) {
+                scheduleModes.add(scheduleMode);
+              }
+              if (permissionRevokedBeforeSchedule &&
+                  scheduleMode ==
+                      AndroidScheduleMode.exactAllowWhileIdle.name) {
+                throw PlatformException(code: 'exact_alarms_not_permitted');
+              }
             }
             return null;
           });
@@ -39,8 +58,13 @@ void main() {
       );
       final adapter = FlutterLocalNotificationsAdapter(
         runtimePlatform: NotificationRuntimePlatform.android,
-        clock: clock,
         windowsTeardown: () {},
+        exactAlarmPermissionReader: () async {
+          if (probeFails) {
+            throw StateError('PRIVATE_EXACT_ALARM_PROBE_FAILURE');
+          }
+          return exactAllowed;
+        },
       );
       addTearDown(adapter.dispose);
 
@@ -55,29 +79,66 @@ void main() {
             groupKey: 'leb2.course.1.2',
           ),
           scheduledForUtc: DateTime.utc(2030, 5, 1, 12),
-          precision: PlatformSchedulePrecision.inexact,
+          clockOffset: clockOffset,
+          precision: PlatformSchedulePrecision.exactWhenAllowed,
         ),
       );
-      return scheduledDate;
+      return (scheduledDate, scheduleModes);
     }
 
     test('an uncorrected clock hands over the instant unchanged', () async {
-      expect(
-        await capturedScheduledDate(TrustedClock()),
-        '2030-05-01T12:00:00',
-      );
+      expect((await capturedSchedule(Duration.zero)).$1, '2030-05-01T12:00:00');
     });
 
     test('a corrected clock hands over a device-clock instant', () async {
       // The device runs two hours slow, so the alarm has to be placed two
       // hours earlier by that clock to fire at the true instant.
       expect(
-        await capturedScheduledDate(
-          TrustedClock(offset: const Duration(hours: 2)),
-        ),
+        (await capturedSchedule(const Duration(hours: 2))).$1,
         '2030-05-01T10:00:00',
       );
     });
+
+    test('Android uses exact while idle when the OS allows it', () async {
+      expect((await capturedSchedule(Duration.zero, exactAllowed: true)).$2, [
+        AndroidScheduleMode.exactAllowWhileIdle.name,
+      ]);
+    });
+
+    test(
+      'Android falls back to inexact when precise access is absent',
+      () async {
+        expect((await capturedSchedule(Duration.zero)).$2, [
+          AndroidScheduleMode.inexactAllowWhileIdle.name,
+        ]);
+      },
+    );
+
+    test(
+      'Android falls back to inexact when the precision probe fails',
+      () async {
+        expect((await capturedSchedule(Duration.zero, probeFails: true)).$2, [
+          AndroidScheduleMode.inexactAllowWhileIdle.name,
+        ]);
+      },
+    );
+
+    test(
+      'Android retries inexact if exact access is revoked during IO',
+      () async {
+        expect(
+          (await capturedSchedule(
+            Duration.zero,
+            exactAllowed: true,
+            permissionRevokedBeforeSchedule: true,
+          )).$2,
+          [
+            AndroidScheduleMode.exactAllowWhileIdle.name,
+            AndroidScheduleMode.inexactAllowWhileIdle.name,
+          ],
+        );
+      },
+    );
   });
 
   test('initialization settings never request Darwin permission', () {
@@ -150,6 +211,25 @@ void main() {
     expect(
       mapNotificationTogglePermission(null),
       NotificationDeliveryPermissionStatus.unavailable,
+    );
+  });
+
+  test('Android exact-alarm access is read and requested explicitly', () async {
+    final adapter = FlutterLocalNotificationsAdapter(
+      runtimePlatform: NotificationRuntimePlatform.android,
+      windowsTeardown: () {},
+      exactAlarmPermissionReader: () async => true,
+      exactAlarmPermissionRequester: () async => false,
+    );
+    addTearDown(adapter.dispose);
+
+    expect(
+      await adapter.readExactAlarmPermission(),
+      ExactAlarmPermissionStatus.allowed,
+    );
+    expect(
+      await adapter.requestExactAlarmPermission(),
+      ExactAlarmPermissionStatus.blocked,
     );
   });
 

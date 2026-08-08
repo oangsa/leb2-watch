@@ -7,6 +7,7 @@ import '../domain/local_notification_service.dart';
 final class QuiescenceAwareLocalNotificationService
     implements
         LocalNotificationService,
+        ExactAlarmPermissionControl,
         LocalNotificationInitializationControl,
         LocalNotificationDeletionControl {
   const QuiescenceAwareLocalNotificationService(this._delegate, this._storage);
@@ -41,6 +42,26 @@ final class QuiescenceAwareLocalNotificationService
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() {
+    final delegate = _delegate;
+    if (delegate is ExactAlarmPermissionControl) {
+      return (delegate as ExactAlarmPermissionControl)
+          .readExactAlarmPermission();
+    }
+    return Future.value(ExactAlarmPermissionStatus.unavailable);
+  }
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() {
+    final delegate = _delegate;
+    if (delegate is ExactAlarmPermissionControl) {
+      return (delegate as ExactAlarmPermissionControl)
+          .requestExactAlarmPermission();
+    }
+    return Future.value(ExactAlarmPermissionStatus.unavailable);
+  }
+
+  @override
   Future<void> showTestNotification() {
     return _withActivityLease(_delegate.showTestNotification);
   }
@@ -56,7 +77,9 @@ final class QuiescenceAwareLocalNotificationService
   }
 
   @override
-  Future<void> scheduleDeadlineReminder(DeadlineReminderNotification request) {
+  Future<Duration> scheduleDeadlineReminder(
+    DeadlineReminderNotification request,
+  ) {
     return _withActivityLease(
       () => _delegate.scheduleDeadlineReminder(request),
     );
@@ -75,10 +98,10 @@ final class QuiescenceAwareLocalNotificationService
   @override
   Future<void> cancelAllAfterQuiescence() => _delegate.cancelAll();
 
-  Future<void> _withActivityLease(Future<void> Function() effect) async {
+  Future<T> _withActivityLease<T>(Future<T> Function() effect) async {
     final lease = await _storage.acquireActivityLease();
     try {
-      await effect();
+      return await effect();
     } finally {
       await lease.release();
     }

@@ -196,6 +196,7 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     } on Object {
       // A later wall-clock checkpoint retries durable local reminder work.
     }
+    await _refreshExactAlarmSchedules();
   }
 
   Future<void> _initializeNotifications(
@@ -209,6 +210,16 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
       await drain.drainActiveCached();
     } on Object {
       // Startup remains local-first when the OS notification bridge is absent.
+    }
+    await _refreshExactAlarmSchedules();
+  }
+
+  Future<void> _refreshExactAlarmSchedules() async {
+    try {
+      final recovery = ref.read(exactAlarmScheduleRecoveryProvider);
+      await recovery.refresh();
+    } on Object {
+      // Foreground startup or the next resume retries durable reconciliation.
     }
   }
 

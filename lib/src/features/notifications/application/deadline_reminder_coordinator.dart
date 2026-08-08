@@ -69,10 +69,23 @@ final class DeadlineReminderCoordinator implements DeadlineReminderReconciler {
   Future<void> reconcileAfterPreferenceChange() =>
       _request(backgroundTriggered: false);
 
+  Future<void> rescheduleAfterExactAlarmPermissionChange() async {
+    final generation = await _store
+        .markOsSchedulesUnknownAndRequestReconciliation();
+    if (generation != null) {
+      await _completeRequestedGeneration(generation);
+    }
+  }
+
   Future<void> _request({required bool backgroundTriggered}) async {
-    var generation = await _store.requestGeneration(
+    final generation = await _store.requestGeneration(
       backgroundTriggered: backgroundTriggered,
     );
+    await _completeRequestedGeneration(generation);
+  }
+
+  Future<void> _completeRequestedGeneration(int requestedGeneration) async {
+    var generation = requestedGeneration;
     while (true) {
       final existing = _inFlight;
       if (existing != null) {
@@ -249,10 +262,14 @@ final class DeadlineReminderCoordinator implements DeadlineReminderReconciler {
                 }
                 continue;
               }
+              late final Duration placedClockOffset;
               final scheduling = await _runPlatformEffect(
                 ownerToken,
                 [schedule.request.id],
-                () => _notifications.scheduleDeadlineReminder(schedule.request),
+                () async {
+                  placedClockOffset = await _notifications
+                      .scheduleDeadlineReminder(schedule.request);
+                },
               );
               if (!scheduling.ownershipRetained) {
                 await _recoverStaleEffect([schedule.request.id]);
@@ -267,6 +284,7 @@ final class DeadlineReminderCoordinator implements DeadlineReminderReconciler {
                   ownerToken: ownerToken,
                   generation: generation,
                   item: schedule,
+                  clockOffset: placedClockOffset,
                 ),
               );
               if (!finalized) {

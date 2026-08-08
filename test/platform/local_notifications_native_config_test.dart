@@ -37,7 +37,7 @@ void main() {
     expect(windowsPlugins, contains('flutter_local_notifications_windows'));
   });
 
-  test('Android config enables only inexact reboot-resilient scheduling', () {
+  test('Android config enables opt-in exact reboot-resilient scheduling', () {
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
@@ -56,6 +56,7 @@ void main() {
       ),
     );
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
+    expect(manifest, contains('android.permission.SCHEDULE_EXACT_ALARM'));
     expect(
       manifest,
       contains(
@@ -80,7 +81,6 @@ void main() {
     }
     expect(RegExp(r'<receiver\b').allMatches(manifest), hasLength(2));
     for (final prohibited in <String>[
-      'SCHEDULE_EXACT_ALARM',
       'USE_EXACT_ALARM',
       'USE_FULL_SCREEN_INTENT',
       'ACCESS_NOTIFICATION_POLICY',
@@ -90,8 +90,8 @@ void main() {
     ]) {
       expect(manifest, isNot(contains(prohibited)));
     }
+    expect(adapter, contains('AndroidScheduleMode.exactAllowWhileIdle'));
     expect(adapter, contains('AndroidScheduleMode.inexactAllowWhileIdle'));
-    expect(adapter, isNot(contains('AndroidScheduleMode.exact')));
   });
 
   test('Android notification icon exists and is retained', () {

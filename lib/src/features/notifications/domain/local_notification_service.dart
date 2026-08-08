@@ -15,13 +15,23 @@ abstract interface class LocalNotificationService {
 
   Future<void> showDueDeadlineReminder(DeadlineReminderNotification request);
 
-  Future<void> scheduleDeadlineReminder(DeadlineReminderNotification request);
+  /// Schedules [request] and returns the clock correction embedded in the OS
+  /// alarm after the platform accepts it.
+  Future<Duration> scheduleDeadlineReminder(
+    DeadlineReminderNotification request,
+  );
 
   Future<void> cancelReminder(LocalNotificationId id);
 
   Future<void> cancelAll();
 
   void dispose();
+}
+
+abstract interface class ExactAlarmPermissionControl {
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission();
+
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission();
 }
 
 abstract interface class LocalNotificationInitializationAttempt {

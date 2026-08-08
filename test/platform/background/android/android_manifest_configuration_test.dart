@@ -20,6 +20,7 @@ void main() {
     ).readAsStringSync();
 
     expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
+    expect(manifest, contains('android.permission.SCHEDULE_EXACT_ALARM'));
     expect(manifest, contains('ScheduledNotificationReceiver'));
     expect(manifest, contains('ScheduledNotificationBootReceiver'));
     expect(manifest, contains('android:allowBackup="false"'));
@@ -27,14 +28,14 @@ void main() {
     expect(manifest, contains('@xml/data_extraction_rules'));
   });
 
-  test('app adds no foreground service, daemon, or exact alarm', () {
+  test('app adds no foreground service, daemon, or auto-granted alarm', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
     ).readAsStringSync();
 
     expect(manifest, isNot(contains('<service')));
     expect(manifest, isNot(contains('FOREGROUND_SERVICE')));
-    expect(manifest, isNot(contains('SCHEDULE_EXACT_ALARM')));
+    expect(manifest, isNot(contains('USE_EXACT_ALARM')));
     expect(manifest, isNot(contains('WorkManagerInitializer')));
   });
 }

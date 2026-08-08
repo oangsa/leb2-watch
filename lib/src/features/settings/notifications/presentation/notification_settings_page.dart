@@ -30,6 +30,7 @@ enum _SettingControl {
   oneHour,
   desktopAutostart,
   permission,
+  exactAlarmPermission,
 }
 
 class NotificationSettingsPage extends StatefulWidget {
@@ -66,6 +67,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   final Set<_SettingControl> _pendingActions = {};
   _SettingsFeedback? _feedback;
   NotificationPermissionStatus? _permissionStatus;
+  ExactAlarmPermissionStatus? _exactAlarmPermissionStatus;
   BackgroundReliabilityStatus? _backgroundGrantStatus;
   bool _loading = true;
   bool _streamFailed = false;
@@ -76,6 +78,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     super.initState();
     _subscribe();
     unawaited(_refreshPermissionStatus());
+    unawaited(_refreshExactAlarmPermissionStatus());
     unawaited(_refreshBackgroundGrant());
   }
 
@@ -152,6 +155,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
       _SettingControl.desktopAutostart =>
         snapshot.desktopAutostart.enabled == expected,
       _SettingControl.permission => false,
+      _SettingControl.exactAlarmPermission => false,
     };
   }
 
@@ -324,6 +328,37 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     }
   }
 
+  Future<void> _requestExactAlarmPermission() async {
+    const control = _SettingControl.exactAlarmPermission;
+    if (_pendingActions.contains(control)) {
+      return;
+    }
+    setState(() {
+      _pendingActions.add(control);
+      _feedback = null;
+    });
+    final result = await widget.service.requestExactAlarmPermission();
+    if (!mounted) {
+      return;
+    }
+    switch (result) {
+      case ExactAlarmPermissionActionCompleted(:final status):
+        setState(() {
+          _pendingActions.remove(control);
+          _exactAlarmPermissionStatus = status;
+          _feedback = _SettingsFeedback(
+            _exactAlarmPermissionMessage(status),
+            isError: status == ExactAlarmPermissionStatus.unavailable,
+          );
+        });
+      case ExactAlarmPermissionActionFailed(:final message):
+        setState(() {
+          _pendingActions.remove(control);
+          _feedback = _SettingsFeedback(message, isError: true);
+        });
+    }
+  }
+
   Future<void> _refreshBackgroundGrant() async {
     final status = await widget.backgroundGrant.read();
     if (!mounted) {
@@ -354,6 +389,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     setState(() => _permissionStatus = status);
   }
 
+  Future<void> _refreshExactAlarmPermissionStatus() async {
+    final status = await widget.service.readExactAlarmPermission();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _exactAlarmPermissionStatus = status);
+  }
+
   /// The section only exists to fix a missing permission, so a granted (or
   /// unnecessary) permission removes it entirely.
   bool _permissionSectionVisible(NotificationSettingsSnapshot snapshot) {
@@ -372,6 +415,26 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
       NotificationPermissionStatus.notRequired => 'Not needed here.',
       NotificationPermissionStatus.unavailable =>
         'Unavailable on this platform.',
+    };
+  }
+
+  bool _exactAlarmPermissionSectionVisible(
+    NotificationSettingsSnapshot snapshot,
+  ) {
+    return snapshot.platform == NotificationSettingsPlatform.android &&
+        snapshot.deadlineReminders.enabled &&
+        _exactAlarmPermissionStatus != ExactAlarmPermissionStatus.allowed &&
+        _exactAlarmPermissionStatus != ExactAlarmPermissionStatus.notRequired;
+  }
+
+  String _exactAlarmPermissionMessage(ExactAlarmPermissionStatus status) {
+    return switch (status) {
+      ExactAlarmPermissionStatus.allowed => 'Precise reminders allowed.',
+      ExactAlarmPermissionStatus.blocked =>
+        'Not allowed. Android may deliver reminders late.',
+      ExactAlarmPermissionStatus.notRequired => 'Not needed here.',
+      ExactAlarmPermissionStatus.unavailable =>
+        'Precise reminders are unavailable on this device.',
     };
   }
 
@@ -561,6 +624,46 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                             : _requestPermission,
                         icon: const Icon(Icons.notifications_active),
                         label: const Text('Allow notifications'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_exactAlarmPermissionSectionVisible(snapshot)) ...[
+                const SizedBox(height: AppSpacing.md),
+                _SettingsSection(
+                  title: 'Precise deadline reminders',
+                  children: [
+                    ListTile(
+                      title: Text(
+                        _exactAlarmPermissionStatus == null
+                            ? 'Android may deliver reminders late.'
+                            : _exactAlarmPermissionMessage(
+                                _exactAlarmPermissionStatus!,
+                              ),
+                      ),
+                      subtitle: const Text(
+                        'Allow alarms and reminders for timing closer to the '
+                        'selected deadline offset.',
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                      ),
+                      child: FilledButton.tonalIcon(
+                        key: const Key('request-exact-alarm-permission'),
+                        onPressed:
+                            _pendingActions.contains(
+                              _SettingControl.exactAlarmPermission,
+                            )
+                            ? null
+                            : _requestExactAlarmPermission,
+                        icon: const Icon(Icons.alarm),
+                        label: const Text('Allow precise reminders'),
                       ),
                     ),
                   ],

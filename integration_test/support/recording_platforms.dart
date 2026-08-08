@@ -120,6 +120,14 @@ final class RecordingLocalNotificationsPlatform
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
+
+  @override
   Future<void> show(PlatformNotification notification) async {
     journal.shown.add(notification);
   }

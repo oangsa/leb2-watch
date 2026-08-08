@@ -188,6 +188,7 @@ abstract interface class DeadlineReminderStore {
     required String ownerToken,
     required int generation,
     required DeadlineReminderScheduleWork item,
+    required Duration clockOffset,
   });
 
   Future<bool> markCancelled({
@@ -199,6 +200,8 @@ abstract interface class DeadlineReminderStore {
   Future<int?> markUnknownAndRequestReconciliation({
     required Iterable<LocalNotificationId> ids,
   });
+
+  Future<int?> markOsSchedulesUnknownAndRequestReconciliation();
 
   Future<int?> adoptClockOffset(Duration offset);
 
@@ -214,21 +217,10 @@ final class DriftDeadlineReminderStore implements DeadlineReminderStore {
   const DriftDeadlineReminderStore(
     this._database, {
     this.idFactory = const LocalNotificationIdFactory(),
-    this.clockOffset = _noClockOffset,
   });
 
   final AppDatabase _database;
   final LocalNotificationIdFactory idFactory;
-
-  /// The clock correction alarms are currently being placed under.
-  ///
-  /// Read at [markScheduled], so each row records what the OS was actually
-  /// handed rather than what was last measured. Recording the measurement
-  /// instead would leave rows claiming a correction the OS never received:
-  /// this offset restarts at zero every launch, so a reconciliation driven by
-  /// a preference change before the launch's first backend response places its
-  /// alarms uncorrected.
-  final Duration Function() clockOffset;
 
   @override
   Future<int> requestGeneration({bool backgroundTriggered = false}) async {
@@ -694,16 +686,16 @@ ORDER BY activities.semester_id, activities.identity_key
 
   /// Also records the correction this alarm was placed under.
   ///
-  /// [clockOffset] is read here rather than captured when the platform call
-  /// was made because a correction landing in between advances the requested
-  /// generation, and this statement's generation guard then rejects the write
-  /// outright — so the only placements that reach the column are ones whose
-  /// offset never moved.
+  /// [clockOffset] is the correction the successful platform call actually
+  /// embedded in its alarm. The current in-memory correction is deliberately
+  /// not read here: its durable sweep is asynchronous, so it may move before
+  /// the generation fence advances.
   @override
   Future<bool> markScheduled({
     required String ownerToken,
     required int generation,
     required DeadlineReminderScheduleWork item,
+    required Duration clockOffset,
   }) async {
     final request = item.request;
     try {
@@ -718,7 +710,7 @@ ORDER BY activities.semester_id, activities.identity_key
         'WHERE singleton_id = 1 AND owner_token = ? '
         'AND requested_generation = ?)',
         variables: [
-          Variable.withInt(clockOffset().inMicroseconds),
+          Variable.withInt(clockOffset.inMicroseconds),
           Variable.withInt(request.id.value),
           Variable.withInt(request.assignment.semesterId),
           Variable.withString(request.assignment.identityKey),
@@ -822,6 +814,27 @@ ORDER BY activities.semester_id, activities.identity_key
             updates: {_database.scheduledReminders},
           );
         }
+        if (changed == 0) {
+          return null;
+        }
+        return _advanceRequestedGeneration();
+      });
+    } on Object {
+      throw const DeadlineReminderStoreException();
+    }
+  }
+
+  @override
+  Future<int?> markOsSchedulesUnknownAndRequestReconciliation() async {
+    try {
+      return await _database.transaction(() async {
+        final changed = await _database.customUpdate(
+          'UPDATE scheduled_reminders SET needs_reconciliation = 1, '
+          "schedule_state = '$_reminderStateUnknown' "
+          "WHERE schedule_state IN ('$_reminderStateScheduled', "
+          "'$_reminderStateUnknown')",
+          updates: {_database.scheduledReminders},
+        );
         if (changed == 0) {
           return null;
         }
@@ -1176,8 +1189,6 @@ LEFT JOIN course_preferences
   @override
   String toString() => 'DriftDeadlineReminderStore(redacted: true)';
 }
-
-Duration _noClockOffset() => Duration.zero;
 
 final class _DesiredReminder {
   const _DesiredReminder({

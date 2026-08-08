@@ -70,10 +70,14 @@ void main() {
     );
   }
 
-  LocalNotificationServiceImpl serviceFor(_FakeNotificationsPlatform platform) {
+  LocalNotificationServiceImpl serviceFor(
+    _FakeNotificationsPlatform platform, {
+    Duration Function()? clockOffset,
+  }) {
     final service = LocalNotificationServiceImpl(
       platform,
       nowUtc: () => now,
+      clockOffset: clockOffset,
       deadlineFormatter: const AppZoneNotificationDeadlineFormatter(),
     );
     addTearDown(service.dispose);
@@ -454,7 +458,7 @@ void main() {
   );
 
   test(
-    'UTC reminder preserves the instant and requests inexact scheduling',
+    'UTC reminder preserves the instant and prefers exact scheduling',
     () async {
       final platform = _FakeNotificationsPlatform(
         NotificationRuntimePlatform.android,
@@ -472,7 +476,7 @@ void main() {
       );
       expect(
         platform.scheduled.single.precision,
-        PlatformSchedulePrecision.inexact,
+        PlatformSchedulePrecision.exactWhenAllowed,
       );
       expect(
         platform.scheduled.single.notification.body,
@@ -485,6 +489,23 @@ void main() {
       );
     },
   );
+
+  test('scheduled reminder returns the clock correction it used', () async {
+    var clockOffset = const Duration(hours: 1);
+    final platform = _FakeNotificationsPlatform(
+      NotificationRuntimePlatform.android,
+    )..scheduleGate = Completer<void>();
+    final service = serviceFor(platform, clockOffset: () => clockOffset);
+    await service.initialize();
+
+    final scheduling = service.scheduleDeadlineReminder(reminderRequest());
+    await Future<void>.delayed(Duration.zero);
+    clockOffset = const Duration(hours: 2);
+    platform.scheduleGate!.complete();
+
+    expect(await scheduling, const Duration(hours: 1));
+    expect(platform.scheduled.single.clockOffset, const Duration(hours: 1));
+  });
 
   for (final type in <NotificationRuntimePlatform>[
     NotificationRuntimePlatform.linux,
@@ -798,6 +819,7 @@ final class _FakeNotificationsPlatform implements LocalNotificationsPlatform {
 
   Completer<bool?>? initializeGate;
   Completer<String?>? launchGate;
+  Completer<void>? scheduleGate;
   final List<bool?> initializeResults = <bool?>[];
   final List<Object> synchronousInitializeErrors = <Object>[];
   final List<Object> launchErrors = <Object>[];
@@ -874,8 +896,17 @@ final class _FakeNotificationsPlatform implements LocalNotificationsPlatform {
   }
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.allowed;
+
+  @override
   Future<void> schedule(PlatformScheduledNotification notification) async {
     scheduled.add(notification);
+    await scheduleGate?.future;
   }
 
   @override

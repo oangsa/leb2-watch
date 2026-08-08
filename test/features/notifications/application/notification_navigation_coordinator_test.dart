@@ -135,9 +135,9 @@ final class _ResponseService implements LocalNotificationService {
       NotificationPermissionStatus.notRequired;
 
   @override
-  Future<void> scheduleDeadlineReminder(
+  Future<Duration> scheduleDeadlineReminder(
     DeadlineReminderNotification request,
-  ) async {}
+  ) async => Duration.zero;
 
   @override
   Future<void> showDueDeadlineReminder(

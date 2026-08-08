@@ -364,6 +364,14 @@ final class _UnsupportedNotificationsPlatform
   Future<bool?> requestPermission() async => false;
 
   @override
+  Future<ExactAlarmPermissionStatus> readExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.blocked;
+
+  @override
+  Future<ExactAlarmPermissionStatus> requestExactAlarmPermission() async =>
+      ExactAlarmPermissionStatus.blocked;
+
+  @override
   Future<void> schedule(PlatformScheduledNotification notification) async {}
 
   @override
