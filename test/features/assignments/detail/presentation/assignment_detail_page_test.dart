@@ -26,15 +26,14 @@ void main() {
       expect(find.textContaining('Published'), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
       expect(find.textContaining('sent'), findsNothing);
-      expect(find.text('Course notifications muted'), findsOneWidget);
       expect(
-        find.text('2 reminder records · 1 needs reconciliation'),
-        findsOneWidget,
+        tester.getTopLeft(find.text('Description')).dy,
+        lessThan(tester.getTopLeft(find.text('Assignment record')).dy),
       );
-      expect(
-        find.text('1 notification history record saved locally'),
-        findsOneWidget,
-      );
+      expect(find.text('Local evidence'), findsNothing);
+      expect(find.text('Course notifications muted'), findsNothing);
+      expect(find.textContaining('reminder records'), findsNothing);
+      expect(find.textContaining('notification history'), findsNothing);
     },
   );
 
