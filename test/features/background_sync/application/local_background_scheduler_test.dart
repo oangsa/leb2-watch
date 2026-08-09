@@ -69,7 +69,9 @@ void main() {
   });
 
   test('precise checks hold the chosen cadence during the day', () async {
-    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.thirtyMinutes);
+    await scheduler.setDaytimeFetchCadence(
+      BackgroundFetchCadence.thirtyMinutes,
+    );
 
     await scheduler.setMonitoringEnabled(true);
     final result = await scheduler.setPreciseFetchEnabled(true);

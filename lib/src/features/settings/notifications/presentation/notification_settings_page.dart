@@ -654,7 +654,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                           !snapshot.backgroundMonitoring.enabled ||
                               !supportsPreciseFetch(
                                 _pendingCadence ??
-                                    snapshot.backgroundMonitoring.daytimeCadence,
+                                    snapshot
+                                        .backgroundMonitoring
+                                        .daytimeCadence,
                               ) ||
                               _pendingSettings.containsKey(
                                 _SettingControl.preciseFetch,
