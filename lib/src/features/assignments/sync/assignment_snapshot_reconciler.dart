@@ -105,8 +105,8 @@ final class AssignmentSnapshotReconciler {
       final old = oldActivities[identityKey];
       if (!isFirstSnapshot &&
           old != null &&
-          canonicalizeBackendDateSource(old.dueDateSource) !=
-              canonicalizeBackendDateSource(activity.dueDate)) {
+          resolveBackendDateInstant(old.dueDateSource) !=
+              resolveBackendDateInstant(activity.dueDate)) {
         changes.add(
           AssignmentChange(
             identityKey: identityKey,

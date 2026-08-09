@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../../../core/time/app_time_zone.dart';
+
 const activityFingerprintVersion = 1;
 
 final class ResolvedActivityIdentity {
@@ -115,6 +117,24 @@ String? canonicalizeBackendDateSource(String? source) {
   final utc = parsed.toUtc();
   return '${_year(utc.year)}-${_two(utc.month)}-${_two(utc.day)}'
       'T${_two(utc.hour)}:${_two(utc.minute)}:${_two(utc.second)}${fraction}Z';
+}
+
+/// Resolves a backend date source to the UTC instant it names, so a legacy
+/// unzoned wall clock cached before the backend started sending offsets
+/// compares equal to its zoned replacement when both name the same instant.
+/// Sources [canonicalizeBackendDateSource] can't parse fall back to its
+/// (opaque) output, so unparsable values still compare without throwing.
+Object? resolveBackendDateInstant(String? source) {
+  final canonical = canonicalizeBackendDateSource(source);
+  if (canonical == null) {
+    return null;
+  }
+  final isZoned = canonical.endsWith('Z');
+  final wallClockUtc = DateTime.tryParse(isZoned ? canonical : '${canonical}Z');
+  if (wallClockUtc == null) {
+    return canonical;
+  }
+  return isZoned ? wallClockUtc : appTimeZone.instantAt(wallClockUtc);
 }
 
 String _normalizeWhitespace(String value) =>
