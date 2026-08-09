@@ -253,7 +253,8 @@ git diff --staged
 ```
 
 Confirm that no secrets or unrelated files are staged, required validation ran,
-required contexts are current, and only in-scope files are included.
+required contexts are current, a `CHANGELOG.md` entry exists for any
+user-visible change (section 11), and only in-scope files are included.
 
 Prefer explicit staging paths. Avoid `git add .` unless every changed file has
 been verified as in scope.
@@ -296,7 +297,7 @@ Before claiming completion:
 6. Confirm failures and limitations are reported honestly.
 7. Confirm no unrelated changes were introduced.
 8. Confirm pre-existing changes remain intact.
-9. Confirm required contexts and reports are current.
+9. Confirm required contexts, reports, and changelog entries are current.
 10. Follow the commit or non-commit instruction.
 
 For high-risk work, directly verify critical changes involving authorization,
@@ -317,3 +318,55 @@ The final report must include:
 
 Clearly distinguish completed, partial, untested, blocked, unrelated, and future
 work.
+
+## 11. Releases and the changelog
+
+`CHANGELOG.md` is the release record. The tagged release workflow publishes the
+tag's section as the GitHub release body, so a tag whose version has no section
+fails to publish. Never replace it with generated commit notes.
+
+Every user-visible change belongs in `CHANGELOG.md` under `## [Unreleased]`,
+added in the same commit as the change. Omit changes a user cannot observe:
+internal refactoring, tests, tooling, and documentation.
+
+Entry rules:
+
+- Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`,
+  `### Deprecated`, or `### Security`, in that order.
+- Describe observable behavior, not implementation. State what a user now sees,
+  and for a fix, what was wrong before it.
+- Name the schema version when a release migrates local data.
+- Do not reference commit hashes, pull requests, or internal class names.
+
+Release steps:
+
+1. Choose the version from the accumulated entries: a breaking change is major,
+   any `### Added` entry is minor, otherwise patch.
+2. Retitle the `## [Unreleased]` section as `## [<version>] - <YYYY-MM-DD>`
+   using the release date, and leave a new empty `## [Unreleased]` above it.
+3. Add the compare link for the new version at the bottom of the file and point
+   `[Unreleased]` at it.
+4. Bump `version:` in `pubspec.yaml`, incrementing both the semantic version and
+   the build number.
+5. Verify the workflow's extraction returns the intended section:
+
+   ```bash
+   awk -v section="## [<version>]" '
+     index($0, section) == 1 { found = 1; next }
+     found && /^## \[/ { exit }
+     found { print }
+   ' CHANGELOG.md
+   ```
+
+6. Commit as `chore: release <version>` with the changelog section summarized in
+   the body, merge to `main`, and confirm the working tree is clean.
+7. Tag and push only when the user explicitly requests the release:
+
+   ```bash
+   git tag -a "v<version>" -m "v<version>"
+   git push origin main
+   git push origin "v<version>"
+   ```
+
+A pushed tag builds and publishes signed artifacts. Never delete or move a
+published tag; ship a new patch version instead.
