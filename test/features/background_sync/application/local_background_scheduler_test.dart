@@ -69,13 +69,13 @@ void main() {
   });
 
   test('precise checks hold the chosen cadence during the day', () async {
-    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.tenMinutes);
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.thirtyMinutes);
 
     await scheduler.setMonitoringEnabled(true);
     final result = await scheduler.setPreciseFetchEnabled(true);
 
     expect(result, isA<BackgroundMonitoringUpdateApplied>());
-    expect(platform.preciseCadences.last, const Duration(minutes: 10));
+    expect(platform.preciseCadences.last, const Duration(minutes: 30));
     // The periodic registration drops to the hourly backstop: it exists to
     // re-arm the chain, not to add daytime checks of its own.
     expect(platform.cadences.last, nightBackgroundFetchCadence);
@@ -83,10 +83,23 @@ void main() {
       await scheduler.watchSettings().first,
       const BackgroundMonitoringSettings(
         enabled: true,
-        daytimeCadence: BackgroundFetchCadence.tenMinutes,
+        daytimeCadence: BackgroundFetchCadence.thirtyMinutes,
         preciseFetchEnabled: true,
       ),
     );
+  });
+
+  test('a cadence under the precise minimum registers no chain', () async {
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.tenMinutes);
+    await scheduler.setPreciseFetchEnabled(true);
+
+    await scheduler.setMonitoringEnabled(true);
+
+    expect(platform.preciseCadences.last, isNull);
+    expect(platform.cadences.last, const Duration(minutes: 10));
+    // The stored preference survives, so raising the cadence brings precise
+    // checks back without asking for them again.
+    expect((await scheduler.watchSettings().first).preciseFetchEnabled, isTrue);
   });
 
   test('precise checks stop overnight without being turned off', () async {

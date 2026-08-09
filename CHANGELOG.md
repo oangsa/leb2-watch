@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Precise daytime fetches need a cadence of 15 min or longer. At 10 min the
+  option is shown off and unavailable, and the setting returns when the cadence
+  is raised.
+
 ## [0.8.0] - 2026-08-09
 
 ### Added
