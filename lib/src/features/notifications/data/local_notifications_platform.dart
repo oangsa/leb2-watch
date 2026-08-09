@@ -93,7 +93,12 @@ final class LocalNotificationPlatformCapabilities {
   }
 }
 
-enum PlatformNotificationKind { test, newAssignment, deadlineReminder }
+enum PlatformNotificationKind {
+  test,
+  newAssignment,
+  deadlineReminder,
+  appUpdate,
+}
 
 enum PlatformSchedulePrecision { exactWhenAllowed, inexact }
 

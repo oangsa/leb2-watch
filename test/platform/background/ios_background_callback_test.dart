@@ -509,6 +509,9 @@ final class _Gateway implements WorkmanagerGateway {
   Future<void> registerPeriodicTask(
     WorkmanagerPeriodicTaskRequest request,
   ) async {}
+
+  @override
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request) async {}
 }
 
 const _activePolicy = BackgroundSyncTargetPolicy(
@@ -546,6 +549,9 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
 
   @override
   final BackgroundSyncRunner runner;
+
+  @override
+  Future<void> checkForAppUpdate() async {}
 
   @override
   Future<void> reconcileSchedule() async {}

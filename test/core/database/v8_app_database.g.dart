@@ -8132,6 +8132,26 @@ class $AppSettingsTable extends AppSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _notifiedUpdateVersionMeta =
+      const VerificationMeta('notifiedUpdateVersion');
+  @override
+  late final GeneratedColumn<String> notifiedUpdateVersion =
+      GeneratedColumn<String>(
+        'notified_update_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int>
+  updateCheckedAtUtc = GeneratedColumn<int>(
+    'update_checked_at_utc',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  ).withConverter<DateTime?>($AppSettingsTable.$converterupdateCheckedAtUtcn);
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -8139,6 +8159,8 @@ class $AppSettingsTable extends AppSettings
     leb2UserId,
     sessionLifecycle,
     sessionRevision,
+    notifiedUpdateVersion,
+    updateCheckedAtUtc,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8197,6 +8219,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('notified_update_version')) {
+      context.handle(
+        _notifiedUpdateVersionMeta,
+        notifiedUpdateVersion.isAcceptableOrUnknown(
+          data['notified_update_version']!,
+          _notifiedUpdateVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8226,6 +8257,17 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}session_revision'],
       )!,
+      notifiedUpdateVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notified_update_version'],
+      ),
+      updateCheckedAtUtc: $AppSettingsTable.$converterupdateCheckedAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}update_checked_at_utc'],
+            ),
+          ),
     );
   }
 
@@ -8233,6 +8275,11 @@ class $AppSettingsTable extends AppSettings
   $AppSettingsTable createAlias(String alias) {
     return $AppSettingsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, int> $converterupdateCheckedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterupdateCheckedAtUtcn =
+      NullAwareTypeConverter.wrap($converterupdateCheckedAtUtc);
 }
 
 class AppSetting extends DataClass implements Insertable<AppSetting> {
@@ -8241,12 +8288,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int? leb2UserId;
   final String sessionLifecycle;
   final int sessionRevision;
+
+  /// The release the update notification was last posted for, so one version
+  /// is announced once instead of on every launch and every background run.
+  final String? notifiedUpdateVersion;
+
+  /// When background work last asked the backend for release metadata.
+  final DateTime? updateCheckedAtUtc;
   const AppSetting({
     required this.singletonId,
     this.activeSemesterId,
     this.leb2UserId,
     required this.sessionLifecycle,
     required this.sessionRevision,
+    this.notifiedUpdateVersion,
+    this.updateCheckedAtUtc,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8260,6 +8316,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     }
     map['session_lifecycle'] = Variable<String>(sessionLifecycle);
     map['session_revision'] = Variable<int>(sessionRevision);
+    if (!nullToAbsent || notifiedUpdateVersion != null) {
+      map['notified_update_version'] = Variable<String>(notifiedUpdateVersion);
+    }
+    if (!nullToAbsent || updateCheckedAtUtc != null) {
+      map['update_checked_at_utc'] = Variable<int>(
+        $AppSettingsTable.$converterupdateCheckedAtUtcn.toSql(
+          updateCheckedAtUtc,
+        ),
+      );
+    }
     return map;
   }
 
@@ -8274,6 +8340,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           : Value(leb2UserId),
       sessionLifecycle: Value(sessionLifecycle),
       sessionRevision: Value(sessionRevision),
+      notifiedUpdateVersion: notifiedUpdateVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notifiedUpdateVersion),
+      updateCheckedAtUtc: updateCheckedAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updateCheckedAtUtc),
     );
   }
 
@@ -8288,6 +8360,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       leb2UserId: serializer.fromJson<int?>(json['leb2UserId']),
       sessionLifecycle: serializer.fromJson<String>(json['sessionLifecycle']),
       sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
+      notifiedUpdateVersion: serializer.fromJson<String?>(
+        json['notifiedUpdateVersion'],
+      ),
+      updateCheckedAtUtc: serializer.fromJson<DateTime?>(
+        json['updateCheckedAtUtc'],
+      ),
     );
   }
   @override
@@ -8299,6 +8377,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'leb2UserId': serializer.toJson<int?>(leb2UserId),
       'sessionLifecycle': serializer.toJson<String>(sessionLifecycle),
       'sessionRevision': serializer.toJson<int>(sessionRevision),
+      'notifiedUpdateVersion': serializer.toJson<String?>(
+        notifiedUpdateVersion,
+      ),
+      'updateCheckedAtUtc': serializer.toJson<DateTime?>(updateCheckedAtUtc),
     };
   }
 
@@ -8308,6 +8390,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<int?> leb2UserId = const Value.absent(),
     String? sessionLifecycle,
     int? sessionRevision,
+    Value<String?> notifiedUpdateVersion = const Value.absent(),
+    Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
   }) => AppSetting(
     singletonId: singletonId ?? this.singletonId,
     activeSemesterId: activeSemesterId.present
@@ -8316,6 +8400,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     leb2UserId: leb2UserId.present ? leb2UserId.value : this.leb2UserId,
     sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
     sessionRevision: sessionRevision ?? this.sessionRevision,
+    notifiedUpdateVersion: notifiedUpdateVersion.present
+        ? notifiedUpdateVersion.value
+        : this.notifiedUpdateVersion,
+    updateCheckedAtUtc: updateCheckedAtUtc.present
+        ? updateCheckedAtUtc.value
+        : this.updateCheckedAtUtc,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -8334,6 +8424,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       sessionRevision: data.sessionRevision.present
           ? data.sessionRevision.value
           : this.sessionRevision,
+      notifiedUpdateVersion: data.notifiedUpdateVersion.present
+          ? data.notifiedUpdateVersion.value
+          : this.notifiedUpdateVersion,
+      updateCheckedAtUtc: data.updateCheckedAtUtc.present
+          ? data.updateCheckedAtUtc.value
+          : this.updateCheckedAtUtc,
     );
   }
 
@@ -8344,7 +8440,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('activeSemesterId: $activeSemesterId, ')
           ..write('leb2UserId: $leb2UserId, ')
           ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
           ..write(')'))
         .toString();
   }
@@ -8356,6 +8454,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     leb2UserId,
     sessionLifecycle,
     sessionRevision,
+    notifiedUpdateVersion,
+    updateCheckedAtUtc,
   );
   @override
   bool operator ==(Object other) =>
@@ -8365,7 +8465,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.activeSemesterId == this.activeSemesterId &&
           other.leb2UserId == this.leb2UserId &&
           other.sessionLifecycle == this.sessionLifecycle &&
-          other.sessionRevision == this.sessionRevision);
+          other.sessionRevision == this.sessionRevision &&
+          other.notifiedUpdateVersion == this.notifiedUpdateVersion &&
+          other.updateCheckedAtUtc == this.updateCheckedAtUtc);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -8374,12 +8476,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int?> leb2UserId;
   final Value<String> sessionLifecycle;
   final Value<int> sessionRevision;
+  final Value<String?> notifiedUpdateVersion;
+  final Value<DateTime?> updateCheckedAtUtc;
   const AppSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
     this.leb2UserId = const Value.absent(),
     this.sessionLifecycle = const Value.absent(),
     this.sessionRevision = const Value.absent(),
+    this.notifiedUpdateVersion = const Value.absent(),
+    this.updateCheckedAtUtc = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -8387,6 +8493,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.leb2UserId = const Value.absent(),
     this.sessionLifecycle = const Value.absent(),
     this.sessionRevision = const Value.absent(),
+    this.notifiedUpdateVersion = const Value.absent(),
+    this.updateCheckedAtUtc = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? singletonId,
@@ -8394,6 +8502,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? leb2UserId,
     Expression<String>? sessionLifecycle,
     Expression<int>? sessionRevision,
+    Expression<String>? notifiedUpdateVersion,
+    Expression<int>? updateCheckedAtUtc,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -8401,6 +8511,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (leb2UserId != null) 'leb2_user_id': leb2UserId,
       if (sessionLifecycle != null) 'session_lifecycle': sessionLifecycle,
       if (sessionRevision != null) 'session_revision': sessionRevision,
+      if (notifiedUpdateVersion != null)
+        'notified_update_version': notifiedUpdateVersion,
+      if (updateCheckedAtUtc != null)
+        'update_checked_at_utc': updateCheckedAtUtc,
     });
   }
 
@@ -8410,6 +8524,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int?>? leb2UserId,
     Value<String>? sessionLifecycle,
     Value<int>? sessionRevision,
+    Value<String?>? notifiedUpdateVersion,
+    Value<DateTime?>? updateCheckedAtUtc,
   }) {
     return AppSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -8417,6 +8533,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       leb2UserId: leb2UserId ?? this.leb2UserId,
       sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
       sessionRevision: sessionRevision ?? this.sessionRevision,
+      notifiedUpdateVersion:
+          notifiedUpdateVersion ?? this.notifiedUpdateVersion,
+      updateCheckedAtUtc: updateCheckedAtUtc ?? this.updateCheckedAtUtc,
     );
   }
 
@@ -8438,6 +8557,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (sessionRevision.present) {
       map['session_revision'] = Variable<int>(sessionRevision.value);
     }
+    if (notifiedUpdateVersion.present) {
+      map['notified_update_version'] = Variable<String>(
+        notifiedUpdateVersion.value,
+      );
+    }
+    if (updateCheckedAtUtc.present) {
+      map['update_checked_at_utc'] = Variable<int>(
+        $AppSettingsTable.$converterupdateCheckedAtUtcn.toSql(
+          updateCheckedAtUtc.value,
+        ),
+      );
+    }
     return map;
   }
 
@@ -8448,7 +8579,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('activeSemesterId: $activeSemesterId, ')
           ..write('leb2UserId: $leb2UserId, ')
           ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
           ..write(')'))
         .toString();
   }
@@ -12636,6 +12769,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int?> leb2UserId,
       Value<String> sessionLifecycle,
       Value<int> sessionRevision,
+      Value<String?> notifiedUpdateVersion,
+      Value<DateTime?> updateCheckedAtUtc,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -12644,6 +12779,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int?> leb2UserId,
       Value<String> sessionLifecycle,
       Value<int> sessionRevision,
+      Value<String?> notifiedUpdateVersion,
+      Value<DateTime?> updateCheckedAtUtc,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -12679,6 +12816,17 @@ class $$AppSettingsTableFilterComposer
     column: $table.sessionRevision,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get updateCheckedAtUtc => $composableBuilder(
+    column: $table.updateCheckedAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -12712,6 +12860,16 @@ class $$AppSettingsTableOrderingComposer
 
   ColumnOrderings<int> get sessionRevision => $composableBuilder(
     column: $table.sessionRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updateCheckedAtUtc => $composableBuilder(
+    column: $table.updateCheckedAtUtc,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -12749,6 +12907,17 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.sessionRevision,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get updateCheckedAtUtc =>
+      $composableBuilder(
+        column: $table.updateCheckedAtUtc,
+        builder: (column) => column,
+      );
 }
 
 class $$AppSettingsTableTableManager
@@ -12787,12 +12956,16 @@ class $$AppSettingsTableTableManager
                 Value<int?> leb2UserId = const Value.absent(),
                 Value<String> sessionLifecycle = const Value.absent(),
                 Value<int> sessionRevision = const Value.absent(),
+                Value<String?> notifiedUpdateVersion = const Value.absent(),
+                Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
               }) => AppSettingsCompanion(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
                 sessionLifecycle: sessionLifecycle,
                 sessionRevision: sessionRevision,
+                notifiedUpdateVersion: notifiedUpdateVersion,
+                updateCheckedAtUtc: updateCheckedAtUtc,
               ),
           createCompanionCallback:
               ({
@@ -12801,12 +12974,16 @@ class $$AppSettingsTableTableManager
                 Value<int?> leb2UserId = const Value.absent(),
                 Value<String> sessionLifecycle = const Value.absent(),
                 Value<int> sessionRevision = const Value.absent(),
+                Value<String?> notifiedUpdateVersion = const Value.absent(),
+                Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
                 sessionLifecycle: sessionLifecycle,
                 sessionRevision: sessionRevision,
+                notifiedUpdateVersion: notifiedUpdateVersion,
+                updateCheckedAtUtc: updateCheckedAtUtc,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

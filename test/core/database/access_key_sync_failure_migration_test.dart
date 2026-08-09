@@ -58,7 +58,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 20);
+      expect(database.schemaVersion, 22);
       expect(
         await database.select(database.syncOperations).get(),
         hasLength(1),

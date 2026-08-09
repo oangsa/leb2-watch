@@ -33,7 +33,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 20);
+        expect(database.schemaVersion, 22);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -58,7 +58,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 20);
+        expect(await _pragmaInt(database, 'user_version'), 22);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );

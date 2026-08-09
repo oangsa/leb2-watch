@@ -10,6 +10,7 @@ import 'local_notification_deadline_formatter.dart';
 final class LocalNotificationServiceImpl
     implements
         LocalNotificationService,
+        AppUpdateNotificationControl,
         ExactAlarmPermissionControl,
         LocalNotificationInitializationControl {
   LocalNotificationServiceImpl(
@@ -213,6 +214,28 @@ final class LocalNotificationServiceImpl
         kind: PlatformNotificationKind.test,
         title: 'LEB2 Watch',
         body: 'Local notifications are working on this device.',
+        payload: null,
+        groupKey: null,
+      ),
+    );
+  }
+
+  @override
+  Future<void> showAppUpdateAvailable({
+    required String version,
+    required bool selfUpdateUnavailable,
+  }) async {
+    _requireInitialized();
+    _requireCapability(_platform.capabilities.supportsImmediate);
+    final release = _boundedSingleLine(version, maximumLength: 64);
+    await _show(
+      PlatformNotification(
+        id: LocalNotificationIdFactory.appUpdateNotificationId,
+        kind: PlatformNotificationKind.appUpdate,
+        title: 'LEB2 Watch $release is available',
+        body: selfUpdateUnavailable
+            ? 'Update from your software centre, or run flatpak update.'
+            : 'Open the app to download it.',
         payload: null,
         groupKey: null,
       ),

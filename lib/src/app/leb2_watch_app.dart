@@ -81,14 +81,23 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
       final metadata = await ref
           .read(backendCompatibilityClientProvider)
           .getMetadata();
-      controller.setSnapshot(
-        evaluateBackendCompatibility(
-          installedClientVersion: version,
-          metadata: metadata,
-        ),
+      final snapshot = evaluateBackendCompatibility(
+        installedClientVersion: version,
+        metadata: metadata,
       );
+      controller.setSnapshot(snapshot);
+      await _announceAppUpdate(snapshot);
     } on Object {
       controller.setSnapshot(const BackendCompatibilitySnapshot.unavailable());
+    }
+  }
+
+  Future<void> _announceAppUpdate(BackendCompatibilitySnapshot snapshot) async {
+    try {
+      final notifier = await ref.read(appUpdateNotifierProvider.future);
+      await notifier.announce(snapshot);
+    } on Object {
+      // The banner still announces the release; background runs retry later.
     }
   }
 

@@ -12,6 +12,7 @@ final class UnsupportedBackgroundSchedulerPlatform
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    Duration? preciseCadence,
   }) async {}
 
   @override

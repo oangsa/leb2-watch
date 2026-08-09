@@ -33,12 +33,35 @@ final class WorkmanagerPeriodicTaskRequest {
   String toString() => 'WorkmanagerPeriodicTaskRequest(redacted: true)';
 }
 
+final class WorkmanagerOneOffTaskRequest {
+  const WorkmanagerOneOffTaskRequest({
+    required this.uniqueName,
+    required this.taskName,
+    required this.initialDelay,
+    this.inputData,
+    this.tag,
+    this.networkRequirement = WorkmanagerNetworkRequirement.none,
+  });
+
+  final String uniqueName;
+  final String taskName;
+  final Duration initialDelay;
+  final Map<String, dynamic>? inputData;
+  final String? tag;
+  final WorkmanagerNetworkRequirement networkRequirement;
+
+  @override
+  String toString() => 'WorkmanagerOneOffTaskRequest(redacted: true)';
+}
+
 abstract interface class WorkmanagerGateway {
   Future<void> initialize(WorkmanagerCallbackDispatcher dispatcher);
 
   void bindTaskHandler(WorkmanagerPluginTaskHandler handler);
 
   Future<void> registerPeriodicTask(WorkmanagerPeriodicTaskRequest request);
+
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request);
 
   Future<void> cancelByUniqueName(String uniqueName);
 
@@ -79,6 +102,26 @@ final class PluginWorkmanagerGateway implements WorkmanagerGateway {
         WorkmanagerPeriodicWorkPolicy.update =>
           ExistingPeriodicWorkPolicy.update,
       },
+    );
+  }
+
+  @override
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request) {
+    return _plugin.registerOneOffTask(
+      request.uniqueName,
+      request.taskName,
+      initialDelay: request.initialDelay,
+      inputData: request.inputData,
+      tag: request.tag,
+      constraints: Constraints(
+        networkType: switch (request.networkRequirement) {
+          WorkmanagerNetworkRequirement.none => NetworkType.notRequired,
+          WorkmanagerNetworkRequirement.connected => NetworkType.connected,
+        },
+      ),
+      // Each link of the chain replaces the previous one, so a reconciliation
+      // that runs twice cannot leave two pending wakeups behind.
+      existingWorkPolicy: ExistingWorkPolicy.replace,
     );
   }
 

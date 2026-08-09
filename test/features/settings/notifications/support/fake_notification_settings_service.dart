@@ -28,6 +28,12 @@ class FakeNotificationSettingsService implements NotificationSettingsService {
       const BackgroundMonitoringUpdateApplied(BackgroundScheduleInactive());
 
   @override
+  Future<BackgroundMonitoringUpdateResult> setBackgroundPreciseFetchEnabled(
+    bool enabled,
+  ) async =>
+      const BackgroundMonitoringUpdateApplied(BackgroundScheduleInactive());
+
+  @override
   Future<NewAssignmentNotificationPreferenceUpdateResult>
   setNewAssignmentNotificationsEnabled(bool enabled) async =>
       const NewAssignmentNotificationPreferenceUpdateSuccess();

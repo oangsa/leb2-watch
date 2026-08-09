@@ -60,6 +60,9 @@ final class DesktopBackgroundSchedulerPlatform
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    // A desktop timer already fires on the cadence it was given, so precise
+    // checks change nothing here.
+    Duration? preciseCadence,
   }) async {
     if (cadence <= Duration.zero) {
       throw ArgumentError.value(cadence, 'cadence', 'must be positive');

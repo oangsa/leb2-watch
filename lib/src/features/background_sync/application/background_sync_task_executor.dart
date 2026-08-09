@@ -8,6 +8,12 @@ const backgroundSyncQuiescenceDrainBudget = Duration(seconds: 1);
 abstract interface class BackgroundSyncOwnedComposition {
   BackgroundSyncRunner get runner;
 
+  /// Announces a newer release of this app when one exists.
+  ///
+  /// Throttled by the notifier itself, so calling it after every run costs a
+  /// metadata read at most once a day.
+  Future<void> checkForAppUpdate();
+
   /// Re-registers platform work after the run.
   ///
   /// The daytime/night cadence can only change while the app is closed, so the
@@ -58,6 +64,7 @@ final class BackgroundSyncTaskExecutor {
         _ => null,
       };
       if (quiescence == null) {
+        await _checkForAppUpdateQuietly(composition);
         await _reconcileScheduleQuietly(composition);
       }
       if (quiescence != null &&
@@ -112,6 +119,17 @@ Future<void> _closeAfterQuiescence(
     // A terminal error still means the operation no longer uses its owners.
   }
   await _closeQuietly(composition);
+}
+
+Future<void> _checkForAppUpdateQuietly(
+  BackgroundSyncOwnedComposition composition,
+) async {
+  try {
+    await composition.checkForAppUpdate();
+  } on Object {
+    // An update notice never competes with the synchronization result; the
+    // next run and the next launch both retry it.
+  }
 }
 
 Future<void> _reconcileScheduleQuietly(

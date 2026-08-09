@@ -65,6 +65,12 @@ final class _ProviderBackgroundSyncOwnedComposition
   bool _closed = false;
 
   @override
+  Future<void> checkForAppUpdate() async {
+    final notifier = await _container.read(appUpdateNotifierProvider.future);
+    await notifier.checkForUpdate();
+  }
+
+  @override
   Future<void> reconcileSchedule() async {
     final reconciler = await _container.read(
       backgroundScheduleReconcilerProvider.future,

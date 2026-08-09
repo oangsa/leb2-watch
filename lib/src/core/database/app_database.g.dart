@@ -9805,12 +9805,27 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(15),
   );
+  static const VerificationMeta _preciseFetchEnabledMeta =
+      const VerificationMeta('preciseFetchEnabled');
+  @override
+  late final GeneratedColumn<bool> preciseFetchEnabled = GeneratedColumn<bool>(
+    'precise_fetch_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("precise_fetch_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
     monitoringEnabled,
     installJitterSeconds,
     daytimeCadenceMinutes,
+    preciseFetchEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9860,6 +9875,15 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         ),
       );
     }
+    if (data.containsKey('precise_fetch_enabled')) {
+      context.handle(
+        _preciseFetchEnabledMeta,
+        preciseFetchEnabled.isAcceptableOrUnknown(
+          data['precise_fetch_enabled']!,
+          _preciseFetchEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9888,6 +9912,10 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         DriftSqlType.int,
         data['${effectivePrefix}daytime_cadence_minutes'],
       )!,
+      preciseFetchEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}precise_fetch_enabled'],
+      )!,
     );
   }
 
@@ -9903,11 +9931,13 @@ class BackgroundScheduleSetting extends DataClass
   final bool monitoringEnabled;
   final int? installJitterSeconds;
   final int daytimeCadenceMinutes;
+  final bool preciseFetchEnabled;
   const BackgroundScheduleSetting({
     required this.singletonId,
     required this.monitoringEnabled,
     this.installJitterSeconds,
     required this.daytimeCadenceMinutes,
+    required this.preciseFetchEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9918,6 +9948,7 @@ class BackgroundScheduleSetting extends DataClass
       map['install_jitter_seconds'] = Variable<int>(installJitterSeconds);
     }
     map['daytime_cadence_minutes'] = Variable<int>(daytimeCadenceMinutes);
+    map['precise_fetch_enabled'] = Variable<bool>(preciseFetchEnabled);
     return map;
   }
 
@@ -9929,6 +9960,7 @@ class BackgroundScheduleSetting extends DataClass
           ? const Value.absent()
           : Value(installJitterSeconds),
       daytimeCadenceMinutes: Value(daytimeCadenceMinutes),
+      preciseFetchEnabled: Value(preciseFetchEnabled),
     );
   }
 
@@ -9946,6 +9978,9 @@ class BackgroundScheduleSetting extends DataClass
       daytimeCadenceMinutes: serializer.fromJson<int>(
         json['daytimeCadenceMinutes'],
       ),
+      preciseFetchEnabled: serializer.fromJson<bool>(
+        json['preciseFetchEnabled'],
+      ),
     );
   }
   @override
@@ -9956,6 +9991,7 @@ class BackgroundScheduleSetting extends DataClass
       'monitoringEnabled': serializer.toJson<bool>(monitoringEnabled),
       'installJitterSeconds': serializer.toJson<int?>(installJitterSeconds),
       'daytimeCadenceMinutes': serializer.toJson<int>(daytimeCadenceMinutes),
+      'preciseFetchEnabled': serializer.toJson<bool>(preciseFetchEnabled),
     };
   }
 
@@ -9964,6 +10000,7 @@ class BackgroundScheduleSetting extends DataClass
     bool? monitoringEnabled,
     Value<int?> installJitterSeconds = const Value.absent(),
     int? daytimeCadenceMinutes,
+    bool? preciseFetchEnabled,
   }) => BackgroundScheduleSetting(
     singletonId: singletonId ?? this.singletonId,
     monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
@@ -9971,6 +10008,7 @@ class BackgroundScheduleSetting extends DataClass
         ? installJitterSeconds.value
         : this.installJitterSeconds,
     daytimeCadenceMinutes: daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
+    preciseFetchEnabled: preciseFetchEnabled ?? this.preciseFetchEnabled,
   );
   BackgroundScheduleSetting copyWithCompanion(
     BackgroundScheduleSettingsCompanion data,
@@ -9988,6 +10026,9 @@ class BackgroundScheduleSetting extends DataClass
       daytimeCadenceMinutes: data.daytimeCadenceMinutes.present
           ? data.daytimeCadenceMinutes.value
           : this.daytimeCadenceMinutes,
+      preciseFetchEnabled: data.preciseFetchEnabled.present
+          ? data.preciseFetchEnabled.value
+          : this.preciseFetchEnabled,
     );
   }
 
@@ -9997,7 +10038,8 @@ class BackgroundScheduleSetting extends DataClass
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
           ..write('installJitterSeconds: $installJitterSeconds, ')
-          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes, ')
+          ..write('preciseFetchEnabled: $preciseFetchEnabled')
           ..write(')'))
         .toString();
   }
@@ -10008,6 +10050,7 @@ class BackgroundScheduleSetting extends DataClass
     monitoringEnabled,
     installJitterSeconds,
     daytimeCadenceMinutes,
+    preciseFetchEnabled,
   );
   @override
   bool operator ==(Object other) =>
@@ -10016,7 +10059,8 @@ class BackgroundScheduleSetting extends DataClass
           other.singletonId == this.singletonId &&
           other.monitoringEnabled == this.monitoringEnabled &&
           other.installJitterSeconds == this.installJitterSeconds &&
-          other.daytimeCadenceMinutes == this.daytimeCadenceMinutes);
+          other.daytimeCadenceMinutes == this.daytimeCadenceMinutes &&
+          other.preciseFetchEnabled == this.preciseFetchEnabled);
 }
 
 class BackgroundScheduleSettingsCompanion
@@ -10025,23 +10069,27 @@ class BackgroundScheduleSettingsCompanion
   final Value<bool> monitoringEnabled;
   final Value<int?> installJitterSeconds;
   final Value<int> daytimeCadenceMinutes;
+  final Value<bool> preciseFetchEnabled;
   const BackgroundScheduleSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
     this.daytimeCadenceMinutes = const Value.absent(),
+    this.preciseFetchEnabled = const Value.absent(),
   });
   BackgroundScheduleSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
     this.daytimeCadenceMinutes = const Value.absent(),
+    this.preciseFetchEnabled = const Value.absent(),
   });
   static Insertable<BackgroundScheduleSetting> custom({
     Expression<int>? singletonId,
     Expression<bool>? monitoringEnabled,
     Expression<int>? installJitterSeconds,
     Expression<int>? daytimeCadenceMinutes,
+    Expression<bool>? preciseFetchEnabled,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -10050,6 +10098,8 @@ class BackgroundScheduleSettingsCompanion
         'install_jitter_seconds': installJitterSeconds,
       if (daytimeCadenceMinutes != null)
         'daytime_cadence_minutes': daytimeCadenceMinutes,
+      if (preciseFetchEnabled != null)
+        'precise_fetch_enabled': preciseFetchEnabled,
     });
   }
 
@@ -10058,6 +10108,7 @@ class BackgroundScheduleSettingsCompanion
     Value<bool>? monitoringEnabled,
     Value<int?>? installJitterSeconds,
     Value<int>? daytimeCadenceMinutes,
+    Value<bool>? preciseFetchEnabled,
   }) {
     return BackgroundScheduleSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -10065,6 +10116,7 @@ class BackgroundScheduleSettingsCompanion
       installJitterSeconds: installJitterSeconds ?? this.installJitterSeconds,
       daytimeCadenceMinutes:
           daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
+      preciseFetchEnabled: preciseFetchEnabled ?? this.preciseFetchEnabled,
     );
   }
 
@@ -10085,6 +10137,9 @@ class BackgroundScheduleSettingsCompanion
         daytimeCadenceMinutes.value,
       );
     }
+    if (preciseFetchEnabled.present) {
+      map['precise_fetch_enabled'] = Variable<bool>(preciseFetchEnabled.value);
+    }
     return map;
   }
 
@@ -10094,7 +10149,8 @@ class BackgroundScheduleSettingsCompanion
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
           ..write('installJitterSeconds: $installJitterSeconds, ')
-          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes, ')
+          ..write('preciseFetchEnabled: $preciseFetchEnabled')
           ..write(')'))
         .toString();
   }
@@ -10861,6 +10917,26 @@ class $AppSettingsTable extends AppSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _notifiedUpdateVersionMeta =
+      const VerificationMeta('notifiedUpdateVersion');
+  @override
+  late final GeneratedColumn<String> notifiedUpdateVersion =
+      GeneratedColumn<String>(
+        'notified_update_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime?, int>
+  updateCheckedAtUtc = GeneratedColumn<int>(
+    'update_checked_at_utc',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  ).withConverter<DateTime?>($AppSettingsTable.$converterupdateCheckedAtUtcn);
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -10868,6 +10944,8 @@ class $AppSettingsTable extends AppSettings
     leb2UserId,
     sessionLifecycle,
     sessionRevision,
+    notifiedUpdateVersion,
+    updateCheckedAtUtc,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10926,6 +11004,15 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('notified_update_version')) {
+      context.handle(
+        _notifiedUpdateVersionMeta,
+        notifiedUpdateVersion.isAcceptableOrUnknown(
+          data['notified_update_version']!,
+          _notifiedUpdateVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10955,6 +11042,17 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.int,
         data['${effectivePrefix}session_revision'],
       )!,
+      notifiedUpdateVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notified_update_version'],
+      ),
+      updateCheckedAtUtc: $AppSettingsTable.$converterupdateCheckedAtUtcn
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}update_checked_at_utc'],
+            ),
+          ),
     );
   }
 
@@ -10962,6 +11060,11 @@ class $AppSettingsTable extends AppSettings
   $AppSettingsTable createAlias(String alias) {
     return $AppSettingsTable(attachedDatabase, alias);
   }
+
+  static TypeConverter<DateTime, int> $converterupdateCheckedAtUtc =
+      const UtcDateTimeConverter();
+  static TypeConverter<DateTime?, int?> $converterupdateCheckedAtUtcn =
+      NullAwareTypeConverter.wrap($converterupdateCheckedAtUtc);
 }
 
 class AppSetting extends DataClass implements Insertable<AppSetting> {
@@ -10970,12 +11073,21 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final int? leb2UserId;
   final String sessionLifecycle;
   final int sessionRevision;
+
+  /// The release the update notification was last posted for, so one version
+  /// is announced once instead of on every launch and every background run.
+  final String? notifiedUpdateVersion;
+
+  /// When background work last asked the backend for release metadata.
+  final DateTime? updateCheckedAtUtc;
   const AppSetting({
     required this.singletonId,
     this.activeSemesterId,
     this.leb2UserId,
     required this.sessionLifecycle,
     required this.sessionRevision,
+    this.notifiedUpdateVersion,
+    this.updateCheckedAtUtc,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10989,6 +11101,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     }
     map['session_lifecycle'] = Variable<String>(sessionLifecycle);
     map['session_revision'] = Variable<int>(sessionRevision);
+    if (!nullToAbsent || notifiedUpdateVersion != null) {
+      map['notified_update_version'] = Variable<String>(notifiedUpdateVersion);
+    }
+    if (!nullToAbsent || updateCheckedAtUtc != null) {
+      map['update_checked_at_utc'] = Variable<int>(
+        $AppSettingsTable.$converterupdateCheckedAtUtcn.toSql(
+          updateCheckedAtUtc,
+        ),
+      );
+    }
     return map;
   }
 
@@ -11003,6 +11125,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           : Value(leb2UserId),
       sessionLifecycle: Value(sessionLifecycle),
       sessionRevision: Value(sessionRevision),
+      notifiedUpdateVersion: notifiedUpdateVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notifiedUpdateVersion),
+      updateCheckedAtUtc: updateCheckedAtUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updateCheckedAtUtc),
     );
   }
 
@@ -11017,6 +11145,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       leb2UserId: serializer.fromJson<int?>(json['leb2UserId']),
       sessionLifecycle: serializer.fromJson<String>(json['sessionLifecycle']),
       sessionRevision: serializer.fromJson<int>(json['sessionRevision']),
+      notifiedUpdateVersion: serializer.fromJson<String?>(
+        json['notifiedUpdateVersion'],
+      ),
+      updateCheckedAtUtc: serializer.fromJson<DateTime?>(
+        json['updateCheckedAtUtc'],
+      ),
     );
   }
   @override
@@ -11028,6 +11162,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'leb2UserId': serializer.toJson<int?>(leb2UserId),
       'sessionLifecycle': serializer.toJson<String>(sessionLifecycle),
       'sessionRevision': serializer.toJson<int>(sessionRevision),
+      'notifiedUpdateVersion': serializer.toJson<String?>(
+        notifiedUpdateVersion,
+      ),
+      'updateCheckedAtUtc': serializer.toJson<DateTime?>(updateCheckedAtUtc),
     };
   }
 
@@ -11037,6 +11175,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<int?> leb2UserId = const Value.absent(),
     String? sessionLifecycle,
     int? sessionRevision,
+    Value<String?> notifiedUpdateVersion = const Value.absent(),
+    Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
   }) => AppSetting(
     singletonId: singletonId ?? this.singletonId,
     activeSemesterId: activeSemesterId.present
@@ -11045,6 +11185,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     leb2UserId: leb2UserId.present ? leb2UserId.value : this.leb2UserId,
     sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
     sessionRevision: sessionRevision ?? this.sessionRevision,
+    notifiedUpdateVersion: notifiedUpdateVersion.present
+        ? notifiedUpdateVersion.value
+        : this.notifiedUpdateVersion,
+    updateCheckedAtUtc: updateCheckedAtUtc.present
+        ? updateCheckedAtUtc.value
+        : this.updateCheckedAtUtc,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -11063,6 +11209,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       sessionRevision: data.sessionRevision.present
           ? data.sessionRevision.value
           : this.sessionRevision,
+      notifiedUpdateVersion: data.notifiedUpdateVersion.present
+          ? data.notifiedUpdateVersion.value
+          : this.notifiedUpdateVersion,
+      updateCheckedAtUtc: data.updateCheckedAtUtc.present
+          ? data.updateCheckedAtUtc.value
+          : this.updateCheckedAtUtc,
     );
   }
 
@@ -11073,7 +11225,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('activeSemesterId: $activeSemesterId, ')
           ..write('leb2UserId: $leb2UserId, ')
           ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
           ..write(')'))
         .toString();
   }
@@ -11085,6 +11239,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     leb2UserId,
     sessionLifecycle,
     sessionRevision,
+    notifiedUpdateVersion,
+    updateCheckedAtUtc,
   );
   @override
   bool operator ==(Object other) =>
@@ -11094,7 +11250,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.activeSemesterId == this.activeSemesterId &&
           other.leb2UserId == this.leb2UserId &&
           other.sessionLifecycle == this.sessionLifecycle &&
-          other.sessionRevision == this.sessionRevision);
+          other.sessionRevision == this.sessionRevision &&
+          other.notifiedUpdateVersion == this.notifiedUpdateVersion &&
+          other.updateCheckedAtUtc == this.updateCheckedAtUtc);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -11103,12 +11261,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int?> leb2UserId;
   final Value<String> sessionLifecycle;
   final Value<int> sessionRevision;
+  final Value<String?> notifiedUpdateVersion;
+  final Value<DateTime?> updateCheckedAtUtc;
   const AppSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
     this.leb2UserId = const Value.absent(),
     this.sessionLifecycle = const Value.absent(),
     this.sessionRevision = const Value.absent(),
+    this.notifiedUpdateVersion = const Value.absent(),
+    this.updateCheckedAtUtc = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -11116,6 +11278,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.leb2UserId = const Value.absent(),
     this.sessionLifecycle = const Value.absent(),
     this.sessionRevision = const Value.absent(),
+    this.notifiedUpdateVersion = const Value.absent(),
+    this.updateCheckedAtUtc = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? singletonId,
@@ -11123,6 +11287,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? leb2UserId,
     Expression<String>? sessionLifecycle,
     Expression<int>? sessionRevision,
+    Expression<String>? notifiedUpdateVersion,
+    Expression<int>? updateCheckedAtUtc,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -11130,6 +11296,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (leb2UserId != null) 'leb2_user_id': leb2UserId,
       if (sessionLifecycle != null) 'session_lifecycle': sessionLifecycle,
       if (sessionRevision != null) 'session_revision': sessionRevision,
+      if (notifiedUpdateVersion != null)
+        'notified_update_version': notifiedUpdateVersion,
+      if (updateCheckedAtUtc != null)
+        'update_checked_at_utc': updateCheckedAtUtc,
     });
   }
 
@@ -11139,6 +11309,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int?>? leb2UserId,
     Value<String>? sessionLifecycle,
     Value<int>? sessionRevision,
+    Value<String?>? notifiedUpdateVersion,
+    Value<DateTime?>? updateCheckedAtUtc,
   }) {
     return AppSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -11146,6 +11318,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       leb2UserId: leb2UserId ?? this.leb2UserId,
       sessionLifecycle: sessionLifecycle ?? this.sessionLifecycle,
       sessionRevision: sessionRevision ?? this.sessionRevision,
+      notifiedUpdateVersion:
+          notifiedUpdateVersion ?? this.notifiedUpdateVersion,
+      updateCheckedAtUtc: updateCheckedAtUtc ?? this.updateCheckedAtUtc,
     );
   }
 
@@ -11167,6 +11342,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (sessionRevision.present) {
       map['session_revision'] = Variable<int>(sessionRevision.value);
     }
+    if (notifiedUpdateVersion.present) {
+      map['notified_update_version'] = Variable<String>(
+        notifiedUpdateVersion.value,
+      );
+    }
+    if (updateCheckedAtUtc.present) {
+      map['update_checked_at_utc'] = Variable<int>(
+        $AppSettingsTable.$converterupdateCheckedAtUtcn.toSql(
+          updateCheckedAtUtc.value,
+        ),
+      );
+    }
     return map;
   }
 
@@ -11177,7 +11364,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('activeSemesterId: $activeSemesterId, ')
           ..write('leb2UserId: $leb2UserId, ')
           ..write('sessionLifecycle: $sessionLifecycle, ')
-          ..write('sessionRevision: $sessionRevision')
+          ..write('sessionRevision: $sessionRevision, ')
+          ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
           ..write(')'))
         .toString();
   }
@@ -16657,6 +16846,7 @@ typedef $$BackgroundScheduleSettingsTableCreateCompanionBuilder =
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
       Value<int> daytimeCadenceMinutes,
+      Value<bool> preciseFetchEnabled,
     });
 typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
     BackgroundScheduleSettingsCompanion Function({
@@ -16664,6 +16854,7 @@ typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
       Value<int> daytimeCadenceMinutes,
+      Value<bool> preciseFetchEnabled,
     });
 
 class $$BackgroundScheduleSettingsTableFilterComposer
@@ -16692,6 +16883,11 @@ class $$BackgroundScheduleSettingsTableFilterComposer
 
   ColumnFilters<int> get daytimeCadenceMinutes => $composableBuilder(
     column: $table.daytimeCadenceMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16724,6 +16920,11 @@ class $$BackgroundScheduleSettingsTableOrderingComposer
     column: $table.daytimeCadenceMinutes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BackgroundScheduleSettingsTableAnnotationComposer
@@ -16752,6 +16953,11 @@ class $$BackgroundScheduleSettingsTableAnnotationComposer
 
   GeneratedColumn<int> get daytimeCadenceMinutes => $composableBuilder(
     column: $table.daytimeCadenceMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
     builder: (column) => column,
   );
 }
@@ -16806,11 +17012,13 @@ class $$BackgroundScheduleSettingsTableTableManager
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
                 Value<int> daytimeCadenceMinutes = const Value.absent(),
+                Value<bool> preciseFetchEnabled = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
                 daytimeCadenceMinutes: daytimeCadenceMinutes,
+                preciseFetchEnabled: preciseFetchEnabled,
               ),
           createCompanionCallback:
               ({
@@ -16818,11 +17026,13 @@ class $$BackgroundScheduleSettingsTableTableManager
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
                 Value<int> daytimeCadenceMinutes = const Value.absent(),
+                Value<bool> preciseFetchEnabled = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion.insert(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
                 daytimeCadenceMinutes: daytimeCadenceMinutes,
+                preciseFetchEnabled: preciseFetchEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -17281,6 +17491,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int?> leb2UserId,
       Value<String> sessionLifecycle,
       Value<int> sessionRevision,
+      Value<String?> notifiedUpdateVersion,
+      Value<DateTime?> updateCheckedAtUtc,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -17289,6 +17501,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int?> leb2UserId,
       Value<String> sessionLifecycle,
       Value<int> sessionRevision,
+      Value<String?> notifiedUpdateVersion,
+      Value<DateTime?> updateCheckedAtUtc,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -17324,6 +17538,17 @@ class $$AppSettingsTableFilterComposer
     column: $table.sessionRevision,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime?, DateTime, int>
+  get updateCheckedAtUtc => $composableBuilder(
+    column: $table.updateCheckedAtUtc,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -17357,6 +17582,16 @@ class $$AppSettingsTableOrderingComposer
 
   ColumnOrderings<int> get sessionRevision => $composableBuilder(
     column: $table.sessionRevision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updateCheckedAtUtc => $composableBuilder(
+    column: $table.updateCheckedAtUtc,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -17394,6 +17629,17 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.sessionRevision,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get notifiedUpdateVersion => $composableBuilder(
+    column: $table.notifiedUpdateVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<DateTime?, int> get updateCheckedAtUtc =>
+      $composableBuilder(
+        column: $table.updateCheckedAtUtc,
+        builder: (column) => column,
+      );
 }
 
 class $$AppSettingsTableTableManager
@@ -17432,12 +17678,16 @@ class $$AppSettingsTableTableManager
                 Value<int?> leb2UserId = const Value.absent(),
                 Value<String> sessionLifecycle = const Value.absent(),
                 Value<int> sessionRevision = const Value.absent(),
+                Value<String?> notifiedUpdateVersion = const Value.absent(),
+                Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
               }) => AppSettingsCompanion(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
                 sessionLifecycle: sessionLifecycle,
                 sessionRevision: sessionRevision,
+                notifiedUpdateVersion: notifiedUpdateVersion,
+                updateCheckedAtUtc: updateCheckedAtUtc,
               ),
           createCompanionCallback:
               ({
@@ -17446,12 +17696,16 @@ class $$AppSettingsTableTableManager
                 Value<int?> leb2UserId = const Value.absent(),
                 Value<String> sessionLifecycle = const Value.absent(),
                 Value<int> sessionRevision = const Value.absent(),
+                Value<String?> notifiedUpdateVersion = const Value.absent(),
+                Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
                 leb2UserId: leb2UserId,
                 sessionLifecycle: sessionLifecycle,
                 sessionRevision: sessionRevision,
+                notifiedUpdateVersion: notifiedUpdateVersion,
+                updateCheckedAtUtc: updateCheckedAtUtc,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

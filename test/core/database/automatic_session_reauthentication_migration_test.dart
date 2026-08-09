@@ -41,7 +41,7 @@ void main() {
     final database = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 22);
     expect(
       await database
           .select(database.automaticSessionReauthenticationAttempts)
@@ -62,7 +62,7 @@ void main() {
           .customSelect('PRAGMA user_version')
           .getSingle()
           .then((row) => row.read<int>('user_version')),
-      20,
+      22,
     );
   });
 
@@ -101,7 +101,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 20);
+      expect(database.schemaVersion, 22);
       expect(await database.select(database.semesters).get(), hasLength(1));
       expect(await database.select(database.courses).get(), hasLength(1));
       final settings = await database.select(database.appSettings).getSingle();

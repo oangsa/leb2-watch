@@ -30,6 +30,27 @@ void main() {
     expect(owned.closeCalls, 1);
   });
 
+  test('every run gives the update check a chance to run', () async {
+    final owned = _OwnedComposition(_runner(_SyncService()));
+    final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
+
+    await executor.execute(reason: SyncReason.backgroundTask);
+
+    expect(owned.appUpdateChecks, 1);
+  });
+
+  test('an update-check failure cannot fail the completed run', () async {
+    final owned = _OwnedComposition(_runner(_SyncService()))
+      ..appUpdateFailure = StateError('PRIVATE_PATH');
+    final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
+
+    expect(
+      await executor.execute(reason: SyncReason.backgroundTask),
+      isA<BackgroundSyncSucceeded>(),
+    );
+    expect(owned.closeCalls, 1);
+  });
+
   test('reconciliation failure cannot fail the completed run', () async {
     final reconciler = _Reconciler()..failure = StateError('PRIVATE_PATH');
     final owned = _OwnedComposition(_runner(_SyncService()), reconciler);
@@ -347,6 +368,18 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
   final BackgroundSyncRunner runner;
 
   final _Reconciler _reconciler;
+
+  int appUpdateChecks = 0;
+  Object? appUpdateFailure;
+
+  @override
+  Future<void> checkForAppUpdate() async {
+    appUpdateChecks += 1;
+    final failure = appUpdateFailure;
+    if (failure != null) {
+      throw failure;
+    }
+  }
 
   @override
   Future<void> reconcileSchedule() =>

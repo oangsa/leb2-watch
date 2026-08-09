@@ -173,6 +173,7 @@ final class RecordingBackgroundSchedulerPlatform
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    Duration? preciseCadence,
   }) async {
     journal.scheduleCount += 1;
     _active = true;

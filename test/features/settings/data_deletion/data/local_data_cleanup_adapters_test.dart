@@ -865,6 +865,7 @@ final class _BackgroundPlatform implements BackgroundSchedulerPlatform {
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    Duration? preciseCadence,
   }) async {}
 }
 

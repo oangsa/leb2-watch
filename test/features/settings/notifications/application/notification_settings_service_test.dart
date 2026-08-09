@@ -358,6 +358,13 @@ final class _BackgroundSettings implements BackgroundMonitoringSettingsService {
       BackgroundScheduleInactive(),
     );
   }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setPreciseFetchEnabled(
+    bool enabled,
+  ) async {
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
 }
 
 final class _DelayedBackgroundSettings
@@ -383,6 +390,13 @@ final class _DelayedBackgroundSettings
   Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
     BackgroundFetchCadence cadence,
   ) => _result.future;
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setPreciseFetchEnabled(
+    bool enabled,
+  ) async {
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
 
   void complete(BackgroundMonitoringUpdateResult result) {
     _result.complete(result);

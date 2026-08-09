@@ -682,6 +682,8 @@ class BackgroundScheduleSettings extends Table {
   IntColumn get installJitterSeconds => integer().nullable()();
   IntColumn get daytimeCadenceMinutes =>
       integer().withDefault(const Constant(15))();
+  BoolColumn get preciseFetchEnabled =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
@@ -749,12 +751,22 @@ class AppSettings extends Table {
       text().withDefault(const Constant('unknown'))();
   IntColumn get sessionRevision => integer().withDefault(const Constant(0))();
 
+  /// The release the update notification was last posted for, so one version
+  /// is announced once instead of on every launch and every background run.
+  TextColumn get notifiedUpdateVersion => text().nullable()();
+
+  /// When background work last asked the backend for release metadata.
+  IntColumn get updateCheckedAtUtc =>
+      integer().map(const UtcDateTimeConverter()).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
 
   @override
   List<String> get customConstraints => const [
     'CHECK (singleton_id = 1)',
+    'CHECK (notified_update_version IS NULL OR '
+        'length(trim(notified_update_version)) > 0)',
     'CHECK (active_semester_id IS NULL OR active_semester_id > 0)',
     'CHECK (leb2_user_id IS NULL OR '
         '(leb2_user_id > 0 AND leb2_user_id <= 2147483647))',

@@ -157,6 +157,29 @@ final class LocalBackgroundScheduler
     });
   }
 
+  @override
+  Future<BackgroundMonitoringUpdateResult> setPreciseFetchEnabled(
+    bool enabled,
+  ) {
+    return _applyUpdate(() {
+      return _serialize(() async {
+        try {
+          await _store.setPreciseFetchEnabled(enabled);
+        } on Object {
+          throw const BackgroundSchedulerException(
+            BackgroundScheduleUnavailableReason.localStorageFailed,
+          );
+        }
+        // Re-registering is what starts or stops the chained precise task;
+        // monitoring that is off or session-gated stays cancelled.
+        await _reconcilePlatform(
+          desired: await _readMonitoringEnabled(),
+          executionAllowed: true,
+        );
+      });
+    });
+  }
+
   Future<BackgroundMonitoringUpdateResult> _applyUpdate(
     Future<void> Function() mutate,
   ) async {
@@ -176,15 +199,16 @@ final class LocalBackgroundScheduler
 
   Future<void> _schedulePlatform() async {
     final jitterSeconds = await _readJitter();
-    final cadence = resolveBackgroundSyncCadence(
-      await _readDaytimeCadence(),
+    final schedule = resolveBackgroundSyncSchedule(
+      await _readSettings(),
       _localClock(),
     );
     await initialize();
     try {
       await _platform.schedulePeriodicSync(
-        cadence: cadence,
+        cadence: schedule.cadence,
         initialDelay: Duration(seconds: jitterSeconds),
+        preciseCadence: schedule.preciseCadence,
       );
       _lastUnavailableReason = null;
     } on BackgroundSchedulerException {
@@ -244,9 +268,9 @@ final class LocalBackgroundScheduler
     }
   }
 
-  Future<BackgroundFetchCadence> _readDaytimeCadence() async {
+  Future<BackgroundMonitoringSettings> _readSettings() async {
     try {
-      return await _store.readDaytimeCadence();
+      return await _store.readSettings();
     } on Object {
       throw const BackgroundSchedulerException(
         BackgroundScheduleUnavailableReason.localStorageFailed,

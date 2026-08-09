@@ -155,7 +155,6 @@ void main() {
 
     expect(await platform.getStatus(), isA<BackgroundScheduleActive>());
     await platform.cancelPeriodicSync();
-    await platform.cancelPeriodicSync();
     gateway.scheduled = false;
     expect(await platform.getStatus(), const BackgroundScheduleInactive());
 
@@ -163,10 +162,64 @@ void main() {
       androidPeriodicSyncUniqueWorkName,
       androidPeriodicSyncUniqueWorkName,
     ]);
+    // Cancelling clears the chained precise task too, otherwise a disabled
+    // monitor would keep waking on the last armed link.
     expect(gateway.cancelNames, [
       androidPeriodicSyncUniqueWorkName,
-      androidPeriodicSyncUniqueWorkName,
+      androidPreciseSyncUniqueWorkName,
     ]);
+  });
+
+  test('precise checks arm a chained task beside the backstop', () async {
+    final gateway = _Gateway();
+    final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+
+    await platform.schedulePeriodicSync(
+      cadence: const Duration(minutes: 60),
+      initialDelay: const Duration(seconds: 30),
+      preciseCadence: const Duration(minutes: 10),
+    );
+
+    final periodic = gateway.requests.single;
+    final oneOff = gateway.oneOffRequests.single;
+    expect(periodic.frequency, const Duration(minutes: 60));
+    expect(oneOff.uniqueName, androidPreciseSyncUniqueWorkName);
+    expect(oneOff.taskName, androidPreciseSyncTaskName);
+    // The ten minute cadence the periodic floor would otherwise raise to 15.
+    expect(oneOff.initialDelay, const Duration(minutes: 10));
+    expect(oneOff.tag, periodic.tag);
+    expect(oneOff.inputData, periodic.inputData);
+    expect(oneOff.networkRequirement, WorkmanagerNetworkRequirement.connected);
+    expect(gateway.cancelNames, isEmpty);
+  });
+
+  test('a schedule without precise checks clears the chained task', () async {
+    final gateway = _Gateway();
+    final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+
+    await platform.schedulePeriodicSync(
+      cadence: const Duration(minutes: 15),
+      initialDelay: Duration.zero,
+    );
+
+    expect(gateway.oneOffRequests, isEmpty);
+    expect(gateway.cancelNames, [androidPreciseSyncUniqueWorkName]);
+  });
+
+  test('non-positive precise cadence is rejected before registration', () {
+    final gateway = _Gateway();
+    final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+
+    expect(
+      () => platform.schedulePeriodicSync(
+        cadence: const Duration(minutes: 15),
+        initialDelay: Duration.zero,
+        preciseCadence: Duration.zero,
+      ),
+      throwsArgumentError,
+    );
+    expect(gateway.requests, isEmpty);
+    expect(gateway.oneOffRequests, isEmpty);
   });
 }
 
@@ -174,6 +227,7 @@ final class _Gateway implements WorkmanagerGateway {
   int initializeCalls = 0;
   WorkmanagerCallbackDispatcher? callbackDispatcher;
   final List<WorkmanagerPeriodicTaskRequest> requests = [];
+  final List<WorkmanagerOneOffTaskRequest> oneOffRequests = [];
   final List<String> cancelNames = [];
   final List<String> statusNames = [];
   bool scheduled = false;
@@ -211,5 +265,10 @@ final class _Gateway implements WorkmanagerGateway {
     WorkmanagerPeriodicTaskRequest request,
   ) async {
     requests.add(request);
+  }
+
+  @override
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request) async {
+    oneOffRequests.add(request);
   }
 }

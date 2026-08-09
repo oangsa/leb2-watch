@@ -24,6 +24,7 @@ const _settingsMaxWidth = 920.0;
 
 enum _SettingControl {
   backgroundMonitoring,
+  preciseFetch,
   newAssignments,
   deadlineReminders,
   twentyFourHours,
@@ -140,6 +141,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return switch (control) {
       _SettingControl.backgroundMonitoring =>
         snapshot.backgroundMonitoring.enabled == expected,
+      _SettingControl.preciseFetch =>
+        snapshot.backgroundMonitoring.preciseFetchEnabled == expected,
       _SettingControl.newAssignments =>
         snapshot.newAssignmentNotifications.enabled == expected,
       _SettingControl.deadlineReminders =>
@@ -248,6 +251,31 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
           );
       }
     });
+  }
+
+  Future<void> _setPreciseFetch(bool enabled) async {
+    const control = _SettingControl.preciseFetch;
+    _beginSetting(control, enabled);
+    final result = await widget.service.setBackgroundPreciseFetchEnabled(
+      enabled,
+    );
+    if (!mounted) {
+      return;
+    }
+    switch (result) {
+      case BackgroundMonitoringUpdateApplied(:final status):
+        _finishSuccessfulSetting(
+          control,
+          status is BackgroundScheduleUnavailable
+              ? 'Saved, but the system did not update its schedule.'
+              : 'Saved.',
+        );
+      case BackgroundMonitoringUpdateFailure():
+        _finishFailedSetting(
+          control,
+          'Not saved. Previous setting still in use.',
+        );
+    }
   }
 
   Future<void> _setNewAssignments(bool enabled) async {
@@ -478,6 +506,16 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return 'Between 06:00 and 19:00. Hourly overnight.';
   }
 
+  String _preciseFetchMessage(NotificationSettingsSnapshot snapshot) {
+    if (!snapshot.backgroundMonitoring.enabled) {
+      return 'Turn on background monitoring first.';
+    }
+    final cadence =
+        _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
+    return 'Checks every ${_cadenceLabel(cadence)} instead of when Android '
+        'decides. Uses more battery. Off overnight.';
+  }
+
   bool _exactAlarmPermissionSectionVisible(
     NotificationSettingsSnapshot snapshot,
   ) {
@@ -592,6 +630,23 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       ],
                     ),
                   ),
+                  // Only Android both defers this work and can be told to hold
+                  // an interval; a desktop timer already fires on time and iOS
+                  // decides refresh timing from its own budget.
+                  if (snapshot.platform == NotificationSettingsPlatform.android)
+                    SwitchListTile.adaptive(
+                      key: const Key('precise-fetch-switch'),
+                      title: const Text('Keep to the chosen time'),
+                      subtitle: Text(_preciseFetchMessage(snapshot)),
+                      value: snapshot.backgroundMonitoring.preciseFetchEnabled,
+                      onChanged:
+                          !snapshot.backgroundMonitoring.enabled ||
+                              _pendingSettings.containsKey(
+                                _SettingControl.preciseFetch,
+                              )
+                          ? null
+                          : _setPreciseFetch,
+                    ),
                   // Desktop already exposes this as the start-at-login switch
                   // below, so the tile would be a second control for one
                   // setting.

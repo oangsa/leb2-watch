@@ -73,6 +73,11 @@ Android uses one unique WorkManager periodic request:
 - the requested cadence is chosen in Settings — 10, 15, 30, or 60 minutes
   between 06:00 and 19:00 device-local time, and 60 minutes overnight — and is
   raised to 15 minutes, Android's minimum for periodic work;
+- "Keep to the chosen time" is an opt-in setting that adds a chained one-off
+  request at the chosen cadence, which is not subject to that 15-minute floor
+  and is not batched into the periodic flex window. It uses more battery, it
+  is still deferrable under Doze, and it stops between 19:00 and 06:00, where
+  the hourly periodic request alone continues;
 - that cadence governs new-assignment discovery only; deadline reminders are
   scheduled with the OS ahead of time from stored data and are unaffected;
 - connectivity is required;
