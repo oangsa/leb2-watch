@@ -16,9 +16,8 @@ const appUpdateCheckInterval = Duration(hours: 24);
 
 /// How long a post waits for the notification bridge to come up.
 ///
-/// Matches the other notification effects: platform initialization can stay
-/// pending indefinitely, and a background run awaits this check before schedule
-/// reconciliation and composition teardown, outside the runner's time budget.
+/// Platform initialization can stay pending indefinitely. Abandoning the
+/// identity-fenced attempt lets later notification work retry initialization.
 const appUpdateNotificationInitializationTimeout = Duration(seconds: 30);
 
 /// Announces a newer release once, as a notification the user sees while the
@@ -136,9 +135,6 @@ final class AppUpdateNotifier {
         try {
           await attempt.completion.timeout(_initializationTimeout);
         } on TimeoutException {
-          // An initialization that never settles must not hold a background run
-          // open past its own work. Abandoning is identity-fenced by the
-          // service, so a later attempt still owns the bridge.
           attempt.abandon();
           return;
         }

@@ -49,18 +49,19 @@ const backgroundDaytimeEndHour = 19;
 
 /// The platform work to register right now.
 ///
-/// [preciseCadence] is non-null only while precise checks are both enabled and
-/// inside the daytime window; overnight it is dropped so the app falls back to
-/// the pinned hourly cadence, which is what keeps the overnight request volume
-/// unchanged.
+/// [preciseCadence] is non-null only while precise checks are enabled, the
+/// device is inside the daytime window, and a whole period still lands before
+/// the window closes. Otherwise the app falls back to the pinned hourly
+/// cadence.
 final class BackgroundSyncSchedule {
   const BackgroundSyncSchedule({required this.cadence, this.preciseCadence});
 
   /// The operating-system periodic registration.
   final Duration cadence;
 
-  /// The interval the chained precise task re-arms itself at, or `null` when
-  /// precise checks are off for now.
+  /// The interval the chained precise task re-arms itself at, or `null` while
+  /// precise checks are disabled, outside daytime, or too close to 19:00 for a
+  /// whole interval to fit.
   final Duration? preciseCadence;
 
   @override

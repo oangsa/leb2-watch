@@ -49,7 +49,7 @@ the application-owned `WorkmanagerGateway`.
 
 The WorkManager-created isolate invokes
 `androidBackgroundCallbackDispatcher`. The shared exact-name dispatcher accepts
-only `leb2-periodic-sync-v1`, supplies a nine-minute execution budget, and calls
+only `leb2-periodic-sync-v1`, supplies an eight-minute execution budget, and calls
 `AndroidBackgroundSyncTaskHandler`. The handler creates a
 `BackgroundSyncTaskExecutor` with a fresh
 `ProviderBackgroundSyncCompositionFactory`. Feature 13.1 opens a new database
@@ -201,7 +201,11 @@ late read.
 composition and runs the shared synchronization service. Its 25-second budget
 applies to the runner's active synchronization race after composition open,
 local policy read, and synchronization-Future construction. It is not a
-whole-callback or startup deadline.
+whole-callback or startup deadline. After a terminal runner result, the shared
+executor runs one budgeted post-run tail: schedule reconciliation, then
+optional app-update work. A live expiration during that tail can release the
+outer callback, while the late handler retains its composition until the tail
+settles.
 
 Workmanager resubmits the next BGAppRefresh request before Dart runs. The
 handler therefore cancels that exact pending request when durable local policy
@@ -244,7 +248,12 @@ the next best-effort request intact. Failed/cancelled work returns Dart
     not settle within the shared one-second drain, its retained
     close-after-quiescence continuation keeps the database open until both the
     cancellation request and original synchronization are terminal.
-14. Dart `true`/`false` controls Workmanager's fetch/debug result. For this
+14. After a non-cancelled terminal runner result, one 90-second budget covers
+    schedule reconciliation followed by the optional app-update check. A
+    cancelled active synchronization instead uses the one-second drain for its
+    ownership and reconciliation, skips the update check, and leaves the
+    composition open if either operation outlives that drain.
+15. Dart `true`/`false` controls Workmanager's fetch/debug result. For this
     pinned BGTask path, native success is `!operation.isCancelled`; only the
     actual Apple expiration chain cancels that Operation. Ordinary Dart
     failures therefore still complete the native BGTask as successful.
@@ -737,8 +746,9 @@ OS-retained future schedule.
   does not generate randomness.
 - Use only a connected-network constraint because charging, idle, unmetered,
   and exact-time requirements are not product contracts.
-- Keep the nine-minute Dart budget below WorkManager's ordinary ten-minute
-  execution limit.
+- Keep the eight-minute synchronization budget plus the 90-second post-run
+  budget below WorkManager's ordinary ten-minute execution limit, leaving 30
+  seconds for composition startup and teardown.
 - Return native success for every durable application outcome. Durable local
   gates and application backoff remain authoritative.
 - Cancel only the captured generation for disabled and session-paused results.
