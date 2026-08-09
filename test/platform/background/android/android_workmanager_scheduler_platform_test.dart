@@ -123,13 +123,25 @@ void main() {
     expect(gateway.requests, isEmpty);
   });
 
-  test('cadence below WorkManager minimum is rejected before registration', () {
+  test('cadence below WorkManager minimum registers at the floor', () async {
+    final gateway = _Gateway();
+    final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
+
+    await platform.schedulePeriodicSync(
+      cadence: const Duration(minutes: 10),
+      initialDelay: Duration.zero,
+    );
+
+    expect(gateway.requests.single.frequency, androidMinimumPeriodicCadence);
+  });
+
+  test('non-positive cadence is rejected before registration', () {
     final gateway = _Gateway();
     final platform = AndroidWorkmanagerSchedulerPlatform(gateway);
 
     expect(
       () => platform.schedulePeriodicSync(
-        cadence: const Duration(minutes: 14, seconds: 59),
+        cadence: Duration.zero,
         initialDelay: Duration.zero,
       ),
       throwsArgumentError,

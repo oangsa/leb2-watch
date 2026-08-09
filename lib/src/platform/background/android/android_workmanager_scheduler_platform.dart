@@ -46,12 +46,8 @@ final class AndroidWorkmanagerSchedulerPlatform
     required Duration cadence,
     required Duration initialDelay,
   }) {
-    if (cadence < androidMinimumPeriodicCadence) {
-      throw ArgumentError.value(
-        cadence,
-        'cadence',
-        'Android periodic work requires at least 15 minutes',
-      );
+    if (cadence <= Duration.zero) {
+      throw ArgumentError.value(cadence, 'cadence', 'must be positive');
     }
     if (initialDelay < Duration.zero) {
       throw ArgumentError.value(
@@ -60,7 +56,15 @@ final class AndroidWorkmanagerSchedulerPlatform
         'must not be negative',
       );
     }
-    return _schedule(cadence: cadence, initialDelay: initialDelay);
+    // WorkManager silently raises anything shorter to its own 15 minute
+    // periodic floor, so raising it here keeps the registered cadence and the
+    // requested one the same value.
+    return _schedule(
+      cadence: cadence < androidMinimumPeriodicCadence
+          ? androidMinimumPeriodicCadence
+          : cadence,
+      initialDelay: initialDelay,
+    );
   }
 
   Future<void> _schedule({

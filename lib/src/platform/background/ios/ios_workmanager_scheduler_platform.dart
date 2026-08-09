@@ -49,12 +49,8 @@ final class IosWorkmanagerSchedulerPlatform
     required Duration cadence,
     required Duration initialDelay,
   }) async {
-    if (cadence < iosMinimumPeriodicCadence) {
-      throw ArgumentError.value(
-        cadence,
-        'cadence',
-        'iOS app refresh requires at least 15 minutes',
-      );
+    if (cadence <= Duration.zero) {
+      throw ArgumentError.value(cadence, 'cadence', 'must be positive');
     }
     if (initialDelay < Duration.zero) {
       throw ArgumentError.value(
@@ -64,12 +60,18 @@ final class IosWorkmanagerSchedulerPlatform
       );
     }
 
+    // iOS treats the interval as an earliest-begin hint and never refreshes
+    // faster than its own budget, so a shorter request is raised rather than
+    // rejected.
+    final frequency = cadence < iosMinimumPeriodicCadence
+        ? iosMinimumPeriodicCadence
+        : cadence;
     await initialize();
     await _gateway.registerPeriodicTask(
       WorkmanagerPeriodicTaskRequest(
         uniqueName: iosAssignmentRefreshTaskIdentifier,
         taskName: iosAssignmentRefreshTaskIdentifier,
-        frequency: cadence,
+        frequency: frequency,
         initialDelay: initialDelay,
         networkRequirement: WorkmanagerNetworkRequirement.none,
         existingPolicy: WorkmanagerPeriodicWorkPolicy.update,
