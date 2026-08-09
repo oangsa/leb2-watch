@@ -398,7 +398,7 @@ The first workflow's script is:
 | 2 | Initial cookie acquisition | `POST /api/v1/User/cookie`, cookie A |
 | 3 | Candidate A verification | `GET /api/v1/Semester`, cookie A |
 | 4 | Semester refresh | `GET /api/v1/Semester`, saved cookie A |
-| 5 | Initial dashboard sync | baseline `GET /api/v1/Activity/101/snapshot`, cookie A |
+| 5 | Initial dashboard sync | baseline `GET /api/v2/Activity/101/snapshot`, cookie A |
 | 6 | Reopened dashboard sync | gated baseline + activity 1002, cookie A |
 | 7 | Manual refresh | exact HTTP 401 `SESSION_EXPIRED` with bearer challenge |
 | 8 | Automatic credential sign-in | `POST /api/v1/User/login` |
@@ -682,10 +682,10 @@ See this compact's [validation evidence](#validation-evidence).
 - The current host-side unit/widget suite is invoked with
   `dart run tool/run_flutter_tests.dart`. Its deterministic sequential shards
   intentionally exclude `integration_test/`.
-- Current memory-safe full-suite evidence is 1,087/1,087
-  unit/widget/database/golden/static-platform tests across 132 files and 14
-  sequential process-reset shards. `integration_test/` is intentionally
-  executed by its separate device command.
+- Current memory-safe full-suite evidence covers 158 test files across 16/16
+  sequential process-reset shards with exit 0. A direct full-suite run passed
+  1,306/1,306 tests. `integration_test/` is intentionally executed by its
+  separate device command and passed 2/2 on Linux.
 - Historical Phase-16 evidence before automatic reauthentication and its race
   workflow landed was 1/1 integration and 859/859 host-side tests.
 

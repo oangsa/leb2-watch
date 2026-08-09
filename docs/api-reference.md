@@ -408,6 +408,7 @@ The route/header contract is:
 | `GET /api/v1/Semester` | v1 | Activated | Yes* | Yes* | Yes | No |
 | `GET /api/v1/Class/{id}` | v1 | Activated | Yes* | Yes* | Yes | No |
 | `GET /api/v1/Activity/...` | v1 | Activated | Yes* | Yes* | Yes | Yes |
+| `GET /api/v2/Activity/...` | v2 | Activated | Yes* | Yes* | Yes | Yes |
 
 `*` means the header is optional while the corresponding rollout enforcement flag is
 off and mandatory after enforcement is enabled.

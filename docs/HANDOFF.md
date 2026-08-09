@@ -718,21 +718,22 @@ Use sanitized fixtures and `example.invalid` for build validation.
 The protected snapshot request is:
 
 ```http
-GET /api/v1/Activity/{semesterId}/snapshot
+GET /api/v2/Activity/{semesterId}/snapshot
 access-key: <per-user-access-key>
 Authorization: Bearer <LEB2-session-cookie>
 X-LEB2-USER-ID: <positive-int32>
 ```
 
-The frontend uses the canonical `/api/v1` prefix. The cookie is opaque, not a JWT.
+The frontend uses `/api/v2` for Activity snapshots and `/api/v1` for other
+controllers. The cookie is opaque, not a JWT.
 
 Only exact HTTP 401 plus `SESSION_EXPIRED` expires a session. Timeouts, HTML,
 malformed JSON, `AUTHENTICATION_REQUIRED`, and other 401 responses do not.
 
-An activity `dueDate` without an explicit offset is GMT+7 Bangkok wall time;
-the client resolves those wall-clock components in the app zone before using
-the deadline as an instant. The timezone semantics of other unzoned activity
-timestamps remain unverified. `createdAt` is not verified as publication time.
+Activity `startDate`, `dueDate`, `createdAt`, `lastDueDateNotificationDate`, and
+`lastStatusChangeNotificationDate` are UTC instants from API v2. The client
+preserves those source strings and converts them to Bangkok wall time for display.
+`createdAt` is not verified as publication time.
 Deadline reminders treat `dueDateExceed == true` as an immediate backend expiry
 signal but do not trust `false`: the strict parser and trusted UTC clock also
 expire reminders at `now >= dueDate`. Android prefers exact-while-idle alarms
