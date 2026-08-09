@@ -70,7 +70,11 @@ Limitations:
 
 Android uses one unique WorkManager periodic request:
 
-- requested cadence is 15 minutes, Android's minimum for periodic work;
+- the requested cadence is chosen in Settings — 10, 15, 30, or 60 minutes
+  between 06:00 and 19:00 device-local time, and 60 minutes overnight — and is
+  raised to 15 minutes, Android's minimum for periodic work;
+- that cadence governs new-assignment discovery only; deadline reminders are
+  scheduled with the OS ahead of time from stored data and are unaffected;
 - connectivity is required;
 - the OS may delay or omit execution;
 - force-stop prevents background restart until the user opens the app;

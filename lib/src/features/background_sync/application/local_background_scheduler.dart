@@ -8,11 +8,20 @@ final class LocalBackgroundScheduler
         BackgroundScheduler,
         BackgroundScheduleReconciler,
         BackgroundMonitoringSettingsService {
-  LocalBackgroundScheduler(this._store, this._sessionStore, this._platform);
+  LocalBackgroundScheduler(
+    this._store,
+    this._sessionStore,
+    this._platform, {
+    DateTime Function()? localClock,
+  }) : _localClock = localClock ?? DateTime.now;
 
   final BackgroundScheduleStore _store;
   final SessionLifecycleStore _sessionStore;
   final BackgroundSchedulerPlatform _platform;
+
+  /// Device-local wall clock. The daytime window follows the user's own
+  /// timezone, not the fixed offset the app renders deadlines in.
+  final DateTime Function() _localClock;
 
   Future<void>? _initialization;
   Future<void> _operationTail = Future<void>.value();
@@ -111,26 +120,48 @@ final class LocalBackgroundScheduler
 
   @override
   Stream<BackgroundMonitoringSettings> watchSettings() {
-    return _store
-        .watchMonitoringEnabled()
-        .map((enabled) => BackgroundMonitoringSettings(enabled: enabled))
-        .handleError((Object _, StackTrace _) {
-          throw const BackgroundSchedulerException(
-            BackgroundScheduleUnavailableReason.localStorageFailed,
-          );
-        });
+    return _store.watchSettings().handleError((Object _, StackTrace _) {
+      throw const BackgroundSchedulerException(
+        BackgroundScheduleUnavailableReason.localStorageFailed,
+      );
+    });
   }
 
   @override
-  Future<BackgroundMonitoringUpdateResult> setMonitoringEnabled(
-    bool enabled,
+  Future<BackgroundMonitoringUpdateResult> setMonitoringEnabled(bool enabled) {
+    return _applyUpdate(
+      () => enabled ? schedulePeriodicSync() : cancelPeriodicSync(),
+    );
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) {
+    return _applyUpdate(() {
+      return _serialize(() async {
+        try {
+          await _store.setDaytimeCadence(cadence);
+        } on Object {
+          throw const BackgroundSchedulerException(
+            BackgroundScheduleUnavailableReason.localStorageFailed,
+          );
+        }
+        // Re-registering is what moves live platform work onto the new
+        // cadence; monitoring that is off or session-gated stays cancelled.
+        await _reconcilePlatform(
+          desired: await _readMonitoringEnabled(),
+          executionAllowed: true,
+        );
+      });
+    });
+  }
+
+  Future<BackgroundMonitoringUpdateResult> _applyUpdate(
+    Future<void> Function() mutate,
   ) async {
     try {
-      if (enabled) {
-        await schedulePeriodicSync();
-      } else {
-        await cancelPeriodicSync();
-      }
+      await mutate();
       return BackgroundMonitoringUpdateApplied(await getStatus());
     } on BackgroundSchedulerException catch (failure) {
       if (failure.reason ==
@@ -145,10 +176,14 @@ final class LocalBackgroundScheduler
 
   Future<void> _schedulePlatform() async {
     final jitterSeconds = await _readJitter();
+    final cadence = resolveBackgroundSyncCadence(
+      await _readDaytimeCadence(),
+      _localClock(),
+    );
     await initialize();
     try {
       await _platform.schedulePeriodicSync(
-        cadence: backgroundSyncCadence,
+        cadence: cadence,
         initialDelay: Duration(seconds: jitterSeconds),
       );
       _lastUnavailableReason = null;
@@ -206,6 +241,16 @@ final class LocalBackgroundScheduler
       return await _store.readMonitoringEnabled();
     } on Object {
       return null;
+    }
+  }
+
+  Future<BackgroundFetchCadence> _readDaytimeCadence() async {
+    try {
+      return await _store.readDaytimeCadence();
+    } on Object {
+      throw const BackgroundSchedulerException(
+        BackgroundScheduleUnavailableReason.localStorageFailed,
+      );
     }
   }
 

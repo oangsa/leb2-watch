@@ -124,7 +124,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +134,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 18 || to != 19) {
+        if (from < 1 || from > 19 || to != 20) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -204,6 +204,7 @@ class AppDatabase extends _$AppDatabase {
         if (from <= 16) {
           await _ensureSemesterNameColumn();
         }
+        await _ensureDaytimeCadenceColumn();
         await _ensureClockOffsetColumn();
         await _seedSingletons();
       },
@@ -239,6 +240,23 @@ class AppDatabase extends _$AppDatabase {
   /// Zero for existing rows is accurate, not merely safe — no build that
   /// shipped these schemas corrected the clock at all, so every alarm they
   /// handed the OS was placed uncorrected.
+  Future<void> _ensureDaytimeCadenceColumn() async {
+    final columns = await customSelect(
+      'PRAGMA table_info(background_schedule_settings)',
+    ).get();
+    final hasCadenceColumn = columns.any(
+      (column) => column.read<String>('name') == 'daytime_cadence_minutes',
+    );
+    if (hasCadenceColumn) {
+      return;
+    }
+    await customStatement(
+      'ALTER TABLE background_schedule_settings '
+      'ADD COLUMN daytime_cadence_minutes INTEGER NOT NULL DEFAULT 15 '
+      'CHECK (daytime_cadence_minutes IN (10, 15, 30, 60))',
+    );
+  }
+
   Future<void> _ensureClockOffsetColumn() async {
     final columns = await customSelect(
       'PRAGMA table_info(scheduled_reminders)',

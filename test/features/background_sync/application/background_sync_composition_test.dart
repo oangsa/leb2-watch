@@ -16,13 +16,29 @@ import 'package:leb2_watch/src/features/background_sync/domain/background_schedu
 void main() {
   test('task executor closes its owned composition after every run', () async {
     final sync = _SyncService();
-    final owned = _OwnedComposition(_runner(sync));
+    final reconciler = _Reconciler();
+    final owned = _OwnedComposition(_runner(sync), reconciler);
     final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
 
     final result = await executor.execute(reason: SyncReason.backgroundTask);
 
     expect(result, isA<BackgroundSyncSucceeded>());
     expect(sync.reasons, [SyncReason.backgroundTask]);
+    // The background run is the only chance to move the registration onto the
+    // other side of the daytime/night boundary.
+    expect(reconciler.executionAllowedValues, [true]);
+    expect(owned.closeCalls, 1);
+  });
+
+  test('reconciliation failure cannot fail the completed run', () async {
+    final reconciler = _Reconciler()..failure = StateError('PRIVATE_PATH');
+    final owned = _OwnedComposition(_runner(_SyncService()), reconciler);
+    final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
+
+    expect(
+      await executor.execute(reason: SyncReason.backgroundTask),
+      isA<BackgroundSyncSucceeded>(),
+    );
     expect(owned.closeCalls, 1);
   });
 
@@ -324,10 +340,17 @@ final class _CompositionFactory implements BackgroundSyncCompositionFactory {
 }
 
 final class _OwnedComposition implements BackgroundSyncOwnedComposition {
-  _OwnedComposition(this.runner);
+  _OwnedComposition(this.runner, [_Reconciler? reconciler])
+    : _reconciler = reconciler ?? _Reconciler();
 
   @override
   final BackgroundSyncRunner runner;
+
+  final _Reconciler _reconciler;
+
+  @override
+  Future<void> reconcileSchedule() =>
+      _reconciler.reconcilePeriodicSync(executionAllowed: true);
 
   int closeCalls = 0;
   final Completer<void> closed = Completer<void>();
@@ -343,10 +366,14 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
 
 final class _Reconciler implements BackgroundScheduleReconciler {
   final List<bool> executionAllowedValues = [];
+  Object? failure;
 
   @override
   Future<void> reconcilePeriodicSync({required bool executionAllowed}) async {
     executionAllowedValues.add(executionAllowed);
+    if (failure case final error?) {
+      throw error;
+    }
   }
 }
 

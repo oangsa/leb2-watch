@@ -13,6 +13,7 @@ void main() {
   late DriftSessionLifecycleStore sessionStore;
   late _BackgroundPlatform platform;
   late LocalBackgroundScheduler scheduler;
+  late DateTime now;
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
@@ -20,7 +21,13 @@ void main() {
     sessionStore = DriftSessionLifecycleStore(database);
     await sessionStore.markVerifiedActive(userId: 2001);
     platform = _BackgroundPlatform();
-    scheduler = LocalBackgroundScheduler(store, sessionStore, platform);
+    now = DateTime(2026, 8, 9, 12);
+    scheduler = LocalBackgroundScheduler(
+      store,
+      sessionStore,
+      platform,
+      localClock: () => now,
+    );
   });
 
   tearDown(() => database.close());
@@ -44,10 +51,51 @@ void main() {
       expect(platform.initialDelays, everyElement(const Duration(seconds: 17)));
       expect(
         await scheduler.watchSettings().first,
-        const BackgroundMonitoringSettings(enabled: true),
+        const BackgroundMonitoringSettings(
+          enabled: true,
+          daytimeCadence: defaultBackgroundFetchCadence,
+        ),
       );
     },
   );
+
+  test('night registers the hourly cadence regardless of the choice', () async {
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.tenMinutes);
+    now = DateTime(2026, 8, 9, 21);
+
+    await scheduler.setMonitoringEnabled(true);
+
+    expect(platform.cadences.last, nightBackgroundFetchCadence);
+  });
+
+  test('cadence change re-registers live platform work', () async {
+    await scheduler.setMonitoringEnabled(true);
+    expect(platform.cadences, [const Duration(minutes: 15)]);
+
+    final result = await scheduler.setDaytimeFetchCadence(
+      BackgroundFetchCadence.thirtyMinutes,
+    );
+
+    expect(result, isA<BackgroundMonitoringUpdateApplied>());
+    expect(platform.cadences.last, const Duration(minutes: 30));
+    expect(
+      await scheduler.watchSettings().first,
+      const BackgroundMonitoringSettings(
+        enabled: true,
+        daytimeCadence: BackgroundFetchCadence.thirtyMinutes,
+      ),
+    );
+  });
+
+  test('cadence saved while monitoring is off registers nothing', () async {
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.oneHour);
+
+    expect(platform.scheduleCalls, 0);
+    expect(
+      (await scheduler.watchSettings().first).daytimeCadence,
+      BackgroundFetchCadence.oneHour,
+    );
+  });
 
   test('failed cancellation keeps desired monitoring off', () async {
     await scheduler.setMonitoringEnabled(true);

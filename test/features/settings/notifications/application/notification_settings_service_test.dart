@@ -333,6 +333,7 @@ final class _Drain implements NewAssignmentNotificationDrain {
 
 final class _BackgroundSettings implements BackgroundMonitoringSettingsService {
   final List<bool> writes = [];
+  final List<BackgroundFetchCadence> cadenceWrites = [];
 
   @override
   Stream<BackgroundMonitoringSettings> watchSettings() =>
@@ -343,6 +344,16 @@ final class _BackgroundSettings implements BackgroundMonitoringSettingsService {
     bool enabled,
   ) async {
     writes.add(enabled);
+    return const BackgroundMonitoringUpdateApplied(
+      BackgroundScheduleInactive(),
+    );
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) async {
+    cadenceWrites.add(cadence);
     return const BackgroundMonitoringUpdateApplied(
       BackgroundScheduleInactive(),
     );
@@ -367,6 +378,11 @@ final class _DelayedBackgroundSettings
     _changes.add(BackgroundMonitoringSettings(enabled: enabled));
     return _result.future;
   }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) => _result.future;
 
   void complete(BackgroundMonitoringUpdateResult result) {
     _result.complete(result);

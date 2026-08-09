@@ -63,6 +63,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   NotificationSettingsSnapshot? _snapshot;
   final Map<_SettingControl, bool> _pendingSettings = {};
   final Set<_SettingControl> _pendingActions = {};
+  BackgroundFetchCadence? _pendingCadence;
   _SettingsFeedback? _feedback;
   NotificationPermissionStatus? _permissionStatus;
   ExactAlarmPermissionStatus? _exactAlarmPermissionStatus;
@@ -110,6 +111,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _pendingSettings.removeWhere(
           (control, expected) => _matches(snapshot, control, expected),
         );
+        if (_pendingCadence == snapshot.backgroundMonitoring.daytimeCadence) {
+          _pendingCadence = null;
+        }
         setState(() {
           _snapshot = snapshot;
           _loading = false;
@@ -208,6 +212,42 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
           'Not saved. Previous setting still in use.',
         );
     }
+  }
+
+  Future<void> _setDaytimeCadence(BackgroundFetchCadence cadence) async {
+    if (_pendingCadence != null) {
+      return;
+    }
+    setState(() {
+      _pendingCadence = cadence;
+      _feedback = null;
+    });
+    final result = await widget.service.setBackgroundDaytimeFetchCadence(
+      cadence,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      switch (result) {
+        case BackgroundMonitoringUpdateApplied(:final status):
+          if (_snapshot?.backgroundMonitoring.daytimeCadence == cadence) {
+            _pendingCadence = null;
+          }
+          _feedback = _SettingsFeedback(
+            status is BackgroundScheduleUnavailable
+                ? 'Saved, but the system did not update its schedule.'
+                : 'Saved.',
+            isError: false,
+          );
+        case BackgroundMonitoringUpdateFailure():
+          _pendingCadence = null;
+          _feedback = const _SettingsFeedback(
+            'Not saved. Previous setting still in use.',
+            isError: true,
+          );
+      }
+    });
   }
 
   Future<void> _setNewAssignments(bool enabled) async {
@@ -416,6 +456,28 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     };
   }
 
+  String _cadenceLabel(BackgroundFetchCadence cadence) {
+    return switch (cadence) {
+      BackgroundFetchCadence.tenMinutes => '10 min',
+      BackgroundFetchCadence.fifteenMinutes => '15 min',
+      BackgroundFetchCadence.thirtyMinutes => '30 min',
+      BackgroundFetchCadence.oneHour => '1 hour',
+    };
+  }
+
+  /// Deadline reminders are deliberately left out of this copy: they are
+  /// scheduled with the system ahead of time from saved data, so no cadence
+  /// here can delay them.
+  String _cadenceMessage(NotificationSettingsSnapshot snapshot) {
+    final cadence =
+        _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
+    if (snapshot.platform == NotificationSettingsPlatform.android &&
+        cadence == BackgroundFetchCadence.tenMinutes) {
+      return 'Android allows 15 minutes at least. Hourly overnight.';
+    }
+    return 'Between 06:00 and 19:00. Hourly overnight.';
+  }
+
   bool _exactAlarmPermissionSectionVisible(
     NotificationSettingsSnapshot snapshot,
   ) {
@@ -502,6 +564,33 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                         )
                         ? null
                         : _setBackgroundMonitoring,
+                  ),
+                  ListTile(
+                    key: const Key('background-cadence-tile'),
+                    title: const Text('Check for new assignments'),
+                    subtitle: Text(_cadenceMessage(snapshot)),
+                    trailing: DropdownButton<BackgroundFetchCadence>(
+                      key: const Key('background-cadence-dropdown'),
+                      value:
+                          _pendingCadence ??
+                          snapshot.backgroundMonitoring.daytimeCadence,
+                      onChanged:
+                          _pendingCadence != null ||
+                              !snapshot.backgroundMonitoring.enabled
+                          ? null
+                          : (cadence) {
+                              if (cadence != null) {
+                                unawaited(_setDaytimeCadence(cadence));
+                              }
+                            },
+                      items: [
+                        for (final cadence in BackgroundFetchCadence.values)
+                          DropdownMenuItem(
+                            value: cadence,
+                            child: Text(_cadenceLabel(cadence)),
+                          ),
+                      ],
+                    ),
                   ),
                   // Desktop already exposes this as the start-at-login switch
                   // below, so the tile would be a second control for one

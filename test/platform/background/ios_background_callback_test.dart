@@ -547,6 +547,9 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
   @override
   final BackgroundSyncRunner runner;
 
+  @override
+  Future<void> reconcileSchedule() async {}
+
   int closeCalls = 0;
   final closed = Completer<void>();
 

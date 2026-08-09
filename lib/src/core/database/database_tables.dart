@@ -680,6 +680,8 @@ class BackgroundScheduleSettings extends Table {
   BoolColumn get monitoringEnabled =>
       boolean().withDefault(const Constant(false))();
   IntColumn get installJitterSeconds => integer().nullable()();
+  IntColumn get daytimeCadenceMinutes =>
+      integer().withDefault(const Constant(15))();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
@@ -689,6 +691,7 @@ class BackgroundScheduleSettings extends Table {
     'CHECK (singleton_id = 1)',
     'CHECK (install_jitter_seconds IS NULL OR '
         '(install_jitter_seconds >= 0 AND install_jitter_seconds <= 300))',
+    'CHECK (daytime_cadence_minutes IN (10, 15, 30, 60))',
   ];
 }
 

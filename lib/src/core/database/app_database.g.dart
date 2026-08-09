@@ -9794,11 +9794,23 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _daytimeCadenceMinutesMeta =
+      const VerificationMeta('daytimeCadenceMinutes');
+  @override
+  late final GeneratedColumn<int> daytimeCadenceMinutes = GeneratedColumn<int>(
+    'daytime_cadence_minutes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(15),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
     monitoringEnabled,
     installJitterSeconds,
+    daytimeCadenceMinutes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9839,6 +9851,15 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         ),
       );
     }
+    if (data.containsKey('daytime_cadence_minutes')) {
+      context.handle(
+        _daytimeCadenceMinutesMeta,
+        daytimeCadenceMinutes.isAcceptableOrUnknown(
+          data['daytime_cadence_minutes']!,
+          _daytimeCadenceMinutesMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9863,6 +9884,10 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         DriftSqlType.int,
         data['${effectivePrefix}install_jitter_seconds'],
       ),
+      daytimeCadenceMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}daytime_cadence_minutes'],
+      )!,
     );
   }
 
@@ -9877,10 +9902,12 @@ class BackgroundScheduleSetting extends DataClass
   final int singletonId;
   final bool monitoringEnabled;
   final int? installJitterSeconds;
+  final int daytimeCadenceMinutes;
   const BackgroundScheduleSetting({
     required this.singletonId,
     required this.monitoringEnabled,
     this.installJitterSeconds,
+    required this.daytimeCadenceMinutes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9890,6 +9917,7 @@ class BackgroundScheduleSetting extends DataClass
     if (!nullToAbsent || installJitterSeconds != null) {
       map['install_jitter_seconds'] = Variable<int>(installJitterSeconds);
     }
+    map['daytime_cadence_minutes'] = Variable<int>(daytimeCadenceMinutes);
     return map;
   }
 
@@ -9900,6 +9928,7 @@ class BackgroundScheduleSetting extends DataClass
       installJitterSeconds: installJitterSeconds == null && nullToAbsent
           ? const Value.absent()
           : Value(installJitterSeconds),
+      daytimeCadenceMinutes: Value(daytimeCadenceMinutes),
     );
   }
 
@@ -9914,6 +9943,9 @@ class BackgroundScheduleSetting extends DataClass
       installJitterSeconds: serializer.fromJson<int?>(
         json['installJitterSeconds'],
       ),
+      daytimeCadenceMinutes: serializer.fromJson<int>(
+        json['daytimeCadenceMinutes'],
+      ),
     );
   }
   @override
@@ -9923,6 +9955,7 @@ class BackgroundScheduleSetting extends DataClass
       'singletonId': serializer.toJson<int>(singletonId),
       'monitoringEnabled': serializer.toJson<bool>(monitoringEnabled),
       'installJitterSeconds': serializer.toJson<int?>(installJitterSeconds),
+      'daytimeCadenceMinutes': serializer.toJson<int>(daytimeCadenceMinutes),
     };
   }
 
@@ -9930,12 +9963,14 @@ class BackgroundScheduleSetting extends DataClass
     int? singletonId,
     bool? monitoringEnabled,
     Value<int?> installJitterSeconds = const Value.absent(),
+    int? daytimeCadenceMinutes,
   }) => BackgroundScheduleSetting(
     singletonId: singletonId ?? this.singletonId,
     monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
     installJitterSeconds: installJitterSeconds.present
         ? installJitterSeconds.value
         : this.installJitterSeconds,
+    daytimeCadenceMinutes: daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
   );
   BackgroundScheduleSetting copyWithCompanion(
     BackgroundScheduleSettingsCompanion data,
@@ -9950,6 +9985,9 @@ class BackgroundScheduleSetting extends DataClass
       installJitterSeconds: data.installJitterSeconds.present
           ? data.installJitterSeconds.value
           : this.installJitterSeconds,
+      daytimeCadenceMinutes: data.daytimeCadenceMinutes.present
+          ? data.daytimeCadenceMinutes.value
+          : this.daytimeCadenceMinutes,
     );
   }
 
@@ -9958,21 +9996,27 @@ class BackgroundScheduleSetting extends DataClass
     return (StringBuffer('BackgroundScheduleSetting(')
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
-          ..write('installJitterSeconds: $installJitterSeconds')
+          ..write('installJitterSeconds: $installJitterSeconds, ')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(singletonId, monitoringEnabled, installJitterSeconds);
+  int get hashCode => Object.hash(
+    singletonId,
+    monitoringEnabled,
+    installJitterSeconds,
+    daytimeCadenceMinutes,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is BackgroundScheduleSetting &&
           other.singletonId == this.singletonId &&
           other.monitoringEnabled == this.monitoringEnabled &&
-          other.installJitterSeconds == this.installJitterSeconds);
+          other.installJitterSeconds == this.installJitterSeconds &&
+          other.daytimeCadenceMinutes == this.daytimeCadenceMinutes);
 }
 
 class BackgroundScheduleSettingsCompanion
@@ -9980,26 +10024,32 @@ class BackgroundScheduleSettingsCompanion
   final Value<int> singletonId;
   final Value<bool> monitoringEnabled;
   final Value<int?> installJitterSeconds;
+  final Value<int> daytimeCadenceMinutes;
   const BackgroundScheduleSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
+    this.daytimeCadenceMinutes = const Value.absent(),
   });
   BackgroundScheduleSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
+    this.daytimeCadenceMinutes = const Value.absent(),
   });
   static Insertable<BackgroundScheduleSetting> custom({
     Expression<int>? singletonId,
     Expression<bool>? monitoringEnabled,
     Expression<int>? installJitterSeconds,
+    Expression<int>? daytimeCadenceMinutes,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
       if (monitoringEnabled != null) 'monitoring_enabled': monitoringEnabled,
       if (installJitterSeconds != null)
         'install_jitter_seconds': installJitterSeconds,
+      if (daytimeCadenceMinutes != null)
+        'daytime_cadence_minutes': daytimeCadenceMinutes,
     });
   }
 
@@ -10007,11 +10057,14 @@ class BackgroundScheduleSettingsCompanion
     Value<int>? singletonId,
     Value<bool>? monitoringEnabled,
     Value<int?>? installJitterSeconds,
+    Value<int>? daytimeCadenceMinutes,
   }) {
     return BackgroundScheduleSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
       monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
       installJitterSeconds: installJitterSeconds ?? this.installJitterSeconds,
+      daytimeCadenceMinutes:
+          daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
     );
   }
 
@@ -10027,6 +10080,11 @@ class BackgroundScheduleSettingsCompanion
     if (installJitterSeconds.present) {
       map['install_jitter_seconds'] = Variable<int>(installJitterSeconds.value);
     }
+    if (daytimeCadenceMinutes.present) {
+      map['daytime_cadence_minutes'] = Variable<int>(
+        daytimeCadenceMinutes.value,
+      );
+    }
     return map;
   }
 
@@ -10035,7 +10093,8 @@ class BackgroundScheduleSettingsCompanion
     return (StringBuffer('BackgroundScheduleSettingsCompanion(')
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
-          ..write('installJitterSeconds: $installJitterSeconds')
+          ..write('installJitterSeconds: $installJitterSeconds, ')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
           ..write(')'))
         .toString();
   }
@@ -16597,12 +16656,14 @@ typedef $$BackgroundScheduleSettingsTableCreateCompanionBuilder =
       Value<int> singletonId,
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
+      Value<int> daytimeCadenceMinutes,
     });
 typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
     BackgroundScheduleSettingsCompanion Function({
       Value<int> singletonId,
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
+      Value<int> daytimeCadenceMinutes,
     });
 
 class $$BackgroundScheduleSettingsTableFilterComposer
@@ -16626,6 +16687,11 @@ class $$BackgroundScheduleSettingsTableFilterComposer
 
   ColumnFilters<int> get installJitterSeconds => $composableBuilder(
     column: $table.installJitterSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get daytimeCadenceMinutes => $composableBuilder(
+    column: $table.daytimeCadenceMinutes,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16653,6 +16719,11 @@ class $$BackgroundScheduleSettingsTableOrderingComposer
     column: $table.installJitterSeconds,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get daytimeCadenceMinutes => $composableBuilder(
+    column: $table.daytimeCadenceMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BackgroundScheduleSettingsTableAnnotationComposer
@@ -16676,6 +16747,11 @@ class $$BackgroundScheduleSettingsTableAnnotationComposer
 
   GeneratedColumn<int> get installJitterSeconds => $composableBuilder(
     column: $table.installJitterSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get daytimeCadenceMinutes => $composableBuilder(
+    column: $table.daytimeCadenceMinutes,
     builder: (column) => column,
   );
 }
@@ -16729,20 +16805,24 @@ class $$BackgroundScheduleSettingsTableTableManager
                 Value<int> singletonId = const Value.absent(),
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
+                Value<int> daytimeCadenceMinutes = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
+                daytimeCadenceMinutes: daytimeCadenceMinutes,
               ),
           createCompanionCallback:
               ({
                 Value<int> singletonId = const Value.absent(),
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
+                Value<int> daytimeCadenceMinutes = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion.insert(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
+                daytimeCadenceMinutes: daytimeCadenceMinutes,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

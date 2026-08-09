@@ -18,6 +18,10 @@ abstract interface class NotificationSettingsService {
     bool enabled,
   );
 
+  Future<BackgroundMonitoringUpdateResult> setBackgroundDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  );
+
   Future<NewAssignmentNotificationPreferenceUpdateResult>
   setNewAssignmentNotificationsEnabled(bool enabled);
 
@@ -245,6 +249,17 @@ final class LocalNotificationSettingsService
     bool enabled,
   ) async {
     final result = await _backgroundSettings.setMonitoringEnabled(enabled);
+    if (result case BackgroundMonitoringUpdateApplied(:final status)) {
+      _publishScheduleStatus(status);
+    }
+    return result;
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setBackgroundDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) async {
+    final result = await _backgroundSettings.setDaytimeFetchCadence(cadence);
     if (result case BackgroundMonitoringUpdateApplied(:final status)) {
       _publishScheduleStatus(status);
     }

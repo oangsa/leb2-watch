@@ -49,7 +49,7 @@ void main() {
   test(
     'fresh v16 schema exposes bounded event-version metadata and indices',
     () async {
-      expect(database.schemaVersion, 19);
+      expect(database.schemaVersion, 20);
       final columns = await database
           .customSelect(
             "SELECT name FROM pragma_table_info("

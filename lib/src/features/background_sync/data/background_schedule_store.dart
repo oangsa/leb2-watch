@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../domain/background_scheduler.dart';
 
 const maximumBackgroundInstallJitterSeconds = 300;
 
@@ -10,6 +11,7 @@ enum BackgroundScheduleStoreOperation {
   read,
   watch,
   writeMonitoring,
+  writeCadence,
   createJitter,
 }
 
@@ -27,9 +29,13 @@ final class BackgroundScheduleStoreException implements Exception {
 abstract interface class BackgroundScheduleStore {
   Future<bool> readMonitoringEnabled();
 
-  Stream<bool> watchMonitoringEnabled();
+  Future<BackgroundFetchCadence> readDaytimeCadence();
+
+  Stream<BackgroundMonitoringSettings> watchSettings();
 
   Future<void> setMonitoringEnabled(bool enabled);
+
+  Future<void> setDaytimeCadence(BackgroundFetchCadence cadence);
 
   Future<int> readOrCreateInstallJitterSeconds();
 }
@@ -52,13 +58,24 @@ final class DriftBackgroundScheduleStore implements BackgroundScheduleStore {
   }
 
   @override
-  Stream<bool> watchMonitoringEnabled() async* {
+  Future<BackgroundFetchCadence> readDaytimeCadence() {
+    return _run(
+      BackgroundScheduleStoreOperation.read,
+      () async => _cadenceOf(await _readSettings()),
+    );
+  }
+
+  @override
+  Stream<BackgroundMonitoringSettings> watchSettings() async* {
     try {
       await for (final row
           in _database
               .select(_database.backgroundScheduleSettings)
               .watchSingle()) {
-        yield row.monitoringEnabled;
+        yield BackgroundMonitoringSettings(
+          enabled: row.monitoringEnabled,
+          daytimeCadence: _cadenceOf(row),
+        );
       }
     } on Object {
       throw const BackgroundScheduleStoreException(
@@ -76,6 +93,23 @@ final class DriftBackgroundScheduleStore implements BackgroundScheduleStore {
           )..where((row) => row.singletonId.equals(1))).write(
             BackgroundScheduleSettingsCompanion(
               monitoringEnabled: Value(enabled),
+            ),
+          );
+      if (updated != 1) {
+        throw StateError('Background schedule settings are unavailable.');
+      }
+    });
+  }
+
+  @override
+  Future<void> setDaytimeCadence(BackgroundFetchCadence cadence) {
+    return _run(BackgroundScheduleStoreOperation.writeCadence, () async {
+      final updated =
+          await (_database.update(
+            _database.backgroundScheduleSettings,
+          )..where((row) => row.singletonId.equals(1))).write(
+            BackgroundScheduleSettingsCompanion(
+              daytimeCadenceMinutes: Value(cadence.minutes),
             ),
           );
       if (updated != 1) {
@@ -113,6 +147,10 @@ final class DriftBackgroundScheduleStore implements BackgroundScheduleStore {
   Future<BackgroundScheduleSetting> _readSettings() {
     return _database.select(_database.backgroundScheduleSettings).getSingle();
   }
+
+  BackgroundFetchCadence _cadenceOf(BackgroundScheduleSetting row) =>
+      BackgroundFetchCadence.fromMinutes(row.daytimeCadenceMinutes) ??
+      defaultBackgroundFetchCadence;
 
   Future<T> _run<T>(
     BackgroundScheduleStoreOperation operation,
