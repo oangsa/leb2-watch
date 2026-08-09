@@ -394,6 +394,75 @@ void main() {
     expect(platform.permissionCalls, 0);
   });
 
+  test('the update notice replaces itself and carries no payload', () async {
+    final platform = _FakeNotificationsPlatform(
+      NotificationRuntimePlatform.android,
+    );
+    final service = serviceFor(platform);
+    await service.initialize();
+
+    await service.showAppUpdateAvailable(
+      version: '0.8.0',
+      selfUpdateUnavailable: false,
+    );
+    await service.showAppUpdateAvailable(
+      version: '0.9.0',
+      selfUpdateUnavailable: true,
+    );
+
+    expect(
+      platform.shown.map((notification) => notification.id),
+      everyElement(LocalNotificationIdFactory.appUpdateNotificationId),
+    );
+    expect(
+      platform.shown.first,
+      isA<PlatformNotification>()
+          .having(
+            (notification) => notification.kind,
+            'kind',
+            PlatformNotificationKind.appUpdate,
+          )
+          .having(
+            (notification) => notification.title,
+            'title',
+            'LEB2 Watch 0.8.0 is available',
+          )
+          .having(
+            (notification) => notification.body,
+            'body',
+            'Open the app to download it.',
+          )
+          .having((notification) => notification.payload, 'payload', isNull),
+    );
+    expect(
+      platform.shown.last.body,
+      'Update from your software centre, or run flatpak update.',
+    );
+  });
+
+  test('the update notice rejects unsafe release copy', () async {
+    final platform = _FakeNotificationsPlatform(
+      NotificationRuntimePlatform.android,
+    );
+    final service = serviceFor(platform);
+    await service.initialize();
+
+    await expectLater(
+      service.showAppUpdateAvailable(
+        version: '0.8.0‮',
+        selfUpdateUnavailable: false,
+      ),
+      throwsA(
+        isA<LocalNotificationFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          LocalNotificationFailureKind.invalidRequest,
+        ),
+      ),
+    );
+    expect(platform.shown, isEmpty);
+  });
+
   test('test notification uses fixed safe copy and no payload', () async {
     final platform = _FakeNotificationsPlatform(
       NotificationRuntimePlatform.android,

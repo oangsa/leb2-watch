@@ -7,6 +7,7 @@ import '../domain/local_notification_service.dart';
 final class QuiescenceAwareLocalNotificationService
     implements
         LocalNotificationService,
+        AppUpdateNotificationControl,
         ExactAlarmPermissionControl,
         LocalNotificationInitializationControl,
         LocalNotificationDeletionControl {
@@ -64,6 +65,27 @@ final class QuiescenceAwareLocalNotificationService
   @override
   Future<void> showTestNotification() {
     return _withActivityLease(_delegate.showTestNotification);
+  }
+
+  @override
+  Future<void> showAppUpdateAvailable({
+    required String version,
+    required bool selfUpdateUnavailable,
+  }) {
+    final delegate = _delegate;
+    if (delegate is! AppUpdateNotificationControl) {
+      return Future<void>.error(
+        const LocalNotificationFailure(
+          LocalNotificationFailureKind.unsupported,
+        ),
+      );
+    }
+    return _withActivityLease(
+      () => (delegate as AppUpdateNotificationControl).showAppUpdateAvailable(
+        version: version,
+        selfUpdateUnavailable: selfUpdateUnavailable,
+      ),
+    );
   }
 
   @override

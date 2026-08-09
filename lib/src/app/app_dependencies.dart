@@ -14,6 +14,9 @@ import '../core/security/credential_store.dart';
 import '../core/security/flutter_secure_credential_store.dart';
 import '../core/session/session_lifecycle.dart';
 import '../core/time/clock_skew.dart';
+import '../features/app_update/app_update_banner.dart';
+import '../features/app_update/app_update_notification_store.dart';
+import '../features/app_update/app_update_notifier.dart';
 import '../features/assignments/sync/assignment_sync_service.dart';
 import '../features/assignments/sync/local_assignment_sync_service.dart';
 import '../features/assignments/sync/quiescence_aware_assignment_sync_service.dart';
@@ -311,6 +314,35 @@ final backendCompatibilityCoordinatorProvider =
         clientVersion: ref.watch(clientVersionProvider),
       );
     });
+
+final appUpdateNotificationStoreProvider =
+    FutureProvider<AppUpdateNotificationStore>((ref) async {
+      return DriftAppUpdateNotificationStore(
+        await ref.watch(appDatabaseProvider.future),
+      );
+    });
+
+final appUpdateNotifierProvider = FutureProvider<AppUpdateNotifier>((
+  ref,
+) async {
+  final notifications = ref.watch(localNotificationServiceProvider);
+  BackendCompatibilityClient? client;
+  try {
+    client = ref.watch(backendCompatibilityClientProvider);
+  } on Object {
+    // Test and recovery shells may omit network configuration.
+  }
+  return AppUpdateNotifier(
+    store: await ref.watch(appUpdateNotificationStoreProvider.future),
+    notifications: notifications is AppUpdateNotificationControl
+        ? notifications as AppUpdateNotificationControl
+        : null,
+    channel: ref.watch(appUpdateChannelProvider),
+    client: client,
+    clientVersion: ref.watch(clientVersionProvider),
+    nowUtc: ref.watch(trustedClockProvider).nowUtc,
+  );
+});
 
 final sessionIdentityStoreProvider = FutureProvider<SessionIdentityStore>((
   ref,

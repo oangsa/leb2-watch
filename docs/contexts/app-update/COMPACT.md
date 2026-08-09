@@ -16,6 +16,8 @@ installing anything on their behalf.
   already computes at launch.
 - Per-platform channel resolution.
 - A dismissible global banner that opens the published download URL.
+- A local notification announcing the release once per version, posted from
+  launch and from background runs.
 
 ## Non-scope
 
@@ -48,6 +50,17 @@ instead. A failed launch rewrites the banner message instead of throwing.
 The session-expired banner takes priority over the update banner because the
 shell renders one global banner.
 
+Independently of the banner, a notification announces the release:
+
+- Posted at most once per `latestClientVersion` per install, from app launch
+  and from background sync runs, so it arrives while the app is closed.
+- On the `flatpak` channel the body says to update from the software centre;
+  otherwise it says to open the app to download it. The notification has no
+  payload, so tapping it only opens the app.
+- Background runs read `/meta` at most once per `appUpdateCheckInterval`
+  (24 hours), because `latestClientVersion` is deploy-time configuration.
+- `unmanaged` channels post nothing, matching the banner.
+
 ## Architecture
 
 - `appUpdateBanner(...)` returns the banner widget or `null`, so the shell
@@ -63,9 +76,25 @@ shell renders one global banner.
 - `_SessionAwareShell` subscribes to the compatibility controller and the
   dismissal notifier through one `Listenable.merge`.
 
+The notification is delivered through `AppUpdateNotificationControl`, an
+optional capability interface checked with `is` rather than a method on
+`LocalNotificationService`: the notice carries no assignment owner, no
+schedule, and one fixed replaceable ID
+(`localNotificationAppUpdateId`), like the test notification. Announced
+versions and the last metadata check live on the `app_settings` singleton
+(`notified_update_version`, `update_checked_at_utc`), which is created lazily,
+so the store upserts instead of assuming a row.
+
+Recording happens only after the platform accepts the notification, so a
+failed write costs a repeated notice rather than a missed one.
+
 ## Important files
 
 - `lib/src/features/app_update/app_update_banner.dart`
+- `lib/src/features/app_update/app_update_notifier.dart`
+- `lib/src/features/app_update/app_update_notification_store.dart`
+- `lib/src/features/background_sync/application/background_sync_task_executor.dart`
+  (`BackgroundSyncOwnedComposition.checkForAppUpdate`)
 - `lib/src/core/network/backend_compatibility.dart`
   (`compatibleUpdateAvailable`, `BackendApiMetadata`)
 - `lib/src/app/design_system/widgets/app_status_banner.dart`
@@ -101,6 +130,16 @@ the null cases (dismissed, unmanaged, current, update-required, unavailable
 metadata), download-channel actions and dismissal callback, and the Flatpak
 message.
 
+`test/features/app_update/app_update_notifier_test.dart`: one notice per
+release, a later release announcing again, silence for current versions and
+unmanaged channels, the Flatpak wording, no recording after a failed
+notification, the 24-hour background throttle, and silence on metadata
+failure.
+
+`test/features/app_update/app_update_notification_store_test.dart` and
+`test/core/database/app_update_notification_migration_test.dart`: the lazily
+created settings row and the added columns.
+
 ## Known limitations
 
 - `latestClientVersion` is backend deploy-time configuration, not a release
@@ -112,6 +151,12 @@ message.
 - A Flatpak remote can lag the published version, so the banner may appear
   before `flatpak update` offers the new version.
 - Dismissal is not persisted across launches.
+- The background notice only arrives while background monitoring is running,
+  and no earlier than the next background run after the operator bumps
+  `latestClientVersion`; with the 24-hour throttle the worst case is roughly a
+  day behind the deploy.
+- The notification cannot open the download page directly: it carries no
+  payload, so tapping it opens the app and the banner's action.
 
 ## Related contexts
 

@@ -28,6 +28,18 @@ abstract interface class LocalNotificationService {
   void dispose();
 }
 
+/// Posting the "a newer release exists" notice.
+///
+/// Kept off [LocalNotificationService] because it carries no assignment owner
+/// and no scheduling: it is a single replaceable notification, like the test
+/// one.
+abstract interface class AppUpdateNotificationControl {
+  Future<void> showAppUpdateAvailable({
+    required String version,
+    required bool selfUpdateUnavailable,
+  });
+}
+
 abstract interface class ExactAlarmPermissionControl {
   Future<ExactAlarmPermissionStatus> readExactAlarmPermission();
 

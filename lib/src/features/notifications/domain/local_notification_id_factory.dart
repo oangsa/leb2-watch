@@ -8,6 +8,7 @@ final class LocalNotificationIdFactory {
   const LocalNotificationIdFactory();
 
   static const int testNotificationId = localNotificationTestId;
+  static const int appUpdateNotificationId = localNotificationAppUpdateId;
 
   String canonicalOwnerKey(NotificationOwner owner) {
     final assignment = owner.assignment;
@@ -45,7 +46,9 @@ final class LocalNotificationIdFactory {
       final word =
           ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) &
           0x7fffffff;
-      if (word == 0 || word == testNotificationId) {
+      if (word == 0 ||
+          word == testNotificationId ||
+          word == appUpdateNotificationId) {
         continue;
       }
       yield word;

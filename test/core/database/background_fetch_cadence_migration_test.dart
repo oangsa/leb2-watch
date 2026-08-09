@@ -25,7 +25,7 @@ void main() {
     final database = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 20);
+    expect(database.schemaVersion, 21);
     final settings = await database
         .select(database.backgroundScheduleSettings)
         .getSingle();

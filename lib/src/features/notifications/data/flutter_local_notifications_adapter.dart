@@ -97,6 +97,7 @@ final class FlutterLocalNotificationsAdapter
 
   static const String assignmentUpdatesChannelId = 'leb2_assignment_updates_v1';
   static const String deadlineRemindersChannelId = 'leb2_deadline_reminders_v1';
+  static const String appUpdatesChannelId = 'leb2_app_updates_v1';
 
   final FlutterLocalNotificationsPlugin _plugin;
   late final NotificationRuntimePlatform _runtimePlatform;
@@ -298,17 +299,23 @@ final class FlutterLocalNotificationsAdapter
   }
 
   NotificationDetails _notificationDetails(PlatformNotification notification) {
-    final isDeadline =
-        notification.kind == PlatformNotificationKind.deadlineReminder;
-    final channelId = isDeadline
-        ? deadlineRemindersChannelId
-        : assignmentUpdatesChannelId;
-    final channelName = isDeadline
-        ? 'Deadline reminders'
-        : 'Assignment updates';
-    final channelDescription = isDeadline
-        ? 'Reminders before saved assignment deadlines.'
-        : 'New assignment and notification test updates.';
+    final channelId = switch (notification.kind) {
+      PlatformNotificationKind.deadlineReminder => deadlineRemindersChannelId,
+      PlatformNotificationKind.appUpdate => appUpdatesChannelId,
+      _ => assignmentUpdatesChannelId,
+    };
+    final channelName = switch (notification.kind) {
+      PlatformNotificationKind.deadlineReminder => 'Deadline reminders',
+      PlatformNotificationKind.appUpdate => 'App updates',
+      _ => 'Assignment updates',
+    };
+    final channelDescription = switch (notification.kind) {
+      PlatformNotificationKind.deadlineReminder =>
+        'Reminders before saved assignment deadlines.',
+      PlatformNotificationKind.appUpdate =>
+        'Notices that a newer release of this app exists.',
+      _ => 'New assignment and notification test updates.',
+    };
     final groupKey = notification.groupKey;
     final payload = notification.payload;
 

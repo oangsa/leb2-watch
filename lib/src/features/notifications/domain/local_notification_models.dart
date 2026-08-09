@@ -2,6 +2,10 @@ import '../../assignments/detail/domain/assignment_detail_key.dart';
 
 const int localNotificationTestId = 2147483646;
 
+/// Reserved for the "a newer release exists" notification, which has no
+/// assignment owner and is replaced in place when a later release appears.
+const int localNotificationAppUpdateId = 2147483645;
+
 enum NotificationPermissionStatus { granted, denied, notRequired, unavailable }
 
 enum NotificationDeliveryPermissionStatus {
@@ -97,7 +101,10 @@ final class NotificationOwner {
 
 final class LocalNotificationId {
   LocalNotificationId({required this.value, required this.owner}) {
-    if (value <= 0 || value > 2147483647 || value == localNotificationTestId) {
+    if (value <= 0 ||
+        value > 2147483647 ||
+        value == localNotificationTestId ||
+        value == localNotificationAppUpdateId) {
       throw ArgumentError('Local notification ID is invalid.');
     }
   }
