@@ -65,6 +65,14 @@ final class _ProviderBackgroundSyncOwnedComposition
   bool _closed = false;
 
   @override
+  Future<void> reconcileSchedule() async {
+    final reconciler = await _container.read(
+      backgroundScheduleReconcilerProvider.future,
+    );
+    await reconciler.reconcilePeriodicSync(executionAllowed: true);
+  }
+
+  @override
   Future<void> close() async {
     if (_closed) {
       return;

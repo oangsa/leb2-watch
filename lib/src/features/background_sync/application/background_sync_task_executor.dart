@@ -8,6 +8,14 @@ const backgroundSyncQuiescenceDrainBudget = Duration(seconds: 1);
 abstract interface class BackgroundSyncOwnedComposition {
   BackgroundSyncRunner get runner;
 
+  /// Re-registers platform work after the run.
+  ///
+  /// The daytime/night cadence can only change while the app is closed, so the
+  /// background task itself is the one place that can move the schedule across
+  /// a window boundary. Resolving the scheduler is deferred to this call so a
+  /// scheduler failure can never stop the synchronization from running.
+  Future<void> reconcileSchedule();
+
   Future<void> close();
 }
 
@@ -49,6 +57,9 @@ final class BackgroundSyncTaskExecutor {
           whenOwnershipQuiescent,
         _ => null,
       };
+      if (quiescence == null) {
+        await _reconcileScheduleQuietly(composition);
+      }
       if (quiescence != null &&
           !await _drainQuiescence(quiescence, budget: _quiescenceDrainBudget)) {
         closeBeforeReturning = false;
@@ -101,6 +112,18 @@ Future<void> _closeAfterQuiescence(
     // A terminal error still means the operation no longer uses its owners.
   }
   await _closeQuietly(composition);
+}
+
+Future<void> _reconcileScheduleQuietly(
+  BackgroundSyncOwnedComposition composition,
+) async {
+  try {
+    await composition.reconcileSchedule();
+  } on Object {
+    // ponytail: the existing registration keeps running at its previous
+    // cadence until a later run repairs it. A durable retry only matters if
+    // reconciliation starts failing repeatedly.
+  }
 }
 
 Future<void> _closeQuietly(BackgroundSyncOwnedComposition composition) async {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/app_dependencies.dart';
+import '../../../features/assignments/sync/assignment_sync_service.dart';
 import '../../../features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
 import '../../background/desktop/desktop_background_scheduler_platform.dart';
 import '../autostart/desktop_autostart_factory.dart';
@@ -166,7 +167,23 @@ final class _DesktopRuntimeHostState extends ConsumerState<DesktopRuntimeHost> {
       if (!mounted) {
         return;
       }
-      desktopBinding.bindSyncInvoker(runner.run);
+      final reconciler = await ref.read(
+        backgroundScheduleReconcilerProvider.future,
+      );
+      if (!mounted) {
+        return;
+      }
+      // Each timer tick re-registers, so the desktop cadence follows the
+      // daytime/night window without the app being reopened.
+      desktopBinding.bindSyncInvoker(({required SyncReason reason}) async {
+        final result = await runner.run(reason: reason);
+        try {
+          await reconciler.reconcilePeriodicSync(executionAllowed: true);
+        } on Object {
+          // The next tick re-arms; the completed run still stands.
+        }
+        return result;
+      });
       final settings = await ref.read(
         backgroundMonitoringSettingsServiceProvider.future,
       );
