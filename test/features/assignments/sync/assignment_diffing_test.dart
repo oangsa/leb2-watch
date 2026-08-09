@@ -206,6 +206,67 @@ void main() {
   );
 
   test(
+    'cached v1 deadline reports no change against its v2 zoned replacement',
+    () async {
+      client.snapshots
+        ..add(
+          _snapshot(const [
+            _ActivitySpec(id: 1001, dueDate: '2026-07-31T23:59:00'),
+          ]),
+        )
+        ..add(
+          _snapshot(const [
+            _ActivitySpec(id: 1001, dueDate: '2026-07-31T16:59:00.000Z'),
+          ]),
+        );
+      await _sync(service);
+      await _insertReminder(database);
+
+      final result = await _sync(service);
+
+      expect(result.changes, AssignmentChangeBatch.empty);
+      expect(
+        (await database.select(database.scheduledReminders).getSingle())
+            .needsReconciliation,
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'real deadline change is still detected across the v1 to v2 format switch',
+    () async {
+      client.snapshots
+        ..add(
+          _snapshot(const [
+            _ActivitySpec(id: 1001, dueDate: '2026-07-31T23:59:00'),
+          ]),
+        )
+        ..add(
+          _snapshot(const [
+            _ActivitySpec(id: 1001, dueDate: '2026-08-01T16:59:00.000Z'),
+          ]),
+        );
+      await _sync(service);
+      await _insertReminder(database);
+
+      final result = await _sync(service);
+
+      expect(result.changes.changes, [
+        const AssignmentChange(
+          identityKey: 'backend:1001',
+          kind: AssignmentChangeKind.deadlineChanged,
+        ),
+      ]);
+      expect(
+        (await database.select(database.scheduledReminders).getSingle())
+            .needsReconciliation,
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'same identity moves courses without changes or reminder churn',
     () async {
       client.snapshots

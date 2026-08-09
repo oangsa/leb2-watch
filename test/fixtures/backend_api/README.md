@@ -4,6 +4,9 @@ These files are sanitized response bodies copied from the verified contract
 documented in [`docs/contexts/backend/COMPACT.md`](../../../docs/contexts/backend/COMPACT.md#contracts-and-interfaces). They contain no real
 credentials, user data, or production response content.
 
+Snapshot fixtures use the timezone-corrected `/api/v2/Activity/{semesterId}/snapshot`
+shape. Other fixtures retain their controller's documented API version.
+
 Future fake-adapter tests must attach HTTP metadata separately:
 
 `semesters_success.json` follows the structured `/api/v1/Semester` response: each

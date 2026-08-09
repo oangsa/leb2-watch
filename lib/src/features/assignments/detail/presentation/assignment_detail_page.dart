@@ -6,7 +6,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
@@ -15,7 +14,6 @@ import '../application/assignment_detail_service.dart';
 import '../domain/assignment_detail_key.dart';
 
 const _detailMaxWidth = 1120.0;
-const _evidenceRailWidth = 320.0;
 
 class AssignmentDetailPage extends StatefulWidget {
   const AssignmentDetailPage({
@@ -210,7 +208,7 @@ class _CurrentRecord extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final content = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (detail.courseName case final course?)
@@ -227,6 +225,16 @@ class _CurrentRecord extends StatelessWidget {
           child: Text(detail.title, style: theme.textTheme.headlineLarge),
         ),
         const SizedBox(height: AppSpacing.lg),
+        _Section(
+          title: 'Description',
+          children: [
+            SelectableText(
+              detail.description ?? 'No description provided.',
+              style: theme.textTheme.bodyLarge,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
         _Section(
           title: 'Assignment record',
           children: [
@@ -245,28 +253,8 @@ class _CurrentRecord extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl),
-        _Section(
-          title: 'Description',
-          children: [
-            SelectableText(
-              detail.description ?? 'No description provided.',
-              style: theme.textTheme.bodyLarge,
-            ),
-          ],
-        ),
       ],
     );
-    final evidence = _Evidence(
-      firstSeenAtUtc: detail.firstSeenAtUtc,
-      lastSeenAtUtc: detail.lastSeenAtUtc,
-      isBaseline: detail.isBaseline,
-      courseNotificationsMuted: detail.courseNotificationsMuted,
-      reminders: detail.reminders,
-      notificationHistory: detail.notificationHistory,
-      sync: detail.sync,
-    );
-    return _ResponsiveRecord(content: content, evidence: evidence);
   }
 }
 
@@ -278,7 +266,7 @@ class _SeenOnlyRecord extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final content = Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
@@ -307,16 +295,6 @@ class _SeenOnlyRecord extends StatelessWidget {
         ),
       ],
     );
-    final evidence = _Evidence(
-      firstSeenAtUtc: detail.firstSeenAtUtc,
-      lastSeenAtUtc: detail.lastSeenAtUtc,
-      isBaseline: detail.isBaseline,
-      courseNotificationsMuted: detail.courseNotificationsMuted,
-      reminders: detail.reminders,
-      notificationHistory: detail.notificationHistory,
-      sync: detail.sync,
-    );
-    return _ResponsiveRecord(content: content, evidence: evidence);
   }
 }
 
@@ -342,97 +320,6 @@ class _MissingRecord extends StatelessWidget {
           Text('Not saved on this device.', style: theme.textTheme.bodyLarge),
         ],
       ),
-    );
-  }
-}
-
-class _ResponsiveRecord extends StatelessWidget {
-  const _ResponsiveRecord({required this.content, required this.evidence});
-
-  final Widget content;
-  final Widget evidence;
-
-  @override
-  Widget build(BuildContext context) {
-    if (AppBreakpoints.of(context) != AppWindowClass.expanded) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          content,
-          const SizedBox(height: AppSpacing.xl),
-          const Divider(),
-          const SizedBox(height: AppSpacing.lg),
-          evidence,
-        ],
-      );
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: content),
-        const SizedBox(width: AppSpacing.xxl),
-        SizedBox(width: _evidenceRailWidth, child: evidence),
-      ],
-    );
-  }
-}
-
-class _Evidence extends StatelessWidget {
-  const _Evidence({
-    required this.firstSeenAtUtc,
-    required this.lastSeenAtUtc,
-    required this.isBaseline,
-    required this.courseNotificationsMuted,
-    required this.reminders,
-    required this.notificationHistory,
-    required this.sync,
-  });
-
-  final DateTime firstSeenAtUtc;
-  final DateTime lastSeenAtUtc;
-  final bool isBaseline;
-  final bool courseNotificationsMuted;
-  final AssignmentDetailReminderEvidence reminders;
-  final AssignmentDetailNotificationEvidence notificationHistory;
-  final AssignmentDetailSyncEvidence sync;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: 'Local evidence',
-      children: [
-        _Fact(
-          label: 'First observed on this device',
-          value: _formatUtcTimestamp(context, firstSeenAtUtc),
-        ),
-        _Fact(
-          label: 'Last observed on this device',
-          value: _formatUtcTimestamp(context, lastSeenAtUtc),
-        ),
-        _Fact(
-          label: 'Observation',
-          value: isBaseline
-              ? 'In the first baseline'
-              : 'Found after the first baseline',
-        ),
-        _Fact(
-          label: 'Course preference',
-          value: courseNotificationsMuted
-              ? 'Course notifications muted'
-              : 'Course notifications not muted',
-        ),
-        _Fact(label: 'Deadline reminders', value: _reminderCopy(reminders)),
-        _Fact(
-          label: 'Notification history',
-          value: _historyCopy(notificationHistory),
-        ),
-        _Fact(
-          label: 'Last successful sync',
-          value: sync.latestSuccessCompletedAtUtc == null
-              ? 'Unavailable'
-              : _formatUtcTimestamp(context, sync.latestSuccessCompletedAtUtc!),
-        ),
-      ],
     );
   }
 }
@@ -551,24 +438,4 @@ String _formatUtcTimestamp(BuildContext context, DateTime timestampUtc) {
   return '${localizations.formatMediumDate(wallClock)} at '
       '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(wallClock))} '
       '${appTimeZone.label}';
-}
-
-String _reminderCopy(AssignmentDetailReminderEvidence evidence) {
-  if (evidence.totalCount == 0) {
-    return 'No reminders recorded';
-  }
-  final records = evidence.totalCount == 1 ? 'record' : 'records';
-  if (evidence.pendingReconciliationCount == 0) {
-    return '${evidence.totalCount} reminder $records recorded';
-  }
-  return '${evidence.totalCount} reminder $records · '
-      '${evidence.pendingReconciliationCount} needs reconciliation';
-}
-
-String _historyCopy(AssignmentDetailNotificationEvidence evidence) {
-  if (evidence.recordCount == 0) {
-    return 'No notification history';
-  }
-  final records = evidence.recordCount == 1 ? 'record' : 'records';
-  return '${evidence.recordCount} notification history $records saved locally';
 }

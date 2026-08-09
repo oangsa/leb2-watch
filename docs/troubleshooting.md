@@ -39,16 +39,16 @@ the app; it is not a runtime setting.
 ## Snapshot returns 404 or the response shape is wrong
 
 Verify that deployment follows the current backend `dev` API reference and
-uses the documented `/api/v1/Activity/{semesterId}/snapshot` route.
+uses the documented `/api/v2/Activity/{semesterId}/snapshot` route.
 
 The snapshot path is:
 
 ```text
-GET /api/v1/Activity/{semesterId}/snapshot
+GET /api/v2/Activity/{semesterId}/snapshot
 ```
 
-Keep `BACKEND_BASE_URL` as the origin only; do not put `/api/v1` into the build
-definition. See
+Keep `BACKEND_BASE_URL` as the origin only; do not put `/api/v1` or `/api/v2`
+into the build definition. See
 [Self-hosting the backend](self-hosting-backend.md).
 
 ## A phone or emulator cannot reach the local backend

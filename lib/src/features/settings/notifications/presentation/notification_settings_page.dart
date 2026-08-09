@@ -41,7 +41,6 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.onDeletionCompleted,
     required this.logoutService,
     required this.onLogoutCompleted,
-    required this.onManageCourses,
     required this.onOpenPrivacy,
     super.key,
   });
@@ -52,7 +51,6 @@ class NotificationSettingsPage extends StatefulWidget {
   final ValueChanged<LocalDataDeletionOperation> onDeletionCompleted;
   final LogoutService logoutService;
   final VoidCallback onLogoutCompleted;
-  final VoidCallback onManageCourses;
   final VoidCallback onOpenPrivacy;
 
   @override
@@ -584,19 +582,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
-                title: 'Courses',
-                children: [
-                  ListTile(
-                    key: const Key('manage-course-notifications'),
-                    title: const Text('Manage course notifications'),
-                    subtitle: const Text('Mute or unmute each course.'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: widget.onManageCourses,
-                  ),
-                ],
-              ),
               if (_permissionSectionVisible(snapshot)) ...[
                 const SizedBox(height: AppSpacing.md),
                 _SettingsSection(
@@ -722,6 +707,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               _SettingsSection(
                 title: 'Local data',
                 description: 'Nothing is deleted from LEB2 itself.',
+                danger: true,
                 children: [
                   LocalDataDeletionPanel(
                     service: widget.deletionService,
@@ -828,11 +814,13 @@ class _SettingsSection extends StatelessWidget {
   const _SettingsSection({
     required this.title,
     this.description,
+    this.danger = false,
     required this.children,
   });
 
   final String title;
   final String? description;
+  final bool danger;
   final List<Widget> children;
 
   @override
@@ -841,9 +829,19 @@ class _SettingsSection extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: AppElevation.flat,
-      color: theme.colorScheme.surfaceContainerLow,
+      color: danger
+          ? Color.alphaBlend(
+              theme.colorScheme.error.withValues(alpha: 0.08),
+              theme.colorScheme.surfaceContainerLow,
+            )
+          : theme.colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        side: BorderSide(
+          color: danger
+              ? theme.colorScheme.error
+              : theme.colorScheme.outlineVariant,
+          width: danger ? AppBorders.hairline * 2 : AppBorders.hairline,
+        ),
         borderRadius: BorderRadius.circular(AppRadii.panel),
       ),
       child: Padding(
@@ -855,7 +853,12 @@ class _SettingsSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Semantics(
                 header: true,
-                child: Text(title, style: theme.textTheme.titleLarge),
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: danger ? theme.colorScheme.onErrorContainer : null,
+                  ),
+                ),
               ),
             ),
             if (description case final description?) ...[

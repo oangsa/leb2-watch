@@ -31,7 +31,6 @@ class NotificationSettingsRoute extends ConsumerWidget {
               .updateStage(AppFlowStage.authentication);
           context.go(AppRoute.authentication.path);
         },
-        onManageCourses: () => context.go(AppRoute.courses.path),
         onOpenPrivacy: () => context.push(AppRoute.privacy.path),
       ),
       error: (_, _) => AppStateView.error(

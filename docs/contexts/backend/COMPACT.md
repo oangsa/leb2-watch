@@ -76,14 +76,17 @@ Domain models and checked DTOs are separate. DTOs = internal transport values wi
 | POST | `/api/v1/User/logout` | Activated `access-key` + device/client metadata | 204 |
 | GET | `/api/v1/Semester` | `access-key` + Bearer + device/client metadata | `{id,name}` object array |
 | GET | `/api/v1/Class/{id}` | `access-key` + Bearer + device/client metadata | Class array |
-| GET | `/api/v1/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID + device/client metadata | Activity array |
-| GET | `/api/v1/Activity/{sid}` | `access-key` + Bearer + positive user ID + device/client metadata | Flat activity |
-| GET | `/api/v1/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID + device/client metadata | Nested snapshot |
+| GET | `/api/v2/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID + device/client metadata | UTC Activity array |
+| GET | `/api/v2/Activity/{sid}` | `access-key` + Bearer + positive user ID + device/client metadata | Flat UTC activity |
+| GET | `/api/v2/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID + device/client metadata | Nested UTC snapshot |
 | GET | `/api/v1/meta` | None | Compatibility metadata |
 | GET | `/api/v1/health/leb2` | None | Health |
 
-The frontend keeps `BACKEND_BASE_URL` as the origin and owns the canonical
-`/api/v1` prefix. Swagger is generated at runtime only in Development.
+The frontend keeps `BACKEND_BASE_URL` as the origin. It uses `/api/v2` for
+Activity snapshots and `/api/v1` for v1-only controllers. Swagger is generated
+at runtime only in Development.
+The backend's `/api/v1/Activity/...` routes remain legacy compatibility
+contracts; the frontend no longer calls them.
 
 The backend operator provisions access keys in Supabase PostgreSQL and owns the
 local user/key identity mapping and audit metadata. The frontend never connects
@@ -108,7 +111,7 @@ All protected data routes also use the opaque LEB2 cookie in `Authorization: Bea
 positive int32. The cookie is not a JWT, and a cookie-only flow cannot derive
 the user ID because no verified identity-from-cookie endpoint exists.
 
-`GET /api/v1/Activity/{semesterId}/snapshot` returns one object with a positive
+`GET /api/v2/Activity/{semesterId}/snapshot` returns one object with a positive
 semester ID and a `classes` array. It retains empty classes, so an empty result
 is `{"semesterId": <id>, "classes": []}`, never a bare array. Classes are
 de-duplicated and ordered by positive ID; a discovery or activity failure for
@@ -120,7 +123,10 @@ empty-class information.
 use either an ISO `T` separator or the upstream-compatible single-space form
 such as `2026-07-20 14:30:00`. The frontend validates and preserves that text
 with its separate timezone metadata; it does not silently assign a timezone.
-Other contracted activity date fields retain their stricter ISO `T` form.
+The v2 `startDate`, `dueDate`, `createdAt`, `lastDueDateNotificationDate`, and
+`lastStatusChangeNotificationDate` fields are genuine UTC instants. The client
+rejects legacy unzoned v1 values on this route. Submission timestamp text keeps
+its separate upstream timezone metadata and may remain unzoned.
 
 ### Exact session-expiry distinction
 
@@ -272,7 +278,8 @@ Access-key response codes are first-class failures, never session expiry:
 ### Known limitations
 
 - Cookie-only transport cannot derive numeric user ID — no backend current-user/identity-from-cookie endpoint. Session setup asks user for ID explicitly, persists outside this client.
-- Unzoned assignment timestamp timezone and deadline-inclusivity unresolved. Explicitly zoned values can be normalized for reminders; unzoned values cannot safely drive absolute scheduling.
+- New Activity responses are UTC. Legacy cached unzoned values remain resolved
+  as GMT+7 for upgrade compatibility; deadline acceptance remains backend-owned.
 - Client composed at root but lazy — no request until session or synchronization operation explicitly calls it.
 - Deployed production URL and revision unverified.
 - Android, iOS, macOS, Windows builds not available on this Linux host.
@@ -281,7 +288,8 @@ Access-key response codes are first-class failures, never session expiry:
 ### Known limitations
 
 - **Manual cookie identity:** no verified way to obtain positive numeric user ID from cookie-only flow. Product flow requires explicit entry.
-- **Unzoned timestamps:** blocks absolute scheduling — timezone and DST semantics undefined; deadline-inclusivity unresolved.
+- **Legacy cached timestamps:** unzoned values from API v1 are resolved as GMT+7;
+  new API v2 responses are UTC. Deadline acceptance remains backend-owned.
 - **Assignment publication:** `createdAt` not verified as publication time.
 - **Typed attachments/external links:** opaque upstream objects have no stable schema; no external-link field exists.
 - **Fixed error codes:** `AUTHENTICATION_REQUIRED`, `INVALID_REQUEST`, `RESOURCE_NOT_FOUND` map to fixed non-retryable `UnknownSyncFailureReason` values.
@@ -291,7 +299,19 @@ Access-key response codes are first-class failures, never session expiry:
 
 ## Validation Evidence
 
+API v2 migration validation on 2026-08-09:
+
+- `dio_backend_api_client_test.dart` and fixture parity: 58/58 passed;
+- mocked Linux end-to-end workflow: 2/2 passed;
+- memory-safe suite: 158 files across 16/16 sequential shards, exit 0;
+- direct full suite: 1,306/1,306 passed;
+- strict Dart and Flutter analysis: no issues;
+- generation stable, repository-wide format check clean, Linux release build passed.
+
 ### Tests
+
+The transport test asserts the exact `/api/v2/Activity/{semesterId}/snapshot`
+route, maps UTC source strings, and rejects a legacy unzoned v1 Activity date.
 
 `test/core/network/backend_error_mapper_test.dart` covers:
 

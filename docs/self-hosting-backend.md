@@ -58,8 +58,8 @@ adds coordinated replacements or explicitly accepts per-instance behavior.
 
 ## Client-facing contract
 
-Routes are served from the configured origin root and the frontend uses the
-canonical `/api/v1` prefix:
+Routes are served from the configured origin root. The frontend uses `/api/v1`
+for v1-only controllers and `/api/v2` for Activity:
 
 ```text
 POST /api/v1/User/login
@@ -67,7 +67,7 @@ POST /api/v1/User/cookie
 POST /api/v1/User/logout
 GET  /api/v1/Semester
 GET  /api/v1/Class/{id}
-GET  /api/v1/Activity/{semesterId}/snapshot
+GET  /api/v2/Activity/{semesterId}/snapshot
 GET  /api/v1/meta
 GET  /api/v1/health/leb2
 ```

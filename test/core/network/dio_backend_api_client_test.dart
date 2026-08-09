@@ -109,7 +109,7 @@ void main() {
           return switch (options.path) {
             '/api/v1/Semester' => _fixtureResponse('semesters_success.json'),
             '/api/v1/Class/101' => _fixtureResponse('classes_success.json'),
-            '/api/v1/Activity/101/snapshot' => _fixtureResponse(
+            '/api/v2/Activity/101/snapshot' => _fixtureResponse(
               'snapshot_success.json',
             ),
             _ => throw StateError('Unexpected test route.'),
@@ -127,7 +127,7 @@ void main() {
         expect(adapter.requests.map((request) => request.path), [
           '/api/v1/Semester',
           '/api/v1/Class/101',
-          '/api/v1/Activity/101/snapshot',
+          '/api/v2/Activity/101/snapshot',
         ]);
         for (final request in adapter.requests) {
           expect(request.method, 'GET');
@@ -357,10 +357,10 @@ void main() {
         expect(mapped.isAllowRepeat, 0);
         expect(mapped.title, 'Example assignment');
         expect(mapped.description, '<p>Example description</p>');
-        expect(mapped.startDate, '2026-07-01T09:00:00');
-        expect(mapped.dueDate, '2026-07-31T23:59:00');
+        expect(mapped.startDate, '2026-07-01T02:00:00.000Z');
+        expect(mapped.dueDate, '2026-07-31T16:59:00.000Z');
         expect(mapped.editGroupMode, '');
-        expect(mapped.createdAt, '2026-06-30T12:00:00');
+        expect(mapped.createdAt, '2026-06-30T05:00:00.000Z');
         expect(mapped.user, 2001);
         expect(mapped.activitySubmissionId, isNull);
         expect(mapped.classUserId, 4001);
@@ -509,6 +509,7 @@ void main() {
           (json) => _firstActivity(json)['classId'] = 9999,
           (json) => _firstActivity(json)['title'] = '',
           (json) => _firstActivity(json)['createdAt'] = 'not-a-date',
+          (json) => _firstActivity(json)['dueDate'] = '2026-07-31T23:59:00',
           (json) => _firstActivity(json)['dueDate'] = '2026/07/31',
           (json) => _firstActivity(json)['dueDate'] = '2026-07-31 23:59:00',
           (json) => _firstActivity(json)['id'] = 1.5,
