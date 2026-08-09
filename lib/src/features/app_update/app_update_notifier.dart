@@ -114,6 +114,15 @@ final class AppUpdateNotifier {
       return;
     }
     try {
+      // The bridge is initialized lazily by whichever coordinator posts first,
+      // and both a launch and a background run can reach this before any of
+      // them has: the launch path races notification startup, and a background
+      // run only initializes as a side effect of a committed synchronization.
+      if (notifications is LocalNotificationInitializationControl) {
+        await (notifications as LocalNotificationInitializationControl)
+            .beginInitializationAttempt()
+            .completion;
+      }
       await notifications.showAppUpdateAvailable(
         version: version,
         selfUpdateUnavailable: _channel == AppUpdateChannel.flatpak,

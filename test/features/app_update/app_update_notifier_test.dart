@@ -28,7 +28,7 @@ void main() {
 
   AppUpdateNotifier notifier(
     _Store store,
-    _Notifications notifications, {
+    AppUpdateNotificationControl notifications, {
     AppUpdateChannel channel = AppUpdateChannel.download,
     BackendCompatibilityClient? client,
     ClientVersionProvider? clientVersion,
@@ -218,6 +218,84 @@ void main() {
       expect(client.calls, 0);
     });
   });
+
+  group('notification bridge startup', () {
+    test(
+      'a launch announcement initializes the bridge before posting',
+      () async {
+        final store = _Store();
+        final notifications = _LazyBridge();
+
+        await notifier(store, notifications).announce(updateAvailable());
+
+        expect(notifications.initializeCalls, 1);
+        expect(notifications.versions, ['0.8.0']);
+        expect(store.notifiedVersion, '0.8.0');
+      },
+    );
+
+    test(
+      'a background check posts without a prior notification effect',
+      () async {
+        final now = DateTime.utc(2026, 8, 9, 12);
+        final store = _Store();
+        final notifications = _LazyBridge();
+
+        await notifier(
+          store,
+          notifications,
+          client: _Client(metadata()),
+          clientVersion: _Version('0.7.0'),
+          now: now,
+        ).checkForUpdate();
+
+        expect(notifications.versions, ['0.8.0']);
+        expect(store.notifiedVersion, '0.8.0');
+      },
+    );
+  });
+}
+
+/// Mirrors the real service: posting before initialization is rejected, and
+/// nothing initializes the bridge except a caller asking for it.
+final class _LazyBridge
+    implements
+        AppUpdateNotificationControl,
+        LocalNotificationInitializationControl {
+  final List<String> versions = [];
+  int initializeCalls = 0;
+  bool _initialized = false;
+
+  @override
+  LocalNotificationInitializationAttempt beginInitializationAttempt() {
+    initializeCalls += 1;
+    return _Attempt(() => _initialized = true);
+  }
+
+  @override
+  Future<void> showAppUpdateAvailable({
+    required String version,
+    required bool selfUpdateUnavailable,
+  }) async {
+    if (!_initialized) {
+      throw const LocalNotificationFailure(
+        LocalNotificationFailureKind.notInitialized,
+      );
+    }
+    versions.add(version);
+  }
+}
+
+final class _Attempt implements LocalNotificationInitializationAttempt {
+  _Attempt(this._onComplete);
+
+  final void Function() _onComplete;
+
+  @override
+  Future<void> get completion async => _onComplete();
+
+  @override
+  void abandon() {}
 }
 
 final class _Store implements AppUpdateNotificationStore {
