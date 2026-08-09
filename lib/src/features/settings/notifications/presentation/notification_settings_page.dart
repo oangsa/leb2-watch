@@ -512,6 +512,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     }
     final cadence =
         _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
+    if (!supportsPreciseFetch(cadence)) {
+      return 'Choose 15 min or longer to use this.';
+    }
     return 'Checks every ${_cadenceLabel(cadence)} instead of when Android '
         'decides. Uses more battery. Off overnight.';
   }
@@ -638,9 +641,23 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       key: const Key('precise-fetch-switch'),
                       title: const Text('Keep to the chosen time'),
                       subtitle: Text(_preciseFetchMessage(snapshot)),
-                      value: snapshot.backgroundMonitoring.preciseFetchEnabled,
+                      // Shown off while the cadence rules it out, because that
+                      // is what the schedule does; the stored preference is
+                      // untouched and takes effect again at 15 min.
+                      value:
+                          snapshot.backgroundMonitoring.preciseFetchEnabled &&
+                          supportsPreciseFetch(
+                            _pendingCadence ??
+                                snapshot.backgroundMonitoring.daytimeCadence,
+                          ),
                       onChanged:
                           !snapshot.backgroundMonitoring.enabled ||
+                              !supportsPreciseFetch(
+                                _pendingCadence ??
+                                    snapshot
+                                        .backgroundMonitoring
+                                        .daytimeCadence,
+                              ) ||
                               _pendingSettings.containsKey(
                                 _SettingControl.preciseFetch,
                               )

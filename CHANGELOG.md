@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-10
+
+### Changed
+
+- Precise daytime fetches need a cadence of 15 min or longer. At 10 min the
+  option is shown off and unavailable, and the setting returns when the cadence
+  is raised.
+- A scheduled check is skipped when one already succeeded within half the
+  current cadence, so overlapping schedules stop asking twice for the same
+  data. Pull to refresh always fetches.
+
 ## [0.8.0] - 2026-08-09
 
 ### Added
@@ -76,7 +87,8 @@ detects newly published work, and raises local notifications, against a
 self-hosted [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API)
 instance. Linux, Windows, and Android artifacts.
 
-[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/oangsa/leb2-watch/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/oangsa/leb2-watch/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/oangsa/leb2-watch/compare/v0.6.0...v0.6.1

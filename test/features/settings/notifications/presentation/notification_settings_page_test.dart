@@ -418,9 +418,7 @@ void _cadenceTests() {
     expect(find.text('Turn on background monitoring first.'), findsOne);
   });
 
-  testWidgets('turning precise checks on saves and reports the cost', (
-    tester,
-  ) async {
+  testWidgets('precise checks are unavailable under 15 min', (tester) async {
     final service = _SettingsService(
       _snapshot(
         platform: NotificationSettingsPlatform.android,
@@ -432,8 +430,31 @@ void _cadenceTests() {
     await _pump(tester, service, height: 1400);
 
     expect(
+      tester
+          .widget<SwitchListTile>(find.byKey(const Key('precise-fetch-switch')))
+          .onChanged,
+      isNull,
+    );
+    expect(find.text('Choose 15 min or longer to use this.'), findsOne);
+    expect(service.preciseWrites, isEmpty);
+  });
+
+  testWidgets('turning precise checks on saves and reports the cost', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(
+        platform: NotificationSettingsPlatform.android,
+        backgroundEnabled: true,
+        daytimeCadence: BackgroundFetchCadence.fifteenMinutes,
+      ),
+    );
+
+    await _pump(tester, service, height: 1400);
+
+    expect(
       find.text(
-        'Checks every 10 min instead of when Android decides. Uses more '
+        'Checks every 15 min instead of when Android decides. Uses more '
         'battery. Off overnight.',
       ),
       findsOne,

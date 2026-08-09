@@ -4,6 +4,7 @@ import '../../../core/network/domain/sync_failure.dart';
 import '../../assignments/sync/assignment_sync_service.dart';
 import '../../assignments/sync/sync_backoff_store.dart';
 import '../data/background_sync_target_store.dart';
+import '../domain/background_scheduler.dart';
 
 sealed class BackgroundSyncRunResult {
   const BackgroundSyncRunResult();
@@ -80,10 +81,15 @@ final class BackgroundSyncCancellationController
 }
 
 final class BackgroundSyncRunner {
-  const BackgroundSyncRunner(this._targetStore, this._syncService);
+  BackgroundSyncRunner(
+    this._targetStore,
+    this._syncService, {
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
 
   final BackgroundSyncTargetStore _targetStore;
   final AssignmentSyncService _syncService;
+  final DateTime Function() _now;
 
   Future<BackgroundSyncRunResult> run({
     required SyncReason reason,
@@ -116,6 +122,9 @@ final class BackgroundSyncRunner {
     }
     if (cancellation?.isCancelled ?? false) {
       return const BackgroundSyncCancelled();
+    }
+    if (!userDriven && _syncedRecently(policy)) {
+      return const BackgroundSyncSucceeded();
     }
 
     final semesterId = policy.semesterId!;
@@ -168,6 +177,40 @@ final class BackgroundSyncRunner {
       semesterId: semesterId,
       userId: userId,
     );
+  }
+
+  /// Whether another path already fetched what this run would fetch.
+  ///
+  /// Several schedules can overlap on one device: the precise chain runs beside
+  /// the hourly backstop that re-arms it, an opened app synchronizes while a
+  /// scheduled run is due, and a platform may dispatch late enough to land on
+  /// the next one. Each of those costs the backend a full scrape for data that
+  /// is seconds old.
+  ///
+  /// The bound is half the cadence in force, not the whole one: a scheduled run
+  /// arrives a little before a whole period has passed since the *completion*
+  /// of the previous one, so a whole-period bound would skip every ordinary
+  /// tick and silently double the cadence.
+  ///
+  /// ponytail: both the precise chain and the backstop that re-arms it run as
+  /// `SyncReason.backgroundTask`, so a backstop tick landing in the first half
+  /// of a chain period is indistinguishable from an early chain link and is the
+  /// half this cannot drop. A distinct reason for the backstop would catch the
+  /// rest; worth it only if precise checks turn out to be widely enabled.
+  bool _syncedRecently(BackgroundSyncTargetPolicy policy) {
+    final lastSuccess = policy.lastSuccessfulSyncAtUtc;
+    if (lastSuccess == null) {
+      return false;
+    }
+    final localNow = _now();
+    final elapsed = localNow.toUtc().difference(lastSuccess);
+    if (elapsed.isNegative) {
+      // A clock moved backwards, or a row written by a device that disagrees
+      // with this one. Neither is evidence the data is fresh.
+      return false;
+    }
+    return elapsed <
+        resolveBackgroundSyncCadence(policy.daytimeCadence, localNow) ~/ 2;
   }
 
   Future<BackgroundSyncRunResult> _mapOutcome(

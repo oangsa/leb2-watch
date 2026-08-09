@@ -83,7 +83,7 @@ void main() {
   group('precise chain links stop at the window boundary', () {
     BackgroundSyncSchedule scheduleAt(
       DateTime localNow, {
-      BackgroundFetchCadence cadence = BackgroundFetchCadence.tenMinutes,
+      BackgroundFetchCadence cadence = BackgroundFetchCadence.fifteenMinutes,
     }) {
       return resolveBackgroundSyncSchedule(
         BackgroundMonitoringSettings(
@@ -98,7 +98,7 @@ void main() {
     test('mid-day links run at the chosen cadence', () {
       expect(
         scheduleAt(DateTime(2026, 8, 9, 12)).preciseCadence,
-        const Duration(minutes: 10),
+        const Duration(minutes: 15),
       );
     });
 
@@ -117,13 +117,13 @@ void main() {
     test('a link landing exactly on 19:00 is dropped', () {
       // 19:00 is the first instant outside the half-open window, and an
       // initial delay is an eligibility time rather than a deadline.
-      expect(scheduleAt(DateTime(2026, 8, 9, 18, 50)).preciseCadence, isNull);
+      expect(scheduleAt(DateTime(2026, 8, 9, 18, 45)).preciseCadence, isNull);
     });
 
     test('a link that still lands inside the window keeps its period', () {
       expect(
-        scheduleAt(DateTime(2026, 8, 9, 18, 45)).preciseCadence,
-        const Duration(minutes: 10),
+        scheduleAt(DateTime(2026, 8, 9, 18, 44)).preciseCadence,
+        const Duration(minutes: 15),
       );
     });
 
@@ -136,6 +136,27 @@ void main() {
         scheduleAt(DateTime(2026, 8, 9, 18, 57)).cadence,
         nightBackgroundFetchCadence,
       );
+    });
+
+    test('a cadence under the precise minimum arms no chain at all', () {
+      // A 10-minute chain is the one schedule that escapes the platform's own
+      // 15-minute floor, so the periodic registration stays whole.
+      final schedule = scheduleAt(
+        DateTime(2026, 8, 9, 12),
+        cadence: BackgroundFetchCadence.tenMinutes,
+      );
+
+      expect(schedule.preciseCadence, isNull);
+      expect(schedule.cadence, const Duration(minutes: 10));
+    });
+
+    test('the precise minimum admits every other cadence', () {
+      expect(supportsPreciseFetch(BackgroundFetchCadence.tenMinutes), isFalse);
+      for (final cadence in BackgroundFetchCadence.values.where(
+        (cadence) => cadence != BackgroundFetchCadence.tenMinutes,
+      )) {
+        expect(supportsPreciseFetch(cadence), isTrue);
+      }
     });
   });
 

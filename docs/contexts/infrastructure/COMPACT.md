@@ -531,7 +531,14 @@ than rejecting it, so the registered value matches what the platform will run.
 
 Precise checks (`background_schedule_settings.precise_fetch_enabled`, schema
 22, default off) are the opt-in escape from that floor and from the platform's
-own deferral. While they are on **and** it is daytime,
+own deferral. They require a daytime cadence of at least
+`minimumPreciseFetchCadence`, 15 minutes: the chain is the only schedule that
+escapes the platform floor, so a shorter one is also the only configuration
+that costs the backend more than the fixed 15-minute schedule it replaced.
+Below it `supportsPreciseFetch` is false, the schedule resolves as though the
+setting were off, and the settings switch is disabled and rendered off while
+the stored preference is left untouched. While they are on, the cadence
+allows them, **and** it is daytime,
 `resolveBackgroundSyncSchedule` returns the chosen cadence as
 `preciseCadence` and drops the periodic registration to
 `nightBackgroundFetchCadence`. Android then registers a one-off task
@@ -568,6 +575,24 @@ at open, so a scheduler failure can never stop the synchronization itself, and
 a reconciliation failure leaves the previous registration running until a
 later run repairs it. Stable per-install initial jitter is unchanged: an
 integer from 0 through 300 seconds.
+
+Overlapping schedules are collapsed in `BackgroundSyncRunner`. Its policy read
+carries the daytime cadence and the completion of the most recent successful
+run of the target semester (`sync_runs`, outcome `success`), and a run whose
+reason is not user-driven returns `BackgroundSyncSucceeded` without a request
+when that success is newer than half the cadence `resolveBackgroundSyncCadence`
+gives for the current device clock. One run is exactly one activity snapshot
+request and nothing on the wire is conditional, so the skip is the only place
+that overlap can be spent instead of scraped.
+
+Half a period, not a whole one: a scheduled run arrives slightly before a whole
+period has passed since the previous run's *completion*, so a whole-period
+bound would skip every ordinary tick and double the cadence. A backwards clock
+reads as no evidence of freshness. A skipped run writes no history row, so a
+skip can never feed the next one, and the post-run reconciliation still re-arms
+the precise chain. Both the chain and its backstop run as
+`SyncReason.backgroundTask`, so a backstop tick inside the first half of a
+chain period is indistinguishable from an early link and survives.
 
 ### Contracts and interfaces
 
@@ -962,6 +987,12 @@ Tests cover:
 - precise checks defaulting off through an upgrade, the boolean column check,
   and the switch appearing on Android only and staying disabled until
   background monitoring is on;
+- a cadence under `minimumPreciseFetchCadence` arming no chain, leaving the
+  periodic registration whole, keeping the stored preference, and disabling the
+  switch;
+- a scheduled run standing down inside half the cadence, running when merely
+  early, never standing down for a user-driven reason or a backwards clock, and
+  widening the bound to half an hour overnight;
 - post-run schedule reconciliation, including a reconciliation failure leaving
   the completed run intact;
 - stable initial delay;

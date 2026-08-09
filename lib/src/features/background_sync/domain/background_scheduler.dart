@@ -41,6 +41,19 @@ const nightBackgroundFetchCadence = Duration(minutes: 60);
 /// The shortest cadence any schedule may use, including a window-boundary trim.
 const minimumBackgroundFetchCadence = Duration(minutes: 10);
 
+/// The shortest cadence precise checks are offered at.
+///
+/// A precise chain is the only schedule that escapes the platform's 15 minute
+/// periodic floor, so pairing it with a shorter cadence is also the only
+/// configuration that asks the backend for more than the fixed 15 minute
+/// schedule it replaced. The cadence choice itself is left alone; the platform
+/// clamps it to the same floor anyway.
+const minimumPreciseFetchCadence = Duration(minutes: 15);
+
+/// Whether precise checks are available at [cadence].
+bool supportsPreciseFetch(BackgroundFetchCadence cadence) =>
+    cadence.duration >= minimumPreciseFetchCadence;
+
 /// Daytime is `[backgroundDaytimeStartHour, backgroundDaytimeEndHour)` on the
 /// device's own clock, so the window follows the user rather than the fixed
 /// GMT+7 offset the app renders deadlines in.
@@ -81,7 +94,9 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   BackgroundMonitoringSettings settings,
   DateTime localNow,
 ) {
-  if (!settings.preciseFetchEnabled || !isBackgroundDaytime(localNow)) {
+  if (!settings.preciseFetchEnabled ||
+      !supportsPreciseFetch(settings.daytimeCadence) ||
+      !isBackgroundDaytime(localNow)) {
     return BackgroundSyncSchedule(
       cadence: resolveBackgroundSyncCadence(settings.daytimeCadence, localNow),
     );
