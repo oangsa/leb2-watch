@@ -50,9 +50,7 @@ void main() {
       contains('daytime_cadence_minutes'),
     );
     expect(
-      (await database
-              .select(database.backgroundScheduleSettings)
-              .getSingle())
+      (await database.select(database.backgroundScheduleSettings).getSingle())
           .daytimeCadenceMinutes,
       15,
     );

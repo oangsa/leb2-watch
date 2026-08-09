@@ -397,10 +397,7 @@ final class _TestMonitoringSettings
     BackgroundFetchCadence cadence,
   ) async {
     _controller.add(
-      BackgroundMonitoringSettings(
-        enabled: _enabled,
-        daytimeCadence: cadence,
-      ),
+      BackgroundMonitoringSettings(enabled: _enabled, daytimeCadence: cadence),
     );
     return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
   }
