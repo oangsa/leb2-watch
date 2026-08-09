@@ -511,8 +511,32 @@ desktopAutostartServiceProvider
 unavailable. Active status carries a nullable approximate UTC next check;
 platforms that cannot justify an estimate leave it null.
 
-The requested periodic cadence is 15 minutes. Stable per-install initial
-jitter is an integer from 0 through 300 seconds.
+The requested periodic cadence is resolved per registration by
+`resolveBackgroundSyncCadence`. `BackgroundFetchCadence` is the user's daytime
+choice — 10, 15, 30, or 60 minutes, default 15 — persisted in
+`background_schedule_settings.daytime_cadence_minutes` (schema 20, checked to
+those four values). Daytime is 06:00 through 19:00 on the device's own clock;
+outside it the cadence is pinned to `nightBackgroundFetchCadence`, 60 minutes.
+When a whole period would overshoot the next window boundary, the cadence is
+trimmed to the boundary, unless that trim is under
+`minimumBackgroundFetchCadence`, 10 minutes.
+
+The cadence only governs new-assignment discovery. Deadline reminders are
+pre-scheduled with the operating system from stored local deadlines, so no
+cadence choice can delay them.
+
+Android and iOS raise anything below their own 15-minute periodic floor rather
+than rejecting it, so the registered value matches what the platform will run.
+
+Registration is repaired and re-resolved after every background run:
+`BackgroundSyncTaskExecutor` calls the owned composition's
+`reconcileSchedule`, and the desktop host wraps its bound sync invoker with an
+equivalent call. That is what moves a closed app's schedule across a window
+boundary. The composition resolves its scheduler inside that call rather than
+at open, so a scheduler failure can never stop the synchronization itself, and
+a reconciliation failure leaves the previous registration running until a
+later run repairs it. Stable per-install initial jitter is unchanged: an
+integer from 0 through 300 seconds.
 
 ### Contracts and interfaces
 
@@ -890,7 +914,17 @@ Tests cover:
 - fresh default-off settings and stable jitter;
 - independent WAL connections converging on one jitter;
 - persist-before-register/cancel and joined initialization;
-- 15-minute cadence and stable initial delay;
+- daytime/night cadence resolution, half-open window edges, boundary trimming,
+  and the trim floor;
+- every selectable cadence surviving a store round trip, and the column check
+  rejecting any other value;
+- cadence changes re-registering live platform work while a disabled monitor
+  registers nothing;
+- schema 19-and-earlier upgrades adding the cadence column without losing
+  monitoring intent or jitter;
+- post-run schedule reconciliation, including a reconciliation failure leaving
+  the completed run intact;
+- stable initial delay;
 - distinct strict Android generation tags, input propagation/redaction, the
   disabled/session-paused result policy, malformed-input rejection, and both
   stale-callback/update orderings;

@@ -42,7 +42,8 @@ this validation.
 ### Architecture
 
 `LocalBackgroundScheduler` owns the persisted monitoring preference and stable
-per-install jitter. It passes the 15-minute cadence and stored delay to
+per-install jitter. It resolves the daytime/night cadence for the current
+device-local time and passes it with the stored delay to
 `AndroidWorkmanagerSchedulerPlatform`, which translates the request through
 the application-owned `WorkmanagerGateway`.
 
@@ -582,7 +583,7 @@ The stable native contract is:
 ```text
 unique work name: dev.oangsa.leb2watch.periodic-sync.v1
 task name:        leb2-periodic-sync-v1
-frequency:        15 minutes
+frequency:        resolved cadence, raised to the 15-minute WorkManager floor
 network:          connected
 existing policy:  update
 tag:              dev.oangsa.leb2watch.periodic-sync.generation-v1.<32 hex>
@@ -649,8 +650,9 @@ expired({ generation: <lowercase UUID> })
 detach({ generation: <lowercase UUID> })
 ```
 
-The adapter requests the shared 15-minute cadence and persisted first-submit
-jitter. On iOS the Dart `frequency` does not control native recurrence.
+The adapter requests the shared resolved cadence, raised to iOS's own
+15-minute floor, with the persisted first-submit jitter. On iOS the Dart
+`frequency` does not control native recurrence.
 AppDelegate passes 15 minutes to Workmanager's native BGAppRefresh
 registration; Workmanager uses it only as the earliest-begin interval when
 resubmitting. Actual timing is system controlled.
@@ -985,7 +987,8 @@ No app code or executable signing contract changed, so no new test was added.
   fail-closed handled behavior, captured-input propagation/redaction,
   cancellation, and execution budget.
 - `android_workmanager_scheduler_platform_test.dart` — joined initialization,
-  stable names, 15-minute floor, persisted delay forwarding, connected network,
+  stable names, raising a shorter cadence to the 15-minute floor, rejecting a
+  non-positive cadence, persisted delay forwarding, connected network,
   update policy, fresh strict generation tags/input, unique cancellation, and
   status.
 - `android_background_callback_test.dart` — handled mapping for every durable
