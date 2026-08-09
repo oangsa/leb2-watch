@@ -4,11 +4,19 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
+import 'package:leb2_watch/src/features/background_sync/application/background_sync_task_executor.dart';
 import 'package:leb2_watch/src/platform/background/android/android_background_callback.dart';
 import 'package:leb2_watch/src/platform/background/android/android_workmanager_contract.dart';
 import 'package:leb2_watch/src/platform/background/workmanager/workmanager_task_dispatcher.dart';
 
 void main() {
+  test('Android reserves time for the complete post-run tail', () {
+    expect(
+      androidBackgroundExecutionBudget + backgroundSyncPostRunBudget,
+      lessThan(const Duration(minutes: 10)),
+    );
+  });
+
   test('disabled Android task cancels only its captured generation', () async {
     final cancelledTags = <String>[];
     final handler = AndroidBackgroundSyncTaskHandler(

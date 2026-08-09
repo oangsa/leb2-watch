@@ -5,6 +5,16 @@ import 'background_sync_runner.dart';
 
 const backgroundSyncQuiescenceDrainBudget = Duration(seconds: 1);
 
+/// How long a completed run waits for its post-run effects before handing the
+/// composition to them and returning.
+///
+/// It backstops bounds that already exist further down — the metadata read's
+/// transport timeouts and the notification bridge's own initialization timeout
+/// — so it has to exceed their sum. A budget at or below them would make the
+/// deferred close the ordinary outcome of a slow network instead of the
+/// exceptional outcome of wedged platform work.
+const backgroundSyncPostRunBudget = Duration(seconds: 90);
+
 abstract interface class BackgroundSyncOwnedComposition {
   BackgroundSyncRunner get runner;
 
@@ -33,11 +43,15 @@ final class BackgroundSyncTaskExecutor {
   const BackgroundSyncTaskExecutor(
     this._compositionFactory, {
     Duration quiescenceDrainBudget = backgroundSyncQuiescenceDrainBudget,
+    Duration postRunBudget = backgroundSyncPostRunBudget,
   }) : _quiescenceDrainBudget = quiescenceDrainBudget,
-       assert(quiescenceDrainBudget > Duration.zero);
+       _postRunBudget = postRunBudget,
+       assert(quiescenceDrainBudget > Duration.zero),
+       assert(postRunBudget > Duration.zero);
 
   final BackgroundSyncCompositionFactory _compositionFactory;
   final Duration _quiescenceDrainBudget;
+  final Duration _postRunBudget;
 
   Future<BackgroundSyncRunResult> execute({
     required SyncReason reason,
@@ -63,14 +77,18 @@ final class BackgroundSyncTaskExecutor {
           whenOwnershipQuiescent,
         _ => null,
       };
-      if (quiescence == null) {
-        await _checkForAppUpdateQuietly(composition);
-        await _reconcileScheduleQuietly(composition);
-      }
-      if (quiescence != null &&
-          !await _drainQuiescence(quiescence, budget: _quiescenceDrainBudget)) {
+      // Both branches end the same way: wait a bounded time for the work that
+      // still uses this composition, and hand the composition over when it
+      // outlives the budget.
+      final (deferred, budget) = quiescence != null
+          ? (
+              _settleCancelledRun(composition, quiescence),
+              _quiescenceDrainBudget,
+            )
+          : (_settlePostRun(composition, cancellation), _postRunBudget);
+      if (!await _drainQuiescence(deferred, budget: budget)) {
         closeBeforeReturning = false;
-        unawaited(_closeAfterQuiescence(composition, quiescence));
+        unawaited(_closeAfterQuiescence(composition, deferred));
       }
       return result;
     } finally {
@@ -82,6 +100,37 @@ final class BackgroundSyncTaskExecutor {
 
   @override
   String toString() => 'BackgroundSyncTaskExecutor(redacted: true)';
+}
+
+/// Waits for cancelled synchronization ownership before repairing the schedule.
+Future<void> _settleCancelledRun(
+  BackgroundSyncOwnedComposition composition,
+  Future<void> quiescence,
+) async {
+  try {
+    await quiescence;
+  } on Object {
+    // A terminal error still means the operation no longer uses its owners.
+  }
+  await _reconcileScheduleQuietly(composition);
+}
+
+/// Re-registers platform work, then gives the update check its chance.
+///
+/// Reconciliation goes first and is never skipped: a background run is the one
+/// place the registration can move across the daytime/night boundary, so no
+/// optional effect may precede it or outlive it unbounded. The whole tail
+/// shares one budget because a wedge anywhere in it costs the same thing — a
+/// composition the run can no longer close inline.
+Future<void> _settlePostRun(
+  BackgroundSyncOwnedComposition composition,
+  BackgroundSyncCancellation? cancellation,
+) async {
+  await _reconcileScheduleQuietly(composition);
+  if (cancellation?.isCancelled ?? false) {
+    return;
+  }
+  await _checkForAppUpdateQuietly(composition);
 }
 
 Future<bool> _drainQuiescence(

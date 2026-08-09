@@ -349,6 +349,45 @@ void main() {
     },
   );
 
+  test(
+    'expiration during an update check happens after schedule reconciliation',
+    () async {
+      final lease = _Lease();
+      final pendingUpdateCheck = Completer<void>();
+      final owned = _OwnedComposition(
+        BackgroundSyncRunner(_ImmediateTargetStore(), _RecordingSyncService()),
+      )..pendingAppUpdateCheck = pendingUpdateCheck.future;
+      final executor = BackgroundSyncTaskExecutor(
+        _ImmediateCompositionFactory(owned),
+        postRunBudget: const Duration(seconds: 1),
+      );
+      final dispatcher = IosBackgroundExpirationTaskDispatcher(
+        expirationBridge: _Bridge([lease]),
+        handler: IosBackgroundSyncTaskHandler(
+          execute: ({required reason, cancellation, timeBudget}) =>
+              executor.execute(
+                reason: reason,
+                cancellation: cancellation,
+                timeBudget: timeBudget,
+              ),
+          cancelPending: () async {},
+        ).call,
+      );
+
+      final execution = dispatcher.dispatch(iosAssignmentRefreshTaskIdentifier);
+      await owned.updateCheckStarted.future;
+      lease.cancel();
+
+      expect(await execution.timeout(const Duration(seconds: 1)), isFalse);
+      expect(owned.reconcileCalls, 1);
+      expect(owned.closeCalls, 0);
+
+      pendingUpdateCheck.complete();
+      await owned.closed.future.timeout(const Duration(seconds: 1));
+      expect(owned.closeCalls, 1);
+    },
+  );
+
   test('durable stop gate still closes the lease in finally', () async {
     final lease = _Lease();
     var cancellationCalls = 0;
@@ -551,10 +590,25 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
   final BackgroundSyncRunner runner;
 
   @override
-  Future<void> checkForAppUpdate() async {}
+  Future<void> checkForAppUpdate() async {
+    if (!updateCheckStarted.isCompleted) {
+      updateCheckStarted.complete();
+    }
+    final pending = pendingAppUpdateCheck;
+    if (pending != null) {
+      await pending;
+    }
+  }
+
+  Future<void>? pendingAppUpdateCheck;
+  final updateCheckStarted = Completer<void>();
 
   @override
-  Future<void> reconcileSchedule() async {}
+  Future<void> reconcileSchedule() async {
+    reconcileCalls += 1;
+  }
+
+  int reconcileCalls = 0;
 
   int closeCalls = 0;
   final closed = Completer<void>();

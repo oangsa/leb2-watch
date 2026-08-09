@@ -12,7 +12,10 @@ const androidPeriodicSyncGenerationTagPrefix =
 const androidPreciseSyncUniqueWorkName = 'dev.oangsa.leb2watch.precise-sync.v1';
 const androidPreciseSyncTaskName = 'leb2-precise-sync-v1';
 const androidMinimumPeriodicCadence = Duration(minutes: 15);
-const androidBackgroundExecutionBudget = Duration(minutes: 9);
+
+/// Leaves 90 seconds for post-run work and 30 seconds for startup and teardown
+/// inside WorkManager's ordinary ten-minute execution limit.
+const androidBackgroundExecutionBudget = Duration(minutes: 8);
 
 const _androidPeriodicSyncGenerationTokenLength = 32;
 

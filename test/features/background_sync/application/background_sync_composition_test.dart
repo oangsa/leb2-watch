@@ -51,6 +51,86 @@ void main() {
     expect(owned.closeCalls, 1);
   });
 
+  test(
+    'an over-budget update check returns bounded and closes after settling',
+    () async {
+      final pendingUpdateCheck = Completer<void>();
+      final reconciler = _Reconciler();
+      final owned = _OwnedComposition(_runner(_SyncService()), reconciler)
+        ..pendingAppUpdateCheck = pendingUpdateCheck.future;
+      final executor = BackgroundSyncTaskExecutor(
+        _CompositionFactory(owned),
+        postRunBudget: const Duration(milliseconds: 5),
+      );
+
+      expect(
+        await executor
+            .execute(reason: SyncReason.backgroundTask)
+            .timeout(const Duration(seconds: 1)),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(owned.appUpdateChecks, 1);
+      expect(reconciler.executionAllowedValues, [true]);
+      expect(owned.closeCalls, 0);
+
+      pendingUpdateCheck.complete();
+      await owned.closed.future.timeout(const Duration(seconds: 1));
+
+      expect(owned.updateCheckResumedAfterClose, isFalse);
+      expect(owned.closeCalls, 1);
+    },
+  );
+
+  test(
+    'an over-budget reconciliation returns bounded and never runs unbounded',
+    () async {
+      final pendingReconciliation = Completer<void>();
+      final reconciler = _Reconciler()..pending = pendingReconciliation.future;
+      final owned = _OwnedComposition(_runner(_SyncService()), reconciler);
+      final executor = BackgroundSyncTaskExecutor(
+        _CompositionFactory(owned),
+        postRunBudget: const Duration(milliseconds: 5),
+      );
+
+      expect(
+        await executor
+            .execute(reason: SyncReason.backgroundTask)
+            .timeout(const Duration(seconds: 1)),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      // A wedged platform channel can no longer hold the run open, and the
+      // update check has not started behind it.
+      expect(owned.appUpdateChecks, 0);
+      expect(owned.closeCalls, 0);
+
+      pendingReconciliation.complete();
+      await owned.closed.future.timeout(const Duration(seconds: 1));
+
+      expect(owned.appUpdateChecks, 1);
+      expect(owned.closeCalls, 1);
+    },
+  );
+
+  test('cancellation during reconciliation skips the update check', () async {
+    final pendingReconciliation = Completer<void>();
+    final reconciler = _Reconciler()..pending = pendingReconciliation.future;
+    final owned = _OwnedComposition(_runner(_SyncService()), reconciler);
+    final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
+    final cancellation = BackgroundSyncCancellationController();
+
+    final execution = executor.execute(
+      reason: SyncReason.backgroundTask,
+      cancellation: cancellation,
+    );
+    await reconciler.started.future;
+    cancellation.cancel();
+    pendingReconciliation.complete();
+
+    expect(await execution, isA<BackgroundSyncSucceeded>());
+    expect(owned.appUpdateChecks, 0);
+    expect(owned.closeCalls, 1);
+  });
+
   test('reconciliation failure cannot fail the completed run', () async {
     final reconciler = _Reconciler()..failure = StateError('PRIVATE_PATH');
     final owned = _OwnedComposition(_runner(_SyncService()), reconciler);
@@ -109,6 +189,37 @@ void main() {
       expect(owned.closeCalls, 1);
     },
   );
+
+  test('cancelled sync reconciles after quiescence before closing', () async {
+    final sync = _SyncService();
+    final pendingSync = Completer<SyncOutcome>();
+    sync.pending = pendingSync;
+    final pendingReconciliation = Completer<void>();
+    final reconciler = _Reconciler()..pending = pendingReconciliation.future;
+    final owned = _OwnedComposition(_runner(sync), reconciler);
+    final executor = BackgroundSyncTaskExecutor(_CompositionFactory(owned));
+    final cancellation = BackgroundSyncCancellationController();
+
+    final execution = executor.execute(
+      reason: SyncReason.backgroundTask,
+      cancellation: cancellation,
+    );
+    await sync.started.future;
+    cancellation.cancel();
+    await sync.cancellationRequested.future;
+
+    expect(reconciler.started.isCompleted, isFalse);
+    pendingSync.complete(_cancelled());
+    await reconciler.started.future.timeout(const Duration(seconds: 1));
+
+    expect(owned.closeCalls, 0);
+    expect(owned.appUpdateChecks, 0);
+
+    pendingReconciliation.complete();
+    expect(await execution, isA<BackgroundSyncCancelled>());
+    expect(reconciler.executionAllowedValues, [true]);
+    expect(owned.closeCalls, 1);
+  });
 
   test(
     'time budget returns bounded and closes abandoned work only when terminal',
@@ -371,10 +482,17 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
 
   int appUpdateChecks = 0;
   Object? appUpdateFailure;
+  Future<void>? pendingAppUpdateCheck;
+  bool updateCheckResumedAfterClose = false;
 
   @override
   Future<void> checkForAppUpdate() async {
     appUpdateChecks += 1;
+    final pending = pendingAppUpdateCheck;
+    if (pending != null) {
+      await pending;
+      updateCheckResumedAfterClose = closed.isCompleted;
+    }
     final failure = appUpdateFailure;
     if (failure != null) {
       throw failure;
@@ -399,11 +517,20 @@ final class _OwnedComposition implements BackgroundSyncOwnedComposition {
 
 final class _Reconciler implements BackgroundScheduleReconciler {
   final List<bool> executionAllowedValues = [];
+  final Completer<void> started = Completer<void>();
+  Future<void>? pending;
   Object? failure;
 
   @override
   Future<void> reconcilePeriodicSync({required bool executionAllowed}) async {
     executionAllowedValues.add(executionAllowed);
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    final currentPending = pending;
+    if (currentPending != null) {
+      await currentPending;
+    }
     if (failure case final error?) {
       throw error;
     }
