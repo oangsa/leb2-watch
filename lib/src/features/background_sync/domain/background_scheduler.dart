@@ -80,7 +80,7 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   BackgroundMonitoringSettings settings,
   DateTime localNow,
 ) {
-  if (!settings.preciseFetchEnabled || !_isDaytime(localNow)) {
+  if (!settings.preciseFetchEnabled || !isBackgroundDaytime(localNow)) {
     return BackgroundSyncSchedule(
       cadence: resolveBackgroundSyncCadence(settings.daytimeCadence, localNow),
     );
@@ -94,23 +94,20 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   );
 }
 
-/// The interval for the next chained link, trimmed so it cannot fire after the
-/// window closes.
+/// The interval for the next chained link, or `null` once a whole period no
+/// longer fits inside the window.
 ///
-/// An untrimmed link armed near 19:00 lands overnight and costs a request the
-/// window is meant to save. A trim shorter than [minimumBackgroundFetchCadence]
-/// drops the link instead: the boundary is too close to be worth another wake,
-/// and the hourly backstop already covers it.
+/// A one-off initial delay is an eligibility time rather than a deadline, so a
+/// link is only armed while its own period still lands strictly before 19:00.
+/// A link armed *at* the boundary is already outside the half-open window and
+/// costs a request the window is meant to save; the hourly backstop covers the
+/// remainder of the day.
 Duration? _preciseCadenceFor(
   BackgroundFetchCadence daytimeCadence,
   DateTime localNow,
 ) {
   final cadence = daytimeCadence.duration;
-  final remaining = _untilNextWindowBoundary(localNow);
-  if (remaining >= cadence) {
-    return cadence;
-  }
-  return remaining >= minimumBackgroundFetchCadence ? remaining : null;
+  return _untilNextWindowBoundary(localNow) > cadence ? cadence : null;
 }
 
 /// The cadence to register right now for [daytimeCadence].
@@ -123,7 +120,7 @@ Duration resolveBackgroundSyncCadence(
   BackgroundFetchCadence daytimeCadence,
   DateTime localNow,
 ) {
-  final base = _isDaytime(localNow)
+  final base = isBackgroundDaytime(localNow)
       ? daytimeCadence.duration
       : nightBackgroundFetchCadence;
   final remaining = _untilNextWindowBoundary(localNow);
@@ -132,12 +129,17 @@ Duration resolveBackgroundSyncCadence(
       : base;
 }
 
-bool _isDaytime(DateTime localNow) =>
+/// Whether [localNow] is inside the half-open daytime window.
+///
+/// Also the runtime gate for work that was only armed for the window: a
+/// platform may dispatch it late, and the answer at dispatch time is what
+/// decides whether it should still run.
+bool isBackgroundDaytime(DateTime localNow) =>
     localNow.hour >= backgroundDaytimeStartHour &&
     localNow.hour < backgroundDaytimeEndHour;
 
 Duration _untilNextWindowBoundary(DateTime localNow) {
-  final hour = _isDaytime(localNow)
+  final hour = isBackgroundDaytime(localNow)
       ? backgroundDaytimeEndHour
       : backgroundDaytimeStartHour;
   var boundary = DateTime(localNow.year, localNow.month, localNow.day, hour);

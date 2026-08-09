@@ -230,6 +230,76 @@ void main() {
     },
   );
 
+  test(
+    'a precise link dispatched after 19:00 runs no synchronization',
+    () async {
+      for (final localNow in <DateTime>[
+        DateTime(2026, 8, 9, 19),
+        DateTime(2026, 8, 9, 23, 30),
+        DateTime(2026, 8, 9, 5, 59),
+      ]) {
+        var executions = 0;
+        final handler = daytimeOnlyTaskHandler(
+          AndroidBackgroundSyncTaskHandler(
+            execute: ({required reason, cancellation, timeBudget}) async {
+              executions += 1;
+              return const BackgroundSyncSucceeded();
+            },
+            cancelByTag: (_) async {},
+          ).call,
+          localNow: () => localNow,
+        );
+
+        expect(
+          await handler(
+            const WorkmanagerTaskExecutionContext(
+              inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+            ),
+          ),
+          WorkmanagerTaskExecutionResult.handled,
+          reason: localNow.toString(),
+        );
+        expect(executions, 0, reason: localNow.toString());
+      }
+    },
+  );
+
+  test('a precise link dispatched inside the window runs', () async {
+    var executions = 0;
+    final handler = daytimeOnlyTaskHandler(
+      AndroidBackgroundSyncTaskHandler(
+        execute: ({required reason, cancellation, timeBudget}) async {
+          executions += 1;
+          return const BackgroundSyncSucceeded();
+        },
+        cancelByTag: (_) async {},
+      ).call,
+      localNow: () => DateTime(2026, 8, 9, 18, 59),
+    );
+
+    expect(
+      await handler(
+        const WorkmanagerTaskExecutionContext(
+          inputData: {androidPeriodicSyncGenerationInputKey: _generationA},
+        ),
+      ),
+      WorkmanagerTaskExecutionResult.handled,
+    );
+    expect(executions, 1);
+  });
+
+  test('the hourly periodic backstop still runs overnight', () {
+    final source = File(
+      'lib/src/platform/background/android/android_background_callback.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('androidPeriodicSyncTaskName: handler'));
+    expect(
+      source,
+      contains('androidPreciseSyncTaskName: daytimeOnlyTaskHandler(handler)'),
+    );
+  });
+
   test('Android callback remains a top-level retained entrypoint', () {
     final source = File(
       'lib/src/platform/background/android/android_background_callback.dart',

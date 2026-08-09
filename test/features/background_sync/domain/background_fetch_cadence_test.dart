@@ -102,19 +102,25 @@ void main() {
       );
     });
 
-    test('the last link lands on 19:00 instead of overnight', () {
-      // An untrimmed 30-minute link armed at 18:45 would fire at 19:15 — a
-      // request the overnight window is meant to save.
+    test('a link that would land overnight is dropped', () {
+      // A 30-minute link armed at 18:45 would fire at 19:15 — a request the
+      // overnight window is meant to save.
       expect(
         scheduleAt(
           DateTime(2026, 8, 9, 18, 45),
           cadence: BackgroundFetchCadence.thirtyMinutes,
         ).preciseCadence,
-        const Duration(minutes: 15),
+        isNull,
       );
     });
 
-    test('a link that still lands inside the window is not trimmed', () {
+    test('a link landing exactly on 19:00 is dropped', () {
+      // 19:00 is the first instant outside the half-open window, and an
+      // initial delay is an eligibility time rather than a deadline.
+      expect(scheduleAt(DateTime(2026, 8, 9, 18, 50)).preciseCadence, isNull);
+    });
+
+    test('a link that still lands inside the window keeps its period', () {
       expect(
         scheduleAt(DateTime(2026, 8, 9, 18, 45)).preciseCadence,
         const Duration(minutes: 10),
@@ -125,7 +131,7 @@ void main() {
       expect(scheduleAt(DateTime(2026, 8, 9, 18, 57)).preciseCadence, isNull);
     });
 
-    test('the hourly backstop is unchanged by the trim', () {
+    test('the hourly backstop is unchanged when a link is dropped', () {
       expect(
         scheduleAt(DateTime(2026, 8, 9, 18, 57)).cadence,
         nightBackgroundFetchCadence,
