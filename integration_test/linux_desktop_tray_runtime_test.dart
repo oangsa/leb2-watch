@@ -391,6 +391,19 @@ final class _TestMonitoringSettings
     _controller.add(BackgroundMonitoringSettings(enabled: enabled));
     return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
   }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) async {
+    _controller.add(
+      BackgroundMonitoringSettings(
+        enabled: _enabled,
+        daytimeCadence: cadence,
+      ),
+    );
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
 }
 
 // --- No-op background sync stores ---

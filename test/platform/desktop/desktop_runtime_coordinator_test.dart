@@ -657,6 +657,16 @@ final class _Settings implements BackgroundMonitoringSettingsService {
     _changes.add(BackgroundMonitoringSettings(enabled: enabled));
     return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
   }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) async {
+    _changes.add(
+      BackgroundMonitoringSettings(enabled: _enabled, daytimeCadence: cadence),
+    );
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
 }
 
 final class _ManualSettings implements BackgroundMonitoringSettingsService {
@@ -685,6 +695,13 @@ final class _ManualSettings implements BackgroundMonitoringSettingsService {
     bool enabled,
   ) async {
     emitData(enabled: enabled);
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) async {
     return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
   }
 }

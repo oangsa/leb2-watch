@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
 import 'package:leb2_watch/src/core/database/local_database_storage.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_schedule_store.dart';
+import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 
 void main() {
   late AppDatabase database;
@@ -15,6 +16,31 @@ void main() {
   });
 
   tearDown(() => database.close());
+
+  test('every selectable cadence survives a round trip', () async {
+    final store = DriftBackgroundScheduleStore(database);
+
+    for (final cadence in BackgroundFetchCadence.values) {
+      await store.setDaytimeCadence(cadence);
+      expect(await store.readDaytimeCadence(), cadence);
+      expect((await store.watchSettings().first).daytimeCadence, cadence);
+    }
+  });
+
+  test('an unselectable cadence cannot reach the column', () async {
+    await expectLater(
+      database.customStatement(
+        'UPDATE background_schedule_settings '
+        'SET daytime_cadence_minutes = 7 WHERE singleton_id = 1',
+      ),
+      throwsException,
+    );
+
+    expect(
+      await DriftBackgroundScheduleStore(database).readDaytimeCadence(),
+      defaultBackgroundFetchCadence,
+    );
+  });
 
   test(
     'fresh settings default monitoring off and keep one stable jitter',
@@ -28,7 +54,13 @@ void main() {
       expect(await store.readMonitoringEnabled(), isFalse);
       expect(await store.readOrCreateInstallJitterSeconds(), 17);
       expect(await store.readOrCreateInstallJitterSeconds(), 17);
-      expect(await store.watchMonitoringEnabled().first, isFalse);
+      expect(
+        await store.watchSettings().first,
+        const BackgroundMonitoringSettings(
+          enabled: false,
+          daytimeCadence: defaultBackgroundFetchCadence,
+        ),
+      );
     },
   );
 
