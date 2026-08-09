@@ -194,7 +194,7 @@ final class DioBackendApiClient
     _requirePositiveInt32(userId, 'userId');
     return _execute(
       route: BackendTransportRoute.semesterSnapshot,
-      path: '$_apiV1Prefix/Activity/$semesterId/snapshot',
+      path: '/api/v2/Activity/$semesterId/snapshot',
       headers: {_userIdHeader: userId.toString()},
       cancellation: cancellation,
       mapSuccess: (json) => _mapSnapshot(json, semesterId),
@@ -962,11 +962,11 @@ AssignmentSnapshot _mapSnapshot(Object? json, int requestedSemesterId) {
 }
 
 AssignmentActivity _mapActivity(ActivityDto dto, int semesterId) {
-  _requireIsoDate(dto.startDate);
-  _requireIsoDate(dto.dueDate);
-  _requireIsoDate(dto.createdAt);
-  _requireIsoDate(dto.lastDueDateNotificationDate);
-  _requireIsoDate(dto.lastStatusChangeNotificationDate);
+  _requireNullableUtcTimestamp(dto.startDate);
+  _requireNullableUtcTimestamp(dto.dueDate);
+  _requireUtcTimestamp(dto.createdAt);
+  _requireNullableUtcTimestamp(dto.lastDueDateNotificationDate);
+  _requireNullableUtcTimestamp(dto.lastStatusChangeNotificationDate);
 
   final submittedAtDto = dto.activitySubmissionSubmittedAt;
   final ActivitySubmissionTimestamp? submittedAt;
@@ -1062,24 +1062,10 @@ void _requireNonblank(String value) {
   }
 }
 
-final _isoDatePattern = RegExp(
-  r'^[+-]?\d{4,6}-\d{2}-\d{2}T\d{2}:\d{2}'
-  r'(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})?$',
-);
-
 final _submissionTimestampDatePattern = RegExp(
   r'^[+-]?\d{4,6}-\d{2}-\d{2}[T ]\d{2}:\d{2}'
   r'(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:\d{2})?$',
 );
-
-void _requireIsoDate(String? value) {
-  if (value == null) {
-    return;
-  }
-  if (!_isoDatePattern.hasMatch(value) || DateTime.tryParse(value) == null) {
-    throw const _ResponseInvariantException();
-  }
-}
 
 void _requireSubmissionTimestampDate(String value) {
   if (!_submissionTimestampDatePattern.hasMatch(value) ||
@@ -1111,6 +1097,12 @@ void _requireUtcTimestamp(String value) {
   if (parsed == null ||
       !RegExp(r'(?:Z|[+-]00:00)$', caseSensitive: false).hasMatch(value)) {
     throw const _ResponseInvariantException();
+  }
+}
+
+void _requireNullableUtcTimestamp(String? value) {
+  if (value != null) {
+    _requireUtcTimestamp(value);
   }
 }
 
