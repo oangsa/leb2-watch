@@ -329,14 +329,36 @@ Every user-visible change belongs in `CHANGELOG.md` under `## [Unreleased]`,
 added in the same commit as the change. Omit changes a user cannot observe:
 internal refactoring, tests, tooling, and documentation.
 
+Entries are read at a glance. Write one short sentence, two at most, and never
+more than two lines of prose. A reader who wants the reasoning has the commit.
+
 Entry rules:
 
 - Group under `### Added`, `### Changed`, `### Fixed`, `### Removed`,
   `### Deprecated`, or `### Security`, in that order.
-- Describe observable behavior, not implementation. State what a user now sees,
-  and for a fix, what was wrong before it.
-- Name the schema version when a release migrates local data.
-- Do not reference commit hashes, pull requests, or internal class names.
+- Name what changed, not how it works. A fix entry names the broken behavior:
+  "Update notice never posted at all."
+- Cut the mechanism, the rationale, and the qualifiers. No architecture, no
+  internal names, no commit hashes or pull requests, no platform API detail
+  beyond what the user chooses.
+- Name the schema version when a release migrates local data, in the same
+  sentence as the change that needs it.
+
+Bad — four lines of mechanism nobody asked for:
+
+```markdown
+- New releases are now announced with a local notification, so the notice
+  arrives while the app is closed. It is posted at most once per release, from
+  app launch and from background synchronization runs; the in-app banner still
+  carries the download action.
+```
+
+Good:
+
+```markdown
+- Notification when a new version is released, so the notice arrives while the
+  app is closed.
+```
 
 Release steps:
 
