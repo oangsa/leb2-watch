@@ -509,6 +509,9 @@ final class _Gateway implements WorkmanagerGateway {
   Future<void> registerPeriodicTask(
     WorkmanagerPeriodicTaskRequest request,
   ) async {}
+
+  @override
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request) async {}
 }
 
 const _activePolicy = BackgroundSyncTargetPolicy(

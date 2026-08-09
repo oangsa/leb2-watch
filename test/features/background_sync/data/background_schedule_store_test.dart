@@ -22,10 +22,26 @@ void main() {
 
     for (final cadence in BackgroundFetchCadence.values) {
       await store.setDaytimeCadence(cadence);
-      expect(await store.readDaytimeCadence(), cadence);
+      expect((await store.readSettings()).daytimeCadence, cadence);
       expect((await store.watchSettings().first).daytimeCadence, cadence);
     }
   });
+
+  test(
+    'precise checks are off until asked for and survive a round trip',
+    () async {
+      final store = DriftBackgroundScheduleStore(database);
+
+      expect((await store.readSettings()).preciseFetchEnabled, isFalse);
+
+      await store.setPreciseFetchEnabled(true);
+      expect((await store.readSettings()).preciseFetchEnabled, isTrue);
+      expect((await store.watchSettings().first).preciseFetchEnabled, isTrue);
+
+      await store.setPreciseFetchEnabled(false);
+      expect((await store.readSettings()).preciseFetchEnabled, isFalse);
+    },
+  );
 
   test('an unselectable cadence cannot reach the column', () async {
     await expectLater(
@@ -37,7 +53,9 @@ void main() {
     );
 
     expect(
-      await DriftBackgroundScheduleStore(database).readDaytimeCadence(),
+      (await DriftBackgroundScheduleStore(
+        database,
+      ).readSettings()).daytimeCadence,
       defaultBackgroundFetchCadence,
     );
   });

@@ -511,8 +511,9 @@ desktopAutostartServiceProvider
 unavailable. Active status carries a nullable approximate UTC next check;
 platforms that cannot justify an estimate leave it null.
 
-The requested periodic cadence is resolved per registration by
-`resolveBackgroundSyncCadence`. `BackgroundFetchCadence` is the user's daytime
+The registration is resolved per attempt by `resolveBackgroundSyncSchedule`,
+which returns the periodic cadence and an optional precise cadence.
+`BackgroundFetchCadence` is the user's daytime
 choice — 10, 15, 30, or 60 minutes, default 15 — persisted in
 `background_schedule_settings.daytime_cadence_minutes` (schema 20, checked to
 those four values). Daytime is 06:00 through 19:00 on the device's own clock;
@@ -527,6 +528,26 @@ cadence choice can delay them.
 
 Android and iOS raise anything below their own 15-minute periodic floor rather
 than rejecting it, so the registered value matches what the platform will run.
+
+Precise checks (`background_schedule_settings.precise_fetch_enabled`, schema
+22, default off) are the opt-in escape from that floor and from the platform's
+own deferral. While they are on **and** it is daytime,
+`resolveBackgroundSyncSchedule` returns the chosen cadence as
+`preciseCadence` and drops the periodic registration to
+`nightBackgroundFetchCadence`. Android then registers a one-off task
+(`androidPreciseSyncUniqueWorkName`) that has no periodic floor and no flex
+window, re-armed by the reconciliation that follows every run; the hourly
+periodic request stays registered as the backstop that revives the chain if a
+run ever ends without reconciling. Overnight `preciseCadence` is null, the
+one-off is cancelled, and the schedule is exactly what it was before, which is
+what keeps overnight request volume unchanged. A boundary crossing costs at
+most one extra chained run, because the switch happens at the next
+reconciliation.
+
+Precise checks are Android-only in both the settings UI and effect: a desktop
+timer already fires on the cadence it was given, and iOS decides refresh
+timing from its own budget. The one-off is still WorkManager, so Doze can
+still delay it; it is closer to the chosen interval, not exact.
 
 Registration is repaired and re-resolved after every background run:
 `BackgroundSyncTaskExecutor` calls the owned composition's
@@ -922,6 +943,12 @@ Tests cover:
   registers nothing;
 - schema 19-and-earlier upgrades adding the cadence column without losing
   monitoring intent or jitter;
+- precise checks arming the chained Android task beside the hourly backstop
+  during the day, going quiet overnight without being turned off, and clearing
+  the chain when switched off or when monitoring is cancelled;
+- precise checks defaulting off through an upgrade, the boolean column check,
+  and the switch appearing on Android only and staying disabled until
+  background monitoring is on;
 - post-run schedule reconciliation, including a reconciliation failure leaving
   the completed run intact;
 - stable initial delay;

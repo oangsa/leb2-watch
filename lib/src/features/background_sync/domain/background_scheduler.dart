@@ -47,6 +47,53 @@ const minimumBackgroundFetchCadence = Duration(minutes: 10);
 const backgroundDaytimeStartHour = 6;
 const backgroundDaytimeEndHour = 19;
 
+/// The platform work to register right now.
+///
+/// [preciseCadence] is non-null only while precise checks are both enabled and
+/// inside the daytime window; overnight it is dropped so the app falls back to
+/// the pinned hourly cadence, which is what keeps the overnight request volume
+/// unchanged.
+final class BackgroundSyncSchedule {
+  const BackgroundSyncSchedule({required this.cadence, this.preciseCadence});
+
+  /// The operating-system periodic registration.
+  final Duration cadence;
+
+  /// The interval the chained precise task re-arms itself at, or `null` when
+  /// precise checks are off for now.
+  final Duration? preciseCadence;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BackgroundSyncSchedule &&
+      other.cadence == cadence &&
+      other.preciseCadence == preciseCadence;
+
+  @override
+  int get hashCode => Object.hash(cadence, preciseCadence);
+
+  @override
+  String toString() => 'BackgroundSyncSchedule(redacted: true)';
+}
+
+BackgroundSyncSchedule resolveBackgroundSyncSchedule(
+  BackgroundMonitoringSettings settings,
+  DateTime localNow,
+) {
+  if (!settings.preciseFetchEnabled || !_isDaytime(localNow)) {
+    return BackgroundSyncSchedule(
+      cadence: resolveBackgroundSyncCadence(settings.daytimeCadence, localNow),
+    );
+  }
+  // The periodic registration stays on the night cadence while precise checks
+  // run: it is the backstop that re-arms the chain if a run ends without
+  // reconciling, and it becomes the whole schedule again at 19:00.
+  return BackgroundSyncSchedule(
+    cadence: nightBackgroundFetchCadence,
+    preciseCadence: settings.daytimeCadence.duration,
+  );
+}
+
 /// The cadence to register right now for [daytimeCadence].
 ///
 /// The result is trimmed to land on the next window boundary when that is
@@ -119,25 +166,33 @@ abstract interface class BackgroundMonitoringSettingsService {
   Future<BackgroundMonitoringUpdateResult> setDaytimeFetchCadence(
     BackgroundFetchCadence cadence,
   );
+
+  Future<BackgroundMonitoringUpdateResult> setPreciseFetchEnabled(bool enabled);
 }
 
 final class BackgroundMonitoringSettings {
   const BackgroundMonitoringSettings({
     required this.enabled,
     this.daytimeCadence = defaultBackgroundFetchCadence,
+    this.preciseFetchEnabled = false,
   });
 
   final bool enabled;
   final BackgroundFetchCadence daytimeCadence;
 
+  /// Opt-in: hold the daytime cadence instead of accepting the operating
+  /// system's own deferral, at the cost of battery.
+  final bool preciseFetchEnabled;
+
   @override
   bool operator ==(Object other) =>
       other is BackgroundMonitoringSettings &&
       other.enabled == enabled &&
-      other.daytimeCadence == daytimeCadence;
+      other.daytimeCadence == daytimeCadence &&
+      other.preciseFetchEnabled == preciseFetchEnabled;
 
   @override
-  int get hashCode => Object.hash(enabled, daytimeCadence);
+  int get hashCode => Object.hash(enabled, daytimeCadence, preciseFetchEnabled);
 
   @override
   String toString() => 'BackgroundMonitoringSettings(redacted: true)';

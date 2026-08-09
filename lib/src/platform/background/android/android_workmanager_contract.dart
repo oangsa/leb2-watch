@@ -5,6 +5,12 @@ const androidPeriodicSyncGenerationInputKey =
     'dev.oangsa.leb2watch.periodic-sync.generation-tag-v1';
 const androidPeriodicSyncGenerationTagPrefix =
     'dev.oangsa.leb2watch.periodic-sync.generation-v1.';
+
+/// The opt-in chained task: one-off work carries no 15-minute floor and no
+/// periodic flex window, so it holds the chosen cadence far more closely. Each
+/// run re-arms the next link during schedule reconciliation.
+const androidPreciseSyncUniqueWorkName = 'dev.oangsa.leb2watch.precise-sync.v1';
+const androidPreciseSyncTaskName = 'leb2-precise-sync-v1';
 const androidMinimumPeriodicCadence = Duration(minutes: 15);
 const androidBackgroundExecutionBudget = Duration(minutes: 9);
 

@@ -124,7 +124,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +134,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 20 || to != 21) {
+        if (from < 1 || from > 21 || to != 22) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -207,6 +207,7 @@ class AppDatabase extends _$AppDatabase {
         await _ensureDaytimeCadenceColumn();
         await _ensureClockOffsetColumn();
         await _ensureAppUpdateNotificationColumns();
+        await _ensurePreciseFetchColumn();
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -255,6 +256,27 @@ class AppDatabase extends _$AppDatabase {
       'ALTER TABLE background_schedule_settings '
       'ADD COLUMN daytime_cadence_minutes INTEGER NOT NULL DEFAULT 15 '
       'CHECK (daytime_cadence_minutes IN (10, 15, 30, 60))',
+    );
+  }
+
+  /// Adds the opt-in precise-checks flag.
+  ///
+  /// Off for existing installs: precise checks cost battery, so an upgrade
+  /// never turns them on without the user asking.
+  Future<void> _ensurePreciseFetchColumn() async {
+    final columns = await customSelect(
+      'PRAGMA table_info(background_schedule_settings)',
+    ).get();
+    final present = columns.any(
+      (column) => column.read<String>('name') == 'precise_fetch_enabled',
+    );
+    if (present) {
+      return;
+    }
+    await customStatement(
+      'ALTER TABLE background_schedule_settings '
+      'ADD COLUMN precise_fetch_enabled INTEGER NOT NULL DEFAULT 0 '
+      'CHECK (precise_fetch_enabled IN (0, 1))',
     );
   }
 

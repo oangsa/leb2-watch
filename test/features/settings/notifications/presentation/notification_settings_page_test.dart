@@ -382,6 +382,70 @@ void _cadenceTests() {
     expect(find.text('Saved.'), findsOne);
   });
 
+  testWidgets('precise checks are offered on Android only', (tester) async {
+    for (final platform in NotificationSettingsPlatform.values) {
+      final service = _SettingsService(
+        _snapshot(platform: platform, backgroundEnabled: true),
+      );
+
+      await _pump(tester, service, height: 1400);
+
+      expect(
+        find.byKey(const Key('precise-fetch-switch')),
+        platform == NotificationSettingsPlatform.android
+            ? findsOne
+            : findsNothing,
+        reason: platform.name,
+      );
+    }
+  });
+
+  testWidgets('precise checks need background monitoring first', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.android),
+    );
+
+    await _pump(tester, service, height: 1400);
+
+    expect(
+      tester
+          .widget<SwitchListTile>(find.byKey(const Key('precise-fetch-switch')))
+          .onChanged,
+      isNull,
+    );
+    expect(find.text('Turn on background monitoring first.'), findsOne);
+  });
+
+  testWidgets('turning precise checks on saves and reports the cost', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(
+        platform: NotificationSettingsPlatform.android,
+        backgroundEnabled: true,
+        daytimeCadence: BackgroundFetchCadence.tenMinutes,
+      ),
+    );
+
+    await _pump(tester, service, height: 1400);
+
+    expect(
+      find.text(
+        'Checks every 10 min instead of when Android decides. Uses more '
+        'battery. Off overnight.',
+      ),
+      findsOne,
+    );
+
+    await tester.tap(find.byKey(const Key('precise-fetch-switch')));
+    await tester.pumpAndSettle();
+
+    expect(service.preciseWrites, [true]);
+    expect(find.text('Saved.'), findsOne);
+  });
+
   testWidgets('Android says what the platform actually allows', (tester) async {
     final service = _SettingsService(
       _snapshot(
@@ -404,12 +468,14 @@ NotificationSettingsSnapshot _snapshot({
   required NotificationSettingsPlatform platform,
   bool backgroundEnabled = false,
   BackgroundFetchCadence daytimeCadence = defaultBackgroundFetchCadence,
+  bool preciseFetchEnabled = false,
   BackgroundScheduleStatus scheduleStatus = const BackgroundScheduleInactive(),
 }) {
   return NotificationSettingsSnapshot(
     backgroundMonitoring: BackgroundMonitoringSettings(
       enabled: backgroundEnabled,
       daytimeCadence: daytimeCadence,
+      preciseFetchEnabled: preciseFetchEnabled,
     ),
     backgroundScheduleStatus: scheduleStatus,
     newAssignmentNotifications: const NewAssignmentNotificationSettings(
@@ -432,8 +498,10 @@ final class _SettingsService implements NotificationSettingsService {
       StreamController.broadcast();
   final List<bool> backgroundWrites = [];
   final List<BackgroundFetchCadence> cadenceWrites = [];
+  final List<bool> preciseWrites = [];
   Future<BackgroundMonitoringUpdateResult>? backgroundResult;
   Future<BackgroundMonitoringUpdateResult>? cadenceResult;
+  Future<BackgroundMonitoringUpdateResult>? preciseResult;
   int permissionCalls = 0;
   int permissionReads = 0;
   NotificationPermissionStatus? permissionStatus;
@@ -469,6 +537,17 @@ final class _SettingsService implements NotificationSettingsService {
   ) {
     cadenceWrites.add(cadence);
     return cadenceResult ??
+        Future.value(
+          const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive()),
+        );
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setBackgroundPreciseFetchEnabled(
+    bool enabled,
+  ) {
+    preciseWrites.add(enabled);
+    return preciseResult ??
         Future.value(
           const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive()),
         );

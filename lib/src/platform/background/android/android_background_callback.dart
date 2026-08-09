@@ -79,12 +79,16 @@ final class AndroidBackgroundSyncTaskHandler {
 @pragma('vm:entry-point')
 void androidBackgroundCallbackDispatcher() {
   final gateway = PluginWorkmanagerGateway();
+  final handler = AndroidBackgroundSyncTaskHandler(
+    cancelByTag: gateway.cancelByTag,
+  ).call;
   installWorkmanagerTaskDispatcher(
     gateway: gateway,
     handlers: {
-      androidPeriodicSyncTaskName: AndroidBackgroundSyncTaskHandler(
-        cancelByTag: gateway.cancelByTag,
-      ).call,
+      androidPeriodicSyncTaskName: handler,
+      // The chained precise task runs the same work; the next link is armed by
+      // the schedule reconciliation that follows every run.
+      androidPreciseSyncTaskName: handler,
     },
     timeBudget: androidBackgroundExecutionBudget,
   );

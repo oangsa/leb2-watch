@@ -682,6 +682,8 @@ class BackgroundScheduleSettings extends Table {
   IntColumn get installJitterSeconds => integer().nullable()();
   IntColumn get daytimeCadenceMinutes =>
       integer().withDefault(const Constant(15))();
+  BoolColumn get preciseFetchEnabled =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {singletonId};

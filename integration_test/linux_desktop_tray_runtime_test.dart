@@ -401,6 +401,13 @@ final class _TestMonitoringSettings
     );
     return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
   }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setPreciseFetchEnabled(
+    bool enabled,
+  ) async {
+    return const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive());
+  }
 }
 
 // --- No-op background sync stores ---

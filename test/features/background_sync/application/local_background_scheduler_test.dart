@@ -68,6 +68,49 @@ void main() {
     expect(platform.cadences.last, nightBackgroundFetchCadence);
   });
 
+  test('precise checks hold the chosen cadence during the day', () async {
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.tenMinutes);
+
+    await scheduler.setMonitoringEnabled(true);
+    final result = await scheduler.setPreciseFetchEnabled(true);
+
+    expect(result, isA<BackgroundMonitoringUpdateApplied>());
+    expect(platform.preciseCadences.last, const Duration(minutes: 10));
+    // The periodic registration drops to the hourly backstop: it exists to
+    // re-arm the chain, not to add daytime checks of its own.
+    expect(platform.cadences.last, nightBackgroundFetchCadence);
+    expect(
+      await scheduler.watchSettings().first,
+      const BackgroundMonitoringSettings(
+        enabled: true,
+        daytimeCadence: BackgroundFetchCadence.tenMinutes,
+        preciseFetchEnabled: true,
+      ),
+    );
+  });
+
+  test('precise checks stop overnight without being turned off', () async {
+    await scheduler.setDaytimeFetchCadence(BackgroundFetchCadence.tenMinutes);
+    await scheduler.setPreciseFetchEnabled(true);
+    now = DateTime(2026, 8, 9, 21);
+
+    await scheduler.setMonitoringEnabled(true);
+
+    expect(platform.preciseCadences.last, isNull);
+    expect(platform.cadences.last, nightBackgroundFetchCadence);
+    expect((await scheduler.watchSettings().first).preciseFetchEnabled, isTrue);
+  });
+
+  test('turning precise checks off re-registers ordinary work', () async {
+    await scheduler.setMonitoringEnabled(true);
+    await scheduler.setPreciseFetchEnabled(true);
+
+    await scheduler.setPreciseFetchEnabled(false);
+
+    expect(platform.preciseCadences.last, isNull);
+    expect(platform.cadences.last, const Duration(minutes: 15));
+  });
+
   test('cadence change re-registers live platform work', () async {
     await scheduler.setMonitoringEnabled(true);
     expect(platform.cadences, [const Duration(minutes: 15)]);
@@ -148,6 +191,7 @@ final class _BackgroundPlatform implements BackgroundSchedulerPlatform {
   int cancelCalls = 0;
   final List<Duration> cadences = [];
   final List<Duration> initialDelays = [];
+  final List<Duration?> preciseCadences = [];
   Future<void> Function()? onSchedule;
   Object? cancelError;
 
@@ -160,10 +204,12 @@ final class _BackgroundPlatform implements BackgroundSchedulerPlatform {
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    Duration? preciseCadence,
   }) async {
     scheduleCalls += 1;
     cadences.add(cadence);
     initialDelays.add(initialDelay);
+    preciseCadences.add(preciseCadence);
     await onSchedule?.call();
   }
 

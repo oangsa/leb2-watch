@@ -8183,12 +8183,27 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
     requiredDuringInsert: false,
     defaultValue: const Constant(15),
   );
+  static const VerificationMeta _preciseFetchEnabledMeta =
+      const VerificationMeta('preciseFetchEnabled');
+  @override
+  late final GeneratedColumn<bool> preciseFetchEnabled = GeneratedColumn<bool>(
+    'precise_fetch_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("precise_fetch_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
     monitoringEnabled,
     installJitterSeconds,
     daytimeCadenceMinutes,
+    preciseFetchEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8238,6 +8253,15 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         ),
       );
     }
+    if (data.containsKey('precise_fetch_enabled')) {
+      context.handle(
+        _preciseFetchEnabledMeta,
+        preciseFetchEnabled.isAcceptableOrUnknown(
+          data['precise_fetch_enabled']!,
+          _preciseFetchEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8266,6 +8290,10 @@ class $BackgroundScheduleSettingsTable extends BackgroundScheduleSettings
         DriftSqlType.int,
         data['${effectivePrefix}daytime_cadence_minutes'],
       )!,
+      preciseFetchEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}precise_fetch_enabled'],
+      )!,
     );
   }
 
@@ -8281,11 +8309,13 @@ class BackgroundScheduleSetting extends DataClass
   final bool monitoringEnabled;
   final int? installJitterSeconds;
   final int daytimeCadenceMinutes;
+  final bool preciseFetchEnabled;
   const BackgroundScheduleSetting({
     required this.singletonId,
     required this.monitoringEnabled,
     this.installJitterSeconds,
     required this.daytimeCadenceMinutes,
+    required this.preciseFetchEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8296,6 +8326,7 @@ class BackgroundScheduleSetting extends DataClass
       map['install_jitter_seconds'] = Variable<int>(installJitterSeconds);
     }
     map['daytime_cadence_minutes'] = Variable<int>(daytimeCadenceMinutes);
+    map['precise_fetch_enabled'] = Variable<bool>(preciseFetchEnabled);
     return map;
   }
 
@@ -8307,6 +8338,7 @@ class BackgroundScheduleSetting extends DataClass
           ? const Value.absent()
           : Value(installJitterSeconds),
       daytimeCadenceMinutes: Value(daytimeCadenceMinutes),
+      preciseFetchEnabled: Value(preciseFetchEnabled),
     );
   }
 
@@ -8324,6 +8356,9 @@ class BackgroundScheduleSetting extends DataClass
       daytimeCadenceMinutes: serializer.fromJson<int>(
         json['daytimeCadenceMinutes'],
       ),
+      preciseFetchEnabled: serializer.fromJson<bool>(
+        json['preciseFetchEnabled'],
+      ),
     );
   }
   @override
@@ -8334,6 +8369,7 @@ class BackgroundScheduleSetting extends DataClass
       'monitoringEnabled': serializer.toJson<bool>(monitoringEnabled),
       'installJitterSeconds': serializer.toJson<int?>(installJitterSeconds),
       'daytimeCadenceMinutes': serializer.toJson<int>(daytimeCadenceMinutes),
+      'preciseFetchEnabled': serializer.toJson<bool>(preciseFetchEnabled),
     };
   }
 
@@ -8342,6 +8378,7 @@ class BackgroundScheduleSetting extends DataClass
     bool? monitoringEnabled,
     Value<int?> installJitterSeconds = const Value.absent(),
     int? daytimeCadenceMinutes,
+    bool? preciseFetchEnabled,
   }) => BackgroundScheduleSetting(
     singletonId: singletonId ?? this.singletonId,
     monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
@@ -8349,6 +8386,7 @@ class BackgroundScheduleSetting extends DataClass
         ? installJitterSeconds.value
         : this.installJitterSeconds,
     daytimeCadenceMinutes: daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
+    preciseFetchEnabled: preciseFetchEnabled ?? this.preciseFetchEnabled,
   );
   BackgroundScheduleSetting copyWithCompanion(
     BackgroundScheduleSettingsCompanion data,
@@ -8366,6 +8404,9 @@ class BackgroundScheduleSetting extends DataClass
       daytimeCadenceMinutes: data.daytimeCadenceMinutes.present
           ? data.daytimeCadenceMinutes.value
           : this.daytimeCadenceMinutes,
+      preciseFetchEnabled: data.preciseFetchEnabled.present
+          ? data.preciseFetchEnabled.value
+          : this.preciseFetchEnabled,
     );
   }
 
@@ -8375,7 +8416,8 @@ class BackgroundScheduleSetting extends DataClass
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
           ..write('installJitterSeconds: $installJitterSeconds, ')
-          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes, ')
+          ..write('preciseFetchEnabled: $preciseFetchEnabled')
           ..write(')'))
         .toString();
   }
@@ -8386,6 +8428,7 @@ class BackgroundScheduleSetting extends DataClass
     monitoringEnabled,
     installJitterSeconds,
     daytimeCadenceMinutes,
+    preciseFetchEnabled,
   );
   @override
   bool operator ==(Object other) =>
@@ -8394,7 +8437,8 @@ class BackgroundScheduleSetting extends DataClass
           other.singletonId == this.singletonId &&
           other.monitoringEnabled == this.monitoringEnabled &&
           other.installJitterSeconds == this.installJitterSeconds &&
-          other.daytimeCadenceMinutes == this.daytimeCadenceMinutes);
+          other.daytimeCadenceMinutes == this.daytimeCadenceMinutes &&
+          other.preciseFetchEnabled == this.preciseFetchEnabled);
 }
 
 class BackgroundScheduleSettingsCompanion
@@ -8403,23 +8447,27 @@ class BackgroundScheduleSettingsCompanion
   final Value<bool> monitoringEnabled;
   final Value<int?> installJitterSeconds;
   final Value<int> daytimeCadenceMinutes;
+  final Value<bool> preciseFetchEnabled;
   const BackgroundScheduleSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
     this.daytimeCadenceMinutes = const Value.absent(),
+    this.preciseFetchEnabled = const Value.absent(),
   });
   BackgroundScheduleSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
     this.monitoringEnabled = const Value.absent(),
     this.installJitterSeconds = const Value.absent(),
     this.daytimeCadenceMinutes = const Value.absent(),
+    this.preciseFetchEnabled = const Value.absent(),
   });
   static Insertable<BackgroundScheduleSetting> custom({
     Expression<int>? singletonId,
     Expression<bool>? monitoringEnabled,
     Expression<int>? installJitterSeconds,
     Expression<int>? daytimeCadenceMinutes,
+    Expression<bool>? preciseFetchEnabled,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -8428,6 +8476,8 @@ class BackgroundScheduleSettingsCompanion
         'install_jitter_seconds': installJitterSeconds,
       if (daytimeCadenceMinutes != null)
         'daytime_cadence_minutes': daytimeCadenceMinutes,
+      if (preciseFetchEnabled != null)
+        'precise_fetch_enabled': preciseFetchEnabled,
     });
   }
 
@@ -8436,6 +8486,7 @@ class BackgroundScheduleSettingsCompanion
     Value<bool>? monitoringEnabled,
     Value<int?>? installJitterSeconds,
     Value<int>? daytimeCadenceMinutes,
+    Value<bool>? preciseFetchEnabled,
   }) {
     return BackgroundScheduleSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -8443,6 +8494,7 @@ class BackgroundScheduleSettingsCompanion
       installJitterSeconds: installJitterSeconds ?? this.installJitterSeconds,
       daytimeCadenceMinutes:
           daytimeCadenceMinutes ?? this.daytimeCadenceMinutes,
+      preciseFetchEnabled: preciseFetchEnabled ?? this.preciseFetchEnabled,
     );
   }
 
@@ -8463,6 +8515,9 @@ class BackgroundScheduleSettingsCompanion
         daytimeCadenceMinutes.value,
       );
     }
+    if (preciseFetchEnabled.present) {
+      map['precise_fetch_enabled'] = Variable<bool>(preciseFetchEnabled.value);
+    }
     return map;
   }
 
@@ -8472,7 +8527,8 @@ class BackgroundScheduleSettingsCompanion
           ..write('singletonId: $singletonId, ')
           ..write('monitoringEnabled: $monitoringEnabled, ')
           ..write('installJitterSeconds: $installJitterSeconds, ')
-          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes')
+          ..write('daytimeCadenceMinutes: $daytimeCadenceMinutes, ')
+          ..write('preciseFetchEnabled: $preciseFetchEnabled')
           ..write(')'))
         .toString();
   }
@@ -13199,6 +13255,7 @@ typedef $$BackgroundScheduleSettingsTableCreateCompanionBuilder =
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
       Value<int> daytimeCadenceMinutes,
+      Value<bool> preciseFetchEnabled,
     });
 typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
     BackgroundScheduleSettingsCompanion Function({
@@ -13206,6 +13263,7 @@ typedef $$BackgroundScheduleSettingsTableUpdateCompanionBuilder =
       Value<bool> monitoringEnabled,
       Value<int?> installJitterSeconds,
       Value<int> daytimeCadenceMinutes,
+      Value<bool> preciseFetchEnabled,
     });
 
 class $$BackgroundScheduleSettingsTableFilterComposer
@@ -13234,6 +13292,11 @@ class $$BackgroundScheduleSettingsTableFilterComposer
 
   ColumnFilters<int> get daytimeCadenceMinutes => $composableBuilder(
     column: $table.daytimeCadenceMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -13266,6 +13329,11 @@ class $$BackgroundScheduleSettingsTableOrderingComposer
     column: $table.daytimeCadenceMinutes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BackgroundScheduleSettingsTableAnnotationComposer
@@ -13294,6 +13362,11 @@ class $$BackgroundScheduleSettingsTableAnnotationComposer
 
   GeneratedColumn<int> get daytimeCadenceMinutes => $composableBuilder(
     column: $table.daytimeCadenceMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get preciseFetchEnabled => $composableBuilder(
+    column: $table.preciseFetchEnabled,
     builder: (column) => column,
   );
 }
@@ -13348,11 +13421,13 @@ class $$BackgroundScheduleSettingsTableTableManager
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
                 Value<int> daytimeCadenceMinutes = const Value.absent(),
+                Value<bool> preciseFetchEnabled = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
                 daytimeCadenceMinutes: daytimeCadenceMinutes,
+                preciseFetchEnabled: preciseFetchEnabled,
               ),
           createCompanionCallback:
               ({
@@ -13360,11 +13435,13 @@ class $$BackgroundScheduleSettingsTableTableManager
                 Value<bool> monitoringEnabled = const Value.absent(),
                 Value<int?> installJitterSeconds = const Value.absent(),
                 Value<int> daytimeCadenceMinutes = const Value.absent(),
+                Value<bool> preciseFetchEnabled = const Value.absent(),
               }) => BackgroundScheduleSettingsCompanion.insert(
                 singletonId: singletonId,
                 monitoringEnabled: monitoringEnabled,
                 installJitterSeconds: installJitterSeconds,
                 daytimeCadenceMinutes: daytimeCadenceMinutes,
+                preciseFetchEnabled: preciseFetchEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

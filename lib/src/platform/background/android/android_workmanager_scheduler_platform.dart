@@ -45,6 +45,7 @@ final class AndroidWorkmanagerSchedulerPlatform
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    Duration? preciseCadence,
   }) {
     if (cadence <= Duration.zero) {
       throw ArgumentError.value(cadence, 'cadence', 'must be positive');
@@ -56,6 +57,13 @@ final class AndroidWorkmanagerSchedulerPlatform
         'must not be negative',
       );
     }
+    if (preciseCadence != null && preciseCadence <= Duration.zero) {
+      throw ArgumentError.value(
+        preciseCadence,
+        'preciseCadence',
+        'must be positive',
+      );
+    }
     // WorkManager silently raises anything shorter to its own 15 minute
     // periodic floor, so raising it here keeps the registered cadence and the
     // requested one the same value.
@@ -64,12 +72,14 @@ final class AndroidWorkmanagerSchedulerPlatform
           ? androidMinimumPeriodicCadence
           : cadence,
       initialDelay: initialDelay,
+      preciseCadence: preciseCadence,
     );
   }
 
   Future<void> _schedule({
     required Duration cadence,
     required Duration initialDelay,
+    required Duration? preciseCadence,
   }) async {
     await initialize();
     final generationTag = formatAndroidPeriodicSyncGenerationTag(
@@ -87,12 +97,27 @@ final class AndroidWorkmanagerSchedulerPlatform
         existingPolicy: WorkmanagerPeriodicWorkPolicy.update,
       ),
     );
+    if (preciseCadence == null) {
+      await _gateway.cancelByUniqueName(androidPreciseSyncUniqueWorkName);
+      return;
+    }
+    await _gateway.registerOneOffTask(
+      WorkmanagerOneOffTaskRequest(
+        uniqueName: androidPreciseSyncUniqueWorkName,
+        taskName: androidPreciseSyncTaskName,
+        initialDelay: preciseCadence,
+        inputData: {androidPeriodicSyncGenerationInputKey: generationTag},
+        tag: generationTag,
+        networkRequirement: WorkmanagerNetworkRequirement.connected,
+      ),
+    );
   }
 
   @override
   Future<void> cancelPeriodicSync() async {
     await initialize();
     await _gateway.cancelByUniqueName(androidPeriodicSyncUniqueWorkName);
+    await _gateway.cancelByUniqueName(androidPreciseSyncUniqueWorkName);
   }
 
   @override

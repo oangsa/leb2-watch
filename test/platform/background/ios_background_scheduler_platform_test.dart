@@ -118,6 +118,9 @@ final class _Gateway implements WorkmanagerGateway {
   ) async {
     requests.add(request);
   }
+
+  @override
+  Future<void> registerOneOffTask(WorkmanagerOneOffTaskRequest request) async {}
 }
 
 final class _StatusBridge implements IosBackgroundRefreshStatusBridge {

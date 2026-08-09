@@ -48,6 +48,9 @@ final class IosWorkmanagerSchedulerPlatform
   Future<void> schedulePeriodicSync({
     required Duration cadence,
     required Duration initialDelay,
+    // iOS decides when a refresh runs from its own budget, so no cadence can
+    // be held precisely here.
+    Duration? preciseCadence,
   }) async {
     if (cadence <= Duration.zero) {
       throw ArgumentError.value(cadence, 'cadence', 'must be positive');
