@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/network/backend_api_client.dart';
 import '../../core/network/backend_compatibility.dart';
 import '../../core/network/backend_runtime_identity.dart';
@@ -12,6 +14,13 @@ import 'app_update_notification_store.dart';
 /// that changes a few times a year.
 const appUpdateCheckInterval = Duration(hours: 24);
 
+/// How long a post waits for the notification bridge to come up.
+///
+/// Matches the other notification effects: platform initialization can stay
+/// pending indefinitely, and a background run awaits this check before schedule
+/// reconciliation and composition teardown, outside the runner's time budget.
+const appUpdateNotificationInitializationTimeout = Duration(seconds: 30);
+
 /// Announces a newer release once, as a notification the user sees while the
 /// app is closed.
 ///
@@ -25,6 +34,7 @@ final class AppUpdateNotifier {
     this._client,
     this._clientVersion,
     DateTime Function()? nowUtc,
+    this._initializationTimeout = appUpdateNotificationInitializationTimeout,
   }) : _nowUtc = nowUtc ?? _systemUtcNow;
 
   final AppUpdateNotificationStore _store;
@@ -33,6 +43,7 @@ final class AppUpdateNotifier {
   final BackendCompatibilityClient? _client;
   final ClientVersionProvider? _clientVersion;
   final DateTime Function() _nowUtc;
+  final Duration _initializationTimeout;
 
   /// Announces [snapshot] when it carries a release this install has not
   /// announced yet. Used with the metadata the app already fetches at launch.
@@ -119,9 +130,18 @@ final class AppUpdateNotifier {
       // them has: the launch path races notification startup, and a background
       // run only initializes as a side effect of a committed synchronization.
       if (notifications is LocalNotificationInitializationControl) {
-        await (notifications as LocalNotificationInitializationControl)
-            .beginInitializationAttempt()
-            .completion;
+        final attempt =
+            (notifications as LocalNotificationInitializationControl)
+                .beginInitializationAttempt();
+        try {
+          await attempt.completion.timeout(_initializationTimeout);
+        } on TimeoutException {
+          // An initialization that never settles must not hold a background run
+          // open past its own work. Abandoning is identity-fenced by the
+          // service, so a later attempt still owns the bridge.
+          attempt.abandon();
+          return;
+        }
       }
       await notifications.showAppUpdateAvailable(
         version: version,

@@ -88,6 +88,16 @@ so the store upserts instead of assuming a row.
 Recording happens only after the platform accepts the notification, so a
 failed write costs a repeated notice rather than a missed one.
 
+The bridge is initialized lazily by whichever coordinator posts first, so a
+post begins its own attempt when the service exposes
+`LocalNotificationInitializationControl`. That wait is bounded by
+`appUpdateNotificationInitializationTimeout`, 30 seconds, matching the other
+notification effects: an attempt that never settles is abandoned through the
+identity-fenced attempt contract and the post returns silently. A background
+run therefore always reaches schedule reconciliation and composition closure,
+which the runner's own time budget does not cover because the update check
+happens after it.
+
 ## Important files
 
 - `lib/src/features/app_update/app_update_banner.dart`
@@ -121,7 +131,8 @@ semantics, otherwise the metadata is rejected upstream and no banner appears.
 ## Failure behavior
 
 Every failure path resolves to "no banner". The check never blocks startup,
-navigation, or synchronization.
+navigation, or synchronization, and a notification bridge that never
+initializes times out instead of holding its caller.
 
 ## Tests
 
@@ -133,8 +144,10 @@ message.
 `test/features/app_update/app_update_notifier_test.dart`: one notice per
 release, a later release announcing again, silence for current versions and
 unmanaged channels, the Flatpak wording, no recording after a failed
-notification, the 24-hour background throttle, and silence on metadata
-failure.
+notification, the 24-hour background throttle, silence on metadata failure,
+lazy bridge initialization before a launch or background post, and a
+never-settling initialization being abandoned at the injected timeout without
+a notice or a recorded version.
 
 `test/features/app_update/app_update_notification_store_test.dart` and
 `test/core/database/app_update_notification_migration_test.dart`: the lazily

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_compatibility.dart';
@@ -33,6 +35,7 @@ void main() {
     BackendCompatibilityClient? client,
     ClientVersionProvider? clientVersion,
     DateTime? now,
+    Duration initializationTimeout = const Duration(seconds: 30),
   }) {
     return AppUpdateNotifier(
       store: store,
@@ -41,6 +44,7 @@ void main() {
       client: client,
       clientVersion: clientVersion,
       nowUtc: () => now ?? DateTime.utc(2026, 8, 9, 12),
+      initializationTimeout: initializationTimeout,
     );
   }
 
@@ -253,7 +257,74 @@ void main() {
         expect(store.notifiedVersion, '0.8.0');
       },
     );
+
+    test('a bridge that never initializes cannot wedge the run', () async {
+      final store = _Store();
+      final notifications = _WedgedBridge();
+
+      await notifier(
+        store,
+        notifications,
+        client: _Client(metadata()),
+        clientVersion: _Version('0.7.0'),
+        initializationTimeout: const Duration(milliseconds: 5),
+      ).checkForUpdate();
+
+      expect(notifications.versions, isEmpty);
+      expect(notifications.abandonCalls, 1);
+      expect(store.notifiedVersion, isNull);
+    });
+
+    test('a launch announcement abandons the same wedged attempt', () async {
+      final store = _Store();
+      final notifications = _WedgedBridge();
+
+      await notifier(
+        store,
+        notifications,
+        initializationTimeout: const Duration(milliseconds: 5),
+      ).announce(updateAvailable());
+
+      expect(notifications.versions, isEmpty);
+      expect(notifications.abandonCalls, 1);
+      expect(store.notifiedVersion, isNull);
+    });
   });
+}
+
+/// Mirrors a platform bridge whose initialization never answers.
+final class _WedgedBridge
+    implements
+        AppUpdateNotificationControl,
+        LocalNotificationInitializationControl {
+  final List<String> versions = [];
+  final Completer<void> _initialization = Completer<void>();
+  int abandonCalls = 0;
+
+  @override
+  LocalNotificationInitializationAttempt beginInitializationAttempt() {
+    return _WedgedAttempt(_initialization.future, () => abandonCalls += 1);
+  }
+
+  @override
+  Future<void> showAppUpdateAvailable({
+    required String version,
+    required bool selfUpdateUnavailable,
+  }) async {
+    versions.add(version);
+  }
+}
+
+final class _WedgedAttempt implements LocalNotificationInitializationAttempt {
+  _WedgedAttempt(this.completion, this._onAbandon);
+
+  @override
+  final Future<void> completion;
+
+  final void Function() _onAbandon;
+
+  @override
+  void abandon() => _onAbandon();
 }
 
 /// Mirrors the real service: posting before initialization is rejected, and
