@@ -538,11 +538,21 @@ own deferral. While they are on **and** it is daytime,
 (`androidPreciseSyncUniqueWorkName`) that has no periodic floor and no flex
 window, re-armed by the reconciliation that follows every run; the hourly
 periodic request stays registered as the backstop that revives the chain if a
-run ever ends without reconciling. Overnight `preciseCadence` is null, the
-one-off is cancelled, and the schedule is exactly what it was before, which is
-what keeps overnight request volume unchanged. A boundary crossing costs at
-most one extra chained run, because the switch happens at the next
-reconciliation.
+run ever ends without reconciling.
+
+A link is armed only while a whole period still lands strictly before 19:00;
+nearer the boundary `preciseCadence` is null and the hourly backstop carries
+the rest of the day. A one-off initial delay is an eligibility time rather than
+a deadline, so the chained task name is additionally wrapped in
+`daytimeOnlyTaskHandler`, which re-reads `isBackgroundDaytime` on the device
+clock at dispatch: a link the platform releases at or after 19:00 returns
+handled without synchronizing. The periodic task name is never gated, so the
+hourly backstop keeps running overnight and re-arms the chain at its first
+reconciliation after 06:00.
+
+Overnight `preciseCadence` is null, the one-off is cancelled, and the schedule
+is exactly what it was before, which is what keeps overnight request volume
+unchanged.
 
 Precise checks are Android-only in both the settings UI and effect: a desktop
 timer already fires on the cadence it was given, and iOS decides refresh
@@ -946,6 +956,9 @@ Tests cover:
 - precise checks arming the chained Android task beside the hourly backstop
   during the day, going quiet overnight without being turned off, and clearing
   the chain when switched off or when monitoring is cancelled;
+- no precise link armed for 19:00 or later, and a precise task the platform
+  dispatches outside the window running no synchronization while the hourly
+  periodic task stays ungated;
 - precise checks defaulting off through an upgrade, the boolean column check,
   and the switch appearing on Android only and staying disabled until
   background monitoring is on;

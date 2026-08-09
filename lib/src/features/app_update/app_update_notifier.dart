@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../core/network/backend_api_client.dart';
 import '../../core/network/backend_compatibility.dart';
 import '../../core/network/backend_runtime_identity.dart';
@@ -12,6 +14,12 @@ import 'app_update_notification_store.dart';
 /// that changes a few times a year.
 const appUpdateCheckInterval = Duration(hours: 24);
 
+/// How long a post waits for the notification bridge to come up.
+///
+/// Platform initialization can stay pending indefinitely. Abandoning the
+/// identity-fenced attempt lets later notification work retry initialization.
+const appUpdateNotificationInitializationTimeout = Duration(seconds: 30);
+
 /// Announces a newer release once, as a notification the user sees while the
 /// app is closed.
 ///
@@ -25,6 +33,7 @@ final class AppUpdateNotifier {
     this._client,
     this._clientVersion,
     DateTime Function()? nowUtc,
+    this._initializationTimeout = appUpdateNotificationInitializationTimeout,
   }) : _nowUtc = nowUtc ?? _systemUtcNow;
 
   final AppUpdateNotificationStore _store;
@@ -33,6 +42,7 @@ final class AppUpdateNotifier {
   final BackendCompatibilityClient? _client;
   final ClientVersionProvider? _clientVersion;
   final DateTime Function() _nowUtc;
+  final Duration _initializationTimeout;
 
   /// Announces [snapshot] when it carries a release this install has not
   /// announced yet. Used with the metadata the app already fetches at launch.
@@ -114,6 +124,21 @@ final class AppUpdateNotifier {
       return;
     }
     try {
+      // The bridge is initialized lazily by whichever coordinator posts first,
+      // and both a launch and a background run can reach this before any of
+      // them has: the launch path races notification startup, and a background
+      // run only initializes as a side effect of a committed synchronization.
+      if (notifications is LocalNotificationInitializationControl) {
+        final attempt =
+            (notifications as LocalNotificationInitializationControl)
+                .beginInitializationAttempt();
+        try {
+          await attempt.completion.timeout(_initializationTimeout);
+        } on TimeoutException {
+          attempt.abandon();
+          return;
+        }
+      }
       await notifications.showAppUpdateAvailable(
         version: version,
         selfUpdateUnavailable: _channel == AppUpdateChannel.flatpak,

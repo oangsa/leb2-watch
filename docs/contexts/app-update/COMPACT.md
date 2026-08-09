@@ -88,6 +88,29 @@ so the store upserts instead of assuming a row.
 Recording happens only after the platform accepts the notification, so a
 failed write costs a repeated notice rather than a missed one.
 
+The bridge is initialized lazily by whichever coordinator posts first, so a
+post begins its own attempt when the service exposes
+`LocalNotificationInitializationControl`. Each post bounds that attempt with
+`appUpdateNotificationInitializationTimeout`, 30 seconds, and abandons a
+timed-out identity-fenced attempt so later notification work can retry.
+
+The background executor reconciles the platform schedule before starting the
+optional update check, and skips the check when cancellation latched during
+reconciliation. A cancelled active synchronization waits for its ownership to
+quiesce and then reconciles without running the optional update check.
+Reconciliation is never skipped: a background run is the one place the
+registration can move across the daytime/night boundary.
+
+For a non-cancelled result, one budget, `backgroundSyncPostRunBudget`, 90
+seconds, covers that whole tail — reconciliation plus metadata, initialization,
+notification delivery, and persistence. It exceeds the bounds nested
+underneath it, the metadata read's 10-second connect and 30-second receive
+timeouts and the bridge's own 30-second initialization timeout, so a slow
+network resolves inside the budget and only wedged platform work exceeds it.
+Because a Dart timeout does not cancel the underlying future, an overrun returns
+the run's result and hands the composition to a close deferred until the tail
+settles.
+
 ## Important files
 
 - `lib/src/features/app_update/app_update_banner.dart`
@@ -120,8 +143,12 @@ semantics, otherwise the metadata is rejected upstream and no banner appears.
 
 ## Failure behavior
 
-Every failure path resolves to "no banner". The check never blocks startup,
-navigation, or synchronization.
+Every failure path resolves to "no banner". Notification work never blocks
+startup or navigation. A notification initialization that does not settle is
+abandoned so a later attempt can retry. A post-run tail that exceeds the
+executor's budget is no longer awaited by that caller; composition teardown
+waits for it to stop using its owners. Cancellation that latches before update
+work starts skips the optional check.
 
 ## Tests
 
@@ -133,8 +160,21 @@ message.
 `test/features/app_update/app_update_notifier_test.dart`: one notice per
 release, a later release announcing again, silence for current versions and
 unmanaged channels, the Flatpak wording, no recording after a failed
-notification, the 24-hour background throttle, and silence on metadata
-failure.
+notification, the 24-hour background throttle, silence on metadata failure,
+lazy bridge initialization before a launch or background post, and abandonment
+of a never-settling initialization from both paths.
+
+`test/features/background_sync/application/background_sync_composition_test.dart`:
+an over-budget update check timing out at the executor seam after schedule
+reconciliation completed, an over-budget reconciliation timing out at the same
+seam without the update check starting behind it, composition closure staying
+deferred until each settles, cancellation during reconciliation skipping the
+optional check, and cancelled active synchronization reconciling after
+ownership quiesces and before composition close.
+
+`test/platform/background/ios_background_callback_test.dart`: native expiration
+during an update check occurs only after schedule reconciliation and retains
+composition ownership until the late check settles.
 
 `test/features/app_update/app_update_notification_store_test.dart` and
 `test/core/database/app_update_notification_migration_test.dart`: the lazily
@@ -157,6 +197,10 @@ created settings row and the added columns.
   day behind the deploy.
 - The notification cannot open the download page directly: it carries no
   payload, so tapping it opens the app and the banner's action.
+- Reconciliation, metadata, delivery, and persistence futures have no
+  cancellation interface. If one never settles, a timed-out background task
+  returns its result but retains one owned composition until the task isolate
+  ends, and each later run in that isolate retains another.
 
 ## Related contexts
 

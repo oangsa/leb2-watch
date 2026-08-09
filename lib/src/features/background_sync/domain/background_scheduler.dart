@@ -49,18 +49,19 @@ const backgroundDaytimeEndHour = 19;
 
 /// The platform work to register right now.
 ///
-/// [preciseCadence] is non-null only while precise checks are both enabled and
-/// inside the daytime window; overnight it is dropped so the app falls back to
-/// the pinned hourly cadence, which is what keeps the overnight request volume
-/// unchanged.
+/// [preciseCadence] is non-null only while precise checks are enabled, the
+/// device is inside the daytime window, and a whole period still lands before
+/// the window closes. Otherwise the app falls back to the pinned hourly
+/// cadence.
 final class BackgroundSyncSchedule {
   const BackgroundSyncSchedule({required this.cadence, this.preciseCadence});
 
   /// The operating-system periodic registration.
   final Duration cadence;
 
-  /// The interval the chained precise task re-arms itself at, or `null` when
-  /// precise checks are off for now.
+  /// The interval the chained precise task re-arms itself at, or `null` while
+  /// precise checks are disabled, outside daytime, or too close to 19:00 for a
+  /// whole interval to fit.
   final Duration? preciseCadence;
 
   @override
@@ -80,7 +81,7 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   BackgroundMonitoringSettings settings,
   DateTime localNow,
 ) {
-  if (!settings.preciseFetchEnabled || !_isDaytime(localNow)) {
+  if (!settings.preciseFetchEnabled || !isBackgroundDaytime(localNow)) {
     return BackgroundSyncSchedule(
       cadence: resolveBackgroundSyncCadence(settings.daytimeCadence, localNow),
     );
@@ -90,8 +91,24 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   // reconciling, and it becomes the whole schedule again at 19:00.
   return BackgroundSyncSchedule(
     cadence: nightBackgroundFetchCadence,
-    preciseCadence: settings.daytimeCadence.duration,
+    preciseCadence: _preciseCadenceFor(settings.daytimeCadence, localNow),
   );
+}
+
+/// The interval for the next chained link, or `null` once a whole period no
+/// longer fits inside the window.
+///
+/// A one-off initial delay is an eligibility time rather than a deadline, so a
+/// link is only armed while its own period still lands strictly before 19:00.
+/// A link armed *at* the boundary is already outside the half-open window and
+/// costs a request the window is meant to save; the hourly backstop covers the
+/// remainder of the day.
+Duration? _preciseCadenceFor(
+  BackgroundFetchCadence daytimeCadence,
+  DateTime localNow,
+) {
+  final cadence = daytimeCadence.duration;
+  return _untilNextWindowBoundary(localNow) > cadence ? cadence : null;
 }
 
 /// The cadence to register right now for [daytimeCadence].
@@ -104,7 +121,7 @@ Duration resolveBackgroundSyncCadence(
   BackgroundFetchCadence daytimeCadence,
   DateTime localNow,
 ) {
-  final base = _isDaytime(localNow)
+  final base = isBackgroundDaytime(localNow)
       ? daytimeCadence.duration
       : nightBackgroundFetchCadence;
   final remaining = _untilNextWindowBoundary(localNow);
@@ -113,12 +130,17 @@ Duration resolveBackgroundSyncCadence(
       : base;
 }
 
-bool _isDaytime(DateTime localNow) =>
+/// Whether [localNow] is inside the half-open daytime window.
+///
+/// Also the runtime gate for work that was only armed for the window: a
+/// platform may dispatch it late, and the answer at dispatch time is what
+/// decides whether it should still run.
+bool isBackgroundDaytime(DateTime localNow) =>
     localNow.hour >= backgroundDaytimeStartHour &&
     localNow.hour < backgroundDaytimeEndHour;
 
 Duration _untilNextWindowBoundary(DateTime localNow) {
-  final hour = _isDaytime(localNow)
+  final hour = isBackgroundDaytime(localNow)
       ? backgroundDaytimeEndHour
       : backgroundDaytimeStartHour;
   var boundary = DateTime(localNow.year, localNow.month, localNow.day, hour);

@@ -2,6 +2,7 @@ import '../../../app/provider_background_sync_composition.dart';
 import '../../../features/assignments/sync/assignment_sync_service.dart';
 import '../../../features/background_sync/application/background_sync_runner.dart';
 import '../../../features/background_sync/application/background_sync_task_executor.dart';
+import '../../../features/background_sync/domain/background_scheduler.dart';
 import '../workmanager/workmanager_gateway.dart';
 import '../workmanager/workmanager_task_dispatcher.dart';
 import 'android_workmanager_contract.dart';
@@ -76,6 +77,21 @@ final class AndroidBackgroundSyncTaskHandler {
   String toString() => 'AndroidBackgroundSyncTaskHandler(redacted: true)';
 }
 
+/// Runs [handler] only while the device clock is inside the daytime window.
+///
+/// WorkManager treats a one-off initial delay as an eligibility time, not a
+/// deadline, so a precise link armed inside the window can still be dispatched
+/// after it closes. Skipping the run there is what keeps overnight request
+/// volume on the hourly periodic backstop, which re-arms the chain at 06:00.
+WorkmanagerTaskHandler daytimeOnlyTaskHandler(
+  WorkmanagerTaskHandler handler, {
+  DateTime Function() localNow = DateTime.now,
+}) {
+  return (context) async => isBackgroundDaytime(localNow())
+      ? handler(context)
+      : WorkmanagerTaskExecutionResult.handled;
+}
+
 @pragma('vm:entry-point')
 void androidBackgroundCallbackDispatcher() {
   final gateway = PluginWorkmanagerGateway();
@@ -88,7 +104,7 @@ void androidBackgroundCallbackDispatcher() {
       androidPeriodicSyncTaskName: handler,
       // The chained precise task runs the same work; the next link is armed by
       // the schedule reconciliation that follows every run.
-      androidPreciseSyncTaskName: handler,
+      androidPreciseSyncTaskName: daytimeOnlyTaskHandler(handler),
     },
     timeBudget: androidBackgroundExecutionBudget,
   );

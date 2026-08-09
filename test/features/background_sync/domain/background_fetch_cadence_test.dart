@@ -80,6 +80,65 @@ void main() {
     );
   });
 
+  group('precise chain links stop at the window boundary', () {
+    BackgroundSyncSchedule scheduleAt(
+      DateTime localNow, {
+      BackgroundFetchCadence cadence = BackgroundFetchCadence.tenMinutes,
+    }) {
+      return resolveBackgroundSyncSchedule(
+        BackgroundMonitoringSettings(
+          enabled: true,
+          daytimeCadence: cadence,
+          preciseFetchEnabled: true,
+        ),
+        localNow,
+      );
+    }
+
+    test('mid-day links run at the chosen cadence', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 12)).preciseCadence,
+        const Duration(minutes: 10),
+      );
+    });
+
+    test('a link that would land overnight is dropped', () {
+      // A 30-minute link armed at 18:45 would fire at 19:15 — a request the
+      // overnight window is meant to save.
+      expect(
+        scheduleAt(
+          DateTime(2026, 8, 9, 18, 45),
+          cadence: BackgroundFetchCadence.thirtyMinutes,
+        ).preciseCadence,
+        isNull,
+      );
+    });
+
+    test('a link landing exactly on 19:00 is dropped', () {
+      // 19:00 is the first instant outside the half-open window, and an
+      // initial delay is an eligibility time rather than a deadline.
+      expect(scheduleAt(DateTime(2026, 8, 9, 18, 50)).preciseCadence, isNull);
+    });
+
+    test('a link that still lands inside the window keeps its period', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 18, 45)).preciseCadence,
+        const Duration(minutes: 10),
+      );
+    });
+
+    test('a link too close to the boundary is dropped', () {
+      expect(scheduleAt(DateTime(2026, 8, 9, 18, 57)).preciseCadence, isNull);
+    });
+
+    test('the hourly backstop is unchanged when a link is dropped', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 18, 57)).cadence,
+        nightBackgroundFetchCadence,
+      );
+    });
+  });
+
   test('only cadences this app writes are accepted back', () {
     expect(BackgroundFetchCadence.fromMinutes(30), isNotNull);
     expect(BackgroundFetchCadence.fromMinutes(7), isNull);
