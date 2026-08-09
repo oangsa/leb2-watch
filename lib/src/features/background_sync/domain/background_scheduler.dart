@@ -90,8 +90,27 @@ BackgroundSyncSchedule resolveBackgroundSyncSchedule(
   // reconciling, and it becomes the whole schedule again at 19:00.
   return BackgroundSyncSchedule(
     cadence: nightBackgroundFetchCadence,
-    preciseCadence: settings.daytimeCadence.duration,
+    preciseCadence: _preciseCadenceFor(settings.daytimeCadence, localNow),
   );
+}
+
+/// The interval for the next chained link, trimmed so it cannot fire after the
+/// window closes.
+///
+/// An untrimmed link armed near 19:00 lands overnight and costs a request the
+/// window is meant to save. A trim shorter than [minimumBackgroundFetchCadence]
+/// drops the link instead: the boundary is too close to be worth another wake,
+/// and the hourly backstop already covers it.
+Duration? _preciseCadenceFor(
+  BackgroundFetchCadence daytimeCadence,
+  DateTime localNow,
+) {
+  final cadence = daytimeCadence.duration;
+  final remaining = _untilNextWindowBoundary(localNow);
+  if (remaining >= cadence) {
+    return cadence;
+  }
+  return remaining >= minimumBackgroundFetchCadence ? remaining : null;
 }
 
 /// The cadence to register right now for [daytimeCadence].

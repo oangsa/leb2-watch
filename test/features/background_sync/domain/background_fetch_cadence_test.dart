@@ -80,6 +80,59 @@ void main() {
     );
   });
 
+  group('precise chain links stop at the window boundary', () {
+    BackgroundSyncSchedule scheduleAt(
+      DateTime localNow, {
+      BackgroundFetchCadence cadence = BackgroundFetchCadence.tenMinutes,
+    }) {
+      return resolveBackgroundSyncSchedule(
+        BackgroundMonitoringSettings(
+          enabled: true,
+          daytimeCadence: cadence,
+          preciseFetchEnabled: true,
+        ),
+        localNow,
+      );
+    }
+
+    test('mid-day links run at the chosen cadence', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 12)).preciseCadence,
+        const Duration(minutes: 10),
+      );
+    });
+
+    test('the last link lands on 19:00 instead of overnight', () {
+      // An untrimmed 30-minute link armed at 18:45 would fire at 19:15 — a
+      // request the overnight window is meant to save.
+      expect(
+        scheduleAt(
+          DateTime(2026, 8, 9, 18, 45),
+          cadence: BackgroundFetchCadence.thirtyMinutes,
+        ).preciseCadence,
+        const Duration(minutes: 15),
+      );
+    });
+
+    test('a link that still lands inside the window is not trimmed', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 18, 45)).preciseCadence,
+        const Duration(minutes: 10),
+      );
+    });
+
+    test('a link too close to the boundary is dropped', () {
+      expect(scheduleAt(DateTime(2026, 8, 9, 18, 57)).preciseCadence, isNull);
+    });
+
+    test('the hourly backstop is unchanged by the trim', () {
+      expect(
+        scheduleAt(DateTime(2026, 8, 9, 18, 57)).cadence,
+        nightBackgroundFetchCadence,
+      );
+    });
+  });
+
   test('only cadences this app writes are accepted back', () {
     expect(BackgroundFetchCadence.fromMinutes(30), isNotNull);
     expect(BackgroundFetchCadence.fromMinutes(7), isNull);
