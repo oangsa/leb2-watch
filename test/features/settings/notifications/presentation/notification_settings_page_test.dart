@@ -232,7 +232,8 @@ void main() {
     final service = _SettingsService(
       _snapshot(platform: NotificationSettingsPlatform.android),
     );
-    await _pump(tester, service, height: 1400, themeMode: ThemeMode.dark);
+    // The cadence tile pushed the local-data card past the old viewport.
+    await _pump(tester, service, height: 1600, themeMode: ThemeMode.dark);
 
     final card = tester.widget<Card>(
       find.ancestor(of: find.text('Local data'), matching: find.byType(Card)),
@@ -280,6 +281,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  _cadenceTests();
 }
 
 Future<void> _pump(
@@ -338,14 +341,75 @@ final class _DeletionService implements LocalDataDeletionService {
   }
 }
 
+void _cadenceTests() {
+  testWidgets('cadence is fixed while background monitoring is off', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.linux),
+    );
+
+    await _pump(tester, service, height: 1400);
+
+    expect(
+      tester
+          .widget<DropdownButton<BackgroundFetchCadence>>(
+            find.byKey(const Key('background-cadence-dropdown')),
+          )
+          .onChanged,
+      isNull,
+    );
+    expect(find.text('Between 06:00 and 19:00. Hourly overnight.'), findsOne);
+  });
+
+  testWidgets('choosing a cadence saves it and reports the result', (
+    tester,
+  ) async {
+    final service = _SettingsService(
+      _snapshot(
+        platform: NotificationSettingsPlatform.linux,
+        backgroundEnabled: true,
+      ),
+    );
+
+    await _pump(tester, service, height: 1400);
+    await tester.tap(find.byKey(const Key('background-cadence-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30 min').last);
+    await tester.pumpAndSettle();
+
+    expect(service.cadenceWrites, [BackgroundFetchCadence.thirtyMinutes]);
+    expect(find.text('Saved.'), findsOne);
+  });
+
+  testWidgets('Android says what the platform actually allows', (tester) async {
+    final service = _SettingsService(
+      _snapshot(
+        platform: NotificationSettingsPlatform.android,
+        backgroundEnabled: true,
+        daytimeCadence: BackgroundFetchCadence.tenMinutes,
+      ),
+    );
+
+    await _pump(tester, service, height: 1400);
+
+    expect(
+      find.text('Android allows 15 minutes at least. Hourly overnight.'),
+      findsOne,
+    );
+  });
+}
+
 NotificationSettingsSnapshot _snapshot({
   required NotificationSettingsPlatform platform,
   bool backgroundEnabled = false,
+  BackgroundFetchCadence daytimeCadence = defaultBackgroundFetchCadence,
   BackgroundScheduleStatus scheduleStatus = const BackgroundScheduleInactive(),
 }) {
   return NotificationSettingsSnapshot(
     backgroundMonitoring: BackgroundMonitoringSettings(
       enabled: backgroundEnabled,
+      daytimeCadence: daytimeCadence,
     ),
     backgroundScheduleStatus: scheduleStatus,
     newAssignmentNotifications: const NewAssignmentNotificationSettings(
@@ -367,7 +431,9 @@ final class _SettingsService implements NotificationSettingsService {
   final StreamController<NotificationSettingsSnapshot> _changes =
       StreamController.broadcast();
   final List<bool> backgroundWrites = [];
+  final List<BackgroundFetchCadence> cadenceWrites = [];
   Future<BackgroundMonitoringUpdateResult>? backgroundResult;
+  Future<BackgroundMonitoringUpdateResult>? cadenceResult;
   int permissionCalls = 0;
   int permissionReads = 0;
   NotificationPermissionStatus? permissionStatus;
@@ -394,6 +460,17 @@ final class _SettingsService implements NotificationSettingsService {
     return backgroundResult ??
         Future.value(
           const BackgroundMonitoringUpdateApplied(BackgroundScheduleInactive()),
+        );
+  }
+
+  @override
+  Future<BackgroundMonitoringUpdateResult> setBackgroundDaytimeFetchCadence(
+    BackgroundFetchCadence cadence,
+  ) {
+    cadenceWrites.add(cadence);
+    return cadenceResult ??
+        Future.value(
+          const BackgroundMonitoringUpdateApplied(BackgroundScheduleActive()),
         );
   }
 
