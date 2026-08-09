@@ -449,7 +449,7 @@ void main() {
 
     await expectLater(
       service.showAppUpdateAvailable(
-        version: '0.8.0‮',
+        version: '0.8.0\u202E',
         selfUpdateUnavailable: false,
       ),
       throwsA(
