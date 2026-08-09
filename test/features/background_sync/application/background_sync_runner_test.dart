@@ -117,6 +117,79 @@ void main() {
     },
   );
 
+  group('a fresh success stands in for an overlapping run', () {
+    late DateTime localNow;
+    late BackgroundSyncRunner guardedRunner;
+
+    setUp(() async {
+      localNow = DateTime(2026, 8, 9, 12);
+      guardedRunner = BackgroundSyncRunner(
+        DriftBackgroundSyncTargetStore(database),
+        sync,
+        now: () => localNow,
+      );
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      await _seedSuccessfulRun(database, completedAtUtc: localNow.toUtc());
+    });
+
+    test('a scheduled run inside half the cadence asks for nothing', () async {
+      // The default 15 minute cadence bounds this at 7:30.
+      localNow = localNow.add(const Duration(minutes: 7));
+
+      expect(
+        await guardedRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(sync.requests, isEmpty);
+    });
+
+    test('a run merely early still happens', () async {
+      localNow = localNow.add(const Duration(minutes: 8));
+      sync.outcome = _success(SyncReason.backgroundTask);
+
+      expect(
+        await guardedRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(sync.requests, hasLength(1));
+    });
+
+    test('a user-driven refresh is never stood in for', () async {
+      localNow = localNow.add(const Duration(minutes: 1));
+      sync.outcome = _success(SyncReason.trayAction);
+
+      expect(
+        await guardedRunner.run(reason: SyncReason.trayAction),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(sync.requests, hasLength(1));
+    });
+
+    test('a clock that moved backwards proves no freshness', () async {
+      localNow = localNow.subtract(const Duration(minutes: 3));
+      sync.outcome = _success(SyncReason.backgroundTask);
+
+      expect(
+        await guardedRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(sync.requests, hasLength(1));
+    });
+
+    test('the night cadence widens the bound to half an hour', () async {
+      localNow = DateTime(2026, 8, 9, 21);
+      await _seedSuccessfulRun(database, completedAtUtc: localNow.toUtc());
+      localNow = localNow.add(const Duration(minutes: 20));
+
+      expect(
+        await guardedRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(sync.requests, isEmpty);
+    });
+  });
+
   test('headless recovery continues once and reports succeeded', () async {
     await _seedTarget(database, session: 'active', withCourse: true);
     await settings.setMonitoringEnabled(true);
@@ -203,6 +276,19 @@ Future<void> _seedTarget(
           ),
         );
   }
+}
+
+Future<void> _seedSuccessfulRun(
+  AppDatabase database, {
+  required DateTime completedAtUtc,
+}) async {
+  await database.insertAndPruneSyncRun(
+    semesterId: 101,
+    reason: SyncReason.backgroundTask.name,
+    outcome: 'success',
+    startedAtUtc: completedAtUtc.subtract(const Duration(seconds: 20)),
+    completedAtUtc: completedAtUtc,
+  );
 }
 
 SyncSuccess _success(SyncReason reason) => SyncSuccess(
