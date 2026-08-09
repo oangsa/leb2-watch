@@ -64,7 +64,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/api/v1/Activity/101/snapshot',
+          path: '/api/v2/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -72,7 +72,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/api/v1/Activity/101/snapshot',
+          path: '/api/v2/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -81,7 +81,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/api/v1/Activity/101/snapshot',
+          path: '/api/v2/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
@@ -117,7 +117,7 @@ void main() {
         ),
         ScriptedBackendExchange(
           method: 'GET',
-          path: '/api/v1/Activity/101/snapshot',
+          path: '/api/v2/Activity/101/snapshot',
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           userId: '2001',
