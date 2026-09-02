@@ -51,7 +51,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 22);
+      expect(database.schemaVersion, 23);
       expect(
         await database.select(database.scheduledReminders).get(),
         hasLength(1),
@@ -69,7 +69,7 @@ void main() {
             .customSelect('PRAGMA user_version')
             .getSingle()
             .then((row) => row.read<int>('user_version')),
-        22,
+        23,
       );
     },
   );

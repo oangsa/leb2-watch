@@ -69,6 +69,7 @@ CachedAssignment dashboardAssignment({
   bool dueDateExceed = false,
   AssignmentSubmissionStatus submissionStatus =
       AssignmentSubmissionStatus.unsubmitted,
+  bool backendReportedStarred = false,
   DateTime? firstSeenAtUtc,
   bool isBaseline = true,
 }) {
@@ -82,6 +83,7 @@ CachedAssignment dashboardAssignment({
     dueDateSource: dueDateSource,
     dueDateExceed: dueDateExceed,
     submissionStatus: submissionStatus,
+    backendReportedStarred: backendReportedStarred,
     firstSeenAtUtc: firstSeenAtUtc ?? DateTime.utc(2026, 7, 25),
     isBaseline: isBaseline,
   );

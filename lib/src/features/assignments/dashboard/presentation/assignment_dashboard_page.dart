@@ -58,6 +58,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
   AssignmentDashboardSection _section = AssignmentDashboardSection.all;
   AssignmentSubmissionFilter _submissionFilter =
       AssignmentSubmissionFilter.unsubmitted;
+  AssignmentStarredFilter _starredFilter = AssignmentStarredFilter.all;
   DateTime? _deadlineAtOrBeforeBangkok;
   int? _selectedCourseId;
   String _searchQuery = '';
@@ -130,6 +131,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
       _searchController.text = preferences.searchQuery;
       _selectedCourseId = preferences.selectedCourseId;
       _submissionFilter = preferences.submissionFilter;
+      _starredFilter = preferences.starredFilter;
       _deadlineAtOrBeforeBangkok = preferences.deadlineAtOrBeforeBangkok;
       _reportPreferenceReadFailure = preferenceReadFailed;
     });
@@ -240,6 +242,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
           section: _section,
           selectedCourseId: _selectedCourseId,
           submissionFilter: _submissionFilter,
+          starredFilter: _starredFilter,
           deadlineAtOrBeforeBangkok: _deadlineAtOrBeforeBangkok,
         ),
         deadlinePicker: widget.deadlinePicker,
@@ -258,6 +261,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
     if (result.section == _section &&
         selectedCourseId == _selectedCourseId &&
         result.submissionFilter == _submissionFilter &&
+        result.starredFilter == _starredFilter &&
         result.deadlineAtOrBeforeBangkok == _deadlineAtOrBeforeBangkok) {
       return;
     }
@@ -265,6 +269,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
       _section = result.section;
       _selectedCourseId = selectedCourseId;
       _submissionFilter = result.submissionFilter;
+      _starredFilter = result.starredFilter;
       _deadlineAtOrBeforeBangkok = result.deadlineAtOrBeforeBangkok;
     });
   }
@@ -275,6 +280,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         searchQuery: _searchQuery,
         selectedCourseId: _selectedCourseId,
         submissionFilter: _submissionFilter,
+        starredFilter: _starredFilter,
         deadlineAtOrBeforeBangkok: _deadlineAtOrBeforeBangkok,
       );
 
@@ -340,6 +346,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
       selectedCourseId: _selectedCourseId,
       direction: AssignmentDeadlineDirection.ascending,
       submissionFilter: _submissionFilter,
+      starredFilter: _starredFilter,
       deadlineAtOrBeforeBangkok: _deadlineAtOrBeforeBangkok,
     );
     return Material(
@@ -349,6 +356,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         projection: projection,
         section: _section,
         submissionFilter: _submissionFilter,
+        starredFilter: _starredFilter,
         deadlineAtOrBeforeBangkok: _deadlineAtOrBeforeBangkok,
         searchController: _searchController,
         searchQuery: _searchQuery,
@@ -365,6 +373,8 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         onSectionChanged: (value) => _updatePreferences(() => _section = value),
         onSubmissionFilterChanged: (value) =>
             _updatePreferences(() => _submissionFilter = value),
+        onStarredFilterChanged: (value) =>
+            _updatePreferences(() => _starredFilter = value),
         onSearchChanged: (value) =>
             _updatePreferences(() => _searchQuery = value),
         onCourseChanged: (value) =>
@@ -383,6 +393,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.projection,
     required this.section,
     required this.submissionFilter,
+    required this.starredFilter,
     required this.deadlineAtOrBeforeBangkok,
     required this.searchController,
     required this.searchQuery,
@@ -395,6 +406,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.onRefresh,
     required this.onSectionChanged,
     required this.onSubmissionFilterChanged,
+    required this.onStarredFilterChanged,
     required this.onSearchChanged,
     required this.onCourseChanged,
     required this.onFiltersPressed,
@@ -405,6 +417,7 @@ class _DashboardWorklist extends StatelessWidget {
   final AssignmentDashboardProjection projection;
   final AssignmentDashboardSection section;
   final AssignmentSubmissionFilter submissionFilter;
+  final AssignmentStarredFilter starredFilter;
   final DateTime? deadlineAtOrBeforeBangkok;
   final TextEditingController searchController;
   final String searchQuery;
@@ -417,6 +430,7 @@ class _DashboardWorklist extends StatelessWidget {
   final VoidCallback? onRefresh;
   final ValueChanged<AssignmentDashboardSection> onSectionChanged;
   final ValueChanged<AssignmentSubmissionFilter> onSubmissionFilterChanged;
+  final ValueChanged<AssignmentStarredFilter> onStarredFilterChanged;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<int?> onCourseChanged;
   final VoidCallback onFiltersPressed;
@@ -434,6 +448,7 @@ class _DashboardWorklist extends StatelessWidget {
         projection.selectedCourseId != null ||
         section != AssignmentDashboardSection.all ||
         submissionFilter != AssignmentSubmissionFilter.unsubmitted ||
+        starredFilter != AssignmentStarredFilter.all ||
         deadlineAtOrBeforeBangkok != null ||
         searchQuery.trim().isNotEmpty;
 
@@ -483,6 +498,7 @@ class _DashboardWorklist extends StatelessWidget {
                           section: section,
                           selectedCourseId: projection.selectedCourseId,
                           submissionFilter: submissionFilter,
+                          starredFilter: starredFilter,
                           deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
                         ),
                         onFiltersPressed: onFiltersPressed,
@@ -490,6 +506,7 @@ class _DashboardWorklist extends StatelessWidget {
                         section: section,
                         selectedCourseId: projection.selectedCourseId,
                         submissionFilter: submissionFilter,
+                        starredFilter: starredFilter,
                         deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
                         onSectionCleared: () =>
                             onSectionChanged(AssignmentDashboardSection.all),
@@ -498,6 +515,8 @@ class _DashboardWorklist extends StatelessWidget {
                         onSubmissionCleared: () => onSubmissionFilterChanged(
                           AssignmentSubmissionFilter.unsubmitted,
                         ),
+                        onStarredCleared: () =>
+                            onStarredFilterChanged(AssignmentStarredFilter.all),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       if (expanded && projection.rows.isNotEmpty) ...[
@@ -663,11 +682,13 @@ class _DashboardControls extends StatelessWidget {
     required this.section,
     required this.selectedCourseId,
     required this.submissionFilter,
+    required this.starredFilter,
     required this.deadlineAtOrBeforeBangkok,
     required this.onSectionCleared,
     required this.onCourseCleared,
     required this.onDeadlineCleared,
     required this.onSubmissionCleared,
+    required this.onStarredCleared,
   });
 
   final TextEditingController searchController;
@@ -678,11 +699,13 @@ class _DashboardControls extends StatelessWidget {
   final AssignmentDashboardSection section;
   final int? selectedCourseId;
   final AssignmentSubmissionFilter submissionFilter;
+  final AssignmentStarredFilter starredFilter;
   final DateTime? deadlineAtOrBeforeBangkok;
   final VoidCallback onSectionCleared;
   final VoidCallback onCourseCleared;
   final VoidCallback onDeadlineCleared;
   final VoidCallback onSubmissionCleared;
+  final VoidCallback onStarredCleared;
 
   @override
   Widget build(BuildContext context) {
@@ -736,6 +759,12 @@ class _DashboardControls extends StatelessWidget {
           label: const Text('Show submitted assignment'),
           onDeleted: onSubmissionCleared,
         ),
+      if (starredFilter == AssignmentStarredFilter.starred)
+        InputChip(
+          key: const Key('assignment-filter-chip-starred'),
+          label: const Text('Starred in LEB2 only'),
+          onDeleted: onStarredCleared,
+        ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -766,12 +795,14 @@ class _DashboardFilterDraft {
     required this.section,
     required this.selectedCourseId,
     required this.submissionFilter,
+    required this.starredFilter,
     required this.deadlineAtOrBeforeBangkok,
   });
 
   final AssignmentDashboardSection section;
   final int? selectedCourseId;
   final AssignmentSubmissionFilter submissionFilter;
+  final AssignmentStarredFilter starredFilter;
   final DateTime? deadlineAtOrBeforeBangkok;
 }
 
@@ -795,6 +826,7 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
   late AssignmentDashboardSection _section;
   int? _selectedCourseId;
   late AssignmentSubmissionFilter _submissionFilter;
+  late AssignmentStarredFilter _starredFilter;
   DateTime? _deadlineAtOrBeforeBangkok;
 
   @override
@@ -803,6 +835,7 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
     _section = widget.initialValue.section;
     _selectedCourseId = widget.initialValue.selectedCourseId;
     _submissionFilter = widget.initialValue.submissionFilter;
+    _starredFilter = widget.initialValue.starredFilter;
     _deadlineAtOrBeforeBangkok = widget.initialValue.deadlineAtOrBeforeBangkok;
   }
 
@@ -821,6 +854,7 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
       _section = AssignmentDashboardSection.all;
       _selectedCourseId = null;
       _submissionFilter = AssignmentSubmissionFilter.unsubmitted;
+      _starredFilter = AssignmentStarredFilter.all;
       _deadlineAtOrBeforeBangkok = null;
     });
   }
@@ -921,6 +955,21 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
                               : AssignmentSubmissionFilter.unsubmitted,
                         ),
                       ),
+                      SwitchListTile.adaptive(
+                        key: const Key('assignment-starred-filter'),
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Starred in LEB2 only'),
+                        subtitle: const Text(
+                          'Uses the flag LEB2 saved with the assignment.',
+                        ),
+                        value:
+                            _starredFilter == AssignmentStarredFilter.starred,
+                        onChanged: (selected) => setState(
+                          () => _starredFilter = selected
+                              ? AssignmentStarredFilter.starred
+                              : AssignmentStarredFilter.all,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -948,6 +997,7 @@ class _AssignmentFiltersDialogState extends State<_AssignmentFiltersDialog> {
                         section: _section,
                         selectedCourseId: _selectedCourseId,
                         submissionFilter: _submissionFilter,
+                        starredFilter: _starredFilter,
                         deadlineAtOrBeforeBangkok: _deadlineAtOrBeforeBangkok,
                       ),
                     ),
@@ -1355,11 +1405,13 @@ int _activeFilterCount({
   required AssignmentDashboardSection section,
   required int? selectedCourseId,
   required AssignmentSubmissionFilter submissionFilter,
+  required AssignmentStarredFilter starredFilter,
   required DateTime? deadlineAtOrBeforeBangkok,
 }) {
   return (section == AssignmentDashboardSection.all ? 0 : 1) +
       (selectedCourseId == null ? 0 : 1) +
       (submissionFilter == AssignmentSubmissionFilter.unsubmitted ? 0 : 1) +
+      (starredFilter == AssignmentStarredFilter.all ? 0 : 1) +
       (deadlineAtOrBeforeBangkok == null ? 0 : 1);
 }
 

@@ -784,6 +784,7 @@ class AssignmentDashboardPreferencesRecords extends Table {
   IntColumn get selectedCourseId => integer().nullable()();
   TextColumn get submissionFilter =>
       text().withDefault(const Constant('unsubmitted'))();
+  TextColumn get starredFilter => text().withDefault(const Constant('all'))();
   TextColumn get deadlineAtOrBeforeBangkok => text().nullable()();
 
   @override
@@ -798,5 +799,6 @@ class AssignmentDashboardPreferencesRecords extends Table {
     "CHECK (section IN ('recent', 'overdue', 'all'))",
     'CHECK (selected_course_id IS NULL OR selected_course_id > 0)',
     "CHECK (submission_filter IN ('all', 'unsubmitted'))",
+    "CHECK (starred_filter IN ('all', 'starred'))",
   ];
 }

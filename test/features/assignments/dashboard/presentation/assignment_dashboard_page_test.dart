@@ -258,6 +258,105 @@ void main() {
     expect(find.text('All assignments'), findsOneWidget);
   });
 
+  testWidgets('starred filter applies, saves, and clears from its chip', (
+    tester,
+  ) async {
+    final service = FakeAssignmentDashboardService(
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'backend:1001',
+            title: 'Graph traversal',
+            backendReportedStarred: true,
+          ),
+          dashboardAssignment(
+            identityKey: 'backend:1002',
+            title: 'Packet analysis',
+            courseId: 3002,
+            courseName: 'Networks',
+          ),
+        ],
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Packet analysis'), findsOneWidget);
+
+    await _openFilters(tester);
+    await tester.tap(find.byKey(const Key('assignment-starred-filter')));
+    await _applyFilters(tester);
+
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(find.text('Packet analysis'), findsNothing);
+    expect(find.text('Filters (1)'), findsOneWidget);
+    expect(
+      service.savedPreferences.last.starredFilter,
+      AssignmentStarredFilter.starred,
+    );
+
+    tester
+        .widget<InputChip>(
+          find.byKey(const Key('assignment-filter-chip-starred')),
+        )
+        .onDeleted!();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Packet analysis'), findsOneWidget);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-starred')),
+      findsNothing,
+    );
+    expect(
+      service.savedPreferences.last.starredFilter,
+      AssignmentStarredFilter.all,
+    );
+  });
+
+  testWidgets('restores a saved starred filter on launch', (tester) async {
+    final service = FakeAssignmentDashboardService(
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'backend:1001',
+            title: 'Graph traversal',
+            backendReportedStarred: true,
+          ),
+          dashboardAssignment(
+            identityKey: 'backend:1002',
+            title: 'Packet analysis',
+            courseId: 3002,
+            courseName: 'Networks',
+          ),
+        ],
+      ),
+      initialPreferences: const AssignmentDashboardPreferences(
+        starredFilter: AssignmentStarredFilter.starred,
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Graph traversal'), findsOneWidget);
+    expect(find.text('Packet analysis'), findsNothing);
+    expect(
+      find.byKey(const Key('assignment-filter-chip-starred')),
+      findsOneWidget,
+    );
+
+    await _openFilters(tester);
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(const Key('assignment-starred-filter')),
+          )
+          .value,
+      isTrue,
+    );
+  });
+
   testWidgets('filter dialog cancel discards its draft without saving', (
     tester,
   ) async {

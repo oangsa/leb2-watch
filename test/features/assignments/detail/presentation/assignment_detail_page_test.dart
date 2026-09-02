@@ -37,6 +37,58 @@ void main() {
     },
   );
 
+  testWidgets('renders submission, attachment, and group facts', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      _current(
+        submissionStatus: AssignmentSubmissionStatus.submitted,
+        backendReportedSubmissionLate: true,
+        groupType: 'group',
+        groupName: 'Team Beta',
+        groupMemberCount: 4,
+        attachmentCount: 2,
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Submitted'), findsOneWidget);
+    expect(find.text('Reported late by the backend'), findsOneWidget);
+    expect(find.text('2 saved'), findsOneWidget);
+    expect(find.text('group'), findsOneWidget);
+    expect(find.text('Team Beta'), findsOneWidget);
+    expect(find.text('4'), findsOneWidget);
+  });
+
+  testWidgets('hides submission timing and group rows the record lacks', (
+    tester,
+  ) async {
+    final service = _FakeService(_current());
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Not submitted'), findsOneWidget);
+    expect(find.text('Submission timing'), findsNothing);
+    expect(find.text('Group'), findsNothing);
+    expect(find.text('Group members'), findsNothing);
+    expect(find.text('None saved'), findsOneWidget);
+  });
+
+  testWidgets('says the attachment count is unavailable rather than zero', (
+    tester,
+  ) async {
+    final service = _FakeService(_current(attachmentCount: null));
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Count unavailable'), findsOneWidget);
+    expect(find.text('None saved'), findsNothing);
+  });
+
   testWidgets(
     'renders timestamps in Bangkok time regardless of the device zone',
     (tester) async {
@@ -173,7 +225,16 @@ const _history = AssignmentDetailNotificationEvidence(
   latestRecordedAtUtc: null,
 );
 
-CurrentAssignmentDetail _current({String title = 'Graph traversal'}) {
+CurrentAssignmentDetail _current({
+  String title = 'Graph traversal',
+  AssignmentSubmissionStatus submissionStatus =
+      AssignmentSubmissionStatus.unsubmitted,
+  bool backendReportedSubmissionLate = false,
+  String groupType = 'individual',
+  String? groupName,
+  int groupMemberCount = 1,
+  int? attachmentCount = 0,
+}) {
   return CurrentAssignmentDetail(
     key: _key,
     sync: _sync,
@@ -186,6 +247,12 @@ CurrentAssignmentDetail _current({String title = 'Graph traversal'}) {
     sourceCreatedAt: ZonedAssignmentDetailTimestamp(
       DateTime.utc(2026, 7, 25, 3),
     ),
+    submissionStatus: submissionStatus,
+    backendReportedSubmissionLate: backendReportedSubmissionLate,
+    groupType: groupType,
+    groupName: groupName,
+    groupMemberCount: groupMemberCount,
+    attachmentCount: attachmentCount,
     firstSeenAtUtc: DateTime.utc(2026, 7, 25),
     lastSeenAtUtc: DateTime.utc(2026, 7, 26),
     isBaseline: false,

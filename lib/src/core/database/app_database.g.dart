@@ -11444,6 +11444,18 @@ class $AssignmentDashboardPreferencesRecordsTable
     requiredDuringInsert: false,
     defaultValue: const Constant('unsubmitted'),
   );
+  static const VerificationMeta _starredFilterMeta = const VerificationMeta(
+    'starredFilter',
+  );
+  @override
+  late final GeneratedColumn<String> starredFilter = GeneratedColumn<String>(
+    'starred_filter',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('all'),
+  );
   static const VerificationMeta _deadlineAtOrBeforeBangkokMeta =
       const VerificationMeta('deadlineAtOrBeforeBangkok');
   @override
@@ -11462,6 +11474,7 @@ class $AssignmentDashboardPreferencesRecordsTable
     searchQuery,
     selectedCourseId,
     submissionFilter,
+    starredFilter,
     deadlineAtOrBeforeBangkok,
   ];
   @override
@@ -11518,6 +11531,15 @@ class $AssignmentDashboardPreferencesRecordsTable
         ),
       );
     }
+    if (data.containsKey('starred_filter')) {
+      context.handle(
+        _starredFilterMeta,
+        starredFilter.isAcceptableOrUnknown(
+          data['starred_filter']!,
+          _starredFilterMeta,
+        ),
+      );
+    }
     if (data.containsKey('deadline_at_or_before_bangkok')) {
       context.handle(
         _deadlineAtOrBeforeBangkokMeta,
@@ -11559,6 +11581,10 @@ class $AssignmentDashboardPreferencesRecordsTable
         DriftSqlType.string,
         data['${effectivePrefix}submission_filter'],
       )!,
+      starredFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}starred_filter'],
+      )!,
       deadlineAtOrBeforeBangkok: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}deadline_at_or_before_bangkok'],
@@ -11579,6 +11605,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
   final String searchQuery;
   final int? selectedCourseId;
   final String submissionFilter;
+  final String starredFilter;
   final String? deadlineAtOrBeforeBangkok;
   const AssignmentDashboardPreferencesRecord({
     required this.singletonId,
@@ -11586,6 +11613,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
     required this.searchQuery,
     this.selectedCourseId,
     required this.submissionFilter,
+    required this.starredFilter,
     this.deadlineAtOrBeforeBangkok,
   });
   @override
@@ -11598,6 +11626,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
       map['selected_course_id'] = Variable<int>(selectedCourseId);
     }
     map['submission_filter'] = Variable<String>(submissionFilter);
+    map['starred_filter'] = Variable<String>(starredFilter);
     if (!nullToAbsent || deadlineAtOrBeforeBangkok != null) {
       map['deadline_at_or_before_bangkok'] = Variable<String>(
         deadlineAtOrBeforeBangkok,
@@ -11617,6 +11646,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
           ? const Value.absent()
           : Value(selectedCourseId),
       submissionFilter: Value(submissionFilter),
+      starredFilter: Value(starredFilter),
       deadlineAtOrBeforeBangkok:
           deadlineAtOrBeforeBangkok == null && nullToAbsent
           ? const Value.absent()
@@ -11635,6 +11665,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
       searchQuery: serializer.fromJson<String>(json['searchQuery']),
       selectedCourseId: serializer.fromJson<int?>(json['selectedCourseId']),
       submissionFilter: serializer.fromJson<String>(json['submissionFilter']),
+      starredFilter: serializer.fromJson<String>(json['starredFilter']),
       deadlineAtOrBeforeBangkok: serializer.fromJson<String?>(
         json['deadlineAtOrBeforeBangkok'],
       ),
@@ -11649,6 +11680,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
       'searchQuery': serializer.toJson<String>(searchQuery),
       'selectedCourseId': serializer.toJson<int?>(selectedCourseId),
       'submissionFilter': serializer.toJson<String>(submissionFilter),
+      'starredFilter': serializer.toJson<String>(starredFilter),
       'deadlineAtOrBeforeBangkok': serializer.toJson<String?>(
         deadlineAtOrBeforeBangkok,
       ),
@@ -11661,6 +11693,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
     String? searchQuery,
     Value<int?> selectedCourseId = const Value.absent(),
     String? submissionFilter,
+    String? starredFilter,
     Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
   }) => AssignmentDashboardPreferencesRecord(
     singletonId: singletonId ?? this.singletonId,
@@ -11670,6 +11703,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
         ? selectedCourseId.value
         : this.selectedCourseId,
     submissionFilter: submissionFilter ?? this.submissionFilter,
+    starredFilter: starredFilter ?? this.starredFilter,
     deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok.present
         ? deadlineAtOrBeforeBangkok.value
         : this.deadlineAtOrBeforeBangkok,
@@ -11691,6 +11725,9 @@ class AssignmentDashboardPreferencesRecord extends DataClass
       submissionFilter: data.submissionFilter.present
           ? data.submissionFilter.value
           : this.submissionFilter,
+      starredFilter: data.starredFilter.present
+          ? data.starredFilter.value
+          : this.starredFilter,
       deadlineAtOrBeforeBangkok: data.deadlineAtOrBeforeBangkok.present
           ? data.deadlineAtOrBeforeBangkok.value
           : this.deadlineAtOrBeforeBangkok,
@@ -11705,6 +11742,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
           ..write('searchQuery: $searchQuery, ')
           ..write('selectedCourseId: $selectedCourseId, ')
           ..write('submissionFilter: $submissionFilter, ')
+          ..write('starredFilter: $starredFilter, ')
           ..write('deadlineAtOrBeforeBangkok: $deadlineAtOrBeforeBangkok')
           ..write(')'))
         .toString();
@@ -11717,6 +11755,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
     searchQuery,
     selectedCourseId,
     submissionFilter,
+    starredFilter,
     deadlineAtOrBeforeBangkok,
   );
   @override
@@ -11728,6 +11767,7 @@ class AssignmentDashboardPreferencesRecord extends DataClass
           other.searchQuery == this.searchQuery &&
           other.selectedCourseId == this.selectedCourseId &&
           other.submissionFilter == this.submissionFilter &&
+          other.starredFilter == this.starredFilter &&
           other.deadlineAtOrBeforeBangkok == this.deadlineAtOrBeforeBangkok);
 }
 
@@ -11738,6 +11778,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
   final Value<String> searchQuery;
   final Value<int?> selectedCourseId;
   final Value<String> submissionFilter;
+  final Value<String> starredFilter;
   final Value<String?> deadlineAtOrBeforeBangkok;
   const AssignmentDashboardPreferencesRecordsCompanion({
     this.singletonId = const Value.absent(),
@@ -11745,6 +11786,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
     this.searchQuery = const Value.absent(),
     this.selectedCourseId = const Value.absent(),
     this.submissionFilter = const Value.absent(),
+    this.starredFilter = const Value.absent(),
     this.deadlineAtOrBeforeBangkok = const Value.absent(),
   });
   AssignmentDashboardPreferencesRecordsCompanion.insert({
@@ -11753,6 +11795,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
     this.searchQuery = const Value.absent(),
     this.selectedCourseId = const Value.absent(),
     this.submissionFilter = const Value.absent(),
+    this.starredFilter = const Value.absent(),
     this.deadlineAtOrBeforeBangkok = const Value.absent(),
   });
   static Insertable<AssignmentDashboardPreferencesRecord> custom({
@@ -11761,6 +11804,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
     Expression<String>? searchQuery,
     Expression<int>? selectedCourseId,
     Expression<String>? submissionFilter,
+    Expression<String>? starredFilter,
     Expression<String>? deadlineAtOrBeforeBangkok,
   }) {
     return RawValuesInsertable({
@@ -11769,6 +11813,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
       if (searchQuery != null) 'search_query': searchQuery,
       if (selectedCourseId != null) 'selected_course_id': selectedCourseId,
       if (submissionFilter != null) 'submission_filter': submissionFilter,
+      if (starredFilter != null) 'starred_filter': starredFilter,
       if (deadlineAtOrBeforeBangkok != null)
         'deadline_at_or_before_bangkok': deadlineAtOrBeforeBangkok,
     });
@@ -11780,6 +11825,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
     Value<String>? searchQuery,
     Value<int?>? selectedCourseId,
     Value<String>? submissionFilter,
+    Value<String>? starredFilter,
     Value<String?>? deadlineAtOrBeforeBangkok,
   }) {
     return AssignmentDashboardPreferencesRecordsCompanion(
@@ -11788,6 +11834,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
       searchQuery: searchQuery ?? this.searchQuery,
       selectedCourseId: selectedCourseId ?? this.selectedCourseId,
       submissionFilter: submissionFilter ?? this.submissionFilter,
+      starredFilter: starredFilter ?? this.starredFilter,
       deadlineAtOrBeforeBangkok:
           deadlineAtOrBeforeBangkok ?? this.deadlineAtOrBeforeBangkok,
     );
@@ -11811,6 +11858,9 @@ class AssignmentDashboardPreferencesRecordsCompanion
     if (submissionFilter.present) {
       map['submission_filter'] = Variable<String>(submissionFilter.value);
     }
+    if (starredFilter.present) {
+      map['starred_filter'] = Variable<String>(starredFilter.value);
+    }
     if (deadlineAtOrBeforeBangkok.present) {
       map['deadline_at_or_before_bangkok'] = Variable<String>(
         deadlineAtOrBeforeBangkok.value,
@@ -11827,6 +11877,7 @@ class AssignmentDashboardPreferencesRecordsCompanion
           ..write('searchQuery: $searchQuery, ')
           ..write('selectedCourseId: $selectedCourseId, ')
           ..write('submissionFilter: $submissionFilter, ')
+          ..write('starredFilter: $starredFilter, ')
           ..write('deadlineAtOrBeforeBangkok: $deadlineAtOrBeforeBangkok')
           ..write(')'))
         .toString();
@@ -17739,6 +17790,7 @@ typedef $$AssignmentDashboardPreferencesRecordsTableCreateCompanionBuilder =
       Value<String> searchQuery,
       Value<int?> selectedCourseId,
       Value<String> submissionFilter,
+      Value<String> starredFilter,
       Value<String?> deadlineAtOrBeforeBangkok,
     });
 typedef $$AssignmentDashboardPreferencesRecordsTableUpdateCompanionBuilder =
@@ -17748,6 +17800,7 @@ typedef $$AssignmentDashboardPreferencesRecordsTableUpdateCompanionBuilder =
       Value<String> searchQuery,
       Value<int?> selectedCourseId,
       Value<String> submissionFilter,
+      Value<String> starredFilter,
       Value<String?> deadlineAtOrBeforeBangkok,
     });
 
@@ -17783,6 +17836,11 @@ class $$AssignmentDashboardPreferencesRecordsTableFilterComposer
 
   ColumnFilters<String> get submissionFilter => $composableBuilder(
     column: $table.submissionFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get starredFilter => $composableBuilder(
+    column: $table.starredFilter,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17827,6 +17885,11 @@ class $$AssignmentDashboardPreferencesRecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get starredFilter => $composableBuilder(
+    column: $table.starredFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get deadlineAtOrBeforeBangkok => $composableBuilder(
     column: $table.deadlineAtOrBeforeBangkok,
     builder: (column) => ColumnOrderings(column),
@@ -17863,6 +17926,11 @@ class $$AssignmentDashboardPreferencesRecordsTableAnnotationComposer
 
   GeneratedColumn<String> get submissionFilter => $composableBuilder(
     column: $table.submissionFilter,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get starredFilter => $composableBuilder(
+    column: $table.starredFilter,
     builder: (column) => column,
   );
 
@@ -17923,6 +17991,7 @@ class $$AssignmentDashboardPreferencesRecordsTableTableManager
                 Value<String> searchQuery = const Value.absent(),
                 Value<int?> selectedCourseId = const Value.absent(),
                 Value<String> submissionFilter = const Value.absent(),
+                Value<String> starredFilter = const Value.absent(),
                 Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
               }) => AssignmentDashboardPreferencesRecordsCompanion(
                 singletonId: singletonId,
@@ -17930,6 +17999,7 @@ class $$AssignmentDashboardPreferencesRecordsTableTableManager
                 searchQuery: searchQuery,
                 selectedCourseId: selectedCourseId,
                 submissionFilter: submissionFilter,
+                starredFilter: starredFilter,
                 deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
               ),
           createCompanionCallback:
@@ -17939,6 +18009,7 @@ class $$AssignmentDashboardPreferencesRecordsTableTableManager
                 Value<String> searchQuery = const Value.absent(),
                 Value<int?> selectedCourseId = const Value.absent(),
                 Value<String> submissionFilter = const Value.absent(),
+                Value<String> starredFilter = const Value.absent(),
                 Value<String?> deadlineAtOrBeforeBangkok = const Value.absent(),
               }) => AssignmentDashboardPreferencesRecordsCompanion.insert(
                 singletonId: singletonId,
@@ -17946,6 +18017,7 @@ class $$AssignmentDashboardPreferencesRecordsTableTableManager
                 searchQuery: searchQuery,
                 selectedCourseId: selectedCourseId,
                 submissionFilter: submissionFilter,
+                starredFilter: starredFilter,
                 deadlineAtOrBeforeBangkok: deadlineAtOrBeforeBangkok,
               ),
           withReferenceMapper: (p0) => p0

@@ -117,6 +117,7 @@ AssignmentDashboardProjection projectAssignmentDashboard({
   required int? selectedCourseId,
   required AssignmentDeadlineDirection direction,
   AssignmentSubmissionFilter submissionFilter = AssignmentSubmissionFilter.all,
+  AssignmentStarredFilter starredFilter = AssignmentStarredFilter.all,
   DateTime? deadlineAtOrBeforeBangkok,
 }) {
   final availableCourseIds = cache.courses.map((course) => course.id).toSet();
@@ -146,6 +147,12 @@ AssignmentDashboardProjection projectAssignmentDashboard({
           AssignmentSubmissionFilter.unsubmitted =>
             assignment.submissionStatus ==
                 AssignmentSubmissionStatus.unsubmitted,
+        },
+      )
+      .where(
+        (assignment) => switch (starredFilter) {
+          AssignmentStarredFilter.all => true,
+          AssignmentStarredFilter.starred => assignment.backendReportedStarred,
         },
       )
       .where(

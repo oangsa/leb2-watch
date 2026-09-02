@@ -2,7 +2,11 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/session/session_lifecycle.dart';
+import '../../domain/assignment_submission_status.dart';
 import '../application/assignment_dashboard_preferences.dart';
+
+export '../../domain/assignment_submission_status.dart'
+    show AssignmentSubmissionStatus;
 
 enum AssignmentDashboardSyncOutcome { success, failure, cancelled }
 
@@ -42,8 +46,6 @@ final class AssignmentDashboardCourse {
   String toString() => 'AssignmentDashboardCourse(redacted: true)';
 }
 
-enum AssignmentSubmissionStatus { submitted, unsubmitted, notApplicable }
-
 final class CachedAssignment {
   const CachedAssignment({
     required this.semesterId,
@@ -55,6 +57,7 @@ final class CachedAssignment {
     required this.dueDateSource,
     required this.dueDateExceed,
     required this.submissionStatus,
+    required this.backendReportedStarred,
     required this.firstSeenAtUtc,
     required this.isBaseline,
   });
@@ -68,6 +71,11 @@ final class CachedAssignment {
   final String? dueDateSource;
   final bool dueDateExceed;
   final AssignmentSubmissionStatus submissionStatus;
+
+  /// Whether LEB2 saved a non-zero starred flag for this assignment. The
+  /// backend defines the flag's meaning; the app only mirrors it.
+  final bool backendReportedStarred;
+
   final DateTime firstSeenAtUtc;
   final bool isBaseline;
 
@@ -206,6 +214,11 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
           'unsubmitted' => AssignmentSubmissionFilter.unsubmitted,
           _ => throw const FormatException(),
         },
+        starredFilter: switch (row.starredFilter) {
+          'all' => AssignmentStarredFilter.all,
+          'starred' => AssignmentStarredFilter.starred,
+          _ => throw const FormatException(),
+        },
         deadlineAtOrBeforeBangkok: _decodeBangkokMinute(
           row.deadlineAtOrBeforeBangkok,
         ),
@@ -231,6 +244,7 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
               searchQuery: Value(preferences.searchQuery),
               selectedCourseId: Value(preferences.selectedCourseId),
               submissionFilter: Value(preferences.submissionFilter.name),
+              starredFilter: Value(preferences.starredFilter.name),
               deadlineAtOrBeforeBangkok: Value(
                 _encodeBangkokMinute(preferences.deadlineAtOrBeforeBangkok),
               ),
@@ -332,7 +346,7 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
           'SELECT a.identity_key, a.course_id, c.name AS course_name, '
           'a.title, a.activity_type, a.due_date_source, a.due_date_exceed, '
           'a.activity_submission_submitted_at_json, '
-          'a.quiz_submission_is_submitted, '
+          'a.quiz_submission_is_submitted, a.adv_starred, '
           's.first_seen_at_utc, s.is_baseline '
           'FROM activities AS a '
           'INNER JOIN courses AS c '
@@ -369,12 +383,13 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
             activityType: activityType,
             dueDateSource: dueDateSource,
             dueDateExceed: row.read<bool>('due_date_exceed'),
-            submissionStatus: _submissionStatus(
+            submissionStatus: resolveAssignmentSubmissionStatus(
               activityType: activityType,
               dueDateSource: dueDateSource,
-              submittedAtJson: submittedAtJson,
+              hasSubmissionRecord: submittedAtJson != null,
               quizSubmissionIsSubmitted: quizSubmissionIsSubmitted,
             ),
+            backendReportedStarred: row.read<int>('adv_starred') != 0,
             firstSeenAtUtc: DateTime.fromMillisecondsSinceEpoch(
               row.read<int>('first_seen_at_utc'),
               isUtc: true,
@@ -463,23 +478,4 @@ DateTime? _decodeBangkokMinute(String? source) {
     throw const FormatException();
   }
   return value;
-}
-
-AssignmentSubmissionStatus _submissionStatus({
-  required String activityType,
-  required String? dueDateSource,
-  required String? submittedAtJson,
-  required bool quizSubmissionIsSubmitted,
-}) {
-  if (activityType == 'QUZ') {
-    return quizSubmissionIsSubmitted
-        ? AssignmentSubmissionStatus.submitted
-        : AssignmentSubmissionStatus.unsubmitted;
-  }
-  if (submittedAtJson != null) {
-    return AssignmentSubmissionStatus.submitted;
-  }
-  return dueDateSource == null
-      ? AssignmentSubmissionStatus.notApplicable
-      : AssignmentSubmissionStatus.unsubmitted;
 }
