@@ -24,8 +24,12 @@ The historical feature records are consolidated in the retained area sections be
 
 `projectAssignmentDashboard` — section predicates, normalized search, course reconciliation, deterministic deadline ordering. Stateful page subscribes before launching refresh, fences late results by semester/session revision, preserves prior cache on stream error, never cancels shared sync service on disposal.
 
-Dashboard submission state is derived at the Drift presentation-cache boundary
-without exposing raw submission payloads. It mirrors the compatible backend:
+Submission state is derived at each Drift presentation-cache boundary without
+exposing raw submission payloads. `resolveAssignmentSubmissionStatus` in
+`lib/src/features/assignments/domain/assignment_submission_status.dart` owns
+the single rule the dashboard and the detail view both read, so the two cannot
+drift apart; it takes the presence of a submission record as a decided boolean
+rather than the stored JSON. It mirrors the compatible backend:
 `QUZ` uses `quizSubmissionIsSubmitted`. For other activity, a saved
 `activitySubmissionSubmittedAt` means submitted regardless of due-date
 presence; only without that timestamp does a due date mean unsubmitted and no
@@ -36,9 +40,14 @@ assignments. The `Show submitted assignment` filter opts into all saved
 submission statuses; Recently added and All still use that same visibility
 filter.
 
-Search remains directly available. Section, course, submission visibility, and
-the optional `Due by` cutoff use one compact filter dialog with draft-only
-Reset, Cancel, and Apply actions. Applied non-default filters appear as
+A `Starred in LEB2 only` filter keeps assignments whose saved `advStarred` flag
+is non-zero. The backend fixes the field's type but not its meaning, so the
+app mirrors the flag and attributes it to LEB2 rather than owning a starred
+concept of its own. It defaults to off.
+
+Search remains directly available. Section, course, submission visibility, the
+starred filter, and the optional `Due by` cutoff use one compact filter dialog
+with draft-only Reset, Cancel, and Apply actions. Applied non-default filters appear as
 individually removable chips; search is neither counted nor duplicated as a
 chip. The due control uses the platform date and time pickers. Zoned instants
 are displayed and filtered in fixed GMT+7 Bangkok wall time. By backend
@@ -50,8 +59,11 @@ does not trust false: it independently expires the parsed GMT+7 instant when
 the trusted UTC clock reaches it.
 
 Every dashboard control is saved locally: search text, section, course,
-submission filter, and the minute-precision Bangkok deadline cutoff. Modal
-Reset and Cancel do not persist draft state; Apply commits all four advanced
+submission filter, starred filter, and the minute-precision Bangkok deadline
+cutoff. The starred selection lives in the `starred_filter` column added by
+schema 23, which defaults to `all` so an upgrade shows what the install already
+showed. Modal
+Reset and Cancel do not persist draft state; Apply commits all five advanced
 filters as one complete snapshot, while removing an applied chip commits that
 single applied change. The page loads preferences before subscribing to the
 cache and serializes complete preference snapshots so rapid edits cannot
@@ -83,6 +95,16 @@ stable-ID namespace.
 description, parses deadlines using the GMT+7 contract, rejects date, time,
 and numeric-offset components that Dart would otherwise normalize, maps raw
 storage values to presentation-owned states, and bounds exceptions.
+
+The `Assignment record` section also states submission status, whether the
+backend reported the submission late, the saved attachment count, and group
+type, name, and member count. Group name and member count render only when a
+group name exists. The backend leaves the internal fields of `fileActivities`
+and `submissions` undefined, so no file name, link, or submission timestamp is
+presentable: the store counts the attachment list without reading inside it and
+reports `null` for a payload that is not a readable list, which the page shows
+as `Count unavailable` rather than claiming zero. Submission timing renders only
+for a submitted assignment.
 
 `AssignmentDetailPage` owns the local stream subscription and preserves its
 last state on a later stream error. `AssignmentDetailRoute` validates path

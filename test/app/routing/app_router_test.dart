@@ -1275,6 +1275,7 @@ final class _RouteAssignmentDashboardService
           dueDateSource: '2026-08-01T12:00:00Z',
           dueDateExceed: false,
           submissionStatus: AssignmentSubmissionStatus.unsubmitted,
+          backendReportedStarred: false,
           firstSeenAtUtc: DateTime.utc(2026, 7, 26),
           isBaseline: true,
         ),

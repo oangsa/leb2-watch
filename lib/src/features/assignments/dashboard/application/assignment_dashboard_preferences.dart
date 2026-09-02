@@ -2,12 +2,15 @@ enum AssignmentDashboardSection { recent, overdue, all }
 
 enum AssignmentSubmissionFilter { all, unsubmitted }
 
+enum AssignmentStarredFilter { all, starred }
+
 final class AssignmentDashboardPreferences {
   const AssignmentDashboardPreferences({
     this.section = AssignmentDashboardSection.all,
     this.searchQuery = '',
     this.selectedCourseId,
     this.submissionFilter = AssignmentSubmissionFilter.unsubmitted,
+    this.starredFilter = AssignmentStarredFilter.all,
     this.deadlineAtOrBeforeBangkok,
   }) : assert(selectedCourseId == null || selectedCourseId > 0);
 
@@ -15,6 +18,7 @@ final class AssignmentDashboardPreferences {
   final String searchQuery;
   final int? selectedCourseId;
   final AssignmentSubmissionFilter submissionFilter;
+  final AssignmentStarredFilter starredFilter;
   final DateTime? deadlineAtOrBeforeBangkok;
 
   @override
@@ -24,6 +28,7 @@ final class AssignmentDashboardPreferences {
       other.searchQuery == searchQuery &&
       other.selectedCourseId == selectedCourseId &&
       other.submissionFilter == submissionFilter &&
+      other.starredFilter == starredFilter &&
       other.deadlineAtOrBeforeBangkok == deadlineAtOrBeforeBangkok;
 
   @override
@@ -32,6 +37,7 @@ final class AssignmentDashboardPreferences {
     searchQuery,
     selectedCourseId,
     submissionFilter,
+    starredFilter,
     deadlineAtOrBeforeBangkok,
   );
 

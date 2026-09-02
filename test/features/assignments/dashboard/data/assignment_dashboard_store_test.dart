@@ -31,6 +31,7 @@ void main() {
       searchQuery: 'graph traversal',
       selectedCourseId: 3001,
       submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+      starredFilter: AssignmentStarredFilter.starred,
       deadlineAtOrBeforeBangkok: DateTime(2026, 8, 1, 10, 30),
     );
     await store.writePreferences(preferences);
@@ -39,6 +40,21 @@ void main() {
     expect(
       preferences.toString(),
       'AssignmentDashboardPreferences(redacted: true)',
+    );
+  });
+
+  test('refuses to persist an unrecognised starred filter', () async {
+    await expectLater(
+      database.customStatement(
+        'UPDATE assignment_dashboard_preferences '
+        "SET starred_filter = 'unrecognised' WHERE singleton_id = 1",
+      ),
+      throwsA(anything),
+    );
+
+    expect(
+      (await store.readPreferences()).starredFilter,
+      AssignmentStarredFilter.all,
     );
   });
 

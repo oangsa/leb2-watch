@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
@@ -84,6 +86,13 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
     required this.dueDateSource,
     required this.dueDateExceed,
     required this.createdAtSource,
+    required this.hasSubmissionRecord,
+    required this.quizSubmissionIsSubmitted,
+    required this.submissionIsLate,
+    required this.groupType,
+    required this.groupName,
+    required this.groupMemberCount,
+    required this.attachmentCount,
     required this.firstSeenAtUtc,
     required this.lastSeenAtUtc,
     required this.isBaseline,
@@ -99,6 +108,18 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
   final String? dueDateSource;
   final bool dueDateExceed;
   final String createdAtSource;
+  final bool hasSubmissionRecord;
+  final bool quizSubmissionIsSubmitted;
+  final bool submissionIsLate;
+  final String groupType;
+  final String? groupName;
+  final int groupMemberCount;
+
+  /// Number of saved attachment entries, or `null` when the saved payload is
+  /// not a readable list. The backend does not fix the entries' internal
+  /// fields, so only the count is contractual.
+  final int? attachmentCount;
+
   final DateTime firstSeenAtUtc;
   final DateTime lastSeenAtUtc;
   final bool isBaseline;
@@ -189,6 +210,10 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
           'SELECT a.course_id, c.name AS course_name, a.title, '
           'a.description, a.activity_type, a.due_date_source, '
           'a.due_date_exceed, a.created_at_source, '
+          'a.activity_submission_submitted_at_json, '
+          'a.quiz_submission_is_submitted, a.activity_submission_is_late, '
+          'a.group_type, a.activity_group_name, a.count_group_member, '
+          'a.file_activities_json, '
           's.first_seen_at_utc, s.last_seen_at_utc, s.is_baseline, '
           'COALESCE(cp.notifications_muted, 0) AS notifications_muted '
           'FROM activities AS a '
@@ -224,6 +249,21 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
         dueDateSource: current.readNullable<String>('due_date_source'),
         dueDateExceed: current.read<bool>('due_date_exceed'),
         createdAtSource: current.read<String>('created_at_source'),
+        hasSubmissionRecord:
+            current.readNullable<String>(
+              'activity_submission_submitted_at_json',
+            ) !=
+            null,
+        quizSubmissionIsSubmitted: current.read<bool>(
+          'quiz_submission_is_submitted',
+        ),
+        submissionIsLate: current.read<bool>('activity_submission_is_late'),
+        groupType: current.read<String>('group_type'),
+        groupName: current.readNullable<String>('activity_group_name'),
+        groupMemberCount: current.read<int>('count_group_member'),
+        attachmentCount: _attachmentCount(
+          current.read<String>('file_activities_json'),
+        ),
         firstSeenAtUtc: _utc(current.read<int>('first_seen_at_utc')),
         lastSeenAtUtc: _utc(current.read<int>('last_seen_at_utc')),
         isBaseline: current.read<bool>('is_baseline'),
@@ -355,6 +395,19 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
 
   @override
   String toString() => 'DriftAssignmentDetailStore(redacted: true)';
+}
+
+/// Counts saved attachment entries without reading inside them.
+///
+/// A payload that is not a readable JSON list yields `null` so the view can say
+/// the count is unavailable rather than claim zero attachments.
+int? _attachmentCount(String source) {
+  try {
+    final decoded = jsonDecode(source);
+    return decoded is List ? decoded.length : null;
+  } on FormatException {
+    return null;
+  }
 }
 
 DateTime _utc(int milliseconds) =>

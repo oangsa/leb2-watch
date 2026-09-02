@@ -99,6 +99,75 @@ void main() {
     expect(_keys(projection), ['match']);
   });
 
+  test('starred filter keeps only backend-starred assignments', () {
+    final cache = dashboardCache(
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'starred',
+          backendReportedStarred: true,
+        ),
+        dashboardAssignment(identityKey: 'plain'),
+      ],
+    );
+
+    expect(_keys(_project(cache, AssignmentDashboardSection.all)), [
+      'plain',
+      'starred',
+    ]);
+    expect(
+      _keys(
+        _project(
+          cache,
+          AssignmentDashboardSection.all,
+          starredFilter: AssignmentStarredFilter.starred,
+        ),
+      ),
+      ['starred'],
+    );
+  });
+
+  test('starred filter composes with the course and submission filters', () {
+    final cache = dashboardCache(
+      assignments: [
+        dashboardAssignment(
+          identityKey: 'match',
+          courseId: 3002,
+          courseName: 'Networks',
+          backendReportedStarred: true,
+        ),
+        dashboardAssignment(
+          identityKey: 'wrong-course',
+          courseId: 3001,
+          backendReportedStarred: true,
+        ),
+        dashboardAssignment(
+          identityKey: 'submitted',
+          courseId: 3002,
+          courseName: 'Networks',
+          backendReportedStarred: true,
+          submissionStatus: AssignmentSubmissionStatus.submitted,
+        ),
+        dashboardAssignment(
+          identityKey: 'not-starred',
+          courseId: 3002,
+          courseName: 'Networks',
+        ),
+      ],
+    );
+
+    final projection = projectAssignmentDashboard(
+      cache: cache,
+      section: AssignmentDashboardSection.all,
+      searchQuery: '',
+      selectedCourseId: 3002,
+      direction: AssignmentDeadlineDirection.ascending,
+      submissionFilter: AssignmentSubmissionFilter.unsubmitted,
+      starredFilter: AssignmentStarredFilter.starred,
+    );
+
+    expect(_keys(projection), ['match']);
+  });
+
   test('Bangkok deadline cutoff composes with the existing filters', () {
     final cache = dashboardCache(
       assignments: [
@@ -387,6 +456,7 @@ AssignmentDashboardProjection _project(
   AssignmentDashboardSection section, {
   AssignmentDeadlineDirection direction = AssignmentDeadlineDirection.ascending,
   AssignmentSubmissionFilter submissionFilter = AssignmentSubmissionFilter.all,
+  AssignmentStarredFilter starredFilter = AssignmentStarredFilter.all,
 }) {
   return projectAssignmentDashboard(
     cache: cache,
@@ -395,6 +465,7 @@ AssignmentDashboardProjection _project(
     selectedCourseId: null,
     direction: direction,
     submissionFilter: submissionFilter,
+    starredFilter: starredFilter,
   );
 }
 

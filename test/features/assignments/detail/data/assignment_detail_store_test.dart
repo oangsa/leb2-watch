@@ -338,12 +338,87 @@ void main() {
     expect(values.length, count);
     expect((values.single as StoredCurrentAssignmentDetail).title, 'Committed');
   });
+
+  test('reads submission, group, and attachment facts without their '
+      'opaque payloads', () async {
+    await _seedCurrent(
+      database,
+      semesterId: 101,
+      title: 'Group work',
+      groupType: 'group',
+      groupName: 'Team Beta',
+      groupMemberCount: 4,
+      submittedAtJson:
+          '{"date":"2026-07-30 10:11:12","timezoneType":3,'
+          '"timezone":"Asia/Bangkok"}',
+      submissionIsLate: true,
+      fileActivitiesJson: '[{"private":"one"},{"private":"two"}]',
+    );
+
+    final result =
+        await store
+                .watch(
+                  AssignmentDetailKey(
+                    semesterId: 101,
+                    identityKey: 'backend:1001',
+                  ),
+                )
+                .first
+            as StoredCurrentAssignmentDetail;
+
+    expect(result.hasSubmissionRecord, isTrue);
+    expect(result.submissionIsLate, isTrue);
+    expect(result.quizSubmissionIsSubmitted, isFalse);
+    expect(result.groupType, 'group');
+    expect(result.groupName, 'Team Beta');
+    expect(result.groupMemberCount, 4);
+    expect(result.attachmentCount, 2);
+    expect(result.toString(), isNot(contains('Asia/Bangkok')));
+    expect(result.toString(), isNot(contains('private')));
+  });
+
+  test('counts no attachments and reports an unreadable payload as '
+      'unavailable', () async {
+    await _seedCurrent(
+      database,
+      semesterId: 101,
+      title: 'Empty',
+      fileActivitiesJson: '[]',
+    );
+    await _seedCurrent(
+      database,
+      semesterId: 102,
+      title: 'Unreadable',
+      fileActivitiesJson: 'not-json',
+    );
+
+    Future<StoredCurrentAssignmentDetail> read(int semesterId) async =>
+        await store
+                .watch(
+                  AssignmentDetailKey(
+                    semesterId: semesterId,
+                    identityKey: 'backend:1001',
+                  ),
+                )
+                .first
+            as StoredCurrentAssignmentDetail;
+
+    expect((await read(101)).attachmentCount, 0);
+    expect((await read(102)).attachmentCount, isNull);
+  });
 }
 
 Future<void> _seedCurrent(
   AppDatabase database, {
   required int semesterId,
   required String title,
+  String groupType = 'individual',
+  String? groupName,
+  int groupMemberCount = 1,
+  String? submittedAtJson,
+  bool submissionIsLate = false,
+  bool quizSubmissionIsSubmitted = false,
+  String fileActivitiesJson = '[{"private":"attachment"}]',
 }) async {
   await database
       .into(database.semesters)
@@ -379,7 +454,7 @@ Future<void> _seedCurrent(
           backendActivityId: const drift.Value(1001),
           userId: 2001,
           advStarred: 0,
-          groupType: 'individual',
+          groupType: groupType,
           activityType: 'ASM',
           peerAssessment: 0,
           isAllowRepeat: 0,
@@ -393,13 +468,13 @@ Future<void> _seedCurrent(
           activitySubmissionId: const drift.Value(null),
           classUserId: 4001,
           activityGroupId: const drift.Value(null),
-          activityGroupName: const drift.Value(null),
-          activitySubmissionSubmittedAtJson: const drift.Value(null),
+          activityGroupName: drift.Value(groupName),
+          activitySubmissionSubmittedAtJson: drift.Value(submittedAtJson),
           dueDateExceed: false,
-          quizSubmissionIsSubmitted: false,
-          countGroupMember: 1,
-          activitySubmissionIsLate: false,
-          fileActivitiesJson: '[{"private":"attachment"}]',
+          quizSubmissionIsSubmitted: quizSubmissionIsSubmitted,
+          countGroupMember: groupMemberCount,
+          activitySubmissionIsLate: submissionIsLate,
+          fileActivitiesJson: fileActivitiesJson,
           questionsJson: '[{"private":"question"}]',
           submissionsJson: '[{"private":"submission"}]',
           lastDueDateNotificationDateSource: const drift.Value(null),

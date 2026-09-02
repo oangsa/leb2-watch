@@ -1,7 +1,11 @@
 import '../../../../core/time/app_time_zone.dart';
+import '../../domain/assignment_submission_status.dart';
 import '../data/assignment_detail_store.dart';
 import '../domain/assignment_detail_key.dart';
 import 'assignment_description_sanitizer.dart';
+
+export '../../domain/assignment_submission_status.dart'
+    show AssignmentSubmissionStatus;
 
 sealed class AssignmentDetailTimestamp {
   const AssignmentDetailTimestamp();
@@ -116,6 +120,12 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
     required this.deadline,
     required this.backendReportedDeadlineExceeded,
     required this.sourceCreatedAt,
+    required this.submissionStatus,
+    required this.backendReportedSubmissionLate,
+    required this.groupType,
+    required this.groupName,
+    required this.groupMemberCount,
+    required this.attachmentCount,
     required this.firstSeenAtUtc,
     required this.lastSeenAtUtc,
     required this.isBaseline,
@@ -131,6 +141,17 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
   final AssignmentDetailTimestamp deadline;
   final bool backendReportedDeadlineExceeded;
   final AssignmentDetailTimestamp sourceCreatedAt;
+  final AssignmentSubmissionStatus submissionStatus;
+  final bool backendReportedSubmissionLate;
+  final String groupType;
+  final String? groupName;
+  final int groupMemberCount;
+
+  /// Number of saved attachment entries, or `null` when the count is not
+  /// readable. The entries themselves stay in storage: the backend leaves their
+  /// internal fields undefined, so no file name or link is presentable.
+  final int? attachmentCount;
+
   final DateTime firstSeenAtUtc;
   final DateTime lastSeenAtUtc;
   final bool isBaseline;
@@ -207,6 +228,17 @@ final class LocalAssignmentDetailService implements AssignmentDetailService {
         sourceCreatedAt: AssignmentDetailTimestamp.fromSource(
           value.createdAtSource,
         ),
+        submissionStatus: resolveAssignmentSubmissionStatus(
+          activityType: value.activityType,
+          dueDateSource: value.dueDateSource,
+          hasSubmissionRecord: value.hasSubmissionRecord,
+          quizSubmissionIsSubmitted: value.quizSubmissionIsSubmitted,
+        ),
+        backendReportedSubmissionLate: value.submissionIsLate,
+        groupType: value.groupType,
+        groupName: value.groupName,
+        groupMemberCount: value.groupMemberCount,
+        attachmentCount: value.attachmentCount,
         firstSeenAtUtc: value.firstSeenAtUtc,
         lastSeenAtUtc: value.lastSeenAtUtc,
         isBaseline: value.isBaseline,

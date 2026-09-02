@@ -111,6 +111,13 @@ void main() {
           dueDateSource: '2026-08-01T16:30:00+07:00',
           dueDateExceed: true,
           createdAtSource: '2026-07-25T10:00:00',
+          hasSubmissionRecord: false,
+          quizSubmissionIsSubmitted: false,
+          submissionIsLate: false,
+          groupType: 'individual',
+          groupName: null,
+          groupMemberCount: 1,
+          attachmentCount: 2,
           firstSeenAtUtc: DateTime.utc(2026, 7, 25),
           lastSeenAtUtc: DateTime.utc(2026, 7, 26),
           isBaseline: false,
@@ -171,6 +178,13 @@ void main() {
           dueDateSource: null,
           dueDateExceed: false,
           createdAtSource: 'invalid',
+          hasSubmissionRecord: false,
+          quizSubmissionIsSubmitted: false,
+          submissionIsLate: false,
+          groupType: 'individual',
+          groupName: null,
+          groupMemberCount: 1,
+          attachmentCount: null,
           firstSeenAtUtc: DateTime.utc(2026, 7, 25),
           lastSeenAtUtc: DateTime.utc(2026, 7, 26),
           isBaseline: true,
@@ -232,6 +246,86 @@ void main() {
       ),
     );
   });
+
+  test('classifies submission state the same way the dashboard does', () async {
+    Future<AssignmentSubmissionStatus> statusOf(
+      StoredCurrentAssignmentDetail stored,
+    ) async {
+      final service = LocalAssignmentDetailService(_FakeStore(stored));
+      final detail = await service.watch(key).first;
+      return (detail as CurrentAssignmentDetail).submissionStatus;
+    }
+
+    expect(
+      await statusOf(_stored(key: key, hasSubmissionRecord: true)),
+      AssignmentSubmissionStatus.submitted,
+    );
+    expect(
+      await statusOf(_stored(key: key)),
+      AssignmentSubmissionStatus.unsubmitted,
+    );
+    expect(
+      await statusOf(_stored(key: key, dueDateSource: null)),
+      AssignmentSubmissionStatus.notApplicable,
+    );
+    // A quiz reports submission on its own field, so a submission record is
+    // never what decides it.
+    expect(
+      await statusOf(
+        _stored(
+          key: key,
+          activityType: 'QUZ',
+          quizSubmissionIsSubmitted: true,
+          hasSubmissionRecord: false,
+        ),
+      ),
+      AssignmentSubmissionStatus.submitted,
+    );
+    expect(
+      await statusOf(
+        _stored(
+          key: key,
+          activityType: 'QUZ',
+          dueDateSource: null,
+          quizSubmissionIsSubmitted: false,
+        ),
+      ),
+      AssignmentSubmissionStatus.unsubmitted,
+    );
+  });
+}
+
+StoredCurrentAssignmentDetail _stored({
+  required AssignmentDetailKey key,
+  String activityType = 'ASM',
+  String? dueDateSource = '2026-08-01T16:30:00+07:00',
+  bool hasSubmissionRecord = false,
+  bool quizSubmissionIsSubmitted = false,
+}) {
+  return StoredCurrentAssignmentDetail(
+    key: key,
+    sync: _sync,
+    courseName: 'Algorithms',
+    title: 'Title',
+    rawDescription: 'Body',
+    activityType: activityType,
+    dueDateSource: dueDateSource,
+    dueDateExceed: false,
+    createdAtSource: '2026-07-25T10:00:00',
+    hasSubmissionRecord: hasSubmissionRecord,
+    quizSubmissionIsSubmitted: quizSubmissionIsSubmitted,
+    submissionIsLate: false,
+    groupType: 'individual',
+    groupName: null,
+    groupMemberCount: 1,
+    attachmentCount: 0,
+    firstSeenAtUtc: DateTime.utc(2026, 7, 25),
+    lastSeenAtUtc: DateTime.utc(2026, 7, 26),
+    isBaseline: false,
+    courseNotificationsMuted: false,
+    reminders: _reminders,
+    notificationHistory: _history,
+  );
 }
 
 const _sync = StoredAssignmentSyncEvidence(

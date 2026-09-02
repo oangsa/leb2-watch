@@ -251,6 +251,34 @@ class _CurrentRecord extends StatelessWidget {
               timestamp: detail.sourceCreatedAt,
               note: 'Not the publication time.',
             ),
+            _Fact(
+              label: 'Submission',
+              value: _submissionLabel(detail.submissionStatus),
+            ),
+            if (detail.submissionStatus == AssignmentSubmissionStatus.submitted)
+              _Fact(
+                label: 'Submission timing',
+                value: detail.backendReportedSubmissionLate
+                    ? 'Reported late by the backend'
+                    : 'Not reported late',
+              ),
+            _Fact(
+              label: 'Attached files',
+              value: switch (detail.attachmentCount) {
+                null => 'Count unavailable',
+                0 => 'None saved',
+                final count => '$count saved',
+              },
+              note: 'File names and links are not provided by the backend.',
+            ),
+            _Fact(label: 'Group type', value: detail.groupType),
+            if (detail.groupName case final group?) ...[
+              _Fact(label: 'Group', value: group),
+              _Fact(
+                label: 'Group members',
+                value: '${detail.groupMemberCount}',
+              ),
+            ],
           ],
         ),
       ],
@@ -417,6 +445,12 @@ class _TimestampFact extends StatelessWidget {
     );
   }
 }
+
+String _submissionLabel(AssignmentSubmissionStatus status) => switch (status) {
+  AssignmentSubmissionStatus.submitted => 'Submitted',
+  AssignmentSubmissionStatus.unsubmitted => 'Not submitted',
+  AssignmentSubmissionStatus.notApplicable => 'No submission required',
+};
 
 String formatAssignmentDetailTimestamp(
   BuildContext context,

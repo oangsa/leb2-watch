@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-02
+
+### Added
+
+- Assignment details now show submission state, whether the backend reported the
+  submission late, the number of saved attachments, and group information.
+- A saved dashboard filter for assignments starred in LEB2 (schema 23).
+
 ## [0.8.1] - 2026-08-10
 
 ### Changed
@@ -87,7 +95,8 @@ detects newly published work, and raises local notifications, against a
 self-hosted [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API)
 instance. Linux, Windows, and Android artifacts.
 
-[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/oangsa/leb2-watch/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/oangsa/leb2-watch/compare/v0.6.1...v0.7.0
