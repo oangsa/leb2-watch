@@ -10,6 +10,24 @@ import 'package:leb2_watch/src/features/diagnostics/domain/synchronization_diagn
 import 'package:leb2_watch/src/features/diagnostics/presentation/synchronization_diagnostics_page.dart';
 
 void main() {
+  testWidgets('first local failure names the action that did not start', (
+    tester,
+  ) async {
+    final service = _FakeDiagnosticsService();
+    addTearDown(service.close);
+    await _pumpPage(tester, service);
+
+    service.fail(StateError('PRIVATE_DIAGNOSTICS_ERROR'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Diagnostics unavailable'), findsOneWidget);
+    expect(
+      find.text('Could not read saved state. No refresh was started.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('PRIVATE_DIAGNOSTICS_ERROR'), findsNothing);
+  });
+
   testWidgets('renders local diagnostics before scheduler status completes', (
     tester,
   ) async {

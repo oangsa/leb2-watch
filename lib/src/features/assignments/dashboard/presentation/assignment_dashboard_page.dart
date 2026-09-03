@@ -333,7 +333,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
     if (cache == null || !cache.hasActiveSemester) {
       return AppStateView.empty(
         title: 'Choose a semester first',
-        message: 'Showing your selected semester.',
+        message: 'Assignments appear after you choose a semester.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
       );

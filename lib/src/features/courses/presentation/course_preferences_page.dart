@@ -246,9 +246,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     if (catalog == null || !catalog.hasActiveSemester) {
       return AppStateView.empty(
         title: 'Choose a semester first',
-        message:
-            'Course controls follow your selected '
-            'device.',
+        message: 'Course controls appear after you choose a semester.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
       );

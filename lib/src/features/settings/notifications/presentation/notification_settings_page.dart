@@ -43,6 +43,7 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.logoutService,
     required this.onLogoutCompleted,
     required this.onOpenPrivacy,
+    required this.onOpenDiagnostics,
     super.key,
   });
 
@@ -53,6 +54,7 @@ class NotificationSettingsPage extends StatefulWidget {
   final LogoutService logoutService;
   final VoidCallback onLogoutCompleted;
   final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenDiagnostics;
 
   @override
   State<NotificationSettingsPage> createState() =>
@@ -851,6 +853,22 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     title: const Text('Privacy and local data'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenPrivacy,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _SettingsSection(
+                title: 'Support',
+                children: [
+                  ListTile(
+                    key: const Key('open-diagnostics'),
+                    leading: const Icon(Icons.monitor_heart_outlined),
+                    title: const Text('Synchronization diagnostics'),
+                    subtitle: const Text(
+                      'Review sync, session, and scheduler status.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: widget.onOpenDiagnostics,
                   ),
                 ],
               ),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/core/time/app_time_zone.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/application/attachment_download_service.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/domain/attachment_download.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/assignments/detail/presentation/assignment_detail_page.dart';
@@ -87,6 +89,31 @@ void main() {
 
     expect(find.text('Count unavailable'), findsOneWidget);
     expect(find.text('None saved'), findsNothing);
+  });
+
+  testWidgets('announces attachment download status changes', (tester) async {
+    final service = _FakeService(_current(attachmentCount: 1));
+    addTearDown(service.close);
+    await _pumpPage(
+      tester,
+      service,
+      downloadService: AttachmentDownloadService(
+        () => throw StateError('PRIVATE_DOWNLOAD_ERROR'),
+        const _AttachmentSink(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('download-attachment-33')));
+    await tester.tap(find.byKey(const Key('download-attachment-33')));
+    await tester.pumpAndSettle();
+
+    final status = tester.widget<Semantics>(
+      find.byKey(const Key('attachment-download-status')),
+    );
+    expect(status.properties.liveRegion, isTrue);
+    expect(find.text('The download did not finish.'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_DOWNLOAD_ERROR'), findsNothing);
   });
 
   testWidgets(
@@ -282,18 +309,32 @@ SeenOnlyAssignmentDetail _seenOnly() {
   );
 }
 
-Future<void> _pumpPage(WidgetTester tester, AssignmentDetailService service) {
+Future<void> _pumpPage(
+  WidgetTester tester,
+  AssignmentDetailService service, {
+  AttachmentDownloadService? downloadService,
+}) {
   return tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light,
       home: AssignmentDetailPage(
         detailKey: _key,
         service: service,
+        downloadService: downloadService,
         canPop: false,
         onBack: () {},
       ),
     ),
   );
+}
+
+final class _AttachmentSink implements AttachmentFileSink {
+  const _AttachmentSink();
+
+  @override
+  Future<String> write({required String fileName, required List<int> bytes}) {
+    throw UnimplementedError();
+  }
 }
 
 final class _FakeService implements AssignmentDetailService {

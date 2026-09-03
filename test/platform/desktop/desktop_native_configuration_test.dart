@@ -78,6 +78,9 @@ void main() {
         'macos/Runner/MainFlutterWindow.swift',
       ).readAsStringSync();
       final info = File('macos/Runner/Info.plist').readAsStringSync();
+      final menu = File(
+        'macos/Runner/Base.lproj/MainMenu.xib',
+      ).readAsStringSync();
       final project = File(
         'macos/Runner.xcodeproj/project.pbxproj',
       ).readAsStringSync();
@@ -98,6 +101,11 @@ void main() {
       );
       expect(delegate, contains('applicationShouldHandleReopen'));
       expect(delegate, contains('sender.windows.first?.makeKeyAndOrderFront'));
+      expect(delegate, contains('@IBAction func openSettings'));
+      expect(delegate, contains('name: "app_navigation"'));
+      expect(delegate, contains('invokeMethod("openSettings"'));
+      expect(menu, contains('title="Settings…" keyEquivalent=","'));
+      expect(menu, contains('selector="openSettings:"'));
       expect(info, contains('<key>LSMultipleInstancesProhibited</key>'));
       expect(info, contains('<true/>'));
       expect(window, contains('import LaunchAtLogin'));

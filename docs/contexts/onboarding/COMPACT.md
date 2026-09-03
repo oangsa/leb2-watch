@@ -65,8 +65,8 @@ request.
 
 `PrivacyOnboardingPage` is a stateful presentation module with one public
 interface: a required `VoidCallback onCompleted`. Its five-step model,
-responsive compositions, title-only step content, progress, and action controls
-are private to the same library.
+responsive compositions, concise disclosure copy, progress, and action
+controls are private to the same library.
 
 The router owns flow progression. Its onboarding builder supplies a callback
 that updates the existing `AppFlowController` to
@@ -335,6 +335,9 @@ The store is:
 - Use five disclosures so each privacy concern remains readable without
   fragmenting the flow into many tiny screens.
 - Omit Skip because every disclosure precedes credential or permission setup.
+- Keep each title paired with short, verified copy from the full Privacy page
+  so onboarding explains purpose, storage, backend data, local notifications,
+  and best-effort timing before sign-in.
 - Use synchronous replacement instead of `PageView` or animated transitions,
   preserving disclosure order and reduced-motion behavior.
 - Use the committed Cobalt system and an open Long Document composition rather
@@ -475,9 +478,10 @@ hashes remained unchanged.
 
 `privacy_onboarding_page_test.dart` verifies:
 
-- the minimal first-step content, first-step controls, and no Skip;
+- the product purpose, independence disclosure, first-step controls, and no
+  Skip;
 - all five titles and progress values in order before completion;
-- removed onboarding paragraphs stay absent;
+- notification and background-timing disclosures stay visible;
 - Back behavior and exactly-once completion;
 - visible and semantic progress;
 - current-heading semantics without hidden rail or icon noise;
@@ -496,21 +500,25 @@ privacy access, and the root onboarding label.
 Flutter and Dart commands ran in one newly opened persistent zsh terminal, so
 the user's shell configuration was loaded once for the validation session.
 
-The current title-only onboarding and course-header copy cleanup passed the
-focused onboarding, course-control, and routing coverage.
+The disclosure onboarding and course-header copy pass focused onboarding,
+course-control, and routing coverage.
 
 ```text
-dart format <feature files>
-Formatted successfully.
+dart format --output=none --set-exit-if-changed .
+Formatted 409 files (0 changed).
 
-flutter test test/features/onboarding/presentation/privacy_onboarding_page_test.dart
-17 tests passed.
+flutter test <affected UI, route, and native-configuration tests>
+207 tests passed.
 
-flutter test test/app/routing/app_router_test.dart test/leb2_watch_app_test.dart
-21 tests passed.
+dart run tool/run_flutter_tests.dart
+168 test files passed in all 17 sequential shards.
 
-dart analyze
+dart analyze --fatal-infos --fatal-warnings
 No issues found.
+
+flutter analyze --fatal-infos --fatal-warnings
+No issues found.
+```
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 

@@ -165,6 +165,10 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Choose a semester first'), findsOneWidget);
+    expect(
+      find.text('Course controls appear after you choose a semester.'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Choose semester'));
     expect(chooseCalls, 1);
 

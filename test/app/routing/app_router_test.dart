@@ -85,12 +85,7 @@ void main() {
       );
       expect(
         AppDestination.values.map((destination) => destination.route),
-        <AppRoute>[
-          AppRoute.assignments,
-          AppRoute.courses,
-          AppRoute.settings,
-          AppRoute.diagnostics,
-        ],
+        <AppRoute>[AppRoute.assignments, AppRoute.courses, AppRoute.settings],
       );
 
       final controller = AppFlowController(initialStage: AppFlowStage.ready);
@@ -750,13 +745,6 @@ void main() {
           expect(find.text('Course controls'), findsOneWidget);
           expect(find.text('Router course'), findsNWidgets(2));
           expect(find.byKey(const Key('courses-surface')), findsNothing);
-        } else if (destination == AppDestination.diagnostics) {
-          expect(find.text('Synchronization diagnostics'), findsOneWidget);
-          expect(
-            find.byKey(const Key('synchronization-diagnostics-page')),
-            findsOneWidget,
-          );
-          expect(find.byKey(const Key('diagnostics-surface')), findsNothing);
         } else if (destination == AppDestination.settings) {
           expect(find.text('Settings'), findsWidgets);
           expect(
@@ -771,6 +759,20 @@ void main() {
           );
         }
       }
+
+      router.go(AppRoute.diagnostics.path);
+      await tester.pumpAndSettle();
+      expect(find.text('Synchronization diagnostics'), findsOneWidget);
+      expect(
+        find.byKey(const Key('synchronization-diagnostics-page')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<NavigationRail>(find.byType(NavigationRail))
+            .selectedIndex,
+        AppDestination.settings.index,
+      );
     });
 
     testWidgets('expired banner coexists with usable cached course controls', (

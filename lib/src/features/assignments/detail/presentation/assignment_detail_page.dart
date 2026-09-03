@@ -368,13 +368,16 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
           ),
           if (_message case final message?) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
+            Semantics(
               key: const Key('attachment-download-status'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: _failed
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurfaceVariant,
+              liveRegion: true,
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _failed
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],

@@ -168,9 +168,7 @@ class _SynchronizationDiagnosticsPageState
     if (snapshot == null) {
       return AppStateView.error(
         title: 'Diagnostics unavailable',
-        message:
-            'Could not read saved state. No '
-            'was started.',
+        message: 'Could not read saved state. No refresh was started.',
         actionLabel: 'Retry',
         onAction: () {
           _subscribe();

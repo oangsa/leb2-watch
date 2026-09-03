@@ -34,6 +34,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Choose a semester first'), findsOneWidget);
+    expect(
+      find.text('Assignments appear after you choose a semester.'),
+      findsOneWidget,
+    );
     expect(service.refreshCalls, 0);
     await tester.tap(find.text('Choose semester'));
     expect(chooseCalls, 1);

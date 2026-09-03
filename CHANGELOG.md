@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Primary navigation now keeps Assignments, Courses, and Settings visible;
+  synchronization diagnostics moved into Settings.
+- Onboarding now explains each privacy disclosure, and compact navigation
+  labels remain visible with larger text.
+- Branded app icons, dark-aware launch surfaces, clearer state copy, and
+  accessible destructive and download feedback.
+
 ## [0.10.0] - 2026-09-03
 
 ### Added

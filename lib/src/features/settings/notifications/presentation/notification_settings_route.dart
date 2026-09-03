@@ -32,6 +32,7 @@ class NotificationSettingsRoute extends ConsumerWidget {
           context.go(AppRoute.authentication.path);
         },
         onOpenPrivacy: () => context.push(AppRoute.privacy.path),
+        onOpenDiagnostics: () => context.push(AppRoute.diagnostics.path),
       ),
       error: (_, _) => AppStateView.error(
         title: 'Settings unavailable',

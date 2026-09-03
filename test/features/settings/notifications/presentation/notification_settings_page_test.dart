@@ -25,11 +25,13 @@ void main() {
       _snapshot(platform: NotificationSettingsPlatform.android),
     );
     var privacyCalls = 0;
+    var diagnosticsCalls = 0;
 
     await _pump(
       tester,
       service,
       onOpenPrivacy: () => privacyCalls += 1,
+      onOpenDiagnostics: () => diagnosticsCalls += 1,
       height: 1400,
     );
 
@@ -86,6 +88,14 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('open-privacy')));
     expect(privacyCalls, 1);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('open-diagnostics')),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.byKey(const Key('open-diagnostics')));
+    expect(diagnosticsCalls, 1);
   });
 
   testWidgets('granted permission removes the permission section entirely', (
@@ -297,6 +307,7 @@ Future<void> _pump(
   WidgetTester tester,
   _SettingsService service, {
   VoidCallback? onOpenPrivacy,
+  VoidCallback? onOpenDiagnostics,
   double width = 800,
   double height = 900,
   TextScaler textScaler = TextScaler.noScaling,
@@ -322,6 +333,7 @@ Future<void> _pump(
           logoutService: const _LogoutService(),
           onLogoutCompleted: () {},
           onOpenPrivacy: onOpenPrivacy ?? () {},
+          onOpenDiagnostics: onOpenDiagnostics ?? () {},
         ),
       ),
     ),

@@ -37,6 +37,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Delete all local data?'), findsOneWidget);
     expect(find.textContaining('you stay here and can retry'), findsOne);
+    final confirm = tester.widget<FilledButton>(
+      find.byKey(const Key('confirm-local-data-deletion')),
+    );
+    expect(
+      confirm.style?.backgroundColor?.resolve({}),
+      AppTheme.light.colorScheme.error,
+    );
   });
 
   testWidgets(
