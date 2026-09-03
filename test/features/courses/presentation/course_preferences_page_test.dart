@@ -35,10 +35,17 @@ void main() {
     await _openCourseSettings(tester);
 
     expect(find.text('Course settings'), findsOneWidget);
-    expect(find.text('Mute all'), findsOneWidget);
-    expect(find.text('Stop all checks'), findsOneWidget);
+    expect(find.text('Mute all'), findsNothing);
+    expect(find.text('Stop all checks'), findsNothing);
     expect(find.text('2 new · 3 due'), findsOneWidget);
     expect(find.text('Checks for updates while closed.'), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byKey(const Key('course-preference-row-3001')),
+        matching: find.byType(Card),
+      ),
+      findsNothing,
+    );
 
     final row = tester.getSemantics(
       find.byKey(const Key('course-preference-row-3001')),
@@ -405,106 +412,6 @@ void main() {
     expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
   });
 
-  testWidgets('global controls update every saved course', (tester) async {
-    final service = _FakeCoursePreferencesService();
-    addTearDown(service.close);
-    await _pumpPage(tester, service);
-    final courses = [
-      _summary(id: 3001, name: 'Distributed Systems'),
-      _summary(id: 3002, name: 'Computer Networks'),
-    ];
-    service.emit(ActiveCourseCatalog(activeSemesterId: 101, courses: courses));
-    await tester.pump();
-
-    await _openCourseSettings(tester);
-    await tester.tap(find.byKey(const Key('course-mute-all')));
-    await tester.pump();
-    await tester.pump();
-    expect(service.muteKeys, [
-      const CourseKey(semesterId: 101, courseId: 3001),
-      const CourseKey(semesterId: 101, courseId: 3002),
-    ]);
-
-    service.emit(
-      ActiveCourseCatalog(
-        activeSemesterId: 101,
-        courses: [
-          for (final course in courses)
-            _summary(
-              id: course.key.courseId,
-              name: course.name,
-              preference: const CoursePreference(notificationsMuted: true),
-            ),
-        ],
-      ),
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('course-background-disable-all')));
-    await tester.pump();
-    await tester.pump();
-    expect(service.backgroundKeys, [
-      const CourseKey(semesterId: 101, courseId: 3001),
-      const CourseKey(semesterId: 101, courseId: 3002),
-    ]);
-  });
-
-  for (final scenario
-      in <
-        ({
-          String name,
-          Key button,
-          bool mute,
-          CoursePreferenceUpdateResult result,
-        })
-      >[
-        (
-          name: 'mute all stops after first failure',
-          button: const Key('course-mute-all'),
-          mute: true,
-          result: const CoursePreferenceUpdateFailure(),
-        ),
-        (
-          name: 'disable all background stops after first stale write',
-          button: const Key('course-background-disable-all'),
-          mute: false,
-          result: const CoursePreferenceUpdateStale(),
-        ),
-      ]) {
-    testWidgets(scenario.name, (tester) async {
-      final service = _FakeCoursePreferencesService();
-      addTearDown(service.close);
-      if (scenario.mute) {
-        service.muteResults.add(scenario.result);
-      } else {
-        service.backgroundResults.add(scenario.result);
-      }
-      await _pumpPage(tester, service);
-      service.emit(
-        ActiveCourseCatalog(
-          activeSemesterId: 101,
-          courses: [
-            _summary(id: 3001, name: 'Distributed Systems'),
-            _summary(id: 3002, name: 'Computer Networks'),
-          ],
-        ),
-      );
-      await tester.pump();
-
-      await _openCourseSettings(tester);
-      await tester.tap(find.byKey(scenario.button));
-      await tester.pump();
-      await tester.pump();
-
-      expect(scenario.mute ? service.muteKeys : service.backgroundKeys, [
-        const CourseKey(semesterId: 101, courseId: 3001),
-      ]);
-      expect(
-        find.byKey(const Key('course-preference-write-error')),
-        findsOneWidget,
-      );
-    });
-  }
-
   for (final testCase in <({double width, Brightness brightness})>[
     (width: 320, brightness: Brightness.light),
     (width: 375, brightness: Brightness.dark),
@@ -663,6 +570,9 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
   final List<CourseKey> backgroundKeys = [];
   final List<CoursePreferenceUpdateResult> muteResults = [];
   final List<CoursePreferenceUpdateResult> backgroundResults = [];
+  final StreamController<CourseGlobalPreference> _globalController =
+      StreamController<CourseGlobalPreference>.broadcast(sync: true);
+  CourseGlobalPreference globalPreference = const CourseGlobalPreference();
   CourseKey? lastKey;
   bool? lastValue;
 
@@ -670,7 +580,10 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
 
   void fail(Object error) => _controller.addError(error);
 
-  Future<void> close() => _controller.close();
+  Future<void> close() async {
+    await _controller.close();
+    await _globalController.close();
+  }
 
   @override
   Stream<ActiveCourseCatalog> watchCatalog() {
@@ -679,6 +592,12 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
       _controller = StreamController<ActiveCourseCatalog>.broadcast(sync: true);
     }
     return _controller.stream;
+  }
+
+  @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() async* {
+    yield globalPreference;
+    yield* _globalController.stream;
   }
 
   @override
@@ -709,6 +628,30 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
       return Future.value(muteResults.removeAt(0));
     }
     return nextMuteResult;
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async {
+    globalPreference = CourseGlobalPreference(
+      notificationsMuted: muted,
+      backgroundMonitoringEnabled: globalPreference.backgroundMonitoringEnabled,
+    );
+    _globalController.add(globalPreference);
+    return const CoursePreferenceUpdateSuccess();
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) async {
+    globalPreference = CourseGlobalPreference(
+      notificationsMuted: globalPreference.notificationsMuted,
+      backgroundMonitoringEnabled: enabled,
+    );
+    _globalController.add(globalPreference);
+    return const CoursePreferenceUpdateSuccess();
   }
 }
 
@@ -777,7 +720,7 @@ final class _FakeLearningClient implements BackendLearningActivityClient {
     ));
     return BackendFileDownload(
       bytes: Uint8List.fromList(const [1, 2, 3]),
-      fileName: 'reading.pdf',
+      fileName: 'attachment.pdf',
       contentType: 'application/pdf',
     );
   }
@@ -811,6 +754,7 @@ final class _RecordingSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) async {
     fileNames.add(fileName);

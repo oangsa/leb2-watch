@@ -48,6 +48,29 @@ final class CoursePreference {
   String toString() => 'CoursePreference(redacted: true)';
 }
 
+final class CourseGlobalPreference {
+  const CourseGlobalPreference({
+    this.notificationsMuted = false,
+    this.backgroundMonitoringEnabled = true,
+  });
+
+  final bool notificationsMuted;
+  final bool backgroundMonitoringEnabled;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CourseGlobalPreference &&
+      other.notificationsMuted == notificationsMuted &&
+      other.backgroundMonitoringEnabled == backgroundMonitoringEnabled;
+
+  @override
+  int get hashCode =>
+      Object.hash(notificationsMuted, backgroundMonitoringEnabled);
+
+  @override
+  String toString() => 'CourseGlobalPreference(redacted: true)';
+}
+
 final class CourseSummary {
   const CourseSummary({
     required this.key,
@@ -106,7 +129,10 @@ final class CoursePreferenceWriteStale extends CoursePreferenceWriteResult {
 enum CoursePreferencesStoreOperation {
   watchCatalog,
   readCatalog,
+  watchGlobalPreference,
+  readGlobalPreference,
   writePreference,
+  writeGlobalPreference,
   readPolicy,
   readBackgroundCourses,
 }
@@ -127,6 +153,10 @@ abstract interface class CoursePreferencesStore {
 
   Future<ActiveCourseCatalog> readActiveCatalog();
 
+  Stream<CourseGlobalPreference> watchGlobalPreference();
+
+  Future<CourseGlobalPreference> readGlobalPreference();
+
   Future<CoursePreferenceWriteResult> setNotificationsMuted(
     CourseKey key, {
     required bool muted,
@@ -134,6 +164,14 @@ abstract interface class CoursePreferencesStore {
 
   Future<CoursePreferenceWriteResult> setBackgroundMonitoringEnabled(
     CourseKey key, {
+    required bool enabled,
+  });
+
+  Future<CoursePreferenceWriteResult> setGlobalNotificationsMuted({
+    required bool muted,
+  });
+
+  Future<CoursePreferenceWriteResult> setGlobalBackgroundMonitoringEnabled({
     required bool enabled,
   });
 
@@ -209,10 +247,37 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
   }
 
   @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() {
+    return (_database.select(_database.appSettings)
+          ..where((row) => row.singletonId.equals(1)))
+        .watch()
+        .map(
+          (rows) => _decodeGlobalPreference(rows.isEmpty ? null : rows.single),
+        )
+        .handleError((Object _, StackTrace _) {
+          throw const CoursePreferencesStoreException(
+            CoursePreferencesStoreOperation.watchGlobalPreference,
+          );
+        });
+  }
+
+  @override
   Future<ActiveCourseCatalog> readActiveCatalog() {
     return _run(
       CoursePreferencesStoreOperation.readCatalog,
       () async => _decodeCatalog(await _catalogQuery.get()),
+    );
+  }
+
+  @override
+  Future<CourseGlobalPreference> readGlobalPreference() {
+    return _run(
+      CoursePreferencesStoreOperation.readGlobalPreference,
+      () async => _decodeGlobalPreference(
+        await (_database.select(
+          _database.appSettings,
+        )..where((row) => row.singletonId.equals(1))).getSingleOrNull(),
+      ),
     );
   }
 
@@ -238,6 +303,30 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
     return _writePreference(
       key,
       update: (current) => CoursePreference(
+        notificationsMuted: current.notificationsMuted,
+        backgroundMonitoringEnabled: enabled,
+      ),
+    );
+  }
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) {
+    return _writeGlobalPreference(
+      update: (current) => CourseGlobalPreference(
+        notificationsMuted: muted,
+        backgroundMonitoringEnabled: current.backgroundMonitoringEnabled,
+      ),
+    );
+  }
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) {
+    return _writeGlobalPreference(
+      update: (current) => CourseGlobalPreference(
         notificationsMuted: current.notificationsMuted,
         backgroundMonitoringEnabled: enabled,
       ),
@@ -291,10 +380,16 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
               'ON p.semester_id = c.semester_id '
               'AND p.course_id = c.course_id '
               'WHERE c.semester_id = ? '
+              'AND COALESCE((SELECT course_background_monitoring_enabled '
+              'FROM app_settings WHERE singleton_id = 1), 1) = 1 '
               'AND COALESCE(p.background_monitoring_enabled, 1) = 1 '
               'ORDER BY c.course_id',
               variables: [Variable<int>(semesterId)],
-              readsFrom: {_database.courses, _database.coursePreferences},
+              readsFrom: {
+                _database.appSettings,
+                _database.courses,
+                _database.coursePreferences,
+              },
             )
             .get();
         return Set<CourseKey>.unmodifiable(
@@ -371,6 +466,43 @@ final class DriftCoursePreferencesStore implements CoursePreferencesStore {
         return const CoursePreferenceWriteApplied();
       }),
     );
+  }
+
+  Future<CoursePreferenceWriteResult> _writeGlobalPreference({
+    required CourseGlobalPreference Function(CourseGlobalPreference current)
+    update,
+  }) {
+    return _run(
+      CoursePreferencesStoreOperation.writeGlobalPreference,
+      () => _database.transaction(() async {
+        final stored = await (_database.select(
+          _database.appSettings,
+        )..where((row) => row.singletonId.equals(1))).getSingleOrNull();
+        final next = update(_decodeGlobalPreference(stored));
+        await _database
+            .into(_database.appSettings)
+            .insertOnConflictUpdate(
+              AppSettingsCompanion(
+                singletonId: const Value(1),
+                courseNotificationsMuted: Value(next.notificationsMuted),
+                courseBackgroundMonitoringEnabled: Value(
+                  next.backgroundMonitoringEnabled,
+                ),
+              ),
+            );
+        return const CoursePreferenceWriteApplied();
+      }),
+    );
+  }
+
+  CourseGlobalPreference _decodeGlobalPreference(AppSetting? settings) {
+    return settings == null
+        ? const CourseGlobalPreference()
+        : CourseGlobalPreference(
+            notificationsMuted: settings.courseNotificationsMuted,
+            backgroundMonitoringEnabled:
+                settings.courseBackgroundMonitoringEnabled,
+          );
   }
 
   ActiveCourseCatalog _decodeCatalog(List<TypedResult> rows) {

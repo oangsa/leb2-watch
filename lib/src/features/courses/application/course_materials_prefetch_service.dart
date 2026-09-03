@@ -89,6 +89,10 @@ final class CourseMaterialsPrefetchService
         cancelled: cancellation?.isCancelled == true,
       );
     }
+    final globalPreference = await preferencesStore.readGlobalPreference();
+    if (!globalPreference.backgroundMonitoringEnabled) {
+      return CourseMaterialPrefetchResult(courses: courseList.length);
+    }
 
     final cached = Map.of(
       await cacheStore.readForSemester(courseList.first.semesterId),
@@ -154,6 +158,7 @@ final class CourseMaterialsPrefetchService
             materialId: material.id,
             attachmentId: file.id,
             userId: catalog.userId,
+            fallbackFileName: file.displayName,
             openAfterSave: false,
             cancellation: cancellation,
           );

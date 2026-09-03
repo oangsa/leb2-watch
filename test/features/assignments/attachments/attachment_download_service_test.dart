@@ -154,9 +154,17 @@ void main() {
         materialId: 5001,
         attachmentId: 6001,
         userId: 2001,
+        fallbackFileName: 'reading.pdf',
       );
 
-      expect(result, isA<AttachmentDownloadSaved>());
+      expect(
+        result,
+        isA<AttachmentDownloadSaved>().having(
+          (saved) => saved.fileName,
+          'fileName',
+          'reading.pdf',
+        ),
+      );
       expect(sink.writes.single.fileName, 'reading.pdf');
       expect(learningClient.attachmentCalls.single, (
         semesterId: 101,
@@ -238,19 +246,24 @@ CurrentAssignmentDetail _detail({
 }
 
 final class _RecordingSink implements AttachmentFileSink {
-  final writes = <({String fileName, int byteCount})>[];
+  final writes = <({String fileName, int byteCount, String? contentType})>[];
   bool shouldThrow = false;
 
   @override
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) async {
     if (shouldThrow) {
       throw StateError('disk full');
     }
-    writes.add((fileName: fileName, byteCount: bytes.length));
+    writes.add((
+      fileName: fileName,
+      byteCount: bytes.length,
+      contentType: contentType,
+    ));
     return '/saved/$fileName';
   }
 }
@@ -381,7 +394,7 @@ final class _FakeLearningClient implements BackendLearningActivityClient {
     ));
     return BackendFileDownload(
       bytes: Uint8List.fromList(const [1, 2, 3]),
-      fileName: 'reading.pdf',
+      fileName: 'attachment.pdf',
       contentType: 'application/pdf',
     );
   }

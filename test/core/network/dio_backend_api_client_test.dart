@@ -319,6 +319,30 @@ void main() {
       }
     });
 
+    test('adds a known extension when the server name is generic', () async {
+      final adapter = CallbackHttpClientAdapter((options, _, _) {
+        return byteResponse(
+          const [1, 2, 3],
+          headers: const {
+            Headers.contentTypeHeader: ['application/pdf; charset=utf-8'],
+            'content-disposition': ['attachment; filename="attachment"'],
+          },
+        );
+      });
+      final client = _client(adapter);
+
+      final download = await client.downloadActivityAttachment(
+        semesterId: 101,
+        classId: 3001,
+        activityId: 4001,
+        attachmentId: 6001,
+        userId: 2001,
+      );
+
+      expect(download.fileName, 'attachment.pdf');
+      expect(download.contentType, 'application/pdf; charset=utf-8');
+    });
+
     test('rejects invalid learning-material response invariants', () async {
       final responses = <Object Function()>[
         () => <String, Object?>{'not': 'an array'},

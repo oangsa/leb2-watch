@@ -20,6 +20,7 @@ final class AndroidAttachmentFileSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) async {
     try {
@@ -27,6 +28,7 @@ final class AndroidAttachmentFileSink implements AttachmentFileSink {
           .invokeMethod<String>('saveAttachment', <String, Object?>{
             'fileName': fileName,
             'bytes': Uint8List.fromList(bytes),
+            'contentType': contentType,
             'openAfterSave': openAfterSave,
           });
       if (path == null || path.trim().isEmpty) {
@@ -64,6 +66,7 @@ final class LocalAttachmentFileSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) async {
     if (Platform.isAndroid) {
@@ -71,6 +74,7 @@ final class LocalAttachmentFileSink implements AttachmentFileSink {
         return await _androidSink.write(
           fileName: fileName,
           bytes: bytes,
+          contentType: contentType,
           openAfterSave: openAfterSave,
         );
       } on _AndroidPublicStorageUnavailableException {

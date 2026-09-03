@@ -24,6 +24,8 @@ void main() {
       expect(find.text('Hello world'), findsOneWidget);
       expect(find.textContaining('<p>'), findsNothing);
       expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('Deadline'), findsOneWidget);
+      expect(find.text('32d 23h overdue'), findsNothing);
       expect(find.text('Activity type'), findsNothing);
       expect(find.text('Deadline status'), findsNothing);
       expect(find.text('Source-created time'), findsNothing);
@@ -64,6 +66,9 @@ void main() {
     expect(find.text('Submitted'), findsOneWidget);
     expect(find.text('Late'), findsOneWidget);
     expect(find.text('Thu, Jul 30 at 10:11 AM GMT+7'), findsOneWidget);
+    expect(find.text('Submitted date'), findsOneWidget);
+    expect(find.text('Deadline'), findsNothing);
+    expect(find.text('Overdue'), findsNothing);
     expect(find.text('Group assignment'), findsOneWidget);
     expect(find.text('Team Beta'), findsOneWidget);
     expect(find.text('4 members'), findsOneWidget);
@@ -71,6 +76,24 @@ void main() {
     expect(find.text('Attached files'), findsNothing);
     expect(find.text('Group type'), findsNothing);
     expect(find.text('Group members'), findsNothing);
+  });
+
+  testWidgets('shows only remaining time for an unsubmitted assignment', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      _current(
+        deadlineUtc: DateTime.utc(2026, 9, 5, 8),
+        backendReportedDeadlineExceeded: false,
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service, nowUtc: () => DateTime.utc(2026, 9, 3, 8));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2d left'), findsOneWidget);
+    expect(find.text('On time'), findsNothing);
+    expect(find.text('Overdue'), findsNothing);
   });
 
   testWidgets('hides submission timing and group rows the record lacks', (
@@ -262,6 +285,8 @@ CurrentAssignmentDetail _current({
   int? backendActivityId = 4001,
   List<int> attachmentIds = const [33],
   DateTime? submittedAtUtc,
+  DateTime? deadlineUtc,
+  bool backendReportedDeadlineExceeded = true,
 }) {
   return CurrentAssignmentDetail(
     key: _key,
@@ -270,8 +295,10 @@ CurrentAssignmentDetail _current({
     title: title,
     description: 'Hello world',
     activityType: 'ASM',
-    deadline: ZonedAssignmentDetailTimestamp(DateTime.utc(2026, 8, 1, 9)),
-    backendReportedDeadlineExceeded: true,
+    deadline: ZonedAssignmentDetailTimestamp(
+      deadlineUtc ?? DateTime.utc(2026, 8, 1, 9),
+    ),
+    backendReportedDeadlineExceeded: backendReportedDeadlineExceeded,
     sourceCreatedAt: ZonedAssignmentDetailTimestamp(
       DateTime.utc(2026, 7, 25, 3),
     ),
@@ -337,6 +364,7 @@ final class _AttachmentSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) {
     throw UnimplementedError();

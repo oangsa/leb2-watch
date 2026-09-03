@@ -33,7 +33,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 24);
+        expect(database.schemaVersion, 25);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -59,7 +59,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 24);
+        expect(await _pragmaInt(database, 'user_version'), 25);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );
@@ -209,6 +209,45 @@ void main() {
 
       await database.delete(database.semesters).go();
       expect(await database.select(database.coursePreferences).get(), isEmpty);
+    });
+
+    test('schema 24 upgrades with global course preference defaults', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'leb2-watch-course-global-migration-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/leb2_watch.sqlite');
+      final legacy = AppDatabase.forTesting(NativeDatabase(file));
+      await legacy
+          .into(legacy.appSettings)
+          .insert(const AppSettingsCompanion(singletonId: drift.Value(1)));
+      await legacy
+          .into(legacy.semesters)
+          .insert(
+            SemestersCompanion.insert(semesterId: const drift.Value(101)),
+          );
+      await legacy.customStatement(
+        'UPDATE app_settings SET active_semester_id = 101, leb2_user_id = 2001',
+      );
+      await legacy.customStatement(
+        'ALTER TABLE app_settings DROP COLUMN course_notifications_muted',
+      );
+      await legacy.customStatement(
+        'ALTER TABLE app_settings '
+        'DROP COLUMN course_background_monitoring_enabled',
+      );
+      await legacy.customStatement('PRAGMA user_version = 24');
+      await legacy.close();
+
+      final upgraded = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(upgraded.close);
+
+      final settings = await upgraded.select(upgraded.appSettings).getSingle();
+      expect(upgraded.schemaVersion, 25);
+      expect(settings.activeSemesterId, 101);
+      expect(settings.leb2UserId, 2001);
+      expect(settings.courseNotificationsMuted, isFalse);
+      expect(settings.courseBackgroundMonitoringEnabled, isTrue);
     });
 
     test('constrains lifecycle state and session revisions', () async {

@@ -5,8 +5,8 @@ import '../domain/attachment_download.dart';
 
 /// Downloads assignment attachments through the backend and saves them.
 ///
-/// The backend streams from LEB2 and names each file, so this only decides
-/// where the bytes land and how a failure reads.
+/// The backend streams from LEB2 and normally names each file. Course
+/// metadata can supply a fallback when the response uses a generic name.
 final class AttachmentDownloadService {
   const AttachmentDownloadService(
     this._client,
@@ -59,6 +59,7 @@ final class AttachmentDownloadService {
     required int materialId,
     required int attachmentId,
     required int userId,
+    String? fallbackFileName,
     bool openAfterSave = true,
     BackendRequestCancellation? cancellation,
   }) {
@@ -80,6 +81,7 @@ final class AttachmentDownloadService {
         userId: userId,
         cancellation: cancellation,
       ),
+      fallbackFileName: fallbackFileName,
       openAfterSave: openAfterSave,
     );
   }
@@ -129,6 +131,7 @@ final class AttachmentDownloadService {
 
   Future<AttachmentDownloadResult> _saveDownload({
     required Future<BackendFileDownload> Function() request,
+    String? fallbackFileName,
     bool openAfterSave = true,
   }) async {
     final BackendFileDownload download;
@@ -143,12 +146,17 @@ final class AttachmentDownloadService {
     }
 
     try {
+      final fileName = _effectiveFileName(
+        download.fileName,
+        fallbackFileName: fallbackFileName,
+      );
       final path = await _sink.write(
-        fileName: download.fileName,
+        fileName: fileName,
         bytes: download.bytes,
+        contentType: download.contentType,
         openAfterSave: openAfterSave,
       );
-      return AttachmentDownloadSaved(fileName: download.fileName, path: path);
+      return AttachmentDownloadSaved(fileName: fileName, path: path);
     } on Object {
       return const AttachmentDownloadFailed(
         AttachmentDownloadFailureReason.storageFailed,
@@ -158,6 +166,26 @@ final class AttachmentDownloadService {
 
   static bool _validIds(Iterable<int> ids) {
     return ids.every((id) => id > 0 && id <= 2147483647);
+  }
+
+  static String _effectiveFileName(
+    String responseFileName, {
+    String? fallbackFileName,
+  }) {
+    final fallback = fallbackFileName == null
+        ? ''
+        : sanitizeDownloadFileName(fallbackFileName);
+    if (fallback.isEmpty || !_isGenericFileName(responseFileName)) {
+      return responseFileName;
+    }
+    return fallback;
+  }
+
+  static bool _isGenericFileName(String fileName) {
+    return RegExp(
+      r'^attachment(?:-\d+)?(?:\.[a-z0-9]{1,12})?$',
+      caseSensitive: false,
+    ).hasMatch(fileName.trim());
   }
 
   static AttachmentDownloadFailureReason _mapFailure(

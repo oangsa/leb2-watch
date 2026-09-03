@@ -17,13 +17,14 @@ void main() {
     final cache = _FakeCacheStore();
     final sink = _RecordingSink();
     final client = _LearningClient();
+    final preferences = _FakePreferencesStore();
     final downloader = AttachmentDownloadService(
       () => _UnusedApiClient(),
       sink,
       learningActivityClient: () => client,
     );
     final service = CourseMaterialsPrefetchService(
-      preferencesStore: _FakePreferencesStore(),
+      preferencesStore: preferences,
       materialsService: _FakeMaterialsService(
         CourseMaterialsCatalog(
           semesterId: 101,
@@ -70,27 +71,79 @@ void main() {
     expect(sink.openAfterSaveValues, [false, false]);
     expect(cache.entries, hasLength(2));
   });
+
+  test('does not prefetch when global course monitoring is off', () async {
+    final course = const CourseKey(semesterId: 101, courseId: 3001);
+    final client = _LearningClient();
+    final materials = _FakeMaterialsService(
+      CourseMaterialsCatalog(
+        semesterId: 101,
+        classId: 3001,
+        userId: 2001,
+        materials: [],
+      ),
+    );
+    final service = CourseMaterialsPrefetchService(
+      preferencesStore: _FakePreferencesStore(
+        globalPreference: const CourseGlobalPreference(
+          backgroundMonitoringEnabled: false,
+        ),
+      ),
+      materialsService: materials,
+      downloadService: AttachmentDownloadService(
+        () => _UnusedApiClient(),
+        _RecordingSink(),
+        learningActivityClient: () => client,
+      ),
+      cacheStore: _FakeCacheStore(),
+    );
+
+    final result = await service.prefetch(courses: [course]);
+
+    expect(result.courses, 1);
+    expect(result.downloaded, 0);
+    expect(materials.reads, 0);
+    expect(client.attachmentIds, isEmpty);
+  });
 }
 
 final class _FakeMaterialsService implements CourseMaterialsService {
-  const _FakeMaterialsService(this.catalog);
+  _FakeMaterialsService(this.catalog);
 
   final CourseMaterialsCatalog catalog;
+  int reads = 0;
 
   @override
   Future<CourseMaterialsCatalog> read(
     CourseKey key, {
     BackendRequestCancellation? cancellation,
-  }) async => catalog;
+  }) async {
+    reads += 1;
+    return catalog;
+  }
 }
 
 final class _FakePreferencesStore implements CoursePreferencesStore {
+  _FakePreferencesStore({
+    this.globalPreference = const CourseGlobalPreference(),
+  });
+
+  final CourseGlobalPreference globalPreference;
+
   @override
   Stream<ActiveCourseCatalog> watchActiveCatalog() => const Stream.empty();
 
   @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      Stream.value(const CourseGlobalPreference());
+
+  @override
   Future<ActiveCourseCatalog> readActiveCatalog() async =>
       ActiveCourseCatalog(activeSemesterId: 101, courses: const []);
+
+  @override
+  Future<CourseGlobalPreference> readGlobalPreference() async =>
+      globalPreference;
 
   @override
   Future<CoursePreferenceWriteResult> setNotificationsMuted(
@@ -101,6 +154,16 @@ final class _FakePreferencesStore implements CoursePreferencesStore {
   @override
   Future<CoursePreferenceWriteResult> setBackgroundMonitoringEnabled(
     CourseKey key, {
+    required bool enabled,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalBackgroundMonitoringEnabled({
     required bool enabled,
   }) => throw UnimplementedError();
 
@@ -149,6 +212,7 @@ final class _RecordingSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   }) async {
     openAfterSaveValues.add(openAfterSave);

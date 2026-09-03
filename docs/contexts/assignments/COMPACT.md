@@ -34,9 +34,11 @@ rather than the stored JSON. It mirrors the compatible backend:
 `activitySubmissionSubmittedAt` means submitted regardless of due-date
 presence; only without that timestamp does a due date mean unsubmitted and no
 due date mean no submission is required. Overdue contains only unsubmitted
-work and retains the backend `dueDateExceed` flag as authority. Compact and
-expanded rows now add relative deadline progress and an overdue/on-time chip;
-submitted rows also show the validated submitted date and a late/on-time chip.
+work and retains the backend `dueDateExceed` flag as authority for filtering.
+Compact and expanded rows show remaining-time or overdue feedback only for
+unsubmitted work; submitted rows hide the deadline and show the validated
+submitted date with a late/on-time chip. Unsubmitted rows keep only their
+submission-state chip.
 The dashboard no longer exposes an Upcoming section. It defaults to showing
 only unsubmitted assignments. The `Show submitted assignment` filter opts into
 all saved submission statuses; Recently added and All still use that same
@@ -101,6 +103,9 @@ storage values to presentation-owned states, and bounds exceptions.
 The `Assignment record` section keeps only the deadline, submission date and
 timing, and group assignment facts; activity type, source-created time,
 deadline prose, attachment count, and group type are hidden as redundant.
+Submitted records hide deadline feedback entirely. Unsubmitted records show
+either remaining time or an Overdue chip, never an On time chip or an overdue
+countdown.
 Group name and member count render together only when a group name exists.
 Attachment download actions remain available when their identifiers are
 present. Android 10+ writes completed downloads to the public
@@ -297,14 +302,16 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
 - Preserve valid rendered state after a later local-read error.
 - Use a flat Record Sheet rather than nested metric cards or a new
   master-detail state graph.
-- Keep deadline-exceeded status sourced only from the saved backend flag.
+- Treat a saved backend-exceeded flag or a parsed deadline already past the
+  trusted clock as overdue feedback; never show an On time chip for unsubmitted
+  work.
 - Mirror the compatible backend's type-aware submission predicate rather than
   treating a submission ID, historical status, or local date comparison as
   current submission evidence.
 - Present `Submitted`, `Not submitted`, and `No submission required` as
   accessible saved-status badges in compact and expanded dashboard layouts;
-  add relative deadline progress and overdue/on-time or late/on-time feedback
-  without replacing the backend status fields.
+  add remaining-time or overdue feedback for unsubmitted work and late/on-time
+  feedback for submitted work without replacing the backend status fields.
 - Promote only a strictly validated saved submission date into presentation
   state, resolving offset-less values as Bangkok wall time; keep malformed
   legacy dates unavailable.
@@ -394,6 +401,10 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
   `git diff --check` passed.
 - Final memory-safe aggregate discovered 139 files; all 14 sequential shards
   passed and the runner exited 0.
+- Current assignment, attachment, settings, course, and database regression
+  suites passed after the submitted-card, filename, and deadline-feedback
+  changes; Dart analysis passed and the production-API Android release APK
+  built locally.
 
 ### Validation evidence
 

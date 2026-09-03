@@ -54,7 +54,6 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
   final ValueNotifier<int> _settingsRevision = ValueNotifier(0);
   bool _loading = true;
   bool _streamFailed = false;
-  bool _globalWriting = false;
   bool _prefetching = false;
   int? _selectedCourseId;
   String? _writeFailureMessage;
@@ -193,57 +192,6 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     );
   }
 
-  Future<void> _muteAll(ActiveCourseCatalog catalog) async {
-    await _writeAll(
-      catalog.courses.where((course) => !course.preference.notificationsMuted),
-      pending: (course) => const _PendingPreference.notificationsMuted(true),
-      action: (course) =>
-          widget.service.setNotificationsMuted(course.key, muted: true),
-    );
-  }
-
-  Future<void> _disableAllBackgroundMonitoring(
-    ActiveCourseCatalog catalog,
-  ) async {
-    await _writeAll(
-      catalog.courses.where(
-        (course) => course.preference.backgroundMonitoringEnabled,
-      ),
-      pending: (course) => const _PendingPreference.backgroundMonitoring(false),
-      action: (course) => widget.service.setBackgroundMonitoringEnabled(
-        course.key,
-        enabled: false,
-      ),
-    );
-  }
-
-  Future<void> _writeAll(
-    Iterable<CourseSummary> courses, {
-    required _PendingPreference Function(CourseSummary course) pending,
-    required Future<CoursePreferenceUpdateResult> Function(CourseSummary course)
-    action,
-  }) async {
-    if (_globalWriting || _pending.isNotEmpty) {
-      return;
-    }
-    setState(() => _globalWriting = true);
-    _settingsRevision.value += 1;
-    for (final course in courses) {
-      final saved = await _write(
-        course.key,
-        pending: pending(course),
-        action: () => action(course),
-      );
-      if (!saved || !mounted) {
-        break;
-      }
-    }
-    if (mounted) {
-      setState(() => _globalWriting = false);
-      _settingsRevision.value += 1;
-    }
-  }
-
   Future<bool> _write(
     CourseKey key, {
     required _PendingPreference pending,
@@ -332,7 +280,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
         ? AppSpacing.md
         : AppSpacing.lg;
     final selectedCourse = _selectedCourse(catalog);
-    final controlsDisabled = _globalWriting || _pending.isNotEmpty;
+    final controlsDisabled = _pending.isNotEmpty;
 
     return SafeArea(
       child: Center(
@@ -469,22 +417,9 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
           builder: (_, _, _) {
             final catalog = _catalog ?? fallbackCatalog;
             final course = _selectedCourse(catalog);
-            final controlsDisabled = _globalWriting || _pending.isNotEmpty;
-            final allMuted = catalog.courses.every(
-              (course) => course.preference.notificationsMuted,
-            );
-            final allBackgroundDisabled = catalog.courses.every(
-              (course) => !course.preference.backgroundMonitoringEnabled,
-            );
             return _CourseSettingsDialog(
               course: course,
-              writing: controlsDisabled,
-              muteAllEnabled: !controlsDisabled && !allMuted,
-              disableAllBackgroundEnabled:
-                  !controlsDisabled && !allBackgroundDisabled,
-              onMuteAll: () => _muteAll(catalog),
-              onDisableAllBackground: () =>
-                  _disableAllBackgroundMonitoring(catalog),
+              writing: _pending.isNotEmpty,
               onNotificationsMuted: (value) =>
                   _setNotificationsMuted(course, value),
               onBackgroundMonitoring: (value) =>
@@ -586,6 +521,7 @@ class _CourseMaterialsSectionState extends State<_CourseMaterialsSection> {
         materialId: material.id,
         attachmentId: file.id,
         userId: catalog.userId,
+        fallbackFileName: file.displayName,
       ),
     );
   }
@@ -790,20 +726,12 @@ class _CourseSettingsDialog extends StatelessWidget {
   const _CourseSettingsDialog({
     required this.course,
     required this.writing,
-    required this.muteAllEnabled,
-    required this.disableAllBackgroundEnabled,
-    required this.onMuteAll,
-    required this.onDisableAllBackground,
     required this.onNotificationsMuted,
     required this.onBackgroundMonitoring,
   });
 
   final CourseSummary course;
   final bool writing;
-  final bool muteAllEnabled;
-  final bool disableAllBackgroundEnabled;
-  final VoidCallback onMuteAll;
-  final VoidCallback onDisableAllBackground;
   final ValueChanged<bool> onNotificationsMuted;
   final ValueChanged<bool> onBackgroundMonitoring;
 
@@ -818,14 +746,6 @@ class _CourseSettingsDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _GlobalCourseControls(
-                writing: writing,
-                muteAllEnabled: muteAllEnabled,
-                disableAllBackgroundEnabled: disableAllBackgroundEnabled,
-                onMuteAll: onMuteAll,
-                onDisableAllBackground: onDisableAllBackground,
-              ),
-              const SizedBox(height: AppSpacing.md),
               _CoursePreferenceRow(
                 key: Key('course-preference-row-${course.key.courseId}'),
                 course: course,
@@ -847,62 +767,6 @@ class _CourseSettingsDialog extends StatelessWidget {
   }
 }
 
-class _GlobalCourseControls extends StatelessWidget {
-  const _GlobalCourseControls({
-    required this.writing,
-    required this.muteAllEnabled,
-    required this.disableAllBackgroundEnabled,
-    required this.onMuteAll,
-    required this.onDisableAllBackground,
-  });
-
-  final bool writing;
-  final bool muteAllEnabled;
-  final bool disableAllBackgroundEnabled;
-  final VoidCallback onMuteAll;
-  final VoidCallback onDisableAllBackground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      label: 'All course settings',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              TextButton.icon(
-                key: const Key('course-mute-all'),
-                onPressed: muteAllEnabled ? onMuteAll : null,
-                icon: const Icon(Icons.notifications_off_outlined),
-                label: const Text('Mute all'),
-              ),
-              TextButton.icon(
-                key: const Key('course-background-disable-all'),
-                onPressed: disableAllBackgroundEnabled
-                    ? onDisableAllBackground
-                    : null,
-                icon: const Icon(Icons.sync_disabled_rounded),
-                label: const Text('Stop all checks'),
-              ),
-            ],
-          ),
-          if (writing) ...[
-            const SizedBox(height: AppSpacing.xs),
-            const LinearProgressIndicator(
-              key: Key('course-global-preference-progress'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _CoursePreferenceRow extends StatelessWidget {
   const _CoursePreferenceRow({
     required this.course,
@@ -920,71 +784,62 @@ class _CoursePreferenceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     return Semantics(
       container: true,
       explicitChildNodes: true,
       label: '${course.name}, course ${course.key.courseId}',
-      child: Material(
-        color: scheme.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(AppRadii.panel),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xs,
+          AppSpacing.xs,
+          AppSpacing.xs,
+          AppSpacing.sm,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(course.name, style: theme.textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(course.name, style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppSpacing.sm),
+            Semantics(
+              label:
+                  '${course.postBaselineActivityCount} new activities, '
+                  'discovered after the first successful sync; '
+                  '${course.notReportedExceededDeadlineCount} upcoming '
+                  'deadlines, not reported past at the last saved sync',
+              child: ExcludeSemantics(
+                child: Text(
+                  '${course.postBaselineActivityCount} new · '
+                  '${course.notReportedExceededDeadlineCount} due',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: AppTypography.labelWeight,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _CoursePreferenceSwitch(
+              key: Key('course-mute-${course.key.courseId}'),
+              label: 'Mute notifications',
+              description: 'Alerts for this course.',
+              value: course.preference.notificationsMuted,
+              onChanged: writing ? null : onNotificationsMuted,
+            ),
+            _CoursePreferenceSwitch(
+              key: Key('course-background-${course.key.courseId}'),
+              label: 'Background monitoring',
+              description: 'Checks for updates while closed.',
+              value: course.preference.backgroundMonitoringEnabled,
+              onChanged: writing ? null : onBackgroundMonitoring,
+            ),
+            if (writing)
               Semantics(
-                label:
-                    '${course.postBaselineActivityCount} new activities, '
-                    'discovered after the first successful sync; '
-                    '${course.notReportedExceededDeadlineCount} upcoming '
-                    'deadlines, not reported past at the last saved sync',
-                child: ExcludeSemantics(
-                  child: Text(
-                    '${course.postBaselineActivityCount} new · '
-                    '${course.notReportedExceededDeadlineCount} due',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: AppTypography.labelWeight,
-                    ),
-                  ),
+                label: 'Saving course settings',
+                liveRegion: true,
+                child: const LinearProgressIndicator(
+                  key: Key('course-preference-progress'),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              _CoursePreferenceSwitch(
-                key: Key('course-mute-${course.key.courseId}'),
-                label: 'Mute notifications',
-                description: 'Alerts for this course.',
-                value: course.preference.notificationsMuted,
-                onChanged: writing ? null : onNotificationsMuted,
-              ),
-              _CoursePreferenceSwitch(
-                key: Key('course-background-${course.key.courseId}'),
-                label: 'Background monitoring',
-                description: 'Checks for updates while closed.',
-                value: course.preference.backgroundMonitoringEnabled,
-                onChanged: writing ? null : onBackgroundMonitoring,
-              ),
-              if (writing)
-                Semantics(
-                  label: 'Saving course settings',
-                  liveRegion: true,
-                  child: const LinearProgressIndicator(
-                    key: Key('course-preference-progress'),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
       ),
     );

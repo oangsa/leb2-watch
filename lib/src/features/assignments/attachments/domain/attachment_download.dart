@@ -9,6 +9,7 @@ abstract interface class AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    String? contentType,
     bool openAfterSave = true,
   });
 }

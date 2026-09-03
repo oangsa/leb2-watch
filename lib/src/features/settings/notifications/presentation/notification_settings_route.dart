@@ -21,6 +21,9 @@ class NotificationSettingsRoute extends ConsumerWidget {
     return settings.when(
       data: (settingsService) => NotificationSettingsPage(
         service: settingsService,
+        coursePreferencesService: ref
+            .watch(coursePreferencesServiceProvider)
+            .value,
         backgroundGrant: ref.watch(backgroundReliabilityGrantProvider),
         deletionService: deletion,
         onDeletionCompleted: (_) {},
@@ -40,6 +43,8 @@ class NotificationSettingsRoute extends ConsumerWidget {
         actionLabel: 'Retry',
         onAction: () {
           ref.invalidate(notificationSettingsServiceProvider);
+          ref.invalidate(coursePreferencesServiceProvider);
+          ref.invalidate(coursePreferencesStoreProvider);
           ref.invalidate(newAssignmentNotificationPreferencesServiceProvider);
           ref.invalidate(newAssignmentNotificationPreferencesStoreProvider);
           ref.invalidate(localDataDeletionServiceProvider);

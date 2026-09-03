@@ -663,6 +663,20 @@ final class _ShellSemesterSelectionService implements SemesterSelectionService {
 
 final class _ShellCoursePreferencesService implements CoursePreferencesService {
   @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      Stream.value(const CourseGlobalPreference());
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
   Stream<ActiveCourseCatalog> watchCatalog() {
     return Stream.value(
       ActiveCourseCatalog(activeSemesterId: 202, courses: const []),

@@ -1483,15 +1483,52 @@ BackendFileDownload _mapDownload(
     throw const _ResponseShapeException();
   }
   final disposition = response.headers.value('content-disposition');
+  final contentType =
+      response.headers.value(Headers.contentTypeHeader) ??
+      'application/octet-stream';
+  final fileName = sanitizeDownloadFileName(
+    parseContentDispositionFileName(disposition) ?? fallbackName,
+  );
   return BackendFileDownload(
     bytes: Uint8List.fromList(bytes),
-    fileName:
-        parseContentDispositionFileName(disposition) ??
-        sanitizeDownloadFileName(fallbackName),
-    contentType:
-        response.headers.value(Headers.contentTypeHeader) ??
-        'application/octet-stream',
+    fileName: _addContentTypeExtension(fileName, contentType),
+    contentType: contentType,
   );
+}
+
+String _addContentTypeExtension(String fileName, String contentType) {
+  if (fileName.isEmpty || RegExp(r'\.[A-Za-z0-9]{1,12}$').hasMatch(fileName)) {
+    return fileName;
+  }
+  final extension = _extensionForContentType(contentType);
+  return extension == null ? fileName : '$fileName.$extension';
+}
+
+String? _extensionForContentType(String contentType) {
+  final mediaType = contentType.split(';').first.trim().toLowerCase();
+  return const <String, String>{
+    'application/pdf': 'pdf',
+    'application/zip': 'zip',
+    'application/x-zip': 'zip',
+    'application/msword': 'doc',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.ms-powerpoint': 'ppt',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        'docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+        'pptx',
+    'text/plain': 'txt',
+    'text/csv': 'csv',
+    'text/html': 'html',
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'audio/mpeg': 'mp3',
+    'audio/wav': 'wav',
+    'video/mp4': 'mp4',
+  }[mediaType];
 }
 
 /// Reads the server's file name from `Content-Disposition`, preferring the

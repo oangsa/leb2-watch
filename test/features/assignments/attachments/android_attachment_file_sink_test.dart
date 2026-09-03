@@ -22,6 +22,7 @@ void main() {
     final path = await const AndroidAttachmentFileSink().write(
       fileName: 'reading.pdf',
       bytes: const [1, 2, 3],
+      contentType: 'application/pdf',
     );
 
     expect(path, 'Downloads/LEB2/reading.pdf');
@@ -29,6 +30,7 @@ void main() {
     final arguments = received?.arguments as Map<Object?, Object?>;
     expect(arguments['fileName'], 'reading.pdf');
     expect(arguments['bytes'], orderedEquals(const [1, 2, 3]));
+    expect(arguments['contentType'], 'application/pdf');
     expect(arguments['openAfterSave'], isTrue);
   });
 

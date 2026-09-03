@@ -1324,9 +1324,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('2d 4h left'), findsNWidgets(2));
-    expect(find.text('On time'), findsNWidgets(2));
-    expect(find.text('1d overdue'), findsOneWidget);
+    expect(find.text('2d 4h left'), findsOneWidget);
+    expect(find.text('On time'), findsNothing);
+    expect(find.text('1d overdue'), findsNothing);
     expect(find.text('Overdue'), findsOneWidget);
     expect(find.text('Jul 26, 2026 at 8:01 AM'), findsOneWidget);
     expect(find.text('Late'), findsOneWidget);

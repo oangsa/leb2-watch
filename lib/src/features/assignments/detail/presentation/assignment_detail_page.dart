@@ -258,10 +258,12 @@ class _CurrentRecord extends StatelessWidget {
           children: [
             _FactGrid(
               children: [
-                _DeadlineFact(detail: detail, nowUtc: nowUtc),
                 if (detail.submissionStatus ==
                     AssignmentSubmissionStatus.submitted)
                   _SubmissionFact(detail: detail),
+                if (detail.submissionStatus !=
+                    AssignmentSubmissionStatus.submitted)
+                  _DeadlineFact(detail: detail, nowUtc: nowUtc),
                 if (detail.groupName case final group?)
                   _Fact(
                     label: 'Group assignment',
@@ -634,25 +636,20 @@ class _DeadlineFact extends StatelessWidget {
       MissingAssignmentDetailTimestamp() ||
       InvalidAssignmentDetailTimestamp() => null,
     };
-    final statusType = deadlineUtc == null
-        ? null
-        : detail.backendReportedDeadlineExceeded
-        ? AssignmentStatusChipType.overdue
-        : AssignmentStatusChipType.onTime;
+    final overdue =
+        deadlineUtc != null &&
+        (detail.backendReportedDeadlineExceeded ||
+            deadlineUtc.isBefore(nowUtc.toUtc()));
     return _Fact(
       label: 'Deadline',
       value: formatAssignmentDetailTimestamp(context, detail.deadline),
-      note: deadlineUtc == null
+      note: deadlineUtc == null || overdue
           ? null
           : formatAssignmentDeadlineDistance(deadlineUtc, nowUtc),
-      trailing: statusType == null
+      trailing: !overdue
           ? null
-          : AssignmentStatusChip(type: statusType),
-      trailingLabel: statusType == AssignmentStatusChipType.overdue
-          ? 'Overdue'
-          : statusType == null
-          ? null
-          : 'On time',
+          : const AssignmentStatusChip(type: AssignmentStatusChipType.overdue),
+      trailingLabel: overdue ? 'Overdue' : null,
     );
   }
 }

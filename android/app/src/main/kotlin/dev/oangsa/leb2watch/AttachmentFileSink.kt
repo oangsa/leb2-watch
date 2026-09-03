@@ -35,6 +35,7 @@ fun configureAttachmentFileSink(
 
             val fileName = call.argument<String>("fileName")
             val bytes = call.argument<ByteArray>("bytes")
+            val contentType = call.argument<String>("contentType")
             val openAfterSave = call.argument<Boolean>("openAfterSave") ?: true
             if (fileName.isNullOrBlank() || bytes == null || bytes.isEmpty()) {
                 result.error(saveFailedCode, saveFailedMessage, null)
@@ -48,7 +49,13 @@ fun configureAttachmentFileSink(
 
             try {
                 result.success(
-                    saveAttachment(applicationContext, fileName, bytes, openAfterSave),
+                    saveAttachment(
+                        applicationContext,
+                        fileName,
+                        bytes,
+                        contentType,
+                        openAfterSave,
+                    ),
                 )
             } catch (_: Exception) {
                 result.error(saveFailedCode, saveFailedMessage, null)
@@ -60,14 +67,16 @@ private fun saveAttachment(
     context: Context,
     requestedName: String,
     bytes: ByteArray,
+    requestedContentType: String?,
     openAfterSave: Boolean,
 ): String {
     val fileName = sanitizeFileName(requestedName) ?: throw IOException()
     val resolver = context.contentResolver
     val displayName = nextAvailableName(resolver, fileName)
+    val type = mimeType(requestedContentType, displayName)
     val values = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, displayName)
-        put(MediaStore.Downloads.MIME_TYPE, mimeType(displayName))
+        put(MediaStore.Downloads.MIME_TYPE, type)
         put(
             MediaStore.Downloads.RELATIVE_PATH,
             "${Environment.DIRECTORY_DOWNLOADS}/LEB2",
@@ -90,7 +99,7 @@ private fun saveAttachment(
             throw IOException()
         }
         if (openAfterSave) {
-            openAttachment(context, uri, mimeType(displayName))
+            openAttachment(context, uri, type)
         }
         "$publicFolderName/$displayName"
     } catch (error: Exception) {
@@ -148,7 +157,16 @@ private fun contains(resolver: ContentResolver, displayName: String): Boolean {
     ).use { cursor -> cursor?.moveToFirst() == true }
 }
 
-private fun mimeType(fileName: String): String {
+private fun mimeType(contentType: String?, fileName: String): String {
+    val normalizedContentType = contentType
+        ?.substringBefore(';')
+        ?.trim()
+        ?.lowercase(Locale.ROOT)
+    if (normalizedContentType != null &&
+        normalizedContentType.matches(Regex("^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$"))
+    ) {
+        return normalizedContentType
+    }
     val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
     return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
         ?: "application/octet-stream"

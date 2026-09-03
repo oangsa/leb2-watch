@@ -800,6 +800,11 @@ class AppSettings extends Table {
   IntColumn get updateCheckedAtUtc =>
       integer().map(const UtcDateTimeConverter()).nullable()();
 
+  BoolColumn get courseNotificationsMuted =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get courseBackgroundMonitoringEnabled =>
+      boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => {singletonId};
 

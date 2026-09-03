@@ -118,6 +118,23 @@ void main() {
   );
 
   test(
+    'global course monitoring off removes the automatic course target',
+    () async {
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      await database.customStatement(
+        'UPDATE app_settings SET course_background_monitoring_enabled = 0',
+      );
+
+      expect(
+        await runner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncNoBackgroundCourses>(),
+      );
+      expect(sync.requests, isEmpty);
+    },
+  );
+
+  test(
     'compatibility and device-binding failures do not schedule retries',
     () async {
       await _seedTarget(database, session: 'active', withCourse: true);

@@ -1203,6 +1203,20 @@ final class _RouteCoursePreferencesService implements CoursePreferencesService {
   int muteCalls = 0;
 
   @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      Stream.value(const CourseGlobalPreference());
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
   Future<CoursePreferenceUpdateResult> setBackgroundMonitoringEnabled(
     CourseKey key, {
     required bool enabled,
