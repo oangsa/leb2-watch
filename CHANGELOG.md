@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-03
+
+### Added
+
+- Assignment files can be downloaded from the assignment page, one at a time or
+  all at once. The backend names each file as it arrives, and files are saved to
+  a `LEB2` folder: Downloads on desktop, app documents on phones. Files are
+  unavailable for assignments LEB2 does not identify by number.
+
+### Removed
+
+- Email notifications for new assignments and deadlines, and the notification
+  email setting. The saved address is deleted from secure storage.
+- Publishing assignments to the web calendar from the app.
+
 ## [0.9.0] - 2026-09-02
 
 ### Added
