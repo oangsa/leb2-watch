@@ -41,6 +41,7 @@ class AssignmentDetailRoute extends ConsumerWidget {
           data: (service) => AssignmentDetailPage(
             detailKey: key,
             service: service,
+            downloadService: ref.watch(attachmentDownloadServiceProvider),
             canPop: context.canPop(),
             onBack: () {
               if (context.canPop()) {

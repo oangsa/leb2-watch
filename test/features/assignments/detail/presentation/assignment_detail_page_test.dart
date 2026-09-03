@@ -234,6 +234,8 @@ CurrentAssignmentDetail _current({
   String? groupName,
   int groupMemberCount = 1,
   int? attachmentCount = 0,
+  int? backendActivityId = 4001,
+  List<int> attachmentIds = const [33],
 }) {
   return CurrentAssignmentDetail(
     key: _key,
@@ -252,6 +254,10 @@ CurrentAssignmentDetail _current({
     groupType: groupType,
     groupName: groupName,
     groupMemberCount: groupMemberCount,
+    courseId: 11,
+    backendActivityId: backendActivityId,
+    leb2UserId: 2001,
+    attachmentIds: attachmentIds,
     attachmentCount: attachmentCount,
     firstSeenAtUtc: DateTime.utc(2026, 7, 25),
     lastSeenAtUtc: DateTime.utc(2026, 7, 26),

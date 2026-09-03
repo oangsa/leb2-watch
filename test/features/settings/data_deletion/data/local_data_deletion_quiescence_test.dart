@@ -454,6 +454,29 @@ final class _BlockingNotificationService implements LocalNotificationService {
 }
 
 final class _CancellableSnapshotClient implements BackendApiClient {
+  @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
   final Completer<void> started = Completer<void>();
   final Completer<void> cancellationObserved = Completer<void>();
   final Completer<void> release = Completer<void>();

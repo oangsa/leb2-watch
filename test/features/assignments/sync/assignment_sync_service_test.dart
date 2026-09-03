@@ -1086,6 +1086,29 @@ Future<void> _waitFor(FutureOr<bool> Function() predicate) async {
 }
 
 final class FakeBackendApiClient implements BackendApiClient {
+  @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
   SnapshotHandler? handler;
   int requestCount = 0;
   int activeRequests = 0;

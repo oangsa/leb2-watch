@@ -202,6 +202,58 @@ final class DioBackendApiClient
   }
 
   @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requirePositiveInt32(semesterId, 'semesterId');
+    _requirePositiveInt32(classId, 'classId');
+    _requirePositiveInt32(activityId, 'activityId');
+    _requirePositiveInt32(attachmentId, 'attachmentId');
+    _requirePositiveInt32(userId, 'userId');
+    return _execute(
+      route: BackendTransportRoute.activityAttachment,
+      path:
+          '/api/v2/Activity/$semesterId/$classId/$activityId'
+          '/attachment/$attachmentId',
+      headers: {_userIdHeader: userId.toString()},
+      cancellation: cancellation,
+      mapSuccess: _unusedJsonMapper,
+      mapResponse: (response) =>
+          _mapDownload(response, fallbackName: 'attachment-$attachmentId'),
+    );
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requirePositiveInt32(semesterId, 'semesterId');
+    _requirePositiveInt32(classId, 'classId');
+    _requirePositiveInt32(activityId, 'activityId');
+    _requirePositiveInt32(userId, 'userId');
+    return _execute(
+      route: BackendTransportRoute.activityAttachmentArchive,
+      path:
+          '/api/v2/Activity/$semesterId/$classId/$activityId'
+          '/attachments/archive',
+      headers: {_userIdHeader: userId.toString()},
+      cancellation: cancellation,
+      mapSuccess: _unusedJsonMapper,
+      mapResponse: (response) =>
+          _mapDownload(response, fallbackName: 'activity-$activityId.zip'),
+    );
+  }
+
+  @override
   Future<void> logout({
     required String accessKey,
     BackendRequestCancellation? cancellation,
@@ -244,6 +296,10 @@ final class DioBackendApiClient
     BackendRequestCancellation? cancellation,
     bool requiresRuntimeIdentity = false,
     int expectedStatusCode = 200,
+    // Set for responses that are not JSON, such as file downloads, so the body
+    // is read as bytes instead of being decoded. Failures still map through the
+    // same error path, which does decode the body.
+    T Function(Response<List<int>> response)? mapResponse,
   }) async {
     final stopwatch = Stopwatch()..start();
     int? statusCode;
@@ -314,6 +370,19 @@ final class DioBackendApiClient
         }
         final decoded = _decodeResponse(response);
         throw _mapHttpError(response, decoded, statusCode);
+      }
+
+      if (mapResponse != null) {
+        try {
+          final result = mapResponse(response);
+          outcome = BackendTransportOutcome.success;
+          return result;
+        } on Object {
+          throw const BackendTransportException(
+            kind: BackendTransportFailureKind.invalidResponse,
+            invalidResponseReason: BackendInvalidResponseReason.wrongShape,
+          );
+        }
       }
 
       final decoded = _decodeResponse(response);
@@ -1247,4 +1316,88 @@ final class _ResponseShapeException implements Exception {
 
 final class _ResponseInvariantException implements Exception {
   const _ResponseInvariantException();
+}
+
+/// Placeholder for downloads, whose bodies are bytes rather than JSON and are
+/// mapped from the response itself.
+Never _unusedJsonMapper(Object? json) => throw const _ResponseShapeException();
+
+BackendFileDownload _mapDownload(
+  Response<List<int>> response, {
+  required String fallbackName,
+}) {
+  final bytes = response.data;
+  if (bytes == null || bytes.isEmpty) {
+    throw const _ResponseShapeException();
+  }
+  final disposition = response.headers.value('content-disposition');
+  return BackendFileDownload(
+    bytes: Uint8List.fromList(bytes),
+    fileName:
+        parseContentDispositionFileName(disposition) ??
+        sanitizeDownloadFileName(fallbackName),
+    contentType:
+        response.headers.value(Headers.contentTypeHeader) ??
+        'application/octet-stream',
+  );
+}
+
+/// Reads the server's file name from `Content-Disposition`, preferring the
+/// RFC 5987 `filename*` form so non-ASCII course files keep their names.
+///
+/// The result is always sanitized: the name comes from an upstream system and
+/// is about to become a path, so it must not carry separators or traversal.
+String? parseContentDispositionFileName(String? headerValue) {
+  if (headerValue == null || headerValue.isEmpty) {
+    return null;
+  }
+
+  final extended = RegExp(
+    r"filename\*\s*=\s*([^']*)'[^']*'([^;]+)",
+    caseSensitive: false,
+  ).firstMatch(headerValue);
+  if (extended != null) {
+    final charset = extended.group(1)?.toLowerCase();
+    final rawValue = extended.group(2)!.trim();
+    try {
+      final decoded = Uri.decodeComponent(rawValue);
+      if (charset == null || charset.isEmpty || charset == 'utf-8') {
+        final sanitized = sanitizeDownloadFileName(decoded);
+        if (sanitized.isNotEmpty) {
+          return sanitized;
+        }
+      }
+    } on Object {
+      // Bad percent-encoding throws ArgumentError, not FormatException. Either
+      // way the plain form is still worth trying: a broken extended name must
+      // not fail a download the server was ready to serve.
+    }
+  }
+
+  final plain = RegExp(
+    r'filename\s*=\s*"([^"]*)"|filename\s*=\s*([^;]+)',
+    caseSensitive: false,
+  ).firstMatch(headerValue);
+  if (plain != null) {
+    final value = (plain.group(1) ?? plain.group(2) ?? '').trim();
+    final sanitized = sanitizeDownloadFileName(value);
+    if (sanitized.isNotEmpty) {
+      return sanitized;
+    }
+  }
+
+  return null;
+}
+
+/// Reduces a server-supplied name to a single safe path segment.
+String sanitizeDownloadFileName(String value) {
+  final withoutSeparators = value
+      .replaceAll(RegExp(r'[\\/]+'), '_')
+      .replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '')
+      .trim();
+  final collapsed = withoutSeparators.replaceAll(RegExp(r'^\.+'), '');
+  if (collapsed.isEmpty) {
+    return '';
+  }
+  return collapsed.length > 180 ? collapsed.substring(0, 180) : collapsed;
 }

@@ -92,6 +92,10 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
     required this.groupType,
     required this.groupName,
     required this.groupMemberCount,
+    required this.courseId,
+    required this.backendActivityId,
+    required this.leb2UserId,
+    required this.attachmentIds,
     required this.attachmentCount,
     required this.firstSeenAtUtc,
     required this.lastSeenAtUtc,
@@ -114,6 +118,19 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
   final String groupType;
   final String? groupName;
   final int groupMemberCount;
+
+  final int courseId;
+
+  /// LEB2's own activity id, or null for an activity identified by fingerprint.
+  /// Attachments can only be downloaded for the former, because the download
+  /// route addresses activities by that id.
+  final int? backendActivityId;
+
+  final int leb2UserId;
+
+  /// Attachment ids saved for this activity, in saved order. Empty when the
+  /// payload holds no readable ids.
+  final List<int> attachmentIds;
 
   /// Number of saved attachment entries, or `null` when the saved payload is
   /// not a readable list. The backend does not fix the entries' internal
@@ -207,7 +224,8 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
     final sync = await _readSyncEvidence(key.semesterId);
     final current = await _database
         .customSelect(
-          'SELECT a.course_id, c.name AS course_name, a.title, '
+          'SELECT a.course_id, a.backend_activity_id, a.user_id, '
+          'c.name AS course_name, a.title, '
           'a.description, a.activity_type, a.due_date_source, '
           'a.due_date_exceed, a.created_at_source, '
           'a.activity_submission_submitted_at_json, '
@@ -261,6 +279,12 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
         groupType: current.read<String>('group_type'),
         groupName: current.readNullable<String>('activity_group_name'),
         groupMemberCount: current.read<int>('count_group_member'),
+        courseId: current.read<int>('course_id'),
+        backendActivityId: current.readNullable<int>('backend_activity_id'),
+        leb2UserId: current.read<int>('user_id'),
+        attachmentIds: _attachmentIds(
+          current.read<String>('file_activities_json'),
+        ),
         attachmentCount: _attachmentCount(
           current.read<String>('file_activities_json'),
         ),
@@ -401,6 +425,26 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
 ///
 /// A payload that is not a readable JSON list yields `null` so the view can say
 /// the count is unavailable rather than claim zero attachments.
+/// Reads the attachment ids the backend saved for an activity.
+///
+/// The payload is a JSON array of LEB2 attachment ids. Anything that is not a
+/// positive int is skipped rather than failing the whole read, so one odd entry
+/// cannot hide the attachments beside it.
+List<int> _attachmentIds(String source) {
+  try {
+    final decoded = jsonDecode(source);
+    if (decoded is! List) {
+      return const [];
+    }
+    return [
+      for (final entry in decoded)
+        if (entry is int && entry > 0 && entry <= 2147483647) entry,
+    ];
+  } on FormatException {
+    return const [];
+  }
+}
+
 int? _attachmentCount(String source) {
   try {
     final decoded = jsonDecode(source);

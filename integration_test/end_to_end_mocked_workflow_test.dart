@@ -23,6 +23,27 @@ const _accessKey = '00000000-0000-4000-8000-000000000001';
 const _baselineCardKey = Key('assignment-card-101-backend:1001');
 const _newAssignmentCardKey = Key('assignment-card-101-backend:1002');
 
+/// The deadline this run serves for the new assignment.
+///
+/// Reminders are only placed for instants still ahead of the clock, so the
+/// capture's own recorded deadline stops scheduling anything once it passes
+/// and takes the assertions below down with it. Rebasing it onto the run's
+/// clock keeps the scheduling path exercised on any date. Whole minutes only,
+/// so the expected reminder instants stay exact.
+final _newAssignmentDueDateUtc = _rebasedDueDateUtc();
+
+DateTime _rebasedDueDateUtc() {
+  final todayUtc = DateTime.now().toUtc();
+  // 16:59Z is the 23:59 Bangkok wall clock LEB2 publishes its deadlines at.
+  return DateTime.utc(
+    todayUtc.year,
+    todayUtc.month,
+    todayUtc.day,
+    16,
+    59,
+  ).add(const Duration(days: 30));
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -76,7 +97,10 @@ void main() {
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieA',
           userId: '2001',
-          body: sanitizedSnapshotFixture(includeNewAssignment: true),
+          body: sanitizedSnapshotFixture(
+            includeNewAssignment: true,
+            newAssignmentDueDateUtc: _newAssignmentDueDateUtc,
+          ),
           release: releaseRestartSync.future,
         ),
         ScriptedBackendExchange(
@@ -121,7 +145,10 @@ void main() {
           accessKey: _accessKey,
           authorization: 'Bearer $_cookieB',
           userId: '2001',
-          body: sanitizedSnapshotFixture(includeNewAssignment: true),
+          body: sanitizedSnapshotFixture(
+            includeNewAssignment: true,
+            newAssignmentDueDateUtc: _newAssignmentDueDateUtc,
+          ),
           // Recovery retries the interrupted refresh while the dashboard also
           // launches a synchronization for the new session revision. The two
           // join only when they overlap, so both orderings must be served.
@@ -450,21 +477,17 @@ void main() {
       expect(harness.notifications.cancelAllCount, 1);
       expect(harness.notifications.permissionRequestCount, 0);
       expect(harness.notifications.shown, hasLength(1));
-      // The fixture publishes its future deadline as `2026-08-15T23:59:00`,
-      // with no offset — 16:59Z once resolved in the app time zone. Both
-      // reminder offsets are placed against that instant, and the fixture's
-      // past deadline produces none.
-      //
-      // These were empty before offset-less deadlines were resolved at all:
-      // an unzoned deadline carried no instant, so it silently scheduled
-      // nothing. Asserting the instants keeps that from regressing quietly.
+      // Both reminder offsets are placed against the rebased future deadline;
+      // the fixture's recorded past deadline produces none. Asserting the
+      // instants rather than the count keeps a deadline that resolves to the
+      // wrong instant — or to none at all — from passing quietly.
       expect(
         harness.notifications.scheduled
             .map((item) => item.scheduledForUtc)
             .toList(),
         unorderedEquals(<DateTime>[
-          DateTime.utc(2026, 8, 14, 16, 59),
-          DateTime.utc(2026, 8, 15, 15, 59),
+          _newAssignmentDueDateUtc.subtract(const Duration(hours: 24)),
+          _newAssignmentDueDateUtc.subtract(const Duration(hours: 1)),
         ]),
       );
       // Deleting all local data withdraws every reminder that was placed, so

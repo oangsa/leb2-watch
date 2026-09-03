@@ -9,6 +9,8 @@ enum BackendTransportRoute {
   sessionCookieAcquisition,
   userLogout,
   metadata,
+  activityAttachment,
+  activityAttachmentArchive,
 }
 
 enum BackendTransportOutcome {

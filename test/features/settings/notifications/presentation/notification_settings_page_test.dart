@@ -234,6 +234,14 @@ void main() {
     );
     // The cadence tile pushed the local-data card past the old viewport.
     await _pump(tester, service, height: 1600, themeMode: ThemeMode.dark);
+    await tester.scrollUntilVisible(
+      find.text('Local data'),
+      300,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('notification-settings-list')),
+        matching: find.byType(Scrollable),
+      ),
+    );
 
     final card = tester.widget<Card>(
       find.ancestor(of: find.text('Local data'), matching: find.byType(Card)),
