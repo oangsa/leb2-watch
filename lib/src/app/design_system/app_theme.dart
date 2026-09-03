@@ -103,23 +103,72 @@ abstract final class AppTheme {
       focusColor: scheme.primary,
       extensions: [statusColors],
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surfaceContainerLowest,
         foregroundColor: scheme.onSurface,
         elevation: AppElevation.flat,
         scrolledUnderElevation: AppElevation.flat,
         surfaceTintColor: AppColors.transparent,
+        centerTitle: false,
       ),
       cardTheme: CardThemeData(
-        color: scheme.surfaceContainerLow,
+        color: scheme.surfaceContainerLowest,
         elevation: AppElevation.flat,
         surfaceTintColor: AppColors.transparent,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.panel),
-          side: BorderSide(
-            color: scheme.outlineVariant,
-            width: AppBorders.hairline,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surfaceContainerLowest,
+        indicatorColor: scheme.primaryContainer,
+        height: 72,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => textTheme.labelMedium?.copyWith(
+            color: states.contains(WidgetState.selected)
+                ? scheme.onSurface
+                : scheme.onSurfaceVariant,
+            fontWeight: AppTypography.labelWeight,
           ),
+        ),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: scheme.surfaceContainerLowest,
+        indicatorColor: scheme.primaryContainer,
+        selectedIconTheme: IconThemeData(
+          color: scheme.onPrimaryContainer,
+          size: 24,
+        ),
+        unselectedIconTheme: IconThemeData(
+          color: scheme.onSurfaceVariant,
+          size: 24,
+        ),
+        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: scheme.onSurface,
+          fontWeight: AppTypography.labelWeight,
+        ),
+        unselectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        minVerticalPadding: AppSpacing.xs,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.control),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: scheme.surfaceContainerLowest,
+        surfaceTintColor: AppColors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.prominent),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.control),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(

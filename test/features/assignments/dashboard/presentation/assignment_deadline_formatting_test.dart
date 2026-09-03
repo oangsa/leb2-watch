@@ -2,8 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/application/assignment_dashboard_projection.dart';
 import 'package:leb2_watch/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart';
+import 'package:leb2_watch/src/features/assignments/presentation/assignment_status.dart';
 
 void main() {
+  test('formats relative deadline distance without device-zone shifts', () {
+    final now = DateTime.utc(2026, 7, 26, 8);
+
+    expect(
+      formatAssignmentDeadlineDistance(DateTime.utc(2026, 7, 28, 12), now),
+      '2d 4h left',
+    );
+    expect(
+      formatAssignmentDeadlineDistance(DateTime.utc(2026, 7, 26, 6, 30), now),
+      '1h 30m overdue',
+    );
+    expect(
+      formatAssignmentDeadlineDistance(DateTime.utc(2026, 7, 26, 8), now),
+      'Due now',
+    );
+    expect(
+      formatAssignmentDeadlineDistance(
+        DateTime.utc(2026, 7, 26, 8, 0, 30),
+        now,
+      ),
+      'Due soon',
+    );
+    expect(formatAssignmentDeadlineDistance(null, now), 'No deadline');
+  });
+
   testWidgets('every deadline shape renders as readable GMT+7 wall time', (
     tester,
   ) async {

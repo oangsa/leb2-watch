@@ -34,12 +34,6 @@ enum AppDestination {
     label: 'Settings',
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
-  ),
-  diagnostics(
-    route: AppRoute.diagnostics,
-    label: 'Diagnostics',
-    icon: Icons.monitor_heart_outlined,
-    selectedIcon: Icons.monitor_heart,
   );
 
   const AppDestination({

@@ -392,3 +392,12 @@ Release steps:
 
 A pushed tag builds and publishes signed artifacts. Never delete or move a
 published tag; ship a new patch version instead.
+
+## 12. Design Review Rules
+
+When reviewing UI/UX designs, follow the design review process defined in:
+- `.design-rules/SKILL.md` — Main review methodology
+- `.design-rules/references/hig-lookup.md` — Topic-to-file mapping
+- `.design-rules/references/hig/` — 53 design guideline documents
+
+Always load the relevant guideline files before providing design feedback.

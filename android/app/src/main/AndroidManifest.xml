@@ -19,7 +19,7 @@
     </queries>
 
     <application
-        android:label="LEB2 Watch"
+        android:label="LEB2 Watch-nightly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

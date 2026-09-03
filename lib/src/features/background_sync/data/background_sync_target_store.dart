@@ -72,9 +72,15 @@ final class DriftBackgroundSyncTargetStore
                 'ON p.semester_id = c.semester_id '
                 'AND p.course_id = c.course_id '
                 'WHERE c.semester_id = ? '
+                'AND COALESCE((SELECT course_background_monitoring_enabled '
+                'FROM app_settings WHERE singleton_id = 1), 1) = 1 '
                 'AND COALESCE(p.background_monitoring_enabled, 1) = 1',
                 variables: [Variable<int>(semesterId)],
-                readsFrom: {_database.courses, _database.coursePreferences},
+                readsFrom: {
+                  _database.appSettings,
+                  _database.courses,
+                  _database.coursePreferences,
+                },
               )
               .getSingle();
           monitoredCourseCount = countRow.read<int>('monitored_count');

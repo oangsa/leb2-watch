@@ -134,18 +134,18 @@ void main() {
         addTearDown(setup.dispose);
 
         expect(find.byKey(testCase.$2), findsOneWidget);
-        expect(find.byTooltip('Change semester'), findsOneWidget);
-        final semantics = tester.widget<Semantics>(
-          find.byKey(AdaptiveAppShell.changeSemesterActionKey),
+        expect(find.text('Change semester'), findsOneWidget);
+        expect(find.semantics.byLabel('Change semester'), findsOneWidget);
+        expect(
+          tester
+              .widget<TextButton>(
+                find.byKey(AdaptiveAppShell.changeSemesterActionKey),
+              )
+              .onPressed,
+          isNotNull,
         );
-        expect(semantics.properties.label, 'Change semester');
-        expect(semantics.properties.onTap, isNotNull);
 
-        final action = find.descendant(
-          of: find.byKey(AdaptiveAppShell.changeSemesterActionKey),
-          matching: find.byType(IconButton),
-        );
-        await tester.tap(action);
+        await tester.tap(find.byKey(AdaptiveAppShell.changeSemesterActionKey));
         await tester.pumpAndSettle();
 
         expect(find.text('Choose semester'), findsOneWidget);
@@ -194,7 +194,6 @@ void main() {
       for (final testCase in <(LogicalKeyboardKey, AppDestination)>[
         (LogicalKeyboardKey.digit2, AppDestination.courses),
         (LogicalKeyboardKey.digit3, AppDestination.settings),
-        (LogicalKeyboardKey.digit4, AppDestination.diagnostics),
         (LogicalKeyboardKey.digit1, AppDestination.assignments),
       ]) {
         await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -206,11 +205,6 @@ void main() {
         } else if (testCase.$2 == AppDestination.assignments) {
           expect(
             find.byKey(const Key('assignment-dashboard-list')),
-            findsOneWidget,
-          );
-        } else if (testCase.$2 == AppDestination.diagnostics) {
-          expect(
-            find.byKey(const Key('synchronization-diagnostics-page')),
             findsOneWidget,
           );
         } else if (testCase.$2 == AppDestination.settings) {
@@ -241,7 +235,6 @@ void main() {
       for (final testCase in <(LogicalKeyboardKey, AppDestination)>[
         (LogicalKeyboardKey.digit2, AppDestination.courses),
         (LogicalKeyboardKey.digit3, AppDestination.settings),
-        (LogicalKeyboardKey.digit4, AppDestination.diagnostics),
         (LogicalKeyboardKey.digit1, AppDestination.assignments),
       ]) {
         await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
@@ -253,11 +246,6 @@ void main() {
         } else if (testCase.$2 == AppDestination.assignments) {
           expect(
             find.byKey(const Key('assignment-dashboard-list')),
-            findsOneWidget,
-          );
-        } else if (testCase.$2 == AppDestination.diagnostics) {
-          expect(
-            find.byKey(const Key('synchronization-diagnostics-page')),
             findsOneWidget,
           );
         } else if (testCase.$2 == AppDestination.settings) {
@@ -311,27 +299,26 @@ void main() {
   }
 
   for (final width in <double>[320, 375, 414]) {
-    testWidgets(
-      '$width compact width hides a label that would wrap at normal scale',
-      (tester) async {
-        final setup = await _pumpShell(tester, width: width);
-        addTearDown(setup.dispose);
+    testWidgets('$width compact width keeps all destination labels visible', (
+      tester,
+    ) async {
+      final setup = await _pumpShell(tester, width: width);
+      addTearDown(setup.dispose);
 
-        final visibleLabels = _visibleCompactLabels(tester);
-        final navigation = tester.widget<NavigationBar>(
-          find.byKey(AdaptiveAppShell.compactNavigationKey),
-        );
+      final visibleLabels = _visibleCompactLabels(tester);
+      final navigation = tester.widget<NavigationBar>(
+        find.byKey(AdaptiveAppShell.compactNavigationKey),
+      );
 
-        expect(visibleLabels, isEmpty);
-        expect(
-          navigation.labelBehavior,
-          NavigationDestinationLabelBehavior.alwaysHide,
-        );
-      },
-    );
+      expect(visibleLabels, hasLength(AppDestination.values.length));
+      expect(
+        navigation.labelBehavior,
+        NavigationDestinationLabelBehavior.alwaysShow,
+      );
+    });
   }
 
-  testWidgets('599 compact width keeps a fitting label at normal scale', (
+  testWidgets('599 compact width keeps every label at normal scale', (
     tester,
   ) async {
     final setup = await _pumpShell(tester, width: 599);
@@ -342,23 +329,21 @@ void main() {
     final navigation = tester.widget<NavigationBar>(navigationFinder);
     final navigationRect = tester.getRect(navigationFinder);
 
-    expect(visibleLabels, hasLength(1));
-    expect(visibleLabels.single.text, AppDestination.assignments.label);
-    expect(visibleLabels.single.lineCount, 1);
-    expect(navigationRect.contains(visibleLabels.single.rect.topLeft), isTrue);
-    expect(
-      navigationRect.contains(visibleLabels.single.rect.bottomRight),
-      isTrue,
-    );
+    expect(visibleLabels, hasLength(AppDestination.values.length));
+    for (final label in visibleLabels) {
+      expect(label.lineCount, 1);
+      expect(navigationRect.contains(label.rect.topLeft), isTrue);
+      expect(navigationRect.contains(label.rect.bottomRight), isTrue);
+    }
     expect(
       navigation.labelBehavior,
-      NavigationDestinationLabelBehavior.onlyShowSelected,
+      NavigationDestinationLabelBehavior.alwaysShow,
     );
   });
 
   for (final width in <double>[320, 375, 414]) {
     testWidgets(
-      '$width compact width has no wrapped visible label at 200 percent text',
+      '$width compact width keeps labels visible at 200 percent text',
       (tester) async {
         final setup = await _pumpShell(
           tester,
@@ -373,11 +358,12 @@ void main() {
           find.byKey(AdaptiveAppShell.compactNavigationKey),
         );
 
-        expect(visibleLabels, isEmpty);
+        expect(visibleLabels, hasLength(AppDestination.values.length));
         expect(
           navigation.labelBehavior,
-          NavigationDestinationLabelBehavior.alwaysHide,
+          NavigationDestinationLabelBehavior.alwaysShow,
         );
+        expect(tester.takeException(), isNull);
       },
     );
   }
@@ -401,7 +387,10 @@ void main() {
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
       AppDestination.courses.index,
     );
-    expect(_visibleCompactLabels(tester), isEmpty);
+    expect(
+      _visibleCompactLabels(tester),
+      hasLength(AppDestination.values.length),
+    );
   });
 
   testWidgets('Material navigation exposes destination semantics', (
@@ -673,6 +662,20 @@ final class _ShellSemesterSelectionService implements SemesterSelectionService {
 }
 
 final class _ShellCoursePreferencesService implements CoursePreferencesService {
+  @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      Stream.value(const CourseGlobalPreference());
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
   @override
   Stream<ActiveCourseCatalog> watchCatalog() {
     return Stream.value(

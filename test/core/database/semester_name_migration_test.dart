@@ -35,7 +35,7 @@ void main() {
       final database = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(database.close);
 
-      expect(database.schemaVersion, 23);
+      expect(database.schemaVersion, 25);
       final semester = await database.select(database.semesters).getSingle();
       expect(semester.semesterId, 46);
       expect(semester.name, isNull);

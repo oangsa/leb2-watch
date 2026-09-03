@@ -87,7 +87,7 @@ class _CompactShell extends StatelessWidget {
       bottomNavigationBar: NavigationBar(
         key: AdaptiveAppShell.compactNavigationKey,
         selectedIndex: navigationShell.currentIndex,
-        labelBehavior: _compactLabelBehavior(context),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: onDestinationSelected,
         destinations: [
           for (final destination in AppDestination.values)
@@ -159,6 +159,7 @@ class _ExpandedShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return CallbackShortcuts(
       bindings: _shortcutBindings(onDestinationSelected),
       child: Focus(
@@ -179,9 +180,26 @@ class _ExpandedShell extends StatelessWidget {
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.sm,
                   ),
-                  child: Text(
-                    'LEB2 Watch',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(AppRadii.control),
+                        ),
+                        child: SizedBox.square(
+                          dimension: 28,
+                          child: Icon(
+                            Icons.visibility_outlined,
+                            color: theme.colorScheme.onPrimary,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text('LEB2 Watch', style: theme.textTheme.titleMedium),
+                    ],
                   ),
                 ),
                 onDestinationSelected: onDestinationSelected,
@@ -219,31 +237,9 @@ class _ShellContent extends StatelessWidget {
     final banner = globalBanner;
     final scaledText = MediaQuery.textScalerOf(context).scale(1) > 1;
     return Column(
+      verticalDirection: VerticalDirection.up,
       children: [
-        SafeArea(
-          top: true,
-          bottom: false,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              child: Semantics(
-                key: AdaptiveAppShell.changeSemesterActionKey,
-                container: true,
-                excludeSemantics: true,
-                label: 'Change semester',
-                button: true,
-                enabled: true,
-                onTap: onChangeSemester,
-                child: IconButton(
-                  tooltip: 'Change semester',
-                  onPressed: onChangeSemester,
-                  icon: const Icon(Icons.swap_horiz_rounded),
-                ),
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: child),
         if (banner != null && scaledText)
           Flexible(
             fit: FlexFit.loose,
@@ -269,43 +265,25 @@ class _ShellContent extends StatelessWidget {
             ),
             child: banner,
           ),
-        Expanded(child: child),
+        SafeArea(
+          top: true,
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                key: AdaptiveAppShell.changeSemesterActionKey,
+                onPressed: onChangeSemester,
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: const Text('Change semester'),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
-}
-
-NavigationDestinationLabelBehavior _compactLabelBehavior(BuildContext context) {
-  final theme = Theme.of(context);
-  final navigationTheme = NavigationBarTheme.of(context);
-  final selectedLabelStyle =
-      navigationTheme.labelTextStyle?.resolve({WidgetState.selected}) ??
-      theme.textTheme.labelMedium ??
-      const TextStyle(fontSize: AppTypography.labelMediumSize);
-  final fontSize = selectedLabelStyle.fontSize ?? AppTypography.labelMediumSize;
-  final textScaler = MediaQuery.textScalerOf(context);
-
-  if (textScaler.scale(fontSize) > fontSize) {
-    return NavigationDestinationLabelBehavior.alwaysHide;
-  }
-
-  final destinationWidth =
-      MediaQuery.sizeOf(context).width / AppDestination.values.length;
-  for (final destination in AppDestination.values) {
-    final painter = TextPainter(
-      text: TextSpan(text: destination.label, style: selectedLabelStyle),
-      maxLines: 1,
-      textDirection: Directionality.of(context),
-      textScaler: textScaler,
-    )..layout();
-    final fits = painter.width <= destinationWidth;
-    painter.dispose();
-    if (!fits) {
-      return NavigationDestinationLabelBehavior.alwaysHide;
-    }
-  }
-
-  return NavigationDestinationLabelBehavior.onlyShowSelected;
 }
 
 List<NavigationRailDestination> _railDestinations(String layout) {
@@ -329,7 +307,6 @@ Map<ShortcutActivator, VoidCallback> _shortcutBindings(
     LogicalKeyboardKey.digit1,
     LogicalKeyboardKey.digit2,
     LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
   ];
 
   return {

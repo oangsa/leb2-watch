@@ -5,16 +5,21 @@ import '../domain/attachment_download.dart';
 
 /// Downloads assignment attachments through the backend and saves them.
 ///
-/// The backend streams from LEB2 and names each file, so this only decides
-/// where the bytes land and how a failure reads.
+/// The backend streams from LEB2 and normally names each file. Course
+/// metadata can supply a fallback when the response uses a generic name.
 final class AttachmentDownloadService {
-  const AttachmentDownloadService(this._client, this._sink);
+  const AttachmentDownloadService(
+    this._client,
+    this._sink, {
+    this.learningActivityClient,
+  });
 
   /// Resolved per download, not at composition time, so building this service
   /// costs nothing and needs no backend configuration until a file is actually
   /// requested.
   final BackendApiClient Function() _client;
   final AttachmentFileSink _sink;
+  final BackendLearningActivityClient Function()? learningActivityClient;
 
   Future<AttachmentDownloadResult> downloadOne({
     required CurrentAssignmentDetail detail,
@@ -48,6 +53,68 @@ final class AttachmentDownloadService {
     );
   }
 
+  Future<AttachmentDownloadResult> downloadLearningMaterialOne({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+    String? fallbackFileName,
+    bool openAfterSave = true,
+    BackendRequestCancellation? cancellation,
+  }) {
+    final client = learningActivityClient;
+    if (client == null ||
+        !_validIds([semesterId, classId, materialId, attachmentId, userId])) {
+      return Future.value(
+        const AttachmentDownloadFailed(
+          AttachmentDownloadFailureReason.unsupportedActivity,
+        ),
+      );
+    }
+    return _saveDownload(
+      request: () => client().downloadLearningMaterialAttachment(
+        semesterId: semesterId,
+        classId: classId,
+        materialId: materialId,
+        attachmentId: attachmentId,
+        userId: userId,
+        cancellation: cancellation,
+      ),
+      fallbackFileName: fallbackFileName,
+      openAfterSave: openAfterSave,
+    );
+  }
+
+  Future<AttachmentDownloadResult> downloadLearningMaterialAll({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int userId,
+    bool openAfterSave = true,
+    BackendRequestCancellation? cancellation,
+  }) {
+    final client = learningActivityClient;
+    if (client == null ||
+        !_validIds([semesterId, classId, materialId, userId])) {
+      return Future.value(
+        const AttachmentDownloadFailed(
+          AttachmentDownloadFailureReason.unsupportedActivity,
+        ),
+      );
+    }
+    return _saveDownload(
+      request: () => client().downloadLearningMaterialAttachmentArchive(
+        semesterId: semesterId,
+        classId: classId,
+        materialId: materialId,
+        userId: userId,
+        cancellation: cancellation,
+      ),
+      openAfterSave: openAfterSave,
+    );
+  }
+
   Future<AttachmentDownloadResult> _download({
     required CurrentAssignmentDetail detail,
     required Future<BackendFileDownload> Function(int activityId) request,
@@ -59,9 +126,17 @@ final class AttachmentDownloadService {
       );
     }
 
+    return _saveDownload(request: () => request(activityId));
+  }
+
+  Future<AttachmentDownloadResult> _saveDownload({
+    required Future<BackendFileDownload> Function() request,
+    String? fallbackFileName,
+    bool openAfterSave = true,
+  }) async {
     final BackendFileDownload download;
     try {
-      download = await request(activityId);
+      download = await request();
     } on BackendTransportException catch (failure) {
       return AttachmentDownloadFailed(_mapFailure(failure));
     } on Object {
@@ -71,16 +146,46 @@ final class AttachmentDownloadService {
     }
 
     try {
-      final path = await _sink.write(
-        fileName: download.fileName,
-        bytes: download.bytes,
+      final fileName = _effectiveFileName(
+        download.fileName,
+        fallbackFileName: fallbackFileName,
       );
-      return AttachmentDownloadSaved(fileName: download.fileName, path: path);
+      final path = await _sink.write(
+        fileName: fileName,
+        bytes: download.bytes,
+        contentType: download.contentType,
+        openAfterSave: openAfterSave,
+      );
+      return AttachmentDownloadSaved(fileName: fileName, path: path);
     } on Object {
       return const AttachmentDownloadFailed(
         AttachmentDownloadFailureReason.storageFailed,
       );
     }
+  }
+
+  static bool _validIds(Iterable<int> ids) {
+    return ids.every((id) => id > 0 && id <= 2147483647);
+  }
+
+  static String _effectiveFileName(
+    String responseFileName, {
+    String? fallbackFileName,
+  }) {
+    final fallback = fallbackFileName == null
+        ? ''
+        : sanitizeDownloadFileName(fallbackFileName);
+    if (fallback.isEmpty || !_isGenericFileName(responseFileName)) {
+      return responseFileName;
+    }
+    return fallback;
+  }
+
+  static bool _isGenericFileName(String fileName) {
+    return RegExp(
+      r'^attachment(?:-\d+)?(?:\.[a-z0-9]{1,12})?$',
+      caseSensitive: false,
+    ).hasMatch(fileName.trim());
   }
 
   static AttachmentDownloadFailureReason _mapFailure(

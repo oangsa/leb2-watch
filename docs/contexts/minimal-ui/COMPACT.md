@@ -3,7 +3,7 @@
 ## Status
 
 Implemented. Verified by `flutter analyze` and the full `flutter test` suite
-(1248 tests). No platform build was run: no JDK is installed in the development
+(1419 tests). No platform build was run: no JDK is installed in the development
 environment, and the Apple, Linux, and Windows toolchains were not exercised
 either. Only the Dart layer is compile-verified.
 
@@ -43,6 +43,16 @@ renders its title and controls only. The former "Reliability" section and the
 per-platform `reliabilityMessage` are gone: they explained an OS limitation the
 user could not act on.
 
+Dashboard filters and course settings use short labels, and the selected course
+name appears once instead of being repeated beside its picker. The Courses page
+uses the same card header as Assignments and keeps settings behind a gear modal.
+Assignment cards
+and details surface deadline progress, submission timing, and status chips as a
+compact visual hierarchy. Assignment details omit redundant source, activity,
+attachment-count, and group-type rows while retaining download actions. Settings
+and privacy groups use one shared, low-noise panel treatment; full facts remain
+available through labels and semantics.
+
 ### Time
 
 All user-facing timestamps render as Bangkok wall time regardless of device
@@ -54,6 +64,11 @@ offset-less `dueDate` values are GMT+7 Bangkok wall time and are resolved in
 `appTimeZone`. `formatAssignmentDeadline` then renders the instant in GMT+7.
 
 - Missing and invalid deadlines get fixed short copy.
+
+Submitted dates are promoted from the saved backend payload only after strict
+validation and render in Bangkok wall time. Relative deadline text uses the
+validated UTC instant and a supplied current time; the overdue/on-time chip
+continues to reflect the saved backend flag.
 
 Output is `Mon, Jan 19, 12:00 PM GMT+7`. The previous unzoned path leaked the
 raw ISO source (`2026-01-19T12:00:59`).
@@ -158,6 +173,10 @@ which no retry can fix.
 | `android/app/src/main/kotlin/dev/oangsa/leb2watch/BatteryOptimizationExemption.kt` | Android native channel handler |
 | `ios/Runner/AppDelegate.swift` | `BackgroundRefreshStatusBridge` (pre-existing, now also drives the grant) |
 | `lib/bootstrap.dart` | Bounded startup retry and the retry button |
+| `lib/src/app/design_system/app_tokens.dart` | Shared surfaces, radii, spacing, and typography tokens |
+| `lib/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart` | Compact filters, cards, and responsive rows |
+| `lib/src/features/courses/presentation/course_preferences_page.dart` | Single-course selection and compact preference panels |
+| `lib/src/features/settings/notifications/presentation/notification_settings_page.dart` | Grouped settings copy and controls |
 
 ## Contracts and interfaces
 
@@ -203,13 +222,14 @@ which no retry can fix.
 |------|--------|
 | `test/core/display_formatting_test.dart` | `formatSemesterLabel`, `appTimeZone` display conversion |
 | `test/core/time/app_time_zone_test.dart` | Fixed GMT+7 instant/wall-time conversion |
-| `test/features/assignments/dashboard/presentation/assignment_deadline_formatting_test.dart` | Every deadline shape, GMT+7 timestamps |
+| `test/features/assignments/dashboard/presentation/assignment_deadline_formatting_test.dart` | Every deadline shape, relative progress, GMT+7 timestamps |
 | `test/features/assignments/dashboard/data/assignment_dashboard_store_test.dart` | `activeSemesterName` read |
 | `test/features/onboarding/presentation/post_login_permissions_test.dart` | Post-login permission and battery prompt paths |
 | `test/platform/background/battery_optimization_exemption_test.dart` | Android channel client, null status, unsupported platform |
 | `test/platform/background/background_reliability_grant_test.dart` | Android, iOS, desktop, and unsupported grants |
 | `test/features/settings/notifications/presentation/notification_settings_page_test.dart` | Permission section hiding, grant tile visibility, desktop suppression |
 | `test/bootstrap_test.dart` | Bounded retry, retry-button recovery |
+| `test/features/assignments/dashboard/presentation/assignment_dashboard_golden_test.dart` | Mobile and desktop dashboard visual baselines |
 
 ## Related contexts
 

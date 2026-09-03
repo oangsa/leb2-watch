@@ -95,8 +95,6 @@ GoRouter createAppRouter(
                     AppDestination.courses => const CoursePreferencesRoute(),
                     AppDestination.settings =>
                       const NotificationSettingsRoute(),
-                    AppDestination.diagnostics =>
-                      const SynchronizationDiagnosticsRoute(),
                   },
                   routes: destination == AppDestination.assignments
                       ? [
@@ -113,6 +111,12 @@ GoRouter createAppRouter(
                         ]
                       : const [],
                 ),
+                if (destination == AppDestination.settings)
+                  GoRoute(
+                    name: AppRoute.diagnostics.name,
+                    path: AppRoute.diagnostics.path,
+                    builder: (_, _) => const SynchronizationDiagnosticsRoute(),
+                  ),
               ],
             ),
         ],

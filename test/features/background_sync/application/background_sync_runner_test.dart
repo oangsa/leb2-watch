@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/database/app_database.dart';
+import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/domain/sync_failure.dart';
 import 'package:leb2_watch/src/core/session/session_lifecycle.dart';
 import 'package:leb2_watch/src/features/assignments/sync/assignment_sync_service.dart';
@@ -13,6 +14,8 @@ import 'package:leb2_watch/src/features/authentication/domain/automatic_session_
 import 'package:leb2_watch/src/features/background_sync/application/background_sync_runner.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_schedule_store.dart';
 import 'package:leb2_watch/src/features/background_sync/data/background_sync_target_store.dart';
+import 'package:leb2_watch/src/features/courses/application/course_materials_prefetch_service.dart';
+import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 
 void main() {
   late AppDatabase database;
@@ -93,6 +96,43 @@ void main() {
     expect(sync.cancelledTargets, [(101, 2001)]);
     pending.complete(_cancelled(SyncReason.backgroundTask));
   });
+
+  test(
+    'a successful assignment run prefetches course files on the same run',
+    () async {
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      final prefetcher = _RecordingPrefetcher();
+      final prefetchingRunner = BackgroundSyncRunner(
+        DriftBackgroundSyncTargetStore(database),
+        sync,
+        materialsPrefetcher: prefetcher,
+      );
+
+      expect(
+        await prefetchingRunner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncSucceeded>(),
+      );
+      expect(prefetcher.targets, [(101, 2001)]);
+    },
+  );
+
+  test(
+    'global course monitoring off removes the automatic course target',
+    () async {
+      await _seedTarget(database, session: 'active', withCourse: true);
+      await settings.setMonitoringEnabled(true);
+      await database.customStatement(
+        'UPDATE app_settings SET course_background_monitoring_enabled = 0',
+      );
+
+      expect(
+        await runner.run(reason: SyncReason.backgroundTask),
+        isA<BackgroundSyncNoBackgroundCourses>(),
+      );
+      expect(sync.requests, isEmpty);
+    },
+  );
 
   test(
     'compatibility and device-binding failures do not schedule retries',
@@ -381,6 +421,27 @@ final class _SequenceSyncService implements AssignmentSyncService {
   }) async {
     requests.add((semesterId, userId, reason));
     return outcomes.removeAt(0);
+  }
+}
+
+final class _RecordingPrefetcher implements CourseMaterialsPrefetcher {
+  final targets = <(int, int)>[];
+
+  @override
+  Future<CourseMaterialPrefetchResult> prefetch({
+    required Iterable<CourseKey> courses,
+    int? expectedUserId,
+    BackendRequestCancellation? cancellation,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<CourseMaterialPrefetchResult> prefetchActiveSemester({
+    required int semesterId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    targets.add((semesterId, userId));
+    return const CourseMaterialPrefetchResult();
   }
 }
 

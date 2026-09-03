@@ -8617,6 +8617,36 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   ).withConverter<DateTime?>($AppSettingsTable.$converterupdateCheckedAtUtcn);
+  static const VerificationMeta _courseNotificationsMutedMeta =
+      const VerificationMeta('courseNotificationsMuted');
+  @override
+  late final GeneratedColumn<bool> courseNotificationsMuted =
+      GeneratedColumn<bool>(
+        'course_notifications_muted',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("course_notifications_muted" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _courseBackgroundMonitoringEnabledMeta =
+      const VerificationMeta('courseBackgroundMonitoringEnabled');
+  @override
+  late final GeneratedColumn<bool> courseBackgroundMonitoringEnabled =
+      GeneratedColumn<bool>(
+        'course_background_monitoring_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("course_background_monitoring_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(true),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     singletonId,
@@ -8626,6 +8656,8 @@ class $AppSettingsTable extends AppSettings
     sessionRevision,
     notifiedUpdateVersion,
     updateCheckedAtUtc,
+    courseNotificationsMuted,
+    courseBackgroundMonitoringEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8693,6 +8725,24 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('course_notifications_muted')) {
+      context.handle(
+        _courseNotificationsMutedMeta,
+        courseNotificationsMuted.isAcceptableOrUnknown(
+          data['course_notifications_muted']!,
+          _courseNotificationsMutedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('course_background_monitoring_enabled')) {
+      context.handle(
+        _courseBackgroundMonitoringEnabledMeta,
+        courseBackgroundMonitoringEnabled.isAcceptableOrUnknown(
+          data['course_background_monitoring_enabled']!,
+          _courseBackgroundMonitoringEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8733,6 +8783,14 @@ class $AppSettingsTable extends AppSettings
               data['${effectivePrefix}update_checked_at_utc'],
             ),
           ),
+      courseNotificationsMuted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}course_notifications_muted'],
+      )!,
+      courseBackgroundMonitoringEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}course_background_monitoring_enabled'],
+      )!,
     );
   }
 
@@ -8760,6 +8818,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
 
   /// When background work last asked the backend for release metadata.
   final DateTime? updateCheckedAtUtc;
+  final bool courseNotificationsMuted;
+  final bool courseBackgroundMonitoringEnabled;
   const AppSetting({
     required this.singletonId,
     this.activeSemesterId,
@@ -8768,6 +8828,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.sessionRevision,
     this.notifiedUpdateVersion,
     this.updateCheckedAtUtc,
+    required this.courseNotificationsMuted,
+    required this.courseBackgroundMonitoringEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8791,6 +8853,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         ),
       );
     }
+    map['course_notifications_muted'] = Variable<bool>(
+      courseNotificationsMuted,
+    );
+    map['course_background_monitoring_enabled'] = Variable<bool>(
+      courseBackgroundMonitoringEnabled,
+    );
     return map;
   }
 
@@ -8811,6 +8879,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       updateCheckedAtUtc: updateCheckedAtUtc == null && nullToAbsent
           ? const Value.absent()
           : Value(updateCheckedAtUtc),
+      courseNotificationsMuted: Value(courseNotificationsMuted),
+      courseBackgroundMonitoringEnabled: Value(
+        courseBackgroundMonitoringEnabled,
+      ),
     );
   }
 
@@ -8831,6 +8903,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       updateCheckedAtUtc: serializer.fromJson<DateTime?>(
         json['updateCheckedAtUtc'],
       ),
+      courseNotificationsMuted: serializer.fromJson<bool>(
+        json['courseNotificationsMuted'],
+      ),
+      courseBackgroundMonitoringEnabled: serializer.fromJson<bool>(
+        json['courseBackgroundMonitoringEnabled'],
+      ),
     );
   }
   @override
@@ -8846,6 +8924,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         notifiedUpdateVersion,
       ),
       'updateCheckedAtUtc': serializer.toJson<DateTime?>(updateCheckedAtUtc),
+      'courseNotificationsMuted': serializer.toJson<bool>(
+        courseNotificationsMuted,
+      ),
+      'courseBackgroundMonitoringEnabled': serializer.toJson<bool>(
+        courseBackgroundMonitoringEnabled,
+      ),
     };
   }
 
@@ -8857,6 +8941,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     int? sessionRevision,
     Value<String?> notifiedUpdateVersion = const Value.absent(),
     Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
+    bool? courseNotificationsMuted,
+    bool? courseBackgroundMonitoringEnabled,
   }) => AppSetting(
     singletonId: singletonId ?? this.singletonId,
     activeSemesterId: activeSemesterId.present
@@ -8871,6 +8957,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     updateCheckedAtUtc: updateCheckedAtUtc.present
         ? updateCheckedAtUtc.value
         : this.updateCheckedAtUtc,
+    courseNotificationsMuted:
+        courseNotificationsMuted ?? this.courseNotificationsMuted,
+    courseBackgroundMonitoringEnabled:
+        courseBackgroundMonitoringEnabled ??
+        this.courseBackgroundMonitoringEnabled,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -8895,6 +8986,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       updateCheckedAtUtc: data.updateCheckedAtUtc.present
           ? data.updateCheckedAtUtc.value
           : this.updateCheckedAtUtc,
+      courseNotificationsMuted: data.courseNotificationsMuted.present
+          ? data.courseNotificationsMuted.value
+          : this.courseNotificationsMuted,
+      courseBackgroundMonitoringEnabled:
+          data.courseBackgroundMonitoringEnabled.present
+          ? data.courseBackgroundMonitoringEnabled.value
+          : this.courseBackgroundMonitoringEnabled,
     );
   }
 
@@ -8907,7 +9005,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('sessionLifecycle: $sessionLifecycle, ')
           ..write('sessionRevision: $sessionRevision, ')
           ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
-          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc, ')
+          ..write('courseNotificationsMuted: $courseNotificationsMuted, ')
+          ..write(
+            'courseBackgroundMonitoringEnabled: $courseBackgroundMonitoringEnabled',
+          )
           ..write(')'))
         .toString();
   }
@@ -8921,6 +9023,8 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     sessionRevision,
     notifiedUpdateVersion,
     updateCheckedAtUtc,
+    courseNotificationsMuted,
+    courseBackgroundMonitoringEnabled,
   );
   @override
   bool operator ==(Object other) =>
@@ -8932,7 +9036,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.sessionLifecycle == this.sessionLifecycle &&
           other.sessionRevision == this.sessionRevision &&
           other.notifiedUpdateVersion == this.notifiedUpdateVersion &&
-          other.updateCheckedAtUtc == this.updateCheckedAtUtc);
+          other.updateCheckedAtUtc == this.updateCheckedAtUtc &&
+          other.courseNotificationsMuted == this.courseNotificationsMuted &&
+          other.courseBackgroundMonitoringEnabled ==
+              this.courseBackgroundMonitoringEnabled);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -8943,6 +9050,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<int> sessionRevision;
   final Value<String?> notifiedUpdateVersion;
   final Value<DateTime?> updateCheckedAtUtc;
+  final Value<bool> courseNotificationsMuted;
+  final Value<bool> courseBackgroundMonitoringEnabled;
   const AppSettingsCompanion({
     this.singletonId = const Value.absent(),
     this.activeSemesterId = const Value.absent(),
@@ -8951,6 +9060,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.sessionRevision = const Value.absent(),
     this.notifiedUpdateVersion = const Value.absent(),
     this.updateCheckedAtUtc = const Value.absent(),
+    this.courseNotificationsMuted = const Value.absent(),
+    this.courseBackgroundMonitoringEnabled = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.singletonId = const Value.absent(),
@@ -8960,6 +9071,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.sessionRevision = const Value.absent(),
     this.notifiedUpdateVersion = const Value.absent(),
     this.updateCheckedAtUtc = const Value.absent(),
+    this.courseNotificationsMuted = const Value.absent(),
+    this.courseBackgroundMonitoringEnabled = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? singletonId,
@@ -8969,6 +9082,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<int>? sessionRevision,
     Expression<String>? notifiedUpdateVersion,
     Expression<int>? updateCheckedAtUtc,
+    Expression<bool>? courseNotificationsMuted,
+    Expression<bool>? courseBackgroundMonitoringEnabled,
   }) {
     return RawValuesInsertable({
       if (singletonId != null) 'singleton_id': singletonId,
@@ -8980,6 +9095,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         'notified_update_version': notifiedUpdateVersion,
       if (updateCheckedAtUtc != null)
         'update_checked_at_utc': updateCheckedAtUtc,
+      if (courseNotificationsMuted != null)
+        'course_notifications_muted': courseNotificationsMuted,
+      if (courseBackgroundMonitoringEnabled != null)
+        'course_background_monitoring_enabled':
+            courseBackgroundMonitoringEnabled,
     });
   }
 
@@ -8991,6 +9111,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<int>? sessionRevision,
     Value<String?>? notifiedUpdateVersion,
     Value<DateTime?>? updateCheckedAtUtc,
+    Value<bool>? courseNotificationsMuted,
+    Value<bool>? courseBackgroundMonitoringEnabled,
   }) {
     return AppSettingsCompanion(
       singletonId: singletonId ?? this.singletonId,
@@ -9001,6 +9123,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       notifiedUpdateVersion:
           notifiedUpdateVersion ?? this.notifiedUpdateVersion,
       updateCheckedAtUtc: updateCheckedAtUtc ?? this.updateCheckedAtUtc,
+      courseNotificationsMuted:
+          courseNotificationsMuted ?? this.courseNotificationsMuted,
+      courseBackgroundMonitoringEnabled:
+          courseBackgroundMonitoringEnabled ??
+          this.courseBackgroundMonitoringEnabled,
     );
   }
 
@@ -9034,6 +9161,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         ),
       );
     }
+    if (courseNotificationsMuted.present) {
+      map['course_notifications_muted'] = Variable<bool>(
+        courseNotificationsMuted.value,
+      );
+    }
+    if (courseBackgroundMonitoringEnabled.present) {
+      map['course_background_monitoring_enabled'] = Variable<bool>(
+        courseBackgroundMonitoringEnabled.value,
+      );
+    }
     return map;
   }
 
@@ -9046,7 +9183,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('sessionLifecycle: $sessionLifecycle, ')
           ..write('sessionRevision: $sessionRevision, ')
           ..write('notifiedUpdateVersion: $notifiedUpdateVersion, ')
-          ..write('updateCheckedAtUtc: $updateCheckedAtUtc')
+          ..write('updateCheckedAtUtc: $updateCheckedAtUtc, ')
+          ..write('courseNotificationsMuted: $courseNotificationsMuted, ')
+          ..write(
+            'courseBackgroundMonitoringEnabled: $courseBackgroundMonitoringEnabled',
+          )
           ..write(')'))
         .toString();
   }
@@ -13481,6 +13622,8 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> sessionRevision,
       Value<String?> notifiedUpdateVersion,
       Value<DateTime?> updateCheckedAtUtc,
+      Value<bool> courseNotificationsMuted,
+      Value<bool> courseBackgroundMonitoringEnabled,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -13491,6 +13634,8 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<int> sessionRevision,
       Value<String?> notifiedUpdateVersion,
       Value<DateTime?> updateCheckedAtUtc,
+      Value<bool> courseNotificationsMuted,
+      Value<bool> courseBackgroundMonitoringEnabled,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -13537,6 +13682,17 @@ class $$AppSettingsTableFilterComposer
     column: $table.updateCheckedAtUtc,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<bool> get courseNotificationsMuted => $composableBuilder(
+    column: $table.courseNotificationsMuted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get courseBackgroundMonitoringEnabled =>
+      $composableBuilder(
+        column: $table.courseBackgroundMonitoringEnabled,
+        builder: (column) => ColumnFilters(column),
+      );
 }
 
 class $$AppSettingsTableOrderingComposer
@@ -13582,6 +13738,17 @@ class $$AppSettingsTableOrderingComposer
     column: $table.updateCheckedAtUtc,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get courseNotificationsMuted => $composableBuilder(
+    column: $table.courseNotificationsMuted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get courseBackgroundMonitoringEnabled =>
+      $composableBuilder(
+        column: $table.courseBackgroundMonitoringEnabled,
+        builder: (column) => ColumnOrderings(column),
+      );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -13628,6 +13795,17 @@ class $$AppSettingsTableAnnotationComposer
         column: $table.updateCheckedAtUtc,
         builder: (column) => column,
       );
+
+  GeneratedColumn<bool> get courseNotificationsMuted => $composableBuilder(
+    column: $table.courseNotificationsMuted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get courseBackgroundMonitoringEnabled =>
+      $composableBuilder(
+        column: $table.courseBackgroundMonitoringEnabled,
+        builder: (column) => column,
+      );
 }
 
 class $$AppSettingsTableTableManager
@@ -13668,6 +13846,9 @@ class $$AppSettingsTableTableManager
                 Value<int> sessionRevision = const Value.absent(),
                 Value<String?> notifiedUpdateVersion = const Value.absent(),
                 Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
+                Value<bool> courseNotificationsMuted = const Value.absent(),
+                Value<bool> courseBackgroundMonitoringEnabled =
+                    const Value.absent(),
               }) => AppSettingsCompanion(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
@@ -13676,6 +13857,9 @@ class $$AppSettingsTableTableManager
                 sessionRevision: sessionRevision,
                 notifiedUpdateVersion: notifiedUpdateVersion,
                 updateCheckedAtUtc: updateCheckedAtUtc,
+                courseNotificationsMuted: courseNotificationsMuted,
+                courseBackgroundMonitoringEnabled:
+                    courseBackgroundMonitoringEnabled,
               ),
           createCompanionCallback:
               ({
@@ -13686,6 +13870,9 @@ class $$AppSettingsTableTableManager
                 Value<int> sessionRevision = const Value.absent(),
                 Value<String?> notifiedUpdateVersion = const Value.absent(),
                 Value<DateTime?> updateCheckedAtUtc = const Value.absent(),
+                Value<bool> courseNotificationsMuted = const Value.absent(),
+                Value<bool> courseBackgroundMonitoringEnabled =
+                    const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 singletonId: singletonId,
                 activeSemesterId: activeSemesterId,
@@ -13694,6 +13881,9 @@ class $$AppSettingsTableTableManager
                 sessionRevision: sessionRevision,
                 notifiedUpdateVersion: notifiedUpdateVersion,
                 updateCheckedAtUtc: updateCheckedAtUtc,
+                courseNotificationsMuted: courseNotificationsMuted,
+                courseBackgroundMonitoringEnabled:
+                    courseBackgroundMonitoringEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

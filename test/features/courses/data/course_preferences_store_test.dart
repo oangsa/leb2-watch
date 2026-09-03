@@ -214,6 +214,42 @@ void main() {
   );
 
   test(
+    'persists global course preferences independently of course rows',
+    () async {
+      expect(
+        await store.readGlobalPreference(),
+        const CourseGlobalPreference(),
+      );
+
+      await _insertSemester(database, 101, active: true);
+      await _insertCourse(database, 101, 3001, 'Course A');
+      const key = CourseKey(semesterId: 101, courseId: 3001);
+      await store.setNotificationsMuted(key, muted: true);
+
+      expect(
+        await store.setGlobalNotificationsMuted(muted: true),
+        isA<CoursePreferenceWriteApplied>(),
+      );
+      expect(
+        await store.setGlobalBackgroundMonitoringEnabled(enabled: false),
+        isA<CoursePreferenceWriteApplied>(),
+      );
+      expect(
+        await store.readGlobalPreference(),
+        const CourseGlobalPreference(
+          notificationsMuted: true,
+          backgroundMonitoringEnabled: false,
+        ),
+      );
+      expect(await store.readBackgroundMonitoredCourses(101), isEmpty);
+      expect(
+        await store.readCurrentCoursePreference(key),
+        const CoursePreference(notificationsMuted: true),
+      );
+    },
+  );
+
+  test(
     'retains preference while a current course disappears and reappears',
     () async {
       await _insertSemester(database, 101, active: true);

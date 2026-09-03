@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/core/time/app_time_zone.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/application/attachment_download_service.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/domain/attachment_download.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
 import 'package:leb2_watch/src/features/assignments/detail/domain/assignment_detail_key.dart';
 import 'package:leb2_watch/src/features/assignments/detail/presentation/assignment_detail_page.dart';
@@ -21,8 +23,14 @@ void main() {
       expect(find.text('Algorithms'), findsOneWidget);
       expect(find.text('Hello world'), findsOneWidget);
       expect(find.textContaining('<p>'), findsNothing);
-      expect(find.text('Reported overdue by the backend'), findsOneWidget);
-      expect(find.text('Source-created time'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('Deadline'), findsOneWidget);
+      expect(find.text('32d 23h overdue'), findsNothing);
+      expect(find.text('Activity type'), findsNothing);
+      expect(find.text('Deadline status'), findsNothing);
+      expect(find.text('Source-created time'), findsNothing);
+      expect(find.text('Attached files'), findsNothing);
+      expect(find.text('Group type'), findsNothing);
       expect(find.textContaining('Published'), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
       expect(find.textContaining('sent'), findsNothing);
@@ -48,6 +56,7 @@ void main() {
         groupName: 'Team Beta',
         groupMemberCount: 4,
         attachmentCount: 2,
+        submittedAtUtc: DateTime.utc(2026, 7, 30, 3, 11, 12),
       ),
     );
     addTearDown(service.close);
@@ -55,11 +64,36 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Submitted'), findsOneWidget);
-    expect(find.text('Reported late by the backend'), findsOneWidget);
-    expect(find.text('2 saved'), findsOneWidget);
-    expect(find.text('group'), findsOneWidget);
+    expect(find.text('Late'), findsOneWidget);
+    expect(find.text('Thu, Jul 30 at 10:11 AM GMT+7'), findsOneWidget);
+    expect(find.text('Submitted date'), findsOneWidget);
+    expect(find.text('Deadline'), findsNothing);
+    expect(find.text('Overdue'), findsNothing);
+    expect(find.text('Group assignment'), findsOneWidget);
     expect(find.text('Team Beta'), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
+    expect(find.text('4 members'), findsOneWidget);
+    expect(find.text('Reported late by the backend'), findsNothing);
+    expect(find.text('Attached files'), findsNothing);
+    expect(find.text('Group type'), findsNothing);
+    expect(find.text('Group members'), findsNothing);
+  });
+
+  testWidgets('shows only remaining time for an unsubmitted assignment', (
+    tester,
+  ) async {
+    final service = _FakeService(
+      _current(
+        deadlineUtc: DateTime.utc(2026, 9, 5, 8),
+        backendReportedDeadlineExceeded: false,
+      ),
+    );
+    addTearDown(service.close);
+    await _pumpPage(tester, service, nowUtc: () => DateTime.utc(2026, 9, 3, 8));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2d left'), findsOneWidget);
+    expect(find.text('On time'), findsNothing);
+    expect(find.text('Overdue'), findsNothing);
   });
 
   testWidgets('hides submission timing and group rows the record lacks', (
@@ -74,19 +108,33 @@ void main() {
     expect(find.text('Submission timing'), findsNothing);
     expect(find.text('Group'), findsNothing);
     expect(find.text('Group members'), findsNothing);
-    expect(find.text('None saved'), findsOneWidget);
+    expect(find.text('Attached files'), findsNothing);
+    expect(find.text('None saved'), findsNothing);
   });
 
-  testWidgets('says the attachment count is unavailable rather than zero', (
-    tester,
-  ) async {
-    final service = _FakeService(_current(attachmentCount: null));
+  testWidgets('announces attachment download status changes', (tester) async {
+    final service = _FakeService(_current(attachmentCount: 1));
     addTearDown(service.close);
-    await _pumpPage(tester, service);
+    await _pumpPage(
+      tester,
+      service,
+      downloadService: AttachmentDownloadService(
+        () => throw StateError('PRIVATE_DOWNLOAD_ERROR'),
+        const _AttachmentSink(),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Count unavailable'), findsOneWidget);
-    expect(find.text('None saved'), findsNothing);
+    await tester.ensureVisible(find.byKey(const Key('download-attachment-33')));
+    await tester.tap(find.byKey(const Key('download-attachment-33')));
+    await tester.pumpAndSettle();
+
+    final status = tester.widget<Semantics>(
+      find.byKey(const Key('attachment-download-status')),
+    );
+    expect(status.properties.liveRegion, isTrue);
+    expect(find.text('The download did not finish.'), findsOneWidget);
+    expect(find.textContaining('PRIVATE_DOWNLOAD_ERROR'), findsNothing);
   });
 
   testWidgets(
@@ -108,8 +156,8 @@ void main() {
       }
 
       expect(find.text(rendered(DateTime.utc(2026, 8, 1, 9))), findsOneWidget);
-      expect(find.text(rendered(DateTime.utc(2026, 7, 25, 3))), findsOneWidget);
-      expect(find.text('Not the publication time.'), findsOneWidget);
+      expect(find.text('Source-created time'), findsNothing);
+      expect(find.text('Not the publication time.'), findsNothing);
     },
   );
 
@@ -236,6 +284,9 @@ CurrentAssignmentDetail _current({
   int? attachmentCount = 0,
   int? backendActivityId = 4001,
   List<int> attachmentIds = const [33],
+  DateTime? submittedAtUtc,
+  DateTime? deadlineUtc,
+  bool backendReportedDeadlineExceeded = true,
 }) {
   return CurrentAssignmentDetail(
     key: _key,
@@ -244,13 +295,16 @@ CurrentAssignmentDetail _current({
     title: title,
     description: 'Hello world',
     activityType: 'ASM',
-    deadline: ZonedAssignmentDetailTimestamp(DateTime.utc(2026, 8, 1, 9)),
-    backendReportedDeadlineExceeded: true,
+    deadline: ZonedAssignmentDetailTimestamp(
+      deadlineUtc ?? DateTime.utc(2026, 8, 1, 9),
+    ),
+    backendReportedDeadlineExceeded: backendReportedDeadlineExceeded,
     sourceCreatedAt: ZonedAssignmentDetailTimestamp(
       DateTime.utc(2026, 7, 25, 3),
     ),
     submissionStatus: submissionStatus,
     backendReportedSubmissionLate: backendReportedSubmissionLate,
+    submittedAtUtc: submittedAtUtc,
     groupType: groupType,
     groupName: groupName,
     groupMemberCount: groupMemberCount,
@@ -282,18 +336,39 @@ SeenOnlyAssignmentDetail _seenOnly() {
   );
 }
 
-Future<void> _pumpPage(WidgetTester tester, AssignmentDetailService service) {
+Future<void> _pumpPage(
+  WidgetTester tester,
+  AssignmentDetailService service, {
+  AttachmentDownloadService? downloadService,
+  DateTime Function()? nowUtc,
+}) {
   return tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light,
       home: AssignmentDetailPage(
         detailKey: _key,
         service: service,
+        downloadService: downloadService,
+        nowUtc: nowUtc ?? () => DateTime.utc(2026, 9, 3, 8),
         canPop: false,
         onBack: () {},
       ),
     ),
   );
+}
+
+final class _AttachmentSink implements AttachmentFileSink {
+  const _AttachmentSink();
+
+  @override
+  Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+    String? contentType,
+    bool openAfterSave = true,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 final class _FakeService implements AssignmentDetailService {

@@ -29,7 +29,7 @@ void main() {
     final database = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 23);
+    expect(database.schemaVersion, 25);
     final preferences = await database
         .select(database.assignmentDashboardPreferencesRecords)
         .getSingle();
@@ -48,7 +48,7 @@ void main() {
           .customSelect('PRAGMA user_version')
           .getSingle()
           .then((row) => row.read<int>('user_version')),
-      23,
+      25,
     );
     expect(
       await database.customSelect('PRAGMA foreign_key_check').get(),

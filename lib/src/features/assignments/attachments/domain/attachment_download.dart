@@ -6,7 +6,12 @@ abstract interface class AttachmentFileSink {
   /// Writes [bytes] under [fileName] and returns the saved path. An existing
   /// file with the same name is never overwritten silently; the adapter
   /// disambiguates instead.
-  Future<String> write({required String fileName, required List<int> bytes});
+  Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+    String? contentType,
+    bool openAfterSave = true,
+  });
 }
 
 sealed class AttachmentDownloadResult {

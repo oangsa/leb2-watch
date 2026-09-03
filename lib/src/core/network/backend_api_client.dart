@@ -14,6 +14,7 @@ import 'package:leb2_watch/src/core/time/clock_skew.dart';
 import 'backend_compatibility.dart';
 import 'backend_runtime_identity.dart';
 import 'domain/backend_models.dart';
+import 'domain/learning_material_models.dart';
 import 'semantic_version.dart';
 
 part 'dio_backend_api_client.dart';
@@ -51,6 +52,37 @@ abstract interface class BackendApiClient {
     required int semesterId,
     required int classId,
     required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  });
+}
+
+/// Reads course learning materials and downloads their files.
+///
+/// This is a separate seam from [BackendApiClient] so existing assignment,
+/// session, and synchronization fakes do not need to implement a feature they
+/// do not use.
+abstract interface class BackendLearningActivityClient {
+  Future<List<LearningMaterial>> getLearningMaterials({
+    required int semesterId,
+    required int classId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  });
+
+  Future<BackendFileDownload> downloadLearningMaterialAttachment({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  });
+
+  Future<BackendFileDownload> downloadLearningMaterialAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int materialId,
     required int userId,
     BackendRequestCancellation? cancellation,
   });

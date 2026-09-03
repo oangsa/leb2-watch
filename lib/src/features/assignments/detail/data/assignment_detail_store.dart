@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../data/assignment_submission_timestamp.dart';
 import '../domain/assignment_detail_key.dart';
 
 enum AssignmentDetailSyncOutcome { success, failure, cancelled }
@@ -87,6 +88,7 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
     required this.dueDateExceed,
     required this.createdAtSource,
     required this.hasSubmissionRecord,
+    this.submittedAtUtc,
     required this.quizSubmissionIsSubmitted,
     required this.submissionIsLate,
     required this.groupType,
@@ -113,6 +115,7 @@ final class StoredCurrentAssignmentDetail extends StoredAssignmentDetail {
   final bool dueDateExceed;
   final String createdAtSource;
   final bool hasSubmissionRecord;
+  final DateTime? submittedAtUtc;
   final bool quizSubmissionIsSubmitted;
   final bool submissionIsLate;
   final String groupType;
@@ -272,6 +275,9 @@ final class DriftAssignmentDetailStore implements AssignmentDetailStore {
               'activity_submission_submitted_at_json',
             ) !=
             null,
+        submittedAtUtc: readStoredSubmissionTimestampUtc(
+          current.readNullable<String>('activity_submission_submitted_at_json'),
+        ),
         quizSubmissionIsSubmitted: current.read<bool>(
           'quiz_submission_is_submitted',
         ),

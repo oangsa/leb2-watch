@@ -17,8 +17,8 @@ The historical feature records are consolidated in the retained area sections be
 ### Architecture
 
 `AppRoute` is the stable product route declaration. `AppDestination` owns the
-four shell destinations in branch order, including their labels and selected
-and unselected Material icons.
+three primary shell destinations in branch order, including their labels and
+selected and unselected Material icons.
 
 `AppFlowController` is a small `ChangeNotifier` exposed by a plain Riverpod
 `Provider`. The provider owns and disposes the controller. The controller has
@@ -30,7 +30,8 @@ is its `refreshListenable`, so a stage change re-evaluates redirects without
 reconstructing the router. The route tree uses
 `StatefulShellRoute.indexedStack` to keep an independent navigator per
 destination. Navigation calls `goBranch(index)` without resetting branch
-location.
+location. Diagnostics remains at `/diagnostics`, but lives in the Settings
+branch and is reached from a Support row instead of primary navigation.
 
 `Leb2WatchApp` reads the controller once in `initState`, creates the router
 once, supplies it to `MaterialApp.router`, and disposes the router with the
@@ -68,14 +69,24 @@ At startup:
    unmounting the selected branch.
 8. Reconnect pushes authentication; successful ready-user setup returns to
    assignments.
-9. A ready user's `Change semester` action replaces the shell location with
-   the top-level semester route; selection returns to assignments.
+9. A ready user's `Change semester` action pushes the top-level semester route;
+   Back restores the shell and selection returns to assignments.
 10. A local-notification target received before ready waits outside the router;
     becoming ready consumes it and opens the named detail route once.
 
 Inside the shell, selecting a destination calls `goBranch(index)`. The indexed
 stack retains branch navigators, and responsive layout changes reuse the same
-`StatefulNavigationShell` and selected index.
+`StatefulNavigationShell` and selected index. Compact navigation always shows
+all three labels, including under 200-percent text scaling. The semester action
+uses a visible label instead of an icon-only affordance. Expanded navigation
+uses the same destination model with a branded `LEB2 Watch` leading mark.
+
+Native app icons share `assets/branding/app_icon_master.png`, with platform
+sizes derived for Android, iOS, macOS, Windows, and desktop tray surfaces.
+Android uses an adaptive foreground/background pair. Android and iOS launch
+surfaces match the Flutter light and dark surface colors. The macOS Settings
+menu sends `openSettings` through the narrow `app_navigation` channel owned by
+`Leb2WatchApp`.
 
 The controller does not notify when assigned its existing stage. The app owns
 the router; Riverpod owns a provider-created controller. Disposing the app
@@ -633,7 +644,7 @@ No result contains an exception object or stack trace.
 - flat app bars and cards
 - 1 logical-pixel structural rules and normal, enabled, focused, error, and
   focused-error input borders
-- 6-pixel controls, 8-pixel panels, and 12-pixel prominent radii
+- 10-pixel controls, 16-pixel panels, and 14-pixel prominent radii
 - the corresponding `AppStatusColors` extension
 - the current target platform's Material 2021 typography metadata, using the
   black theme for light mode and the white theme for dark mode
@@ -831,11 +842,9 @@ does not reinterpret them.
   onboarding-completion flag.
 - Arbitrary blocked deep links do not resume after flow completion. Validated
   local-notification assignment targets use their own bounded coordinator.
-- The `Change semester` action uses location replacement rather than a pushed
-  overlay because the current stateful-branch context cannot push that
-  top-level sibling. The selection route has no separate cancel action.
-- Settings and diagnostics are real feature-owned workflows reached through
-  the stable shell routes.
+- The selection route has no separate cancel action.
+- Settings and diagnostics are real feature-owned workflows. Diagnostics is
+  an auxiliary Settings-branch route, not a primary destination.
 - The assignments branch now has one nested detail route. Push/back, shell
   retention, and local-notification target restoration are directly covered;
   arbitrary intended-route restoration remains outside the contract.
@@ -937,7 +946,8 @@ does not reinterpret them.
 - Authentication provider loading, redacted initialization failure, retry,
   and successful progression to the semester route.
 - Ready-stage expired-session reconnect and return to cached assignments.
-- Ready-stage gate redirects and all four shell branches.
+- Ready-stage gate redirects, all three primary shell branches, and the
+  Settings-owned diagnostics route.
 - Safe unknown-route copy without URI, query, or router exception disclosure.
 - Listener safety after router disposal.
 
@@ -950,16 +960,28 @@ which load `~/.zshrc` before the command.
 
 ```text
 dart format --output=none --set-exit-if-changed .
-Formatted 31 files (0 changed).
+Formatted 409 files (0 changed).
 
-dart analyze
+dart analyze --fatal-infos --fatal-warnings
 No issues found.
 
-flutter analyze
+flutter analyze --fatal-infos --fatal-warnings
 No issues found.
 
-flutter test test/app/routing/app_router_test.dart \
-  test/app/shell/adaptive_app_shell_test.dart \
+flutter test <affected UI, route, and native-configuration tests>
+207 tests passed.
+
+dart run tool/run_flutter_tests.dart
+168 test files passed in all 17 sequential shards.
+
+flutter build apk --release \
+  --dart-define=APP_ENV=production \
+  --dart-define=BACKEND_BASE_URL=https://<SANITIZED_BACKEND_ORIGIN>
+Built build/app/outputs/flutter-apk/app-release.apk (67.8 MB).
+
+apksigner verify --verbose <nightly-apk>
+Verified with APK Signature Schemes v2 and v3.
+```
 
 *See [architecture](#architecture), [contracts](#contracts-and-interfaces), [limitations](#known-limitations), and [validation evidence](#validation-evidence); this compact retains the applicable continuation facts.*
 

@@ -26,6 +26,7 @@ final _transactionRetryJitter = Random();
     Semesters,
     Courses,
     CoursePreferences,
+    CourseMaterialCacheEntries,
     Activities,
     SeenActivities,
     ActivityFingerprints,
@@ -124,7 +125,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +135,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 22 || to != 23) {
+        if (from < 1 || from > 24 || to != 25) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -207,8 +208,10 @@ class AppDatabase extends _$AppDatabase {
         await _ensureDaytimeCadenceColumn();
         await _ensureClockOffsetColumn();
         await _ensureAppUpdateNotificationColumns();
+        await _ensureGlobalCoursePreferenceColumns();
         await _ensurePreciseFetchColumn();
         await _ensureStarredFilterColumn();
+        await migrator.createTable(courseMaterialCacheEntries);
         await _seedSingletons();
       },
       beforeOpen: (details) async {
@@ -299,6 +302,26 @@ class AppDatabase extends _$AppDatabase {
     if (!names.contains('update_checked_at_utc')) {
       await customStatement(
         'ALTER TABLE app_settings ADD COLUMN update_checked_at_utc INTEGER NULL',
+      );
+    }
+  }
+
+  Future<void> _ensureGlobalCoursePreferenceColumns() async {
+    final columns = await customSelect('PRAGMA table_info(app_settings)').get();
+    final names = columns.map((column) => column.read<String>('name')).toSet();
+    if (!names.contains('course_notifications_muted')) {
+      await customStatement(
+        'ALTER TABLE app_settings '
+        'ADD COLUMN course_notifications_muted INTEGER NOT NULL DEFAULT 0 '
+        'CHECK (course_notifications_muted IN (0, 1))',
+      );
+    }
+    if (!names.contains('course_background_monitoring_enabled')) {
+      await customStatement(
+        'ALTER TABLE app_settings '
+        'ADD COLUMN course_background_monitoring_enabled '
+        'INTEGER NOT NULL DEFAULT 1 '
+        'CHECK (course_background_monitoring_enabled IN (0, 1))',
       );
     }
   }

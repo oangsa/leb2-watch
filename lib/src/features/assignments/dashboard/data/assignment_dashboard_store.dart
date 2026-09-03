@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/session/session_lifecycle.dart';
+import '../../data/assignment_submission_timestamp.dart';
 import '../../domain/assignment_submission_status.dart';
 import '../application/assignment_dashboard_preferences.dart';
 
@@ -57,6 +58,8 @@ final class CachedAssignment {
     required this.dueDateSource,
     required this.dueDateExceed,
     required this.submissionStatus,
+    this.submittedAtUtc,
+    this.submissionIsLate = false,
     required this.backendReportedStarred,
     required this.firstSeenAtUtc,
     required this.isBaseline,
@@ -71,6 +74,8 @@ final class CachedAssignment {
   final String? dueDateSource;
   final bool dueDateExceed;
   final AssignmentSubmissionStatus submissionStatus;
+  final DateTime? submittedAtUtc;
+  final bool submissionIsLate;
 
   /// Whether LEB2 saved a non-zero starred flag for this assignment. The
   /// backend defines the flag's meaning; the app only mirrors it.
@@ -346,7 +351,8 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
           'SELECT a.identity_key, a.course_id, c.name AS course_name, '
           'a.title, a.activity_type, a.due_date_source, a.due_date_exceed, '
           'a.activity_submission_submitted_at_json, '
-          'a.quiz_submission_is_submitted, a.adv_starred, '
+          'a.quiz_submission_is_submitted, a.activity_submission_is_late, '
+          'a.adv_starred, '
           's.first_seen_at_utc, s.is_baseline '
           'FROM activities AS a '
           'INNER JOIN courses AS c '
@@ -389,6 +395,8 @@ final class DriftAssignmentDashboardStore implements AssignmentDashboardStore {
               hasSubmissionRecord: submittedAtJson != null,
               quizSubmissionIsSubmitted: quizSubmissionIsSubmitted,
             ),
+            submittedAtUtc: readStoredSubmissionTimestampUtc(submittedAtJson),
+            submissionIsLate: row.read<bool>('activity_submission_is_late'),
             backendReportedStarred: row.read<int>('adv_starred') != 0,
             firstSeenAtUtc: DateTime.fromMillisecondsSinceEpoch(
               row.read<int>('first_seen_at_utc'),
