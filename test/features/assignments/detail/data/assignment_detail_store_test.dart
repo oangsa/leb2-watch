@@ -367,6 +367,7 @@ void main() {
             as StoredCurrentAssignmentDetail;
 
     expect(result.hasSubmissionRecord, isTrue);
+    expect(result.submittedAtUtc, DateTime.utc(2026, 7, 30, 3, 11, 12));
     expect(result.submissionIsLate, isTrue);
     expect(result.quizSubmissionIsSubmitted, isFalse);
     expect(result.groupType, 'group');
@@ -405,6 +406,29 @@ void main() {
 
     expect((await read(101)).attachmentCount, 0);
     expect((await read(102)).attachmentCount, isNull);
+  });
+
+  test('does not expose a normalized malformed submission date', () async {
+    await _seedCurrent(
+      database,
+      semesterId: 101,
+      title: 'Malformed submission',
+      submittedAtJson: '{"date":"2026-02-31 10:11:12"}',
+    );
+
+    final result =
+        await store
+                .watch(
+                  AssignmentDetailKey(
+                    semesterId: 101,
+                    identityKey: 'backend:1001',
+                  ),
+                )
+                .first
+            as StoredCurrentAssignmentDetail;
+
+    expect(result.hasSubmissionRecord, isTrue);
+    expect(result.submittedAtUtc, isNull);
   });
 }
 

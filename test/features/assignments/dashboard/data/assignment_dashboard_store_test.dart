@@ -129,6 +129,7 @@ void main() {
       expect(assignment.dueDateSource, '2026-08-01T12:00:00Z');
       expect(assignment.dueDateExceed, isFalse);
       expect(assignment.submissionStatus, AssignmentSubmissionStatus.submitted);
+      expect(assignment.submittedAtUtc, isNull);
       expect(assignment.isBaseline, isFalse);
       expect(assignment.toString(), 'CachedAssignment(redacted: true)');
       expect(assignment.toString(), isNot(contains('private')));

@@ -45,7 +45,9 @@ user could not act on.
 
 Dashboard filters and course controls use short labels, and the selected course
 name appears once instead of being repeated beside its picker. Assignment cards
-and details surface status and deadline as a compact visual hierarchy. Settings
+and details surface deadline progress, submission timing, and status chips as a
+compact visual hierarchy. Assignment details omit redundant source, activity,
+attachment-count, and group-type rows while retaining download actions. Settings
 and privacy groups use one shared, low-noise panel treatment; full facts remain
 available through labels and semantics.
 
@@ -60,6 +62,11 @@ offset-less `dueDate` values are GMT+7 Bangkok wall time and are resolved in
 `appTimeZone`. `formatAssignmentDeadline` then renders the instant in GMT+7.
 
 - Missing and invalid deadlines get fixed short copy.
+
+Submitted dates are promoted from the saved backend payload only after strict
+validation and render in Bangkok wall time. Relative deadline text uses the
+validated UTC instant and a supplied current time; the overdue/on-time chip
+continues to reflect the saved backend flag.
 
 Output is `Mon, Jan 19, 12:00 PM GMT+7`. The previous unzoned path leaked the
 raw ISO source (`2026-01-19T12:00:59`).
@@ -213,7 +220,7 @@ which no retry can fix.
 |------|--------|
 | `test/core/display_formatting_test.dart` | `formatSemesterLabel`, `appTimeZone` display conversion |
 | `test/core/time/app_time_zone_test.dart` | Fixed GMT+7 instant/wall-time conversion |
-| `test/features/assignments/dashboard/presentation/assignment_deadline_formatting_test.dart` | Every deadline shape, GMT+7 timestamps |
+| `test/features/assignments/dashboard/presentation/assignment_deadline_formatting_test.dart` | Every deadline shape, relative progress, GMT+7 timestamps |
 | `test/features/assignments/dashboard/data/assignment_dashboard_store_test.dart` | `activeSemesterName` read |
 | `test/features/onboarding/presentation/post_login_permissions_test.dart` | Post-login permission and battery prompt paths |
 | `test/platform/background/battery_optimization_exemption_test.dart` | Android channel client, null status, unsupported platform |

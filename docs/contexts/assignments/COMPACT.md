@@ -34,11 +34,13 @@ rather than the stored JSON. It mirrors the compatible backend:
 `activitySubmissionSubmittedAt` means submitted regardless of due-date
 presence; only without that timestamp does a due date mean unsubmitted and no
 due date mean no submission is required. Overdue contains only unsubmitted
-work and retains the backend `dueDateExceed` flag as authority. The dashboard
-no longer exposes an Upcoming section. It defaults to showing only unsubmitted
-assignments. The `Show submitted assignment` filter opts into all saved
-submission statuses; Recently added and All still use that same visibility
-filter.
+work and retains the backend `dueDateExceed` flag as authority. Compact and
+expanded rows now add relative deadline progress and an overdue/on-time chip;
+submitted rows also show the validated submitted date and a late/on-time chip.
+The dashboard no longer exposes an Upcoming section. It defaults to showing
+only unsubmitted assignments. The `Show submitted assignment` filter opts into
+all saved submission statuses; Recently added and All still use that same
+visibility filter.
 
 A `Starred in LEB2 only` filter keeps assignments whose saved `advStarred` flag
 is non-zero. The backend fixes the field's type but not its meaning, so the
@@ -96,15 +98,14 @@ description, parses deadlines using the GMT+7 contract, rejects date, time,
 and numeric-offset components that Dart would otherwise normalize, maps raw
 storage values to presentation-owned states, and bounds exceptions.
 
-The `Assignment record` section also states submission status, whether the
-backend reported the submission late, the saved attachment count, and group
-type, name, and member count. Group name and member count render only when a
-group name exists. The backend leaves the internal fields of `fileActivities`
-and `submissions` undefined, so no file name, link, or submission timestamp is
-presentable: the store counts the attachment list without reading inside it and
-reports `null` for a payload that is not a readable list, which the page shows
-as `Count unavailable` rather than claiming zero. Submission timing renders only
-for a submitted assignment.
+The `Assignment record` section keeps only the deadline, submission date and
+timing, and group assignment facts; activity type, source-created time,
+deadline prose, attachment count, and group type are hidden as redundant.
+Group name and member count render together only when a group name exists.
+Attachment download actions remain available when their identifiers are
+present. The backend leaves the internal fields of `fileActivities` and
+`submissions` undefined, so the store promotes only a validated submitted date
+from the existing saved payload; malformed dates remain unavailable.
 
 `AssignmentDetailPage` owns the local stream subscription and preserves its
 last state on a later stream error. `AssignmentDetailRoute` validates path
@@ -296,7 +297,12 @@ Results: `SyncSuccess`, `SyncFailed`, `SyncCancelled`, `SyncDeferred` (backoff-s
   treating a submission ID, historical status, or local date comparison as
   current submission evidence.
 - Present `Submitted`, `Not submitted`, and `No submission required` as
-  accessible saved-status badges in compact and expanded dashboard layouts.
+  accessible saved-status badges in compact and expanded dashboard layouts;
+  add relative deadline progress and overdue/on-time or late/on-time feedback
+  without replacing the backend status fields.
+- Promote only a strictly validated saved submission date into presentation
+  state, resolving offset-less values as Bangkok wall time; keep malformed
+  legacy dates unavailable.
 - Use an inclusive, minute-precision Bangkok `Due by` filter and keep missing
   or invalid deadlines visible only when no deadline cutoff is active.
 

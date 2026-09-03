@@ -23,8 +23,12 @@ void main() {
       expect(find.text('Algorithms'), findsOneWidget);
       expect(find.text('Hello world'), findsOneWidget);
       expect(find.textContaining('<p>'), findsNothing);
-      expect(find.text('Reported overdue by the backend'), findsOneWidget);
-      expect(find.text('Source-created time'), findsOneWidget);
+      expect(find.text('Overdue'), findsOneWidget);
+      expect(find.text('Activity type'), findsNothing);
+      expect(find.text('Deadline status'), findsNothing);
+      expect(find.text('Source-created time'), findsNothing);
+      expect(find.text('Attached files'), findsNothing);
+      expect(find.text('Group type'), findsNothing);
       expect(find.textContaining('Published'), findsNothing);
       expect(find.textContaining('delivered'), findsNothing);
       expect(find.textContaining('sent'), findsNothing);
@@ -50,6 +54,7 @@ void main() {
         groupName: 'Team Beta',
         groupMemberCount: 4,
         attachmentCount: 2,
+        submittedAtUtc: DateTime.utc(2026, 7, 30, 3, 11, 12),
       ),
     );
     addTearDown(service.close);
@@ -57,11 +62,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Submitted'), findsOneWidget);
-    expect(find.text('Reported late by the backend'), findsOneWidget);
-    expect(find.text('2 saved'), findsOneWidget);
-    expect(find.text('group'), findsOneWidget);
+    expect(find.text('Late'), findsOneWidget);
+    expect(find.text('Thu, Jul 30 at 10:11 AM GMT+7'), findsOneWidget);
+    expect(find.text('Group assignment'), findsOneWidget);
     expect(find.text('Team Beta'), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
+    expect(find.text('4 members'), findsOneWidget);
+    expect(find.text('Reported late by the backend'), findsNothing);
+    expect(find.text('Attached files'), findsNothing);
+    expect(find.text('Group type'), findsNothing);
+    expect(find.text('Group members'), findsNothing);
   });
 
   testWidgets('hides submission timing and group rows the record lacks', (
@@ -76,18 +85,7 @@ void main() {
     expect(find.text('Submission timing'), findsNothing);
     expect(find.text('Group'), findsNothing);
     expect(find.text('Group members'), findsNothing);
-    expect(find.text('None saved'), findsOneWidget);
-  });
-
-  testWidgets('says the attachment count is unavailable rather than zero', (
-    tester,
-  ) async {
-    final service = _FakeService(_current(attachmentCount: null));
-    addTearDown(service.close);
-    await _pumpPage(tester, service);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Count unavailable'), findsOneWidget);
+    expect(find.text('Attached files'), findsNothing);
     expect(find.text('None saved'), findsNothing);
   });
 
@@ -135,8 +133,8 @@ void main() {
       }
 
       expect(find.text(rendered(DateTime.utc(2026, 8, 1, 9))), findsOneWidget);
-      expect(find.text(rendered(DateTime.utc(2026, 7, 25, 3))), findsOneWidget);
-      expect(find.text('Not the publication time.'), findsOneWidget);
+      expect(find.text('Source-created time'), findsNothing);
+      expect(find.text('Not the publication time.'), findsNothing);
     },
   );
 
@@ -263,6 +261,7 @@ CurrentAssignmentDetail _current({
   int? attachmentCount = 0,
   int? backendActivityId = 4001,
   List<int> attachmentIds = const [33],
+  DateTime? submittedAtUtc,
 }) {
   return CurrentAssignmentDetail(
     key: _key,
@@ -278,6 +277,7 @@ CurrentAssignmentDetail _current({
     ),
     submissionStatus: submissionStatus,
     backendReportedSubmissionLate: backendReportedSubmissionLate,
+    submittedAtUtc: submittedAtUtc,
     groupType: groupType,
     groupName: groupName,
     groupMemberCount: groupMemberCount,
@@ -313,6 +313,7 @@ Future<void> _pumpPage(
   WidgetTester tester,
   AssignmentDetailService service, {
   AttachmentDownloadService? downloadService,
+  DateTime Function()? nowUtc,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -321,6 +322,7 @@ Future<void> _pumpPage(
         detailKey: _key,
         service: service,
         downloadService: downloadService,
+        nowUtc: nowUtc ?? () => DateTime.utc(2026, 9, 3, 8),
         canPop: false,
         onBack: () {},
       ),

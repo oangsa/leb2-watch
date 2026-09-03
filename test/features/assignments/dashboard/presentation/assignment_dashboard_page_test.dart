@@ -1279,6 +1279,58 @@ void main() {
     expect(find.byKey(const Key('assignment-row-101-item-0')), findsOneWidget);
     expect(find.byKey(const Key('assignment-row-101-item-499')), findsNothing);
   });
+
+  testWidgets('shows deadline progress and submitted timing feedback', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final service = FakeAssignmentDashboardService(
+      initialPreferences: const AssignmentDashboardPreferences(
+        submissionFilter: AssignmentSubmissionFilter.all,
+      ),
+      initialCache: dashboardCache(
+        assignments: [
+          dashboardAssignment(
+            identityKey: 'future',
+            title: 'Future assignment',
+            dueDateSource: '2026-07-28T12:00:00Z',
+          ),
+          dashboardAssignment(
+            identityKey: 'submitted-late',
+            title: 'Submitted assignment',
+            dueDateSource: '2026-07-28T12:00:00Z',
+            submissionStatus: AssignmentSubmissionStatus.submitted,
+            submittedAtUtc: DateTime.utc(2026, 7, 25, 4),
+            submissionIsLate: true,
+          ),
+          dashboardAssignment(
+            identityKey: 'past',
+            title: 'Past assignment',
+            dueDateSource: '2026-07-25T08:00:00Z',
+            dueDateExceed: true,
+          ),
+        ],
+      ),
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(
+      tester,
+      service,
+      nowUtc: () => DateTime.utc(2026, 7, 26, 8),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2d 4h left'), findsNWidgets(2));
+    expect(find.text('On time'), findsNWidgets(2));
+    expect(find.text('1d overdue'), findsOneWidget);
+    expect(find.text('Overdue'), findsOneWidget);
+    expect(find.text('Jul 26, 2026 at 8:01 AM'), findsOneWidget);
+    expect(find.text('Late'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpPage(
@@ -1288,6 +1340,7 @@ Future<void> _pumpPage(
   VoidCallback? onChooseSemester,
   ValueChanged<AssignmentDetailKey>? onOpenAssignment,
   AssignmentDeadlinePicker? deadlinePicker,
+  DateTime Function()? nowUtc,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -1312,6 +1365,7 @@ Future<void> _pumpPage(
             },
             timestampFormatter: (_, _) => 'Jul 26, 2026 at 8:01 AM',
             deadlinePicker: deadlinePicker ?? ((_, _) async => null),
+            nowUtc: nowUtc ?? () => DateTime.utc(2026, 7, 26, 8, 1),
           ),
         ),
       ),

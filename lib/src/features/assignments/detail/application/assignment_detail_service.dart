@@ -122,6 +122,7 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
     required this.sourceCreatedAt,
     required this.submissionStatus,
     required this.backendReportedSubmissionLate,
+    this.submittedAtUtc,
     required this.groupType,
     required this.groupName,
     required this.groupMemberCount,
@@ -147,6 +148,7 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
   final AssignmentDetailTimestamp sourceCreatedAt;
   final AssignmentSubmissionStatus submissionStatus;
   final bool backendReportedSubmissionLate;
+  final DateTime? submittedAtUtc;
   final String groupType;
   final String? groupName;
   final int groupMemberCount;
@@ -254,6 +256,7 @@ final class LocalAssignmentDetailService implements AssignmentDetailService {
           quizSubmissionIsSubmitted: value.quizSubmissionIsSubmitted,
         ),
         backendReportedSubmissionLate: value.submissionIsLate,
+        submittedAtUtc: value.submittedAtUtc,
         groupType: value.groupType,
         groupName: value.groupName,
         groupMemberCount: value.groupMemberCount,

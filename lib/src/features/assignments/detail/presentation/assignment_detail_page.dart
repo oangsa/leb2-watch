@@ -6,13 +6,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/design_system/app_status_colors.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/time/app_time_zone.dart';
 import '../../attachments/application/attachment_download_service.dart';
 import '../../attachments/domain/attachment_download.dart';
+import '../../presentation/assignment_status.dart';
 import '../application/assignment_detail_service.dart';
 import '../domain/assignment_detail_key.dart';
 
@@ -25,6 +25,7 @@ class AssignmentDetailPage extends StatefulWidget {
     required this.canPop,
     required this.onBack,
     this.downloadService,
+    this.nowUtc,
     super.key,
   });
 
@@ -37,6 +38,7 @@ class AssignmentDetailPage extends StatefulWidget {
 
   final bool canPop;
   final VoidCallback onBack;
+  final DateTime Function()? nowUtc;
 
   @override
   State<AssignmentDetailPage> createState() => _AssignmentDetailPageState();
@@ -163,6 +165,7 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
                   _DetailRecord(
                     detail: detail,
                     downloadService: widget.downloadService,
+                    nowUtc: (widget.nowUtc?.call() ?? DateTime.now()).toUtc(),
                   ),
                 ],
               ),
@@ -196,10 +199,15 @@ class _DetailNavigation extends StatelessWidget {
 }
 
 class _DetailRecord extends StatelessWidget {
-  const _DetailRecord({required this.detail, this.downloadService});
+  const _DetailRecord({
+    required this.detail,
+    required this.nowUtc,
+    this.downloadService,
+  });
 
   final AssignmentDetailState detail;
   final AttachmentDownloadService? downloadService;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
@@ -207,6 +215,7 @@ class _DetailRecord extends StatelessWidget {
       final CurrentAssignmentDetail current => _CurrentRecord(
         detail: current,
         downloadService: downloadService,
+        nowUtc: nowUtc,
       ),
       final SeenOnlyAssignmentDetail seenOnly => _SeenOnlyRecord(
         detail: seenOnly,
@@ -217,10 +226,15 @@ class _DetailRecord extends StatelessWidget {
 }
 
 class _CurrentRecord extends StatelessWidget {
-  const _CurrentRecord({required this.detail, this.downloadService});
+  const _CurrentRecord({
+    required this.detail,
+    required this.nowUtc,
+    this.downloadService,
+  });
 
   final CurrentAssignmentDetail detail;
   final AttachmentDownloadService? downloadService;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
@@ -244,53 +258,21 @@ class _CurrentRecord extends StatelessWidget {
           children: [
             _FactGrid(
               children: [
-                _Fact(label: 'Activity type', value: detail.activityType),
-                _TimestampFact(label: 'Deadline', timestamp: detail.deadline),
-                _Fact(
-                  label: 'Deadline status',
-                  value: detail.backendReportedDeadlineExceeded
-                      ? 'Reported overdue by the backend'
-                      : 'Not overdue',
-                ),
-                _TimestampFact(
-                  label: 'Source-created time',
-                  timestamp: detail.sourceCreatedAt,
-                  note: 'Not the publication time.',
-                ),
+                _DeadlineFact(detail: detail, nowUtc: nowUtc),
                 if (detail.submissionStatus ==
                     AssignmentSubmissionStatus.submitted)
+                  _SubmissionFact(detail: detail),
+                if (detail.groupName case final group?)
                   _Fact(
-                    label: 'Submission timing',
-                    value: detail.backendReportedSubmissionLate
-                        ? 'Reported late by the backend'
-                        : 'Not reported late',
+                    label: 'Group assignment',
+                    value: group,
+                    note: '${detail.groupMemberCount} members',
                   ),
-                _Fact(
-                  label: 'Attached files',
-                  value: switch (detail.attachmentCount) {
-                    null => 'Count unavailable',
-                    0 => 'None saved',
-                    final count => '$count saved',
-                  },
-                  note: 'The backend names each file as it is downloaded.',
-                ),
               ],
             ),
             if (downloadService case final service?
                 when detail.canDownloadAttachments)
               _AttachmentDownloads(detail: detail, service: service),
-            _FactGrid(
-              children: [
-                _Fact(label: 'Group type', value: detail.groupType),
-                if (detail.groupName case final group?) ...[
-                  _Fact(label: 'Group', value: group),
-                  _Fact(
-                    label: 'Group members',
-                    value: '${detail.groupMemberCount}',
-                  ),
-                ],
-              ],
-            ),
           ],
         ),
       ],
@@ -310,12 +292,7 @@ class _DetailHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadii.panel),
-        border: Border(
-          left: BorderSide(
-            color: theme.colorScheme.primary,
-            width: AppSpacing.xxs,
-          ),
-        ),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -340,68 +317,10 @@ class _DetailHero extends StatelessWidget {
               child: Text(detail.title, style: theme.textTheme.headlineLarge),
             ),
             const SizedBox(height: AppSpacing.md),
-            _DetailSubmissionBadge(status: detail.submissionStatus),
+            AssignmentStatusChip(
+              type: submissionStatusChipType(detail.submissionStatus),
+            ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailSubmissionBadge extends StatelessWidget {
-  const _DetailSubmissionBadge({required this.status});
-
-  final AssignmentSubmissionStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final statusColors = AppStatusColors.of(context);
-    final (background, foreground, icon) = switch (status) {
-      AssignmentSubmissionStatus.submitted => (
-        statusColors.successContainer,
-        statusColors.onSuccessContainer,
-        Icons.check_rounded,
-      ),
-      AssignmentSubmissionStatus.unsubmitted => (
-        scheme.errorContainer,
-        scheme.onErrorContainer,
-        Icons.schedule_rounded,
-      ),
-      AssignmentSubmissionStatus.notApplicable => (
-        scheme.surfaceContainerHighest,
-        scheme.onSurfaceVariant,
-        Icons.remove_rounded,
-      ),
-    };
-    return Semantics(
-      label: 'Submission: ${_submissionLabel(status)}',
-      child: ExcludeSemantics(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(AppRadii.control),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            child: Wrap(
-              spacing: AppSpacing.xxs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Icon(icon, size: 16, color: foreground),
-                Text(
-                  _submissionLabel(status),
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: foreground,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -644,17 +563,28 @@ class _Section extends StatelessWidget {
 }
 
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value, this.note});
+  const _Fact({
+    required this.label,
+    required this.value,
+    this.note,
+    this.trailing,
+    this.trailingLabel,
+  });
 
   final String label;
   final String value;
   final String? note;
+  final Widget? trailing;
+  final String? trailingLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
-      label: '$label: $value${note == null ? '' : '. $note'}',
+      label:
+          '$label: $value'
+          '${trailingLabel == null ? '' : '. $trailingLabel'}'
+          '${note == null ? '' : '. $note'}',
       child: ExcludeSemantics(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -666,7 +596,15 @@ class _Fact extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),
-            Text(value, style: theme.textTheme.bodyLarge),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xxs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(value, style: theme.textTheme.bodyLarge),
+                if (trailing case final Widget trailingWidget) trailingWidget,
+              ],
+            ),
             if (note != null) ...[
               const SizedBox(height: AppSpacing.xxs),
               Text(
@@ -683,32 +621,64 @@ class _Fact extends StatelessWidget {
   }
 }
 
-class _TimestampFact extends StatelessWidget {
-  const _TimestampFact({
-    required this.label,
-    required this.timestamp,
-    this.note,
-  });
+class _DeadlineFact extends StatelessWidget {
+  const _DeadlineFact({required this.detail, required this.nowUtc});
 
-  final String label;
-  final AssignmentDetailTimestamp timestamp;
-  final String? note;
+  final CurrentAssignmentDetail detail;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
+    final deadlineUtc = switch (detail.deadline) {
+      ZonedAssignmentDetailTimestamp(:final instantUtc) => instantUtc,
+      MissingAssignmentDetailTimestamp() ||
+      InvalidAssignmentDetailTimestamp() => null,
+    };
+    final statusType = deadlineUtc == null
+        ? null
+        : detail.backendReportedDeadlineExceeded
+        ? AssignmentStatusChipType.overdue
+        : AssignmentStatusChipType.onTime;
     return _Fact(
-      label: label,
-      value: formatAssignmentDetailTimestamp(context, timestamp),
-      note: note,
+      label: 'Deadline',
+      value: formatAssignmentDetailTimestamp(context, detail.deadline),
+      note: deadlineUtc == null
+          ? null
+          : formatAssignmentDeadlineDistance(deadlineUtc, nowUtc),
+      trailing: statusType == null
+          ? null
+          : AssignmentStatusChip(type: statusType),
+      trailingLabel: statusType == AssignmentStatusChipType.overdue
+          ? 'Overdue'
+          : statusType == null
+          ? null
+          : 'On time',
     );
   }
 }
 
-String _submissionLabel(AssignmentSubmissionStatus status) => switch (status) {
-  AssignmentSubmissionStatus.submitted => 'Submitted',
-  AssignmentSubmissionStatus.unsubmitted => 'Not submitted',
-  AssignmentSubmissionStatus.notApplicable => 'No submission required',
-};
+class _SubmissionFact extends StatelessWidget {
+  const _SubmissionFact({required this.detail});
+
+  final CurrentAssignmentDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final late = detail.backendReportedSubmissionLate;
+    return _Fact(
+      label: 'Submitted date',
+      value: detail.submittedAtUtc == null
+          ? 'Date unavailable'
+          : _formatUtcTimestamp(context, detail.submittedAtUtc!),
+      trailing: AssignmentStatusChip(
+        type: late
+            ? AssignmentStatusChipType.late
+            : AssignmentStatusChipType.onTime,
+      ),
+      trailingLabel: late ? 'Late' : 'On time',
+    );
+  }
+}
 
 String formatAssignmentDetailTimestamp(
   BuildContext context,

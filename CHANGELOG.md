@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Assignment cards show deadline progress and submission timing; assignment details hide redundant metadata.
+
 ## [0.10.1] - 2026-09-03
 
 ### Changed
