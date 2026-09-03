@@ -513,6 +513,7 @@ Future<void> _waitFor(bool Function() predicate) async {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
+
   String? accessKey;
   String? sessionCookie;
   StoredCredentials? credentials;
@@ -618,6 +619,29 @@ final class _CapabilitiesNotificationsPlatform
 
 final class _NoRequestBackendClient
     implements BackendApiClient, BackendSessionClient {
+  @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
   int requestCalls = 0;
 
   Never _unexpectedRequest() {

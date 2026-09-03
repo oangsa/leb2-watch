@@ -10,6 +10,8 @@ import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/time/app_time_zone.dart';
+import '../../attachments/application/attachment_download_service.dart';
+import '../../attachments/domain/attachment_download.dart';
 import '../application/assignment_detail_service.dart';
 import '../domain/assignment_detail_key.dart';
 
@@ -21,11 +23,17 @@ class AssignmentDetailPage extends StatefulWidget {
     required this.service,
     required this.canPop,
     required this.onBack,
+    this.downloadService,
     super.key,
   });
 
   final AssignmentDetailKey detailKey;
   final AssignmentDetailService service;
+
+  /// Absent when attachment downloads are not composed, which hides the
+  /// affordance rather than offering an action that cannot run.
+  final AttachmentDownloadService? downloadService;
+
   final bool canPop;
   final VoidCallback onBack;
 
@@ -151,7 +159,10 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
                     ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
-                  _DetailRecord(detail: detail),
+                  _DetailRecord(
+                    detail: detail,
+                    downloadService: widget.downloadService,
+                  ),
                 ],
               ),
             ),
@@ -184,14 +195,18 @@ class _DetailNavigation extends StatelessWidget {
 }
 
 class _DetailRecord extends StatelessWidget {
-  const _DetailRecord({required this.detail});
+  const _DetailRecord({required this.detail, this.downloadService});
 
   final AssignmentDetailState detail;
+  final AttachmentDownloadService? downloadService;
 
   @override
   Widget build(BuildContext context) {
     return switch (detail) {
-      final CurrentAssignmentDetail current => _CurrentRecord(detail: current),
+      final CurrentAssignmentDetail current => _CurrentRecord(
+        detail: current,
+        downloadService: downloadService,
+      ),
       final SeenOnlyAssignmentDetail seenOnly => _SeenOnlyRecord(
         detail: seenOnly,
       ),
@@ -201,9 +216,10 @@ class _DetailRecord extends StatelessWidget {
 }
 
 class _CurrentRecord extends StatelessWidget {
-  const _CurrentRecord({required this.detail});
+  const _CurrentRecord({required this.detail, this.downloadService});
 
   final CurrentAssignmentDetail detail;
+  final AttachmentDownloadService? downloadService;
 
   @override
   Widget build(BuildContext context) {
@@ -269,8 +285,11 @@ class _CurrentRecord extends StatelessWidget {
                 0 => 'None saved',
                 final count => '$count saved',
               },
-              note: 'File names and links are not provided by the backend.',
+              note: 'The backend names each file as it is downloaded.',
             ),
+            if (downloadService case final service?
+                when detail.canDownloadAttachments)
+              _AttachmentDownloads(detail: detail, service: service),
             _Fact(label: 'Group type', value: detail.groupType),
             if (detail.groupName case final group?) ...[
               _Fact(label: 'Group', value: group),
@@ -283,6 +302,107 @@ class _CurrentRecord extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Downloads for an activity's attachments.
+///
+/// LEB2 does not publish file names, so each file is offered by its position
+/// and named only once the backend answers with the real name.
+class _AttachmentDownloads extends StatefulWidget {
+  const _AttachmentDownloads({required this.detail, required this.service});
+
+  final CurrentAssignmentDetail detail;
+  final AttachmentDownloadService service;
+
+  @override
+  State<_AttachmentDownloads> createState() => _AttachmentDownloadsState();
+}
+
+class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
+  bool _busy = false;
+  String? _message;
+  bool _failed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ids = widget.detail.attachmentIds;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final (index, id) in ids.indexed)
+                OutlinedButton.icon(
+                  key: Key('download-attachment-$id'),
+                  onPressed: _busy ? null : () => _run(() => widget.service
+                      .downloadOne(detail: widget.detail, attachmentId: id)),
+                  icon: const Icon(Icons.download_outlined),
+                  label: Text('File ${index + 1}'),
+                ),
+              if (ids.length > 1)
+                FilledButton.tonalIcon(
+                  key: const Key('download-all-attachments'),
+                  onPressed: _busy
+                      ? null
+                      : () => _run(
+                          () => widget.service.downloadAll(
+                            detail: widget.detail,
+                          ),
+                        ),
+                  icon: const Icon(Icons.folder_zip_outlined),
+                  label: const Text('Download all'),
+                ),
+            ],
+          ),
+          if (_message case final message?) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              message,
+              key: const Key('attachment-download-status'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: _failed
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _run(
+    Future<AttachmentDownloadResult> Function() download,
+  ) async {
+    setState(() {
+      _busy = true;
+      _message = 'Downloading…';
+      _failed = false;
+    });
+
+    final result = await download();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _busy = false;
+      switch (result) {
+        case AttachmentDownloadSaved(:final fileName, :final path):
+          _failed = false;
+          _message = 'Saved $fileName to $path';
+        case AttachmentDownloadFailed(:final message):
+          _failed = true;
+          _message = message;
+      }
+    });
   }
 }
 

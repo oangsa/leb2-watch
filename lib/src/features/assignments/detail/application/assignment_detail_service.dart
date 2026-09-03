@@ -125,6 +125,10 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
     required this.groupType,
     required this.groupName,
     required this.groupMemberCount,
+    required this.courseId,
+    required this.backendActivityId,
+    required this.leb2UserId,
+    required this.attachmentIds,
     required this.attachmentCount,
     required this.firstSeenAtUtc,
     required this.lastSeenAtUtc,
@@ -147,10 +151,25 @@ final class CurrentAssignmentDetail extends AssignmentDetailState {
   final String? groupName;
   final int groupMemberCount;
 
+  final int courseId;
+
+  /// LEB2's own activity id, or null for a fingerprint-identified activity.
+  /// Attachment downloads need it, so they are unavailable when it is null.
+  final int? backendActivityId;
+
+  final int leb2UserId;
+
+  /// Attachment ids saved for this activity. File names are not stored: the
+  /// backend names each file in its download response instead.
+  final List<int> attachmentIds;
+
   /// Number of saved attachment entries, or `null` when the count is not
-  /// readable. The entries themselves stay in storage: the backend leaves their
-  /// internal fields undefined, so no file name or link is presentable.
+  /// readable.
   final int? attachmentCount;
+
+  /// Whether this activity can have its attachments downloaded.
+  bool get canDownloadAttachments =>
+      backendActivityId != null && attachmentIds.isNotEmpty;
 
   final DateTime firstSeenAtUtc;
   final DateTime lastSeenAtUtc;
@@ -238,6 +257,10 @@ final class LocalAssignmentDetailService implements AssignmentDetailService {
         groupType: value.groupType,
         groupName: value.groupName,
         groupMemberCount: value.groupMemberCount,
+        courseId: value.courseId,
+        backendActivityId: value.backendActivityId,
+        leb2UserId: value.leb2UserId,
+        attachmentIds: value.attachmentIds,
         attachmentCount: value.attachmentCount,
         firstSeenAtUtc: value.firstSeenAtUtc,
         lastSeenAtUtc: value.lastSeenAtUtc,

@@ -12,6 +12,7 @@ import 'package:leb2_watch/src/platform/background/background_scheduler_platform
 import 'package:path/path.dart' as path;
 
 final class IntegrationCredentialStore implements CredentialStore {
+
   String? accessKey;
   String? sessionCookie;
   StoredCredentials? credentials;

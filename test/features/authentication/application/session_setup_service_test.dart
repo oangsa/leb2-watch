@@ -1232,6 +1232,7 @@ final class _FakeBackendSessionClient implements BackendSessionClient {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
+
   // ignore: unused_element_parameter
   _MemoryCredentialStore(
     this._log, {

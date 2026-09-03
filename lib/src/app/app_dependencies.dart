@@ -27,6 +27,9 @@ import '../features/background_sync/data/background_schedule_store.dart';
 import '../features/background_sync/data/background_sync_target_store.dart';
 import '../features/background_sync/domain/background_scheduler.dart';
 import '../features/background_sync/domain/desktop_autostart_service.dart';
+import '../features/assignments/attachments/application/attachment_download_service.dart';
+import '../features/assignments/attachments/data/local_attachment_file_sink.dart';
+import '../features/assignments/attachments/domain/attachment_download.dart';
 import '../features/assignments/dashboard/application/assignment_dashboard_service.dart';
 import '../features/assignments/dashboard/data/assignment_dashboard_store.dart';
 import '../features/assignments/detail/application/assignment_detail_service.dart';
@@ -616,6 +619,19 @@ final assignmentDetailServiceProvider = FutureProvider<AssignmentDetailService>(
     return LocalAssignmentDetailService(store);
   },
 );
+
+final attachmentFileSinkProvider = Provider<AttachmentFileSink>((ref) {
+  return const LocalAttachmentFileSink();
+});
+
+final attachmentDownloadServiceProvider = Provider<AttachmentDownloadService>((
+  ref,
+) {
+  return AttachmentDownloadService(
+    () => ref.read(backendApiClientProvider),
+    ref.watch(attachmentFileSinkProvider),
+  );
+});
 
 final sessionSetupServiceProvider = FutureProvider<SessionSetupService>((
   ref,

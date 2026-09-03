@@ -33,6 +33,44 @@ abstract interface class BackendApiClient {
     required int userId,
     BackendRequestCancellation? cancellation,
   });
+
+  /// Downloads one activity attachment. The backend streams it from LEB2 and
+  /// names it in `Content-Disposition`, so the file name is the server's, not
+  /// one this client invents.
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  });
+
+  /// Downloads every attachment on one activity as a single archive.
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  });
+}
+
+/// One downloaded file held in memory. LEB2 attachments are course documents,
+/// so they stay small enough to hand over as bytes.
+final class BackendFileDownload {
+  const BackendFileDownload({
+    required this.bytes,
+    required this.fileName,
+    required this.contentType,
+  });
+
+  final Uint8List bytes;
+  final String fileName;
+  final String contentType;
+
+  @override
+  String toString() => 'BackendFileDownload(redacted: true)';
 }
 
 abstract interface class BackendSessionClient {

@@ -288,6 +288,7 @@ final class _ImmediateGate implements SessionMutationGate {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
+
   // ignore: unused_element_parameter
   _MemoryCredentialStore({this.accessKey, this.cookie, this.credentials});
 

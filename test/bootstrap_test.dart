@@ -350,6 +350,7 @@ final class _BlockingStartupResolver {
 }
 
 final class _CredentialStore implements CredentialStore {
+
   @override
   Future<String?> readAccessKey() async => null;
 

@@ -984,6 +984,29 @@ typedef _SnapshotHandler =
     );
 
 final class _FakeBackendApiClient implements BackendApiClient {
+  @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
   int requestCount = 0;
   BackendTransportException? failure;
   _SnapshotHandler? handler;

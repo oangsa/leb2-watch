@@ -947,6 +947,7 @@ final class _Autostart implements DesktopAutostartService {
 }
 
 final class _CredentialStore implements CredentialStore {
+
   _CredentialStore({required this.throwOnClear});
 
   final bool throwOnClear;
@@ -989,6 +990,7 @@ final class _CredentialStore implements CredentialStore {
 }
 
 final class _RecoveryCredentialStore implements CredentialStore {
+
   String? accessKey = '00000000-0000-4000-8000-000000000001';
   String? cookie = '<SESSION_COOKIE_OLD>';
   StoredCredentials? credentials = const StoredCredentials(

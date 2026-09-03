@@ -359,6 +359,29 @@ Future<void> _insertV5ExpiredBackoff(
 }
 
 final class _FailingBackendApiClient implements BackendApiClient {
+  @override
+  Future<BackendFileDownload> downloadActivityAttachment({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<BackendFileDownload> downloadActivityAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int activityId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    throw UnimplementedError();
+  }
+
   BackendTransportException failure = const BackendTransportException(
     kind: BackendTransportFailureKind.connectionError,
   );
