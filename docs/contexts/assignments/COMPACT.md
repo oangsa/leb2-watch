@@ -103,7 +103,10 @@ timing, and group assignment facts; activity type, source-created time,
 deadline prose, attachment count, and group type are hidden as redundant.
 Group name and member count render together only when a group name exists.
 Attachment download actions remain available when their identifiers are
-present. The backend leaves the internal fields of `fileActivities` and
+present. Android 10+ writes completed downloads to the public
+`Downloads/LEB2` collection through MediaStore; older Android versions retain
+the private fallback because public storage requires a runtime permission. The
+backend leaves the internal fields of `fileActivities` and
 `submissions` undefined, so the store promotes only a validated submitted date
 from the existing saved payload; malformed dates remain unavailable.
 

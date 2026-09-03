@@ -425,9 +425,9 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
     setState(() {
       _busy = false;
       switch (result) {
-        case AttachmentDownloadSaved(:final fileName, :final path):
+        case AttachmentDownloadSaved(:final path):
           _failed = false;
-          _message = 'Saved $fileName to $path';
+          _message = 'Saved to $path';
         case AttachmentDownloadFailed(:final message):
           _failed = true;
           _message = message;

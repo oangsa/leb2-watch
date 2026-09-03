@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Assignment cards show deadline progress and submission timing; assignment details hide redundant metadata.
 
+### Fixed
+
+- Downloaded files now appear in Android's public Downloads/LEB2 folder.
+
 ## [0.10.1] - 2026-09-03
 
 ### Changed

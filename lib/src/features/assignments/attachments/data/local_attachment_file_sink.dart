@@ -1,23 +1,82 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/attachment_download.dart';
 
-/// Saves attachments into a `LEB2` folder the user can browse.
-///
-/// Desktop gets the real Downloads directory; mobile has no shared one that is
-/// writable without extra permissions, so it uses the app's documents directory
-/// instead — reachable through the system file picker and removed with the app.
-final class LocalAttachmentFileSink implements AttachmentFileSink {
-  const LocalAttachmentFileSink({Future<Directory> Function()? resolveRoot})
-    : _resolveRoot = resolveRoot ?? _defaultRoot;
+const attachmentFileSinkChannel = MethodChannel(
+  'dev.oangsa.leb2watch/attachment-file-sink',
+);
 
-  final Future<Directory> Function() _resolveRoot;
+/// Saves an attachment in Android's public Downloads collection.
+final class AndroidAttachmentFileSink implements AttachmentFileSink {
+  const AndroidAttachmentFileSink([this._channel = attachmentFileSinkChannel]);
+
+  final MethodChannel _channel;
 
   @override
   Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+  }) async {
+    try {
+      final path = await _channel.invokeMethod<String>(
+        'saveAttachment',
+        <String, Object?>{
+          'fileName': fileName,
+          'bytes': Uint8List.fromList(bytes),
+        },
+      );
+      if (path == null || path.trim().isEmpty) {
+        throw const FileSystemException('Attachment path was unavailable.');
+      }
+      return path;
+    } on PlatformException catch (error) {
+      if (error.code == 'UNSUPPORTED_ANDROID_PUBLIC_STORAGE') {
+        throw const _AndroidPublicStorageUnavailableException();
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  String toString() => 'AndroidAttachmentFileSink(redacted: true)';
+}
+
+/// Saves attachments into a `LEB2` folder the user can browse.
+///
+/// Android 10 and newer use the public Downloads collection. Older Android
+/// versions retain the private fallback because public storage needs a runtime
+/// permission that this app does not request.
+final class LocalAttachmentFileSink implements AttachmentFileSink {
+  const LocalAttachmentFileSink({
+    Future<Directory> Function()? resolveRoot,
+    AttachmentFileSink? androidSink,
+  }) : _resolveRoot = resolveRoot ?? _defaultRoot,
+       _androidSink = androidSink ?? const AndroidAttachmentFileSink();
+
+  final Future<Directory> Function() _resolveRoot;
+  final AttachmentFileSink _androidSink;
+
+  @override
+  Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+  }) async {
+    if (Platform.isAndroid) {
+      try {
+        return await _androidSink.write(fileName: fileName, bytes: bytes);
+      } on _AndroidPublicStorageUnavailableException {
+        // Android 9 and older use the private fallback below.
+      }
+    }
+
+    return _writePrivate(fileName: fileName, bytes: bytes);
+  }
+
+  Future<String> _writePrivate({
     required String fileName,
     required List<int> bytes,
   }) async {
@@ -65,4 +124,8 @@ final class LocalAttachmentFileSink implements AttachmentFileSink {
 
   @override
   String toString() => 'LocalAttachmentFileSink(redacted: true)';
+}
+
+final class _AndroidPublicStorageUnavailableException implements Exception {
+  const _AndroidPublicStorageUnavailableException();
 }

@@ -497,7 +497,7 @@ class _CourseMaterialsSectionState extends State<_CourseMaterialsSection> {
     setState(() {
       _busy = false;
       _downloadMessage = switch (result) {
-        AttachmentDownloadSaved(:final fileName) => 'Saved $fileName',
+        AttachmentDownloadSaved(:final path) => 'Saved to $path',
         AttachmentDownloadFailed(:final message) => message,
       };
     });

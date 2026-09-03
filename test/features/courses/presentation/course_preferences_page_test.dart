@@ -132,7 +132,7 @@ void main() {
       attachmentId: 6001,
       userId: 2001,
     ));
-    expect(find.text('Saved reading.pdf'), findsOneWidget);
+    expect(find.text('Saved to /saved/reading.pdf'), findsOneWidget);
     expect(sink.fileNames, ['reading.pdf']);
   });
 
