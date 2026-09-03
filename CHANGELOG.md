@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-09-04
+## [0.12.0] - 2026-09-04
 
 ### Added
 
@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Courses tab uses the same card header as Assignments, with settings behind a gear button.
 - Course-wide notification and background controls now live in Settings; course settings cover only the selected course.
 - Updated the app icon with a smaller, slightly right-shifted teal mark on a transparent background.
+- Production builds use the `LEB2 Watch` app name.
 
 ### Fixed
 
@@ -145,8 +146,8 @@ detects newly published work, and raises local notifications, against a
 self-hosted [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API)
 instance. Linux, Windows, and Android artifacts.
 
-[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.11.0...HEAD
-[0.11.0]: https://github.com/oangsa/leb2-watch/compare/v0.10.1...v0.11.0
+[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/oangsa/leb2-watch/compare/v0.10.1...v0.12.0
 [0.10.1]: https://github.com/oangsa/leb2-watch/compare/v0.10.0...v0.10.1
 [0.9.0]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...v0.8.1
