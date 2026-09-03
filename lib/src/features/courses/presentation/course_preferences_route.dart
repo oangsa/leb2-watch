@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/app_dependencies.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/routing/app_route.dart';
+import '../../assignments/attachments/application/attachment_download_service.dart';
+import '../application/course_materials_service.dart';
 import 'course_preferences_page.dart';
 
 class CoursePreferencesRoute extends ConsumerWidget {
@@ -12,11 +14,22 @@ class CoursePreferencesRoute extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    CourseMaterialsService? materialsService;
+    AttachmentDownloadService? downloadService;
+    try {
+      materialsService = ref.watch(courseMaterialsServiceProvider);
+      downloadService = ref.watch(attachmentDownloadServiceProvider);
+    } on Object {
+      // Cached course controls remain usable when network composition is not
+      // available, such as a recovery shell or an offline test container.
+    }
     return ref
         .watch(coursePreferencesServiceProvider)
         .when(
           data: (service) => CoursePreferencesPage(
             service: service,
+            materialsService: materialsService,
+            downloadService: downloadService,
             onChooseSemester: () => context.go(AppRoute.semesters.path),
           ),
           error: (_, _) => AppStateView.error(

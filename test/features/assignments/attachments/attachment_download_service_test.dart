@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/core/network/backend_api_client.dart';
 import 'package:leb2_watch/src/core/network/backend_transport_failure.dart';
 import 'package:leb2_watch/src/core/network/domain/backend_models.dart';
+import 'package:leb2_watch/src/core/network/domain/learning_material_models.dart';
 import 'package:leb2_watch/src/features/assignments/attachments/application/attachment_download_service.dart';
 import 'package:leb2_watch/src/features/assignments/attachments/domain/attachment_download.dart';
 import 'package:leb2_watch/src/features/assignments/detail/application/assignment_detail_service.dart';
@@ -134,6 +135,61 @@ void main() {
         AttachmentDownloadFailureReason.storageFailed,
       ),
     );
+  });
+
+  test(
+    'saves a learning-material file through the shared download flow',
+    () async {
+      final learningClient = _FakeLearningClient();
+      final sink = _RecordingSink();
+      final service = AttachmentDownloadService(
+        () => _FakeClient(),
+        sink,
+        learningActivityClient: () => learningClient,
+      );
+
+      final result = await service.downloadLearningMaterialOne(
+        semesterId: 101,
+        classId: 11,
+        materialId: 5001,
+        attachmentId: 6001,
+        userId: 2001,
+      );
+
+      expect(result, isA<AttachmentDownloadSaved>());
+      expect(sink.writes.single.fileName, 'reading.pdf');
+      expect(learningClient.attachmentCalls.single, (
+        semesterId: 101,
+        classId: 11,
+        materialId: 5001,
+        attachmentId: 6001,
+        userId: 2001,
+      ));
+    },
+  );
+
+  test('downloads all learning-material files as one archive', () async {
+    final learningClient = _FakeLearningClient();
+    final service = AttachmentDownloadService(
+      () => _FakeClient(),
+      _RecordingSink(),
+      learningActivityClient: () => learningClient,
+    );
+
+    final result = await service.downloadLearningMaterialAll(
+      semesterId: 101,
+      classId: 11,
+      materialId: 5001,
+      userId: 2001,
+    );
+
+    expect(result, isA<AttachmentDownloadSaved>());
+    expect(learningClient.archiveCalls.single, (
+      semesterId: 101,
+      classId: 11,
+      materialId: 5001,
+      userId: 2001,
+    ));
   });
 }
 
@@ -282,4 +338,71 @@ final class _FakeClient implements BackendApiClient {
     required int userId,
     BackendRequestCancellation? cancellation,
   }) => throw UnimplementedError();
+}
+
+final class _FakeLearningClient implements BackendLearningActivityClient {
+  final attachmentCalls =
+      <
+        ({
+          int semesterId,
+          int classId,
+          int materialId,
+          int attachmentId,
+          int userId,
+        })
+      >[];
+  final archiveCalls =
+      <({int semesterId, int classId, int materialId, int userId})>[];
+
+  @override
+  Future<List<LearningMaterial>> getLearningMaterials({
+    required int semesterId,
+    required int classId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachment({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    attachmentCalls.add((
+      semesterId: semesterId,
+      classId: classId,
+      materialId: materialId,
+      attachmentId: attachmentId,
+      userId: userId,
+    ));
+    return BackendFileDownload(
+      bytes: Uint8List.fromList(const [1, 2, 3]),
+      fileName: 'reading.pdf',
+      contentType: 'application/pdf',
+    );
+  }
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    archiveCalls.add((
+      semesterId: semesterId,
+      classId: classId,
+      materialId: materialId,
+      userId: userId,
+    ));
+    return BackendFileDownload(
+      bytes: Uint8List.fromList(const [4, 5]),
+      fileName: 'material-5001.zip',
+      contentType: 'application/zip',
+    );
+  }
 }

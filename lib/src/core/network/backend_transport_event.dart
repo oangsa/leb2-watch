@@ -11,6 +11,9 @@ enum BackendTransportRoute {
   metadata,
   activityAttachment,
   activityAttachmentArchive,
+  learningMaterials,
+  learningMaterialAttachment,
+  learningMaterialAttachmentArchive,
 }
 
 enum BackendTransportOutcome {

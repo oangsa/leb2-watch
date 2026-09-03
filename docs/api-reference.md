@@ -92,6 +92,8 @@ existing version where appropriate.
 | `GET` | `/api/v2/Activity/{semesterId}` | Activated | Yes | None |
 | `GET` | `/api/v1/Activity/{semesterId}/snapshot` | Activated | Yes | None |
 | `GET` | `/api/v2/Activity/{semesterId}/snapshot` | Activated | Yes | None |
+| `GET` | `/api/v{1,2}/Activity/{semesterId}/{classId}/{activityId}/attachment/{attachmentId}` | Activated | Yes | None |
+| `GET` | `/api/v{1,2}/Activity/{semesterId}/{classId}/{activityId}/attachments/archive` | Activated | Yes | None |
 | `GET` | `/api/v1/meta` | Anonymous | No | None |
 | `GET` | `/api/v1/health/leb2` | Anonymous | No | None |
 
@@ -374,14 +376,23 @@ reuse the binding when they reuse the stable device ID.
 Device enforcement is separate from client-version enforcement. The latter uses:
 
 ```http
+X-Client-Id: web
 X-Client-Version: 0.5.2
 ```
 
-`ClientCompatibility:EnforcementEnabled=true` rejects a semantically older supported
-v1 client with `426 CLIENT_UPDATE_REQUIRED`. A newer version than
-`LatestClientVersion` is not rejected merely for being newer. Missing or blank client
-versions receive `400 CLIENT_VERSION_REQUIRED`; multiple or malformed values receive
-`400 CLIENT_VERSION_INVALID`. `/api/v1/meta` and `/api/v1/health/leb2` remain
+`X-Client-Id` names the frontend and selects which floor applies. It is optional;
+omitting it means the default client `app`, which is what released app builds do.
+The `app` floor is `ClientCompatibility:MinimumClientVersion`, and any other client
+is declared under `ClientCompatibility:Clients` with its own floor, so raising the
+app's minimum never breaks the web companion and vice versa.
+
+`ClientCompatibility:EnforcementEnabled=true` rejects a supported v1 client below
+its own client's floor with `426 CLIENT_UPDATE_REQUIRED`. A newer version than that
+floor is not rejected merely for being newer. Missing or blank client versions
+receive `400 CLIENT_VERSION_REQUIRED`; multiple or malformed values receive
+`400 CLIENT_VERSION_INVALID`. An `X-Client-Id` that is repeated or not configured
+receives `400 CLIENT_ID_INVALID`: an unrecognized frontend fails closed rather than
+inheriting another client's floor. `/api/v1/meta` and `/api/v1/health/leb2` remain
 anonymous and exempt so clients can bootstrap and monitor during rollout.
 
 The `426` body uses the normal error model:
@@ -408,7 +419,6 @@ The route/header contract is:
 | `GET /api/v1/Semester` | v1 | Activated | Yes* | Yes* | Yes | No |
 | `GET /api/v1/Class/{id}` | v1 | Activated | Yes* | Yes* | Yes | No |
 | `GET /api/v1/Activity/...` | v1 | Activated | Yes* | Yes* | Yes | Yes |
-| `GET /api/v2/Activity/...` | v2 | Activated | Yes* | Yes* | Yes | Yes |
 
 `*` means the header is optional while the corresponding rollout enforcement flag is
 off and mandatory after enforcement is enabled.
@@ -536,6 +546,7 @@ Possible error codes:
 | `400` | `DEVICE_ID_INVALID` | A device identifier or device metadata header is invalid. |
 | `400` | `CLIENT_VERSION_REQUIRED` | Client compatibility enforcement requires `X-Client-Version`. |
 | `400` | `CLIENT_VERSION_INVALID` | `X-Client-Version` has multiple values or is not a semantic version. |
+| `400` | `CLIENT_ID_INVALID` | `X-Client-Id` has multiple values or names a client that is not configured. |
 | `401` | `ACCESS_KEY_REQUIRED` | The `access-key` header was absent. |
 | `401` | `ACCESS_KEY_INVALID` | The access key was malformed or is not provisioned. |
 | `401` | `AUTHENTICATION_REQUIRED` | A required LEB2 session header was absent or empty. |
@@ -702,11 +713,23 @@ Selenium, access-key state, device binding, or client-version enforcement.
 The advertised versions and download URL are validated before application startup;
 this endpoint does not expose an unvalidated compatibility configuration.
 
-Request headers: none. Successful response — `200 OK`:
+Optional header:
+
+```http
+X-Client-Id: web
+```
+
+`minimumClientVersion` is the floor for the requesting client, so a frontend the
+version gate would reject can still discover what it has to satisfy. Omitting the
+header reports the default client `app`. A repeated or unconfigured client id
+receives `400 CLIENT_ID_INVALID`.
+
+Successful response — `200 OK`:
 
 ```json
 {
   "apiVersion": 1,
+  "clientId": "app",
   "minimumClientVersion": "0.5.0",
   "latestClientVersion": "0.5.0",
   "downloadUrl": "https://github.com/oangsa/leb2-watch/releases/latest"
@@ -714,7 +737,9 @@ Request headers: none. Successful response — `200 OK`:
 ```
 
 `apiVersion` describes the URL contract and remains `1` for `/api/v1/meta`; it is
-not the frontend build version.
+not the frontend build version. `clientId` echoes which client the
+`minimumClientVersion` above belongs to. `latestClientVersion` and `downloadUrl`
+continue to describe the distributed app release for every client.
 
 ### POST `/api/v1/User/cookie`
 
@@ -1230,6 +1255,142 @@ Authorization: Bearer <leb2-session-cookie>
 X-LEB2-USER-ID: 2001
 ```
 
+### GET `/api/v{1,2}/Activity/{semesterId}/{classId}/{activityId}/attachment/{attachmentId}`
+
+Streams one activity attachment. Both API versions serve the identical bytes:
+the response is a file, so the `v1`/`v2` date-shape difference does not apply.
+
+Route parameters:
+
+| Name | Type | Validation | Description |
+| --- | --- | --- | --- |
+| `semesterId` | integer | `>= 1` | LEB2 semester ID. |
+| `classId` | integer | `>= 1` | LEB2 class ID that owns the activity. |
+| `activityId` | integer | `>= 1` | LEB2 activity ID. |
+| `attachmentId` | integer | `>= 1` | Attachment ID from the activity's `fileActivities`. |
+
+Required headers:
+
+```http
+access-key: 00000000-0000-4000-8000-000000000001
+Authorization: Bearer <leb2-session-cookie>
+X-LEB2-USER-ID: 2001
+```
+
+Request body: none.
+
+The attachment must belong to the addressed activity. The backend reads the
+activity first and rejects an ID that is not in its `fileActivities`, so a valid
+session cannot be used to enumerate unrelated files. `X-LEB2-USER-ID` is checked
+against the access key's stored LEB2 identity exactly as on the activity routes.
+
+Successful response — `200 OK`: the file itself.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="lab-4.pdf"
+Content-Length: 20480
+```
+
+`Content-Disposition` carries the file name — LEB2 does not publish names in the
+activity payload, so this header is the only place a client learns one. The
+backend reduces the upstream name to a single safe segment first: `filename*` is
+preferred, separators and control and invalid characters are dropped, leading
+dots are trimmed, and an unusable name becomes `attachment`. Clients should
+still treat it as untrusted, since it is about to become a path on their side.
+
+Range requests are not supported and the body is not chunk-resumable. A download
+whose upstream `Content-Length` exceeds `AssignmentFiles:MaxDownloadBytes`
+(default 100 MiB) is refused with `502 LEB2_UNAVAILABLE`, as is a body that
+exceeds the cap mid-stream. One download may take up to
+`AssignmentFiles:RequestTimeoutSeconds` (default 120).
+
+Relevant error responses:
+
+- `400 INVALID_REQUEST` for a non-positive route value or a missing/invalid `X-LEB2-USER-ID`.
+- `401 AUTHENTICATION_REQUIRED` or `401 SESSION_EXPIRED` for a missing or rejected session.
+- `403 ACCESS_KEY_IDENTITY_MISMATCH` when the asserted LEB2 user is not the key's owner.
+- `404 RESOURCE_NOT_FOUND` when the activity does not exist, or the attachment is not one of its files.
+- `429 CLIENT_THROTTLE_ACTIVE` when this client has too many queued requests.
+- `502 LEB2_UNAVAILABLE` or `502 SCRAPE_RESPONSE_CHANGED` when the upstream download cannot be completed or its shape changed.
+- `503 LEB2_UNAVAILABLE` or `503 REQUEST_BACKOFF_ACTIVE` for transient failures.
+
+### GET `/api/v{1,2}/Activity/{semesterId}/{classId}/{activityId}/attachments/archive`
+
+Streams every attachment on one activity as a single archive, so a client with
+several files fetches them in one request instead of one request per file.
+
+Route parameters and headers are those of the single-attachment route without
+`attachmentId`. Request body: none.
+
+Successful response — `200 OK`:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/zip
+Content-Disposition: attachment; filename="activity-4001.zip"
+```
+
+An activity with no attachments returns `404 RESOURCE_NOT_FOUND` rather than an
+empty archive. Every other error response matches the single-attachment route,
+and the same size cap and timeout apply to the archive as a whole.
+
+### GET `/api/v{1,2}/LearningActivity/{semesterId}/{classId}`
+
+Returns the learning materials published for one class, including the metadata
+needed to render and download attached files. The backend verifies that the class
+belongs to the supplied semester before querying LEB2.
+
+Successful response — `200 OK`:
+
+```json
+[
+  {
+    "id": 5001,
+    "classId": 3001,
+    "title": "Reading",
+    "description": "<p>Read the attached document.</p>",
+    "fileCount": 1,
+    "fileMaterials": [
+      {
+        "id": 6001,
+        "displayName": "reading.pdf",
+        "fileSize": "585.74 KB",
+        "fileType": "application/pdf"
+      }
+    ]
+  }
+]
+```
+
+Required headers are the same as the activity routes:
+
+```http
+GET /api/v1/LearningActivity/101/3001
+access-key: 00000000-0000-4000-8000-000000000001
+Authorization: Bearer <leb2-session-cookie>
+X-LEB2-USER-ID: 2001
+```
+
+The response intentionally does not expose LEB2's temporary signed storage URL.
+Use the returned material `id` and file `id` with the download routes below:
+
+### GET `/api/v{1,2}/LearningActivity/{semesterId}/{classId}/{materialId}/attachment/{attachmentId}`
+
+Streams one learning-material attachment. The material and attachment are checked
+against the class before the upstream download is opened.
+
+### GET `/api/v{1,2}/LearningActivity/{semesterId}/{classId}/{materialId}/attachments/archive`
+
+Streams all attachments in one learning material as a ZIP archive. A material with
+no attachments returns `404 RESOURCE_NOT_FOUND`.
+
+For both download routes, request body is none, range requests are disabled, and
+the successful response is the file with a safe `Content-Disposition` filename.
+The size cap, timeout, authentication, identity, and error behavior match the
+activity attachment routes.
+
 ### GET `/api/v1/health/leb2`
 
 Returns locally observed request-gate/backoff state for each fixed LEB2 dependency.
@@ -1324,7 +1485,8 @@ The normal Cloud Run deployment runs with `ASPNETCORE_ENVIRONMENT=Production`, s
 Swagger is disabled there.
 
 The Swagger UI version selector lists both `v1` and `v2` documents. `v2` advertises
-only the `ActivityController` routes; every other route appears in `v1` only.
+the `ActivityController` and `LearningActivityController` routes; every other
+route appears in `v1` only.
 
 Swagger exposes `access-key` as an API-key header scheme and the existing opaque
 LEB2 bearer scheme. Login and cookie operations advertise only `access-key`; data

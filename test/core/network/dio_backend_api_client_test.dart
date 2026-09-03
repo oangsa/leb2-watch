@@ -249,6 +249,133 @@ void main() {
   });
 
   group('successful response mapping', () {
+    test('maps learning materials and downloads their files', () async {
+      final adapter = CallbackHttpClientAdapter((options, _, _) {
+        return switch (options.path) {
+          '/api/v2/LearningActivity/101/3001' => _fixtureResponse(
+            'learning_materials_success.json',
+          ),
+          '/api/v2/LearningActivity/101/3001/5001/attachment/6001' =>
+            byteResponse(
+              const [1, 2, 3],
+              headers: const {
+                Headers.contentTypeHeader: ['application/pdf'],
+                'content-disposition': ['attachment; filename="reading.pdf"'],
+              },
+            ),
+          '/api/v2/LearningActivity/101/3001/5001/attachments/archive' =>
+            byteResponse(
+              const [4, 5],
+              headers: const {
+                Headers.contentTypeHeader: ['application/zip'],
+                'content-disposition': ['attachment; filename="reading.zip"'],
+              },
+            ),
+          _ => throw StateError('Unexpected test route.'),
+        };
+      });
+      final client = _client(adapter);
+
+      final materials = await client.getLearningMaterials(
+        semesterId: 101,
+        classId: 3001,
+        userId: 2001,
+      );
+      final file = await client.downloadLearningMaterialAttachment(
+        semesterId: 101,
+        classId: 3001,
+        materialId: 5001,
+        attachmentId: 6001,
+        userId: 2001,
+      );
+      final archive = await client.downloadLearningMaterialAttachmentArchive(
+        semesterId: 101,
+        classId: 3001,
+        materialId: 5001,
+        userId: 2001,
+      );
+
+      expect(materials, hasLength(1));
+      expect(materials.single.id, 5001);
+      expect(materials.single.classId, 3001);
+      expect(materials.single.title, 'Reading');
+      expect(materials.single.fileCount, 1);
+      expect(materials.single.fileMaterials.single.displayName, 'reading.pdf');
+      expect(file.bytes, [1, 2, 3]);
+      expect(file.fileName, 'reading.pdf');
+      expect(file.contentType, 'application/pdf');
+      expect(archive.bytes, [4, 5]);
+      expect(archive.fileName, 'reading.zip');
+      expect(archive.contentType, 'application/zip');
+      expect(adapter.requests.map((request) => request.path), [
+        '/api/v2/LearningActivity/101/3001',
+        '/api/v2/LearningActivity/101/3001/5001/attachment/6001',
+        '/api/v2/LearningActivity/101/3001/5001/attachments/archive',
+      ]);
+      for (final request in adapter.requests) {
+        expect(request.headers['X-LEB2-USER-ID'], '2001');
+        expect(request.headers['access-key'], isNotNull);
+        expect(request.headers['Authorization'], isNotNull);
+      }
+    });
+
+    test('rejects invalid learning-material response invariants', () async {
+      final responses = <Object Function()>[
+        () => <String, Object?>{'not': 'an array'},
+        () {
+          final material = _learningMaterialJson();
+          material['id'] = '5001';
+          return [material];
+        },
+        () {
+          final material = _learningMaterialJson();
+          material['classId'] = 3002;
+          return [material];
+        },
+        () => [_learningMaterialJson(), _learningMaterialJson()],
+        () {
+          final material = _learningMaterialJson();
+          material['fileMaterials'] = <String, Object?>{};
+          return [material];
+        },
+        () {
+          final material = _learningMaterialJson();
+          (material['fileMaterials']! as List<Object?>).add(
+            _learningMaterialFileJson(),
+          );
+          return [material];
+        },
+        () {
+          final material = _learningMaterialJson();
+          material['title'] = ' ';
+          return [material];
+        },
+        () {
+          final material = _learningMaterialJson();
+          final file =
+              (material['fileMaterials']! as List<Object?>).single
+                  as Map<String, Object?>;
+          file['displayName'] = ' ';
+          return [material];
+        },
+      ];
+
+      for (final response in responses) {
+        final adapter = CallbackHttpClientAdapter(
+          (_, _, _) => jsonResponse(response()),
+        );
+        await expectLater(
+          _client(
+            adapter,
+          ).getLearningMaterials(semesterId: 101, classId: 3001, userId: 2001),
+          throwsA(
+            _transportFailure(BackendTransportFailureKind.invalidResponse),
+          ),
+        );
+        expect(adapter.requests, hasLength(1));
+      }
+    });
+
     test('maps semesters and courses into separate domain models', () async {
       final adapter = CallbackHttpClientAdapter((options, _, _) {
         return options.path == '/api/v1/Semester'
@@ -1552,6 +1679,22 @@ final class _TestClientVersion implements ClientVersionProvider {
 Map<String, dynamic> _fixtureObject(String name) {
   return jsonDecode(_fixtureSource(name)) as Map<String, dynamic>;
 }
+
+Map<String, Object?> _learningMaterialJson() => <String, Object?>{
+  'id': 5001,
+  'classId': 3001,
+  'title': 'Reading',
+  'description': '<p>Read the attached document.</p>',
+  'fileCount': 1,
+  'fileMaterials': <Object?>[_learningMaterialFileJson()],
+};
+
+Map<String, Object?> _learningMaterialFileJson() => <String, Object?>{
+  'id': 6001,
+  'displayName': 'reading.pdf',
+  'fileSize': '585.74 KB',
+  'fileType': 'application/pdf',
+};
 
 String _fixtureSource(String name) {
   return File('test/fixtures/backend_api/$name').readAsStringSync();

@@ -14,6 +14,7 @@ const _apiV1Prefix = '/api/v1';
 final class DioBackendApiClient
     implements
         BackendApiClient,
+        BackendLearningActivityClient,
         BackendSessionClient,
         BackendSessionLifecycleClient,
         BackendCompatibilityClient {
@@ -250,6 +251,77 @@ final class DioBackendApiClient
       mapSuccess: _unusedJsonMapper,
       mapResponse: (response) =>
           _mapDownload(response, fallbackName: 'activity-$activityId.zip'),
+    );
+  }
+
+  @override
+  Future<List<LearningMaterial>> getLearningMaterials({
+    required int semesterId,
+    required int classId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requirePositiveInt32(semesterId, 'semesterId');
+    _requirePositiveInt32(classId, 'classId');
+    _requirePositiveInt32(userId, 'userId');
+    return _execute(
+      route: BackendTransportRoute.learningMaterials,
+      path: '/api/v2/LearningActivity/$semesterId/$classId',
+      headers: {_userIdHeader: userId.toString()},
+      cancellation: cancellation,
+      mapSuccess: (json) => _mapLearningMaterials(json, classId),
+    );
+  }
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachment({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requirePositiveInt32(semesterId, 'semesterId');
+    _requirePositiveInt32(classId, 'classId');
+    _requirePositiveInt32(materialId, 'materialId');
+    _requirePositiveInt32(attachmentId, 'attachmentId');
+    _requirePositiveInt32(userId, 'userId');
+    return _execute(
+      route: BackendTransportRoute.learningMaterialAttachment,
+      path:
+          '/api/v2/LearningActivity/$semesterId/$classId/$materialId'
+          '/attachment/$attachmentId',
+      headers: {_userIdHeader: userId.toString()},
+      cancellation: cancellation,
+      mapSuccess: _unusedJsonMapper,
+      mapResponse: (response) =>
+          _mapDownload(response, fallbackName: 'attachment-$attachmentId'),
+    );
+  }
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) {
+    _requirePositiveInt32(semesterId, 'semesterId');
+    _requirePositiveInt32(classId, 'classId');
+    _requirePositiveInt32(materialId, 'materialId');
+    _requirePositiveInt32(userId, 'userId');
+    return _execute(
+      route: BackendTransportRoute.learningMaterialAttachmentArchive,
+      path:
+          '/api/v2/LearningActivity/$semesterId/$classId/$materialId'
+          '/attachments/archive',
+      headers: {_userIdHeader: userId.toString()},
+      cancellation: cancellation,
+      mapSuccess: _unusedJsonMapper,
+      mapResponse: (response) =>
+          _mapDownload(response, fallbackName: 'material-$materialId.zip'),
     );
   }
 
@@ -986,6 +1058,70 @@ List<Course> _mapCourses(Object? json, int semesterId) {
   return List<Course>.unmodifiable(courses);
 }
 
+List<LearningMaterial> _mapLearningMaterials(
+  Object? json,
+  int requestedClassId,
+) {
+  final values = _asJsonList(json);
+  final seenMaterials = <int>{};
+  final materials = <LearningMaterial>[];
+
+  for (final value in values) {
+    final map = _asJsonObject(value);
+    final id = _requiredJsonInt(map['id']);
+    final classId = _requiredJsonInt(map['classId']);
+    final title = _requiredJsonString(map['title']).trim();
+    final description = _requiredJsonString(map['description']);
+    final fileCount = _requiredJsonInt(map['fileCount']);
+    final fileValues = _asJsonList(map['fileMaterials']);
+
+    _requireResponsePositiveInt32(id);
+    _requireResponsePositiveInt32(classId);
+    if (classId != requestedClassId ||
+        !_isNonblank(title) ||
+        fileCount < 0 ||
+        !seenMaterials.add(id)) {
+      throw const _ResponseInvariantException();
+    }
+
+    final seenFiles = <int>{};
+    final files = <LearningMaterialFile>[];
+    for (final fileValue in fileValues) {
+      final fileMap = _asJsonObject(fileValue);
+      final fileId = _requiredJsonInt(fileMap['id']);
+      final displayName = _requiredJsonString(fileMap['displayName']).trim();
+      final fileSize = _requiredJsonString(fileMap['fileSize']).trim();
+      final fileType = _requiredJsonString(fileMap['fileType']).trim();
+
+      _requireResponsePositiveInt32(fileId);
+      if (!_isNonblank(displayName) || !seenFiles.add(fileId)) {
+        throw const _ResponseInvariantException();
+      }
+      files.add(
+        LearningMaterialFile(
+          id: fileId,
+          displayName: displayName,
+          fileSize: fileSize,
+          fileType: fileType,
+        ),
+      );
+    }
+
+    materials.add(
+      LearningMaterial(
+        id: id,
+        classId: classId,
+        title: title,
+        description: description,
+        fileCount: fileCount,
+        fileMaterials: List<LearningMaterialFile>.unmodifiable(files),
+      ),
+    );
+  }
+
+  return List<LearningMaterial>.unmodifiable(materials);
+}
+
 AssignmentSnapshot _mapSnapshot(Object? json, int requestedSemesterId) {
   final dto = SemesterSnapshotDto.fromJson(_asJsonObject(json));
   _requireResponsePositiveInt32(dto.semesterId);
@@ -1124,6 +1260,22 @@ void _requireResponsePositiveInt32(int value) {
     throw const _ResponseInvariantException();
   }
 }
+
+int _requiredJsonInt(Object? value) {
+  if (value is! int) {
+    throw const _ResponseShapeException();
+  }
+  return value;
+}
+
+String _requiredJsonString(Object? value) {
+  if (value is! String) {
+    throw const _ResponseShapeException();
+  }
+  return value;
+}
+
+bool _isNonblank(String value) => value.trim().isNotEmpty;
 
 void _requireNonblank(String value) {
   if (value.trim().isEmpty) {

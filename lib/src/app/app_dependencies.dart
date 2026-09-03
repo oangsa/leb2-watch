@@ -42,6 +42,7 @@ import '../features/authentication/data/automatic_session_reauthentication_store
 import '../features/authentication/data/session_identity_store.dart';
 import '../features/authentication/domain/automatic_session_reauthentication.dart';
 import '../features/courses/application/course_preferences_service.dart';
+import '../features/courses/application/course_materials_service.dart';
 import '../features/courses/data/course_preferences_store.dart';
 import '../features/notifications/application/deadline_reminder_coordinator.dart';
 import '../features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
@@ -293,6 +294,11 @@ final Provider<DioBackendApiClient> backendTransportClientProvider =
 final backendApiClientProvider = Provider<BackendApiClient>((ref) {
   return ref.watch(backendTransportClientProvider);
 });
+
+final backendLearningActivityClientProvider =
+    Provider<BackendLearningActivityClient>((ref) {
+      return ref.watch(backendTransportClientProvider);
+    });
 
 final backendSessionClientProvider = Provider<BackendSessionClient>((ref) {
   return ref.watch(backendTransportClientProvider);
@@ -630,6 +636,8 @@ final attachmentDownloadServiceProvider = Provider<AttachmentDownloadService>((
   return AttachmentDownloadService(
     () => ref.read(backendApiClientProvider),
     ref.watch(attachmentFileSinkProvider),
+    learningActivityClient: () =>
+        ref.read(backendLearningActivityClientProvider),
   );
 });
 
@@ -701,6 +709,16 @@ final coursePreferencesServiceProvider =
         processDelivery?.refresh,
       );
     });
+
+final courseMaterialsServiceProvider = Provider<CourseMaterialsService>((ref) {
+  return RemoteCourseMaterialsService(
+    client: () => ref.read(backendLearningActivityClientProvider),
+    readUserId: () async {
+      final store = await ref.read(sessionIdentityStoreProvider.future);
+      return store.readUserId();
+    },
+  );
+});
 
 final courseEffectPolicyReaderProvider =
     FutureProvider<CourseEffectPolicyReader>((ref) async {

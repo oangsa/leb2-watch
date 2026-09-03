@@ -79,6 +79,9 @@ Domain models and checked DTOs are separate. DTOs = internal transport values wi
 | GET | `/api/v2/Activity/{sid}/{cid}` | `access-key` + Bearer + positive user ID + device/client metadata | UTC Activity array |
 | GET | `/api/v2/Activity/{sid}` | `access-key` + Bearer + positive user ID + device/client metadata | Flat UTC activity |
 | GET | `/api/v2/Activity/{sid}/snapshot` | `access-key` + Bearer + positive user ID + device/client metadata | Nested UTC snapshot |
+| GET | `/api/v2/LearningActivity/{sid}/{cid}` | `access-key` + Bearer + positive user ID + device/client metadata | Learning material array |
+| GET | `/api/v2/LearningActivity/{sid}/{cid}/{mid}/attachment/{aid}` | `access-key` + Bearer + positive user ID + device/client metadata | File bytes |
+| GET | `/api/v2/LearningActivity/{sid}/{cid}/{mid}/attachments/archive` | `access-key` + Bearer + positive user ID + device/client metadata | ZIP bytes |
 | GET | `/api/v1/meta` | None | Compatibility metadata |
 | GET | `/api/v1/health/leb2` | None | Health |
 
@@ -87,6 +90,12 @@ Activity snapshots and `/api/v1` for v1-only controllers. Swagger is generated
 at runtime only in Development.
 The backend's `/api/v1/Activity/...` routes remain legacy compatibility
 contracts; the frontend no longer calls them.
+
+`BackendLearningActivityClient` owns the course-material routes separately from
+the synchronization client. `DioBackendApiClient` strictly maps positive IDs,
+class containment, unique material/file IDs, required labels, and the
+`fileMaterials` array before the Courses screen can render them. Material files
+reuse the existing backend-named download sink for single files and archives.
 
 The backend operator provisions access keys in Supabase PostgreSQL and owns the
 local user/key identity mapping and audit metadata. The frontend never connects
@@ -163,6 +172,9 @@ delete permanent key ownership.
 
 - `lib/src/core/network/backend_api_client.dart` — external interface, cancellation value, module library
 - `lib/src/core/network/dio_backend_api_client.dart` — concrete Dio adapter, credential interceptor, strict decoding, invariants, mapping
+- `lib/src/core/network/domain/learning_material_models.dart` — redacted material/file domain values
+- `lib/src/features/courses/application/course_materials_service.dart` — selected-course material loading and identity boundary
+- `lib/src/features/courses/presentation/course_preferences_page.dart` — compact material list and download controls
 - `lib/src/core/network/backend_transport_failure.dart` — fixed configuration and transport failure
 - `lib/src/core/network/backend_compatibility_coordinator.dart` — sticky 426 handling and anonymous metadata refresh
 - `lib/src/core/network/backend_transport_event.dart` — bounded metadata-only development events

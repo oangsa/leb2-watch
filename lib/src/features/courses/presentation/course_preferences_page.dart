@@ -9,7 +9,11 @@ import '../../../app/design_system/app_breakpoints.dart';
 import '../../../app/design_system/app_tokens.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
+import '../../../core/network/domain/learning_material_models.dart';
+import '../../assignments/attachments/application/attachment_download_service.dart';
+import '../../assignments/attachments/domain/attachment_download.dart';
 import '../../semesters/semester_label.dart';
+import '../application/course_materials_service.dart';
 import '../application/course_preferences_service.dart';
 import '../data/course_preferences_store.dart';
 
@@ -19,11 +23,15 @@ class CoursePreferencesPage extends StatefulWidget {
   const CoursePreferencesPage({
     required this.service,
     required this.onChooseSemester,
+    this.materialsService,
+    this.downloadService,
     super.key,
   });
 
   final CoursePreferencesService service;
   final VoidCallback onChooseSemester;
+  final CourseMaterialsService? materialsService;
+  final AttachmentDownloadService? downloadService;
 
   @override
   State<CoursePreferencesPage> createState() => _CoursePreferencesPageState();
@@ -347,11 +355,309 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
                 onBackgroundMonitoring: (value) =>
                     _setBackgroundMonitoring(selectedCourse, value),
               ),
+              if (widget.materialsService != null) ...[
+                const SizedBox(height: AppSpacing.lg),
+                _CourseMaterialsSection(
+                  key: Key('course-materials-${selectedCourse.key.courseId}'),
+                  course: selectedCourse,
+                  service: widget.materialsService!,
+                  downloadService: widget.downloadService,
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+class _CourseMaterialsSection extends StatefulWidget {
+  const _CourseMaterialsSection({
+    required this.course,
+    required this.service,
+    required this.downloadService,
+    super.key,
+  });
+
+  final CourseSummary course;
+  final CourseMaterialsService service;
+  final AttachmentDownloadService? downloadService;
+
+  @override
+  State<_CourseMaterialsSection> createState() =>
+      _CourseMaterialsSectionState();
+}
+
+class _CourseMaterialsSectionState extends State<_CourseMaterialsSection> {
+  CourseMaterialsCatalog? _catalog;
+  bool _loading = true;
+  bool _busy = false;
+  String? _loadError;
+  String? _downloadMessage;
+  int _requestGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_CourseMaterialsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.course.key != widget.course.key ||
+        !identical(oldWidget.service, widget.service)) {
+      _load();
+    }
+  }
+
+  void _load() {
+    final generation = ++_requestGeneration;
+    setState(() {
+      _loading = true;
+      _loadError = null;
+      _downloadMessage = null;
+    });
+    unawaited(_read(generation));
+  }
+
+  Future<void> _read(int generation) async {
+    try {
+      final catalog = await widget.service.read(widget.course.key);
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _catalog = catalog;
+        _loading = false;
+        _loadError = null;
+      });
+    } on Object {
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+      setState(() {
+        _catalog = null;
+        _loading = false;
+        _loadError = 'Course files unavailable.';
+      });
+    }
+  }
+
+  Future<void> _downloadOne(
+    CourseMaterialsCatalog catalog,
+    LearningMaterial material,
+    LearningMaterialFile file,
+  ) async {
+    final downloader = widget.downloadService;
+    if (downloader == null || _busy) {
+      return;
+    }
+    await _download(
+      () => downloader.downloadLearningMaterialOne(
+        semesterId: catalog.semesterId,
+        classId: catalog.classId,
+        materialId: material.id,
+        attachmentId: file.id,
+        userId: catalog.userId,
+      ),
+    );
+  }
+
+  Future<void> _downloadAll(
+    CourseMaterialsCatalog catalog,
+    LearningMaterial material,
+  ) async {
+    final downloader = widget.downloadService;
+    if (downloader == null || _busy) {
+      return;
+    }
+    await _download(
+      () => downloader.downloadLearningMaterialAll(
+        semesterId: catalog.semesterId,
+        classId: catalog.classId,
+        materialId: material.id,
+        userId: catalog.userId,
+      ),
+    );
+  }
+
+  Future<void> _download(
+    Future<AttachmentDownloadResult> Function() request,
+  ) async {
+    setState(() {
+      _busy = true;
+      _downloadMessage = null;
+    });
+    final result = await request();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _downloadMessage = switch (result) {
+        AttachmentDownloadSaved(:final fileName) => 'Saved $fileName',
+        AttachmentDownloadFailed(:final message) => message,
+      };
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final catalog = _catalog;
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: 'Course files for ${widget.course.name}',
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Course files',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  if (_busy)
+                    const SizedBox(
+                      key: Key('course-materials-progress'),
+                      width: AppSpacing.md,
+                      height: AppSpacing.md,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (_loading)
+                const Text('Loading files')
+              else if (_loadError != null)
+                AppStatusBanner.stale(
+                  key: const Key('course-materials-error'),
+                  message: _loadError!,
+                  actionLabel: 'Retry',
+                  onAction: _load,
+                )
+              else if (catalog == null || catalog.materials.isEmpty)
+                Text(
+                  'No files',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                ..._materialWidgets(context, catalog),
+              if (_downloadMessage != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _downloadMessage!,
+                    key: const Key('course-materials-download-message'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _materialWidgets(
+    BuildContext context,
+    CourseMaterialsCatalog catalog,
+  ) {
+    final theme = Theme.of(context);
+    final widgets = <Widget>[];
+    for (var index = 0; index < catalog.materials.length; index += 1) {
+      final material = catalog.materials[index];
+      if (index > 0) {
+        widgets.add(const Divider(height: AppSpacing.lg));
+      }
+      widgets.add(
+        Text(
+          material.title,
+          style: theme.textTheme.titleMedium,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+      if (material.fileMaterials.isEmpty) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              'No files',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+      widgets.add(const SizedBox(height: AppSpacing.xs));
+      for (final file in material.fileMaterials) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: Key(
+                  'download-learning-material-${material.id}-${file.id}',
+                ),
+                onPressed: widget.downloadService == null || _busy
+                    ? null
+                    : () => _downloadOne(catalog, material, file),
+                icon: const Icon(Icons.download_outlined),
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    file.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      if (material.fileMaterials.length > 1) {
+        widgets.add(
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: Key('download-learning-material-all-${material.id}'),
+              onPressed: widget.downloadService == null || _busy
+                  ? null
+                  : () => _downloadAll(catalog, material),
+              icon: const Icon(Icons.archive_outlined),
+              label: const Text('Download all'),
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
   }
 }
 

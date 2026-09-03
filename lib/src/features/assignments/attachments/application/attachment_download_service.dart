@@ -8,13 +8,18 @@ import '../domain/attachment_download.dart';
 /// The backend streams from LEB2 and names each file, so this only decides
 /// where the bytes land and how a failure reads.
 final class AttachmentDownloadService {
-  const AttachmentDownloadService(this._client, this._sink);
+  const AttachmentDownloadService(
+    this._client,
+    this._sink, {
+    this.learningActivityClient,
+  });
 
   /// Resolved per download, not at composition time, so building this service
   /// costs nothing and needs no backend configuration until a file is actually
   /// requested.
   final BackendApiClient Function() _client;
   final AttachmentFileSink _sink;
+  final BackendLearningActivityClient Function()? learningActivityClient;
 
   Future<AttachmentDownloadResult> downloadOne({
     required CurrentAssignmentDetail detail,
@@ -48,6 +53,58 @@ final class AttachmentDownloadService {
     );
   }
 
+  Future<AttachmentDownloadResult> downloadLearningMaterialOne({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+  }) {
+    final client = learningActivityClient;
+    if (client == null ||
+        !_validIds([semesterId, classId, materialId, attachmentId, userId])) {
+      return Future.value(
+        const AttachmentDownloadFailed(
+          AttachmentDownloadFailureReason.unsupportedActivity,
+        ),
+      );
+    }
+    return _saveDownload(
+      request: () => client().downloadLearningMaterialAttachment(
+        semesterId: semesterId,
+        classId: classId,
+        materialId: materialId,
+        attachmentId: attachmentId,
+        userId: userId,
+      ),
+    );
+  }
+
+  Future<AttachmentDownloadResult> downloadLearningMaterialAll({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int userId,
+  }) {
+    final client = learningActivityClient;
+    if (client == null ||
+        !_validIds([semesterId, classId, materialId, userId])) {
+      return Future.value(
+        const AttachmentDownloadFailed(
+          AttachmentDownloadFailureReason.unsupportedActivity,
+        ),
+      );
+    }
+    return _saveDownload(
+      request: () => client().downloadLearningMaterialAttachmentArchive(
+        semesterId: semesterId,
+        classId: classId,
+        materialId: materialId,
+        userId: userId,
+      ),
+    );
+  }
+
   Future<AttachmentDownloadResult> _download({
     required CurrentAssignmentDetail detail,
     required Future<BackendFileDownload> Function(int activityId) request,
@@ -59,9 +116,15 @@ final class AttachmentDownloadService {
       );
     }
 
+    return _saveDownload(request: () => request(activityId));
+  }
+
+  Future<AttachmentDownloadResult> _saveDownload({
+    required Future<BackendFileDownload> Function() request,
+  }) async {
     final BackendFileDownload download;
     try {
-      download = await request(activityId);
+      download = await request();
     } on BackendTransportException catch (failure) {
       return AttachmentDownloadFailed(_mapFailure(failure));
     } on Object {
@@ -81,6 +144,10 @@ final class AttachmentDownloadService {
         AttachmentDownloadFailureReason.storageFailed,
       );
     }
+  }
+
+  static bool _validIds(Iterable<int> ids) {
+    return ids.every((id) => id > 0 && id <= 2147483647);
   }
 
   static AttachmentDownloadFailureReason _mapFailure(

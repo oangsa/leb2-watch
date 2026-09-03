@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' show SemanticsAction, Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
+import 'package:leb2_watch/src/core/network/backend_api_client.dart';
+import 'package:leb2_watch/src/core/network/domain/learning_material_models.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/application/attachment_download_service.dart';
+import 'package:leb2_watch/src/features/assignments/attachments/domain/attachment_download.dart';
+import 'package:leb2_watch/src/features/courses/application/course_materials_service.dart';
 import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
 import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/courses/presentation/course_preferences_page.dart';
@@ -47,6 +53,121 @@ void main() {
     expect(mute.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     expect(background.label, contains('Background monitoring'));
     expect(background.flagsCollection.isToggled, Tristate.isTrue);
+  });
+
+  testWidgets('shows course files and saves a selected download', (
+    tester,
+  ) async {
+    final service = _FakeCoursePreferencesService();
+    final materialsService = _FakeCourseMaterialsService(
+      CourseMaterialsCatalog(
+        semesterId: 101,
+        classId: 3001,
+        userId: 2001,
+        materials: [
+          const LearningMaterial(
+            id: 5001,
+            classId: 3001,
+            title: 'Reading',
+            description: '<p>Read this.</p>',
+            fileCount: 2,
+            fileMaterials: [
+              LearningMaterialFile(
+                id: 6001,
+                displayName: 'reading.pdf',
+                fileSize: '585 KB',
+                fileType: 'application/pdf',
+              ),
+              LearningMaterialFile(
+                id: 6002,
+                displayName: 'notes.txt',
+                fileSize: '2 KB',
+                fileType: 'text/plain',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    final learningClient = _FakeLearningClient();
+    final sink = _RecordingSink();
+    final downloadService = AttachmentDownloadService(
+      () => throw UnimplementedError(),
+      sink,
+      learningActivityClient: () => learningClient,
+    );
+    addTearDown(service.close);
+
+    await _pumpPage(
+      tester,
+      service,
+      size: const Size(800, 1400),
+      materialsService: materialsService,
+      downloadService: downloadService,
+    );
+    service.emit(_catalog());
+    await tester.pump();
+    await tester.pump();
+
+    expect(materialsService.keys, [
+      const CourseKey(semesterId: 101, courseId: 3001),
+    ]);
+    expect(find.text('Course files'), findsOneWidget);
+    expect(find.text('Reading'), findsOneWidget);
+    expect(find.text('reading.pdf'), findsOneWidget);
+    expect(
+      find.byKey(const Key('download-learning-material-all-5001')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const Key('download-learning-material-5001-6001')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(learningClient.attachmentCalls.single, (
+      semesterId: 101,
+      classId: 3001,
+      materialId: 5001,
+      attachmentId: 6001,
+      userId: 2001,
+    ));
+    expect(find.text('Saved reading.pdf'), findsOneWidget);
+    expect(sink.fileNames, ['reading.pdf']);
+  });
+
+  testWidgets('keeps course-file errors compact and retryable', (tester) async {
+    final service = _FakeCoursePreferencesService();
+    final materialsService = _FakeCourseMaterialsService(null)
+      ..failure = StateError('private backend details');
+    addTearDown(service.close);
+
+    await _pumpPage(
+      tester,
+      service,
+      size: const Size(800, 1400),
+      materialsService: materialsService,
+    );
+    service.emit(_catalog());
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Course files unavailable.'), findsOneWidget);
+    expect(find.textContaining('private backend details'), findsNothing);
+    expect(find.text('Retry'), findsOneWidget);
+
+    materialsService.failure = null;
+    materialsService.catalog = CourseMaterialsCatalog(
+      semesterId: 101,
+      classId: 3001,
+      userId: 2001,
+      materials: const [],
+    );
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('No files'), findsOneWidget);
+    expect(materialsService.keys, hasLength(2));
   });
 
   testWidgets(
@@ -453,6 +574,8 @@ Future<void> _pumpPage(
   WidgetTester tester,
   _FakeCoursePreferencesService service, {
   VoidCallback? onChooseSemester,
+  CourseMaterialsService? materialsService,
+  AttachmentDownloadService? downloadService,
   Size size = const Size(800, 900),
   double textScale = 1,
   Brightness brightness = Brightness.light,
@@ -479,6 +602,8 @@ Future<void> _pumpPage(
         child: CoursePreferencesPage(
           service: service,
           onChooseSemester: onChooseSemester ?? () {},
+          materialsService: materialsService,
+          downloadService: downloadService,
         ),
       ),
     ),
@@ -574,5 +699,107 @@ final class _FakeCoursePreferencesService implements CoursePreferencesService {
       return Future.value(muteResults.removeAt(0));
     }
     return nextMuteResult;
+  }
+}
+
+final class _FakeCourseMaterialsService implements CourseMaterialsService {
+  _FakeCourseMaterialsService(this.catalog);
+
+  CourseMaterialsCatalog? catalog;
+  Object? failure;
+  final List<CourseKey> keys = [];
+
+  @override
+  Future<CourseMaterialsCatalog> read(CourseKey key) async {
+    keys.add(key);
+    final pending = failure;
+    if (pending != null) {
+      throw pending;
+    }
+    final value = catalog;
+    if (value == null) {
+      throw StateError('missing test catalog');
+    }
+    return value;
+  }
+}
+
+final class _FakeLearningClient implements BackendLearningActivityClient {
+  final attachmentCalls =
+      <
+        ({
+          int semesterId,
+          int classId,
+          int materialId,
+          int attachmentId,
+          int userId,
+        })
+      >[];
+  final archiveCalls =
+      <({int semesterId, int classId, int materialId, int userId})>[];
+
+  @override
+  Future<List<LearningMaterial>> getLearningMaterials({
+    required int semesterId,
+    required int classId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async => const [];
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachment({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int attachmentId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    attachmentCalls.add((
+      semesterId: semesterId,
+      classId: classId,
+      materialId: materialId,
+      attachmentId: attachmentId,
+      userId: userId,
+    ));
+    return BackendFileDownload(
+      bytes: Uint8List.fromList(const [1, 2, 3]),
+      fileName: 'reading.pdf',
+      contentType: 'application/pdf',
+    );
+  }
+
+  @override
+  Future<BackendFileDownload> downloadLearningMaterialAttachmentArchive({
+    required int semesterId,
+    required int classId,
+    required int materialId,
+    required int userId,
+    BackendRequestCancellation? cancellation,
+  }) async {
+    archiveCalls.add((
+      semesterId: semesterId,
+      classId: classId,
+      materialId: materialId,
+      userId: userId,
+    ));
+    return BackendFileDownload(
+      bytes: Uint8List.fromList(const [4, 5]),
+      fileName: 'material-5001.zip',
+      contentType: 'application/zip',
+    );
+  }
+}
+
+final class _RecordingSink implements AttachmentFileSink {
+  final List<String> fileNames = [];
+
+  @override
+  Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+  }) async {
+    fileNames.add(fileName);
+    return '/saved/$fileName';
   }
 }
