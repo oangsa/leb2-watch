@@ -9,6 +9,8 @@ import '../../../../platform/background/background_reliability_grant.dart';
 import '../../../authentication/application/logout_service.dart';
 import '../../../background_sync/domain/background_scheduler.dart';
 import '../../../background_sync/domain/desktop_autostart_service.dart';
+import '../../../courses/application/course_preferences_service.dart';
+import '../../../courses/data/course_preferences_store.dart';
 import '../../../notifications/application/deadline_reminder_preferences_service.dart';
 import '../../../notifications/domain/deadline_reminder_preferences.dart';
 import '../../../notifications/domain/local_notification_models.dart';
@@ -24,6 +26,8 @@ const _settingsMaxWidth = 920.0;
 
 enum _SettingControl {
   backgroundMonitoring,
+  courseNotifications,
+  courseBackgroundMonitoring,
   preciseFetch,
   newAssignments,
   deadlineReminders,
@@ -43,6 +47,8 @@ class NotificationSettingsPage extends StatefulWidget {
     required this.logoutService,
     required this.onLogoutCompleted,
     required this.onOpenPrivacy,
+    required this.onOpenDiagnostics,
+    this.coursePreferencesService,
     super.key,
   });
 
@@ -53,6 +59,8 @@ class NotificationSettingsPage extends StatefulWidget {
   final LogoutService logoutService;
   final VoidCallback onLogoutCompleted;
   final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenDiagnostics;
+  final CoursePreferencesService? coursePreferencesService;
 
   @override
   State<NotificationSettingsPage> createState() =>
@@ -61,7 +69,9 @@ class NotificationSettingsPage extends StatefulWidget {
 
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   StreamSubscription<NotificationSettingsSnapshot>? _subscription;
+  StreamSubscription<CourseGlobalPreference>? _courseSubscription;
   NotificationSettingsSnapshot? _snapshot;
+  CourseGlobalPreference? _coursePreference;
   final Map<_SettingControl, bool> _pendingSettings = {};
   final Set<_SettingControl> _pendingActions = {};
   BackgroundFetchCadence? _pendingCadence;
@@ -72,11 +82,13 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   bool _loading = true;
   bool _streamFailed = false;
   int _subscriptionGeneration = 0;
+  int _courseSubscriptionGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _subscribe();
+    _subscribeCoursePreference();
     unawaited(_refreshPermissionStatus());
     unawaited(_refreshExactAlarmPermissionStatus());
     unawaited(_refreshBackgroundGrant());
@@ -88,13 +100,49 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     if (!identical(oldWidget.service, widget.service)) {
       _subscribe();
     }
+    if (!identical(
+      oldWidget.coursePreferencesService,
+      widget.coursePreferencesService,
+    )) {
+      _subscribeCoursePreference();
+    }
   }
 
   @override
   void dispose() {
     _subscriptionGeneration += 1;
+    _courseSubscriptionGeneration += 1;
     unawaited(_subscription?.cancel());
+    unawaited(_courseSubscription?.cancel());
     super.dispose();
+  }
+
+  void _subscribeCoursePreference() {
+    final generation = ++_courseSubscriptionGeneration;
+    unawaited(_courseSubscription?.cancel());
+    _courseSubscription = null;
+    final service = widget.coursePreferencesService;
+    if (service == null) {
+      setState(() => _coursePreference = null);
+      return;
+    }
+    _courseSubscription = service.watchGlobalPreference().listen(
+      (preference) {
+        if (!mounted || generation != _courseSubscriptionGeneration) {
+          return;
+        }
+        _pendingSettings.removeWhere(
+          (control, expected) =>
+              _matchesCoursePreference(preference, control, expected),
+        );
+        setState(() => _coursePreference = preference);
+      },
+      onError: (Object _, StackTrace _) {
+        if (mounted && generation == _courseSubscriptionGeneration) {
+          setState(() => _coursePreference = null);
+        }
+      },
+    );
   }
 
   void _subscribe() {
@@ -141,6 +189,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return switch (control) {
       _SettingControl.backgroundMonitoring =>
         snapshot.backgroundMonitoring.enabled == expected,
+      _SettingControl.courseNotifications => false,
+      _SettingControl.courseBackgroundMonitoring => false,
       _SettingControl.preciseFetch =>
         snapshot.backgroundMonitoring.preciseFetchEnabled == expected,
       _SettingControl.newAssignments =>
@@ -161,6 +211,20 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         snapshot.desktopAutostart.enabled == expected,
       _SettingControl.permission => false,
       _SettingControl.exactAlarmPermission => false,
+    };
+  }
+
+  bool _matchesCoursePreference(
+    CourseGlobalPreference preference,
+    _SettingControl control,
+    bool expected,
+  ) {
+    return switch (control) {
+      _SettingControl.courseNotifications =>
+        preference.notificationsMuted == expected,
+      _SettingControl.courseBackgroundMonitoring =>
+        preference.backgroundMonitoringEnabled == expected,
+      _ => false,
     };
   }
 
@@ -194,6 +258,19 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     });
   }
 
+  void _finishSuccessfulCourseSetting(_SettingControl control, String message) {
+    final expected = _pendingSettings[control];
+    final preference = _coursePreference;
+    setState(() {
+      if (preference != null &&
+          expected != null &&
+          _matchesCoursePreference(preference, control, expected)) {
+        _pendingSettings.remove(control);
+      }
+      _feedback = _SettingsFeedback(message, isError: false);
+    });
+  }
+
   Future<void> _setBackgroundMonitoring(bool enabled) async {
     const control = _SettingControl.backgroundMonitoring;
     _beginSetting(control, enabled);
@@ -210,6 +287,59 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               : 'Saved.',
         );
       case BackgroundMonitoringUpdateFailure():
+        _finishFailedSetting(
+          control,
+          'Not saved. Previous setting still in use.',
+        );
+    }
+  }
+
+  Future<void> _setCourseNotificationsMuted(bool muted) async {
+    const control = _SettingControl.courseNotifications;
+    final service = widget.coursePreferencesService;
+    if (service == null) {
+      return;
+    }
+    _beginSetting(control, muted);
+    final result = await service.setGlobalNotificationsMuted(muted: muted);
+    if (!mounted) {
+      return;
+    }
+    switch (result) {
+      case CoursePreferenceUpdateSuccess():
+        _finishSuccessfulCourseSetting(
+          control,
+          muted ? 'Course notifications muted.' : 'Course notifications on.',
+        );
+      case CoursePreferenceUpdateStale() || CoursePreferenceUpdateFailure():
+        _finishFailedSetting(
+          control,
+          'Not saved. Previous setting still in use.',
+        );
+    }
+  }
+
+  Future<void> _setCourseBackgroundMonitoringStopped(bool stopped) async {
+    const control = _SettingControl.courseBackgroundMonitoring;
+    final service = widget.coursePreferencesService;
+    if (service == null) {
+      return;
+    }
+    final enabled = !stopped;
+    _beginSetting(control, enabled);
+    final result = await service.setGlobalBackgroundMonitoringEnabled(
+      enabled: enabled,
+    );
+    if (!mounted) {
+      return;
+    }
+    switch (result) {
+      case CoursePreferenceUpdateSuccess():
+        _finishSuccessfulCourseSetting(
+          control,
+          stopped ? 'Course checks stopped.' : 'Course checks on.',
+        );
+      case CoursePreferenceUpdateStale() || CoursePreferenceUpdateFailure():
         _finishFailedSetting(
           control,
           'Not saved. Previous setting still in use.',
@@ -501,22 +631,21 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
     if (snapshot.platform == NotificationSettingsPlatform.android &&
         cadence == BackgroundFetchCadence.tenMinutes) {
-      return 'Android allows 15 minutes at least. Hourly overnight.';
+      return 'Android minimum 15 min · hourly overnight';
     }
-    return 'Between 06:00 and 19:00. Hourly overnight.';
+    return '06:00–19:00 · hourly overnight';
   }
 
   String _preciseFetchMessage(NotificationSettingsSnapshot snapshot) {
     if (!snapshot.backgroundMonitoring.enabled) {
-      return 'Turn on background monitoring first.';
+      return 'Turn on monitoring first.';
     }
     final cadence =
         _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
     if (!supportsPreciseFetch(cadence)) {
-      return 'Choose 15 min or longer to use this.';
+      return 'Use 15 min or longer.';
     }
-    return 'Checks every ${_cadenceLabel(cadence)} instead of when Android '
-        'decides. Uses more battery. Off overnight.';
+    return 'Every ${_cadenceLabel(cadence)} · more battery · off overnight';
   }
 
   bool _exactAlarmPermissionSectionVisible(
@@ -532,7 +661,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return switch (status) {
       ExactAlarmPermissionStatus.allowed => 'Precise reminders allowed.',
       ExactAlarmPermissionStatus.blocked =>
-        'Not allowed. Android may deliver reminders late.',
+        'Not allowed · reminders may arrive late.',
       ExactAlarmPermissionStatus.notRequired => 'Not needed here.',
       ExactAlarmPermissionStatus.unavailable =>
         'Precise reminders are unavailable on this device.',
@@ -567,6 +696,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         ? AppSpacing.md
         : AppSpacing.lg;
     final offsetsEmpty = snapshot.deadlineReminders.offsets.isEmpty;
+    final coursePreference =
+        _coursePreference ?? const CourseGlobalPreference();
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -673,16 +804,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ListTile(
                       key: const Key('background-reliability-tile'),
                       title: const Text('Allow background checks'),
-                      subtitle: const Text(
-                        'The system is currently pausing them.',
-                      ),
+                      subtitle: const Text('System is pausing checks.'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _requestBackgroundGrant,
                     ),
                   SwitchListTile.adaptive(
                     key: const Key('new-assignment-notifications-switch'),
                     title: const Text('New assignments'),
-                    subtitle: const Text('Notify when work appears.'),
+                    subtitle: const Text('Notify when new work appears.'),
                     value: snapshot.newAssignmentNotifications.enabled,
                     onChanged:
                         _pendingSettings.containsKey(
@@ -693,6 +822,46 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   ),
                 ],
               ),
+              if (widget.coursePreferencesService != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _SettingsSection(
+                  title: 'Courses',
+                  children: [
+                    SwitchListTile.adaptive(
+                      key: const Key('course-global-mute-switch'),
+                      title: const Text('Mute course notifications'),
+                      subtitle: Text(
+                        coursePreference.notificationsMuted
+                            ? 'No alerts for any course.'
+                            : 'Alerts for all courses.',
+                      ),
+                      value: coursePreference.notificationsMuted,
+                      onChanged:
+                          _pendingSettings.containsKey(
+                            _SettingControl.courseNotifications,
+                          )
+                          ? null
+                          : _setCourseNotificationsMuted,
+                    ),
+                    SwitchListTile.adaptive(
+                      key: const Key('course-global-stop-switch'),
+                      title: const Text('Stop course background checks'),
+                      subtitle: Text(
+                        coursePreference.backgroundMonitoringEnabled
+                            ? 'Checks course updates automatically.'
+                            : 'Automatic course checks are off.',
+                      ),
+                      value: !coursePreference.backgroundMonitoringEnabled,
+                      onChanged:
+                          _pendingSettings.containsKey(
+                            _SettingControl.courseBackgroundMonitoring,
+                          )
+                          ? null
+                          : _setCourseBackgroundMonitoringStopped,
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Deadline reminders',
@@ -701,7 +870,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     key: const Key('deadline-reminders-switch'),
                     title: const Text('Deadline reminders'),
                     subtitle: Text(
-                      offsetsEmpty ? 'No times selected.' : 'Times below.',
+                      offsetsEmpty ? 'Choose a time.' : 'Times below.',
                     ),
                     value: snapshot.deadlineReminders.enabled,
                     onChanged:
@@ -789,8 +958,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                               ),
                       ),
                       subtitle: const Text(
-                        'Allow alarms and reminders for timing closer to the '
-                        'selected deadline offset.',
+                        'Closer timing for selected offsets.',
                       ),
                     ),
                     Padding(
@@ -826,7 +994,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       subtitle: Text(
                         snapshot.desktopAutostart.support ==
                                 DesktopAutostartSupport.available
-                            ? 'Open LEB2 Watch when you sign in.'
+                            ? 'Open at sign-in.'
                             : 'Unavailable on this device.',
                       ),
                       value: snapshot.desktopAutostart.enabled,
@@ -844,13 +1012,20 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               ],
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
-                title: 'Privacy',
+                title: 'Help',
                 children: [
                   ListTile(
                     key: const Key('open-privacy'),
                     title: const Text('Privacy and local data'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenPrivacy,
+                  ),
+                  ListTile(
+                    key: const Key('open-diagnostics'),
+                    leading: const Icon(Icons.monitor_heart_outlined),
+                    title: const Text('Synchronization diagnostics'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: widget.onOpenDiagnostics,
                   ),
                 ],
               ),
@@ -867,7 +1042,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Local data',
-                description: 'Nothing is deleted from LEB2 itself.',
+                description: 'Only data saved on this device.',
                 danger: true,
                 children: [
                   LocalDataDeletionPanel(
@@ -888,13 +1063,13 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     BackgroundScheduleStatus status,
   ) {
     if (!desiredEnabled) {
-      return 'Off.';
+      return 'Off';
     }
     return switch (status) {
-      BackgroundScheduleUnsupported() => 'Unsupported on this platform.',
-      BackgroundScheduleInactive() => 'On, but no check is registered.',
-      BackgroundScheduleActive() => 'Checks about every 15 minutes.',
-      BackgroundScheduleUnavailable() => 'On. Schedule status unknown.',
+      BackgroundScheduleUnsupported() => 'Unavailable here',
+      BackgroundScheduleInactive() => 'On · no check registered',
+      BackgroundScheduleActive() => 'On · about every 15 min',
+      BackgroundScheduleUnavailable() => 'On · schedule unknown',
     };
   }
 }
@@ -960,11 +1135,6 @@ class _SettingsHeader extends StatelessWidget {
             header: true,
             child: Text('Settings', style: theme.textTheme.headlineMedium),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Saved on this device. Timing is best effort.',
-            style: theme.textTheme.bodyLarge,
-          ),
         ],
       ),
     );
@@ -987,60 +1157,62 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: AppElevation.flat,
-      color: danger
-          ? Color.alphaBlend(
-              theme.colorScheme.error.withValues(alpha: 0.08),
-              theme.colorScheme.surfaceContainerLow,
-            )
-          : theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: danger
-              ? theme.colorScheme.error
-              : theme.colorScheme.outlineVariant,
-          width: danger ? AppBorders.hairline * 2 : AppBorders.hairline,
-        ),
-        borderRadius: BorderRadius.circular(AppRadii.panel),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: danger ? theme.colorScheme.onErrorContainer : null,
-                  ),
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: danger ? theme.colorScheme.onErrorContainer : null,
                 ),
               ),
             ),
-            if (description case final description?) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+          ),
+          if (description case final description?) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ],
-            if (children.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xs),
-              ...children,
-            ],
+            ),
           ],
-        ),
+          if (children.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            ...children,
+          ],
+        ],
       ),
+    );
+
+    if (!danger) {
+      return content;
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: AppElevation.flat,
+      color: Color.alphaBlend(
+        theme.colorScheme.error.withValues(alpha: 0.08),
+        theme.colorScheme.surfaceContainerLow,
+      ),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: theme.colorScheme.error,
+          width: AppBorders.hairline * 2,
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+      ),
+      child: content,
     );
   }
 }

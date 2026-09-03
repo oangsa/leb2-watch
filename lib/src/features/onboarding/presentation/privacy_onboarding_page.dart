@@ -296,7 +296,12 @@ class _StepContent extends StatelessWidget {
             style: textTheme.headlineLarge,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
+        for (final (index, paragraph) in step.paragraphs.indexed) ...[
+          Text(paragraph, style: textTheme.bodyLarge),
+          if (index != step.paragraphs.length - 1)
+            const SizedBox(height: AppSpacing.sm),
+        ],
       ],
     );
   }
@@ -352,28 +357,64 @@ class _Actions extends StatelessWidget {
 }
 
 class _OnboardingStep {
-  const _OnboardingStep({required this.title, required this.icon});
+  const _OnboardingStep({
+    required this.title,
+    required this.icon,
+    required this.paragraphs,
+  });
 
   final String title;
   final IconData icon;
+  final List<String> paragraphs;
 }
 
 const _steps = <_OnboardingStep>[
   _OnboardingStep(
     title: 'Your assignments, in one place',
     icon: Icons.assignment_outlined,
+    paragraphs: [
+      'LEB2 Watch keeps a local view of your courses, assignments, deadlines, '
+          'and submission status.',
+      'It is independent and is not affiliated with or endorsed by KMUTT or '
+          'LEB2.',
+    ],
   ),
-  _OnboardingStep(title: 'Stored on this device', icon: Icons.shield_outlined),
+  _OnboardingStep(
+    title: 'Stored on this device',
+    icon: Icons.shield_outlined,
+    paragraphs: [
+      'Assignments, settings, and notification state live in a local '
+          'database.',
+      'Your session cookie stays in OS secure storage. Username and password '
+          'are saved only when you choose to stay signed in.',
+    ],
+  ),
   _OnboardingStep(
     title: 'What the backend receives',
     icon: Icons.sync_alt_outlined,
+    paragraphs: [
+      'Checks send your session cookie and LEB2 user ID. Username and password '
+          'are sent only when signing in.',
+      'The backend stores neither. It keeps short-lived request fingerprints '
+          'and cached results in memory.',
+    ],
   ),
   _OnboardingStep(
     title: 'Notifications are optional',
     icon: Icons.notifications_none_outlined,
+    paragraphs: [
+      'Alerts and reminders are created on this device.',
+      'You can keep notifications off and still read saved data or refresh by '
+          'hand.',
+    ],
   ),
   _OnboardingStep(
     title: 'Background checks are best effort',
     icon: Icons.schedule_outlined,
+    paragraphs: [
+      'Android battery controls and iOS scheduling can delay checks. Desktop '
+          'checks pause when the app is not running.',
+      'Exact timing is never guaranteed. Opening the app always refreshes.',
+    ],
   ),
 ];

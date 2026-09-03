@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-04
+
+### Added
+
+- Browse and download course materials from the Courses tab.
+- Course files are cached for every course and refreshed on the assignment check cadence.
+
+### Changed
+
+- Assignment cards show deadline progress for unsubmitted work and submission timing for submitted work; assignment details hide redundant metadata.
+- Downloaded Android files open automatically when a compatible viewer is installed.
+- The Courses tab uses the same card header as Assignments, with settings behind a gear button.
+- Course-wide notification and background controls now live in Settings; course settings cover only the selected course.
+- Updated the app icon with a smaller, slightly right-shifted teal mark on a transparent background.
+- Production builds use the `LEB2 Watch` app name.
+
+### Fixed
+
+- Downloaded files now appear in Android's public Downloads/LEB2 folder.
+- Downloads now retain a usable file extension and MIME type when the server sends a generic filename.
+- Course material downloads retain the published file name when the API returns a generic attachment name.
+- Assignment deadline feedback now hides irrelevant countdowns and distinguishes upcoming and overdue unsubmitted work.
+
+## [0.10.1] - 2026-09-03
+
+### Changed
+
+- Refreshed the app layout with shorter labels, clearer assignment hierarchy,
+  and lighter settings screens.
+- Primary navigation now keeps Assignments, Courses, and Settings visible;
+  synchronization diagnostics moved into Settings.
+- Onboarding now explains each privacy disclosure, and compact navigation
+  labels remain visible with larger text.
+- Branded app icons, dark-aware launch surfaces, clearer state copy, and
+  accessible destructive and download feedback.
+
 ## [0.10.0] - 2026-09-03
 
 ### Added
@@ -110,7 +146,9 @@ detects newly published work, and raises local notifications, against a
 self-hosted [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API)
 instance. Linux, Windows, and Android artifacts.
 
-[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/oangsa/leb2-watch/compare/v0.10.1...v0.12.0
+[0.10.1]: https://github.com/oangsa/leb2-watch/compare/v0.10.0...v0.10.1
 [0.9.0]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/oangsa/leb2-watch/compare/v0.7.0...v0.8.0

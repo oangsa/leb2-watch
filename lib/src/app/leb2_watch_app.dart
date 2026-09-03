@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/config/app_configuration.dart';
@@ -16,6 +17,7 @@ import '../platform/desktop/runtime/desktop_runtime_host.dart';
 import 'app_dependencies.dart';
 import 'design_system/app_theme.dart';
 import 'routing/app_flow.dart';
+import 'routing/app_route.dart';
 import 'routing/app_router.dart';
 
 class Leb2WatchApp extends ConsumerStatefulWidget {
@@ -30,6 +32,7 @@ class Leb2WatchApp extends ConsumerStatefulWidget {
 class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
     with WidgetsBindingObserver {
   late final GoRouter _router;
+  static const _platformNavigationChannel = MethodChannel('app_navigation');
   late final NotificationNavigationCoordinator _notificationNavigation;
   AppLifecycleState? _lastLifecycleState;
   SessionLifecycleSnapshot? _pendingSession;
@@ -59,6 +62,13 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
       compatibilityController: compatibility,
       compatibilityCoordinator: compatibilityCoordinator,
     );
+    _platformNavigationChannel.setMethodCallHandler((call) async {
+      if (call.method == 'openSettings') {
+        _router.go(AppRoute.settings.path);
+        return;
+      }
+      throw MissingPluginException('Unsupported app navigation method.');
+    });
     _notificationNavigation = NotificationNavigationCoordinator(
       notifications,
       flowController,
@@ -255,6 +265,7 @@ class _Leb2WatchAppState extends ConsumerState<Leb2WatchApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _platformNavigationChannel.setMethodCallHandler(null);
     _notificationNavigation.dispose();
     _router.dispose();
     super.dispose();

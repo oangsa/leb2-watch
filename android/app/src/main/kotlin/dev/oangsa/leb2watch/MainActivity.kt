@@ -8,5 +8,6 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         configureDebugWorkmanagerRuntimeInspector(flutterEngine, applicationContext)
         configureBatteryOptimizationExemption(flutterEngine, this)
+        configureAttachmentFileSink(flutterEngine, applicationContext)
     }
 }

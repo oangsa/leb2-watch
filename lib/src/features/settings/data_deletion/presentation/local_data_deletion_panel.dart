@@ -40,6 +40,10 @@ class _LocalDataDeletionPanelState extends State<LocalDataDeletionPanel> {
           ),
           FilledButton(
             key: const Key('confirm-local-data-deletion'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(_confirmationAction(operation)),
           ),

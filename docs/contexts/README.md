@@ -13,6 +13,9 @@ Assignment lifecycle: sync from backend, local diffing and baseline tracking, de
 ### [Backend API](backend/COMPACT.md)
 Authenticated API client, the backend API contract, and transport-level error mapping.
 
+### [Courses](courses/COMPACT.md)
+Course settings, learning materials, and semester-wide background file caching.
+
 ### [Database](database/COMPACT.md)
 Local-first Drift-based relational database with schema migrations, startup diagnostics, and test reliability.
 
@@ -50,6 +53,7 @@ Sync retry and backoff policy, plus diagnostics covering sync, session, cache, a
 | [app-update](app-update/COMPACT.md) | Merged context |
 | [assignments](assignments/COMPACT.md) | Merged context |
 | [backend](backend/COMPACT.md) | Merged context |
+| [courses](courses/COMPACT.md) | Merged context |
 | [database](database/COMPACT.md) | Merged context |
 | [deletion](deletion/COMPACT.md) | Merged context |
 | [infrastructure](infrastructure/COMPACT.md) | Merged context |
@@ -60,7 +64,7 @@ Sync retry and backoff policy, plus diagnostics covering sync, session, cache, a
 | [repository](repository/COMPACT.md) | Merged context |
 | [session](session/COMPACT.md) | Merged context |
 | [synchronization](synchronization/COMPACT.md) | Merged context |
-| **Total** | **13 area contexts** |
+| **Total** | **14 area contexts** |
 
 ## Usage
 

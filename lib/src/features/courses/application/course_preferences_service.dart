@@ -4,6 +4,8 @@ import '../../notifications/application/deadline_reminder_reconciler.dart';
 abstract interface class CoursePreferencesService {
   Stream<ActiveCourseCatalog> watchCatalog();
 
+  Stream<CourseGlobalPreference> watchGlobalPreference();
+
   Future<CoursePreferenceUpdateResult> setNotificationsMuted(
     CourseKey key, {
     required bool muted,
@@ -11,6 +13,14 @@ abstract interface class CoursePreferencesService {
 
   Future<CoursePreferenceUpdateResult> setBackgroundMonitoringEnabled(
     CourseKey key, {
+    required bool enabled,
+  });
+
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  });
+
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
     required bool enabled,
   });
 }
@@ -97,6 +107,10 @@ final class LocalCoursePreferencesService
   Stream<ActiveCourseCatalog> watchCatalog() => _store.watchActiveCatalog();
 
   @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      _store.watchGlobalPreference();
+
+  @override
   Future<CoursePreferenceUpdateResult> setNotificationsMuted(
     CourseKey key, {
     required bool muted,
@@ -104,19 +118,18 @@ final class LocalCoursePreferencesService
     final result = await _update(
       () => _store.setNotificationsMuted(key, muted: muted),
     );
-    final requester = _deadlineReminderReconciliationRequester;
-    if (result is CoursePreferenceUpdateSuccess && requester != null) {
-      try {
-        await requester.reconcileAfterPreferenceChange();
-      } on Object {
-        // The committed course preference remains the authoritative result.
-      }
-      try {
-        await _processDeliveryRefresh?.call();
-      } on Object {
-        // Durable process work is also recovered by its safety checkpoint.
-      }
-    }
+    await _refreshNotificationEffects(result);
+    return result;
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async {
+    final result = await _update(
+      () => _store.setGlobalNotificationsMuted(muted: muted),
+    );
+    await _refreshNotificationEffects(result);
     return result;
   }
 
@@ -134,12 +147,16 @@ final class LocalCoursePreferencesService
   Future<CourseEffectPolicy> readPolicy(CourseKey key) async {
     try {
       final preference = await _store.readCurrentCoursePreference(key);
+      final global = await _store.readGlobalPreference();
       if (preference == null) {
         return const CourseEffectPolicy.suppressed(storageAvailable: true);
       }
       return CourseEffectPolicy(
-        notificationsMuted: preference.notificationsMuted,
-        backgroundMonitoringEnabled: preference.backgroundMonitoringEnabled,
+        notificationsMuted:
+            global.notificationsMuted || preference.notificationsMuted,
+        backgroundMonitoringEnabled:
+            global.backgroundMonitoringEnabled &&
+            preference.backgroundMonitoringEnabled,
         isKnownCurrentCourse: true,
         storageAvailable: true,
       );
@@ -154,6 +171,34 @@ final class LocalCoursePreferencesService
       return await _store.readBackgroundMonitoredCourses(semesterId);
     } on Object {
       return const <CourseKey>{};
+    }
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) {
+    return _update(
+      () => _store.setGlobalBackgroundMonitoringEnabled(enabled: enabled),
+    );
+  }
+
+  Future<void> _refreshNotificationEffects(
+    CoursePreferenceUpdateResult result,
+  ) async {
+    final requester = _deadlineReminderReconciliationRequester;
+    if (result is! CoursePreferenceUpdateSuccess || requester == null) {
+      return;
+    }
+    try {
+      await requester.reconcileAfterPreferenceChange();
+    } on Object {
+      // The committed preference remains the authoritative result.
+    }
+    try {
+      await _processDeliveryRefresh?.call();
+    } on Object {
+      // Durable process work is also recovered by its safety checkpoint.
     }
   }
 

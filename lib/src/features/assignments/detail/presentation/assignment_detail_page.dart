@@ -12,6 +12,7 @@ import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/time/app_time_zone.dart';
 import '../../attachments/application/attachment_download_service.dart';
 import '../../attachments/domain/attachment_download.dart';
+import '../../presentation/assignment_status.dart';
 import '../application/assignment_detail_service.dart';
 import '../domain/assignment_detail_key.dart';
 
@@ -24,6 +25,7 @@ class AssignmentDetailPage extends StatefulWidget {
     required this.canPop,
     required this.onBack,
     this.downloadService,
+    this.nowUtc,
     super.key,
   });
 
@@ -36,6 +38,7 @@ class AssignmentDetailPage extends StatefulWidget {
 
   final bool canPop;
   final VoidCallback onBack;
+  final DateTime Function()? nowUtc;
 
   @override
   State<AssignmentDetailPage> createState() => _AssignmentDetailPageState();
@@ -162,6 +165,7 @@ class _AssignmentDetailPageState extends State<AssignmentDetailPage> {
                   _DetailRecord(
                     detail: detail,
                     downloadService: widget.downloadService,
+                    nowUtc: (widget.nowUtc?.call() ?? DateTime.now()).toUtc(),
                   ),
                 ],
               ),
@@ -195,10 +199,15 @@ class _DetailNavigation extends StatelessWidget {
 }
 
 class _DetailRecord extends StatelessWidget {
-  const _DetailRecord({required this.detail, this.downloadService});
+  const _DetailRecord({
+    required this.detail,
+    required this.nowUtc,
+    this.downloadService,
+  });
 
   final AssignmentDetailState detail;
   final AttachmentDownloadService? downloadService;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +215,7 @@ class _DetailRecord extends StatelessWidget {
       final CurrentAssignmentDetail current => _CurrentRecord(
         detail: current,
         downloadService: downloadService,
+        nowUtc: nowUtc,
       ),
       final SeenOnlyAssignmentDetail seenOnly => _SeenOnlyRecord(
         detail: seenOnly,
@@ -216,91 +226,105 @@ class _DetailRecord extends StatelessWidget {
 }
 
 class _CurrentRecord extends StatelessWidget {
-  const _CurrentRecord({required this.detail, this.downloadService});
+  const _CurrentRecord({
+    required this.detail,
+    required this.nowUtc,
+    this.downloadService,
+  });
 
   final CurrentAssignmentDetail detail;
   final AttachmentDownloadService? downloadService;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (detail.courseName case final course?)
-          Text(
-            course,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: AppTypography.labelWeight,
-            ),
-          ),
-        const SizedBox(height: AppSpacing.xs),
-        Semantics(
-          header: true,
-          child: Text(detail.title, style: theme.textTheme.headlineLarge),
-        ),
-        const SizedBox(height: AppSpacing.lg),
+        _DetailHero(detail: detail),
+        const SizedBox(height: AppSpacing.xl),
         _Section(
           title: 'Description',
           children: [
             SelectableText(
               detail.description ?? 'No description provided.',
-              style: theme.textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         _Section(
           title: 'Assignment record',
           children: [
-            _Fact(label: 'Activity type', value: detail.activityType),
-            _TimestampFact(label: 'Deadline', timestamp: detail.deadline),
-            _Fact(
-              label: 'Deadline status',
-              value: detail.backendReportedDeadlineExceeded
-                  ? 'Reported overdue by the backend'
-                  : 'Not overdue',
-            ),
-            _TimestampFact(
-              label: 'Source-created time',
-              timestamp: detail.sourceCreatedAt,
-              note: 'Not the publication time.',
-            ),
-            _Fact(
-              label: 'Submission',
-              value: _submissionLabel(detail.submissionStatus),
-            ),
-            if (detail.submissionStatus == AssignmentSubmissionStatus.submitted)
-              _Fact(
-                label: 'Submission timing',
-                value: detail.backendReportedSubmissionLate
-                    ? 'Reported late by the backend'
-                    : 'Not reported late',
-              ),
-            _Fact(
-              label: 'Attached files',
-              value: switch (detail.attachmentCount) {
-                null => 'Count unavailable',
-                0 => 'None saved',
-                final count => '$count saved',
-              },
-              note: 'The backend names each file as it is downloaded.',
+            _FactGrid(
+              children: [
+                if (detail.submissionStatus ==
+                    AssignmentSubmissionStatus.submitted)
+                  _SubmissionFact(detail: detail),
+                if (detail.submissionStatus !=
+                    AssignmentSubmissionStatus.submitted)
+                  _DeadlineFact(detail: detail, nowUtc: nowUtc),
+                if (detail.groupName case final group?)
+                  _Fact(
+                    label: 'Group assignment',
+                    value: group,
+                    note: '${detail.groupMemberCount} members',
+                  ),
+              ],
             ),
             if (downloadService case final service?
                 when detail.canDownloadAttachments)
               _AttachmentDownloads(detail: detail, service: service),
-            _Fact(label: 'Group type', value: detail.groupType),
-            if (detail.groupName case final group?) ...[
-              _Fact(label: 'Group', value: group),
-              _Fact(
-                label: 'Group members',
-                value: '${detail.groupMemberCount}',
-              ),
-            ],
           ],
         ),
       ],
+    );
+  }
+}
+
+class _DetailHero extends StatelessWidget {
+  const _DetailHero({required this.detail});
+
+  final CurrentAssignmentDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (detail.courseName case final course?)
+              Text(
+                course,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            const SizedBox(height: AppSpacing.xs),
+            Semantics(
+              header: true,
+              child: Text(detail.title, style: theme.textTheme.headlineLarge),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AssignmentStatusChip(
+              type: submissionStatusChipType(detail.submissionStatus),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -368,13 +392,16 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
           ),
           if (_message case final message?) ...[
             const SizedBox(height: AppSpacing.sm),
-            Text(
-              message,
+            Semantics(
               key: const Key('attachment-download-status'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: _failed
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.onSurfaceVariant,
+              liveRegion: true,
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _failed
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -400,9 +427,9 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
     setState(() {
       _busy = false;
       switch (result) {
-        case AttachmentDownloadSaved(:final fileName, :final path):
+        case AttachmentDownloadSaved(:final path):
           _failed = false;
-          _message = 'Saved $fileName to $path';
+          _message = 'Saved to $path';
         case AttachmentDownloadFailed(:final message):
           _failed = true;
           _message = message;
@@ -477,6 +504,33 @@ class _MissingRecord extends StatelessWidget {
   }
 }
 
+class _FactGrid extends StatelessWidget {
+  const _FactGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns =
+            constraints.maxWidth >= 640 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.5;
+        final width = twoColumns
+            ? (constraints.maxWidth - AppSpacing.lg) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: AppSpacing.lg,
+          runSpacing: AppSpacing.md,
+          children: [
+            for (final child in children) SizedBox(width: width, child: child),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});
 
@@ -511,17 +565,28 @@ class _Section extends StatelessWidget {
 }
 
 class _Fact extends StatelessWidget {
-  const _Fact({required this.label, required this.value, this.note});
+  const _Fact({
+    required this.label,
+    required this.value,
+    this.note,
+    this.trailing,
+    this.trailingLabel,
+  });
 
   final String label;
   final String value;
   final String? note;
+  final Widget? trailing;
+  final String? trailingLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
-      label: '$label: $value${note == null ? '' : '. $note'}',
+      label:
+          '$label: $value'
+          '${trailingLabel == null ? '' : '. $trailingLabel'}'
+          '${note == null ? '' : '. $note'}',
       child: ExcludeSemantics(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -533,7 +598,15 @@ class _Fact extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),
-            Text(value, style: theme.textTheme.bodyLarge),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xxs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(value, style: theme.textTheme.bodyLarge),
+                if (trailing case final Widget trailingWidget) trailingWidget,
+              ],
+            ),
             if (note != null) ...[
               const SizedBox(height: AppSpacing.xxs),
               Text(
@@ -550,32 +623,59 @@ class _Fact extends StatelessWidget {
   }
 }
 
-class _TimestampFact extends StatelessWidget {
-  const _TimestampFact({
-    required this.label,
-    required this.timestamp,
-    this.note,
-  });
+class _DeadlineFact extends StatelessWidget {
+  const _DeadlineFact({required this.detail, required this.nowUtc});
 
-  final String label;
-  final AssignmentDetailTimestamp timestamp;
-  final String? note;
+  final CurrentAssignmentDetail detail;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
+    final deadlineUtc = switch (detail.deadline) {
+      ZonedAssignmentDetailTimestamp(:final instantUtc) => instantUtc,
+      MissingAssignmentDetailTimestamp() ||
+      InvalidAssignmentDetailTimestamp() => null,
+    };
+    final overdue =
+        deadlineUtc != null &&
+        (detail.backendReportedDeadlineExceeded ||
+            deadlineUtc.isBefore(nowUtc.toUtc()));
     return _Fact(
-      label: label,
-      value: formatAssignmentDetailTimestamp(context, timestamp),
-      note: note,
+      label: 'Deadline',
+      value: formatAssignmentDetailTimestamp(context, detail.deadline),
+      note: deadlineUtc == null || overdue
+          ? null
+          : formatAssignmentDeadlineDistance(deadlineUtc, nowUtc),
+      trailing: !overdue
+          ? null
+          : const AssignmentStatusChip(type: AssignmentStatusChipType.overdue),
+      trailingLabel: overdue ? 'Overdue' : null,
     );
   }
 }
 
-String _submissionLabel(AssignmentSubmissionStatus status) => switch (status) {
-  AssignmentSubmissionStatus.submitted => 'Submitted',
-  AssignmentSubmissionStatus.unsubmitted => 'Not submitted',
-  AssignmentSubmissionStatus.notApplicable => 'No submission required',
-};
+class _SubmissionFact extends StatelessWidget {
+  const _SubmissionFact({required this.detail});
+
+  final CurrentAssignmentDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final late = detail.backendReportedSubmissionLate;
+    return _Fact(
+      label: 'Submitted date',
+      value: detail.submittedAtUtc == null
+          ? 'Date unavailable'
+          : _formatUtcTimestamp(context, detail.submittedAtUtc!),
+      trailing: AssignmentStatusChip(
+        type: late
+            ? AssignmentStatusChipType.late
+            : AssignmentStatusChipType.onTime,
+      ),
+      trailingLabel: late ? 'Late' : 'On time',
+    );
+  }
+}
 
 String formatAssignmentDetailTimestamp(
   BuildContext context,

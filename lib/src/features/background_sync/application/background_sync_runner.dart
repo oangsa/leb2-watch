@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import '../../../core/network/backend_api_client.dart';
 import '../../../core/network/domain/sync_failure.dart';
 import '../../assignments/sync/assignment_sync_service.dart';
 import '../../assignments/sync/sync_backoff_store.dart';
+import '../../courses/application/course_materials_prefetch_service.dart';
 import '../data/background_sync_target_store.dart';
 import '../domain/background_scheduler.dart';
 
@@ -84,11 +86,16 @@ final class BackgroundSyncRunner {
   BackgroundSyncRunner(
     this._targetStore,
     this._syncService, {
+    CourseMaterialsPrefetcher? materialsPrefetcher,
     DateTime Function()? now,
-  }) : _now = now ?? DateTime.now;
+  }) : // The public named injection seam cannot use a private field formal.
+       // ignore: prefer_initializing_formals
+       _materialsPrefetcher = materialsPrefetcher,
+       _now = now ?? DateTime.now;
 
   final BackgroundSyncTargetStore _targetStore;
   final AssignmentSyncService _syncService;
+  final CourseMaterialsPrefetcher? _materialsPrefetcher;
   final DateTime Function() _now;
 
   Future<BackgroundSyncRunResult> run({
@@ -99,6 +106,7 @@ final class BackgroundSyncRunner {
     if (timeBudget != null && timeBudget <= Duration.zero) {
       throw ArgumentError.value(timeBudget, 'timeBudget', 'must be positive');
     }
+    final runClock = Stopwatch()..start();
 
     final BackgroundSyncTargetPolicy policy;
     try {
@@ -124,7 +132,12 @@ final class BackgroundSyncRunner {
       return const BackgroundSyncCancelled();
     }
     if (!userDriven && _syncedRecently(policy)) {
-      return const BackgroundSyncSucceeded();
+      return _prefetchAndSucceed(
+        semesterId: policy.semesterId!,
+        userId: policy.userId!,
+        cancellation: cancellation,
+        remainingBudget: _remainingBudget(timeBudget, runClock),
+      );
     }
 
     final semesterId = policy.semesterId!;
@@ -176,6 +189,8 @@ final class BackgroundSyncRunner {
       (winner as _CompletedSync).outcome,
       semesterId: semesterId,
       userId: userId,
+      cancellation: cancellation,
+      remainingBudget: _remainingBudget(timeBudget, runClock),
     );
   }
 
@@ -217,9 +232,16 @@ final class BackgroundSyncRunner {
     SyncOutcome outcome, {
     required int semesterId,
     required int userId,
+    required BackgroundSyncCancellation? cancellation,
+    required Duration? remainingBudget,
   }) async {
     return switch (outcome) {
-      SyncSuccess() => const BackgroundSyncSucceeded(),
+      SyncSuccess() => _prefetchAndSucceed(
+        semesterId: semesterId,
+        userId: userId,
+        cancellation: cancellation,
+        remainingBudget: remainingBudget,
+      ),
       SyncPausedForSession() => const BackgroundSyncSessionPaused(),
       SyncCancelled() => const BackgroundSyncCancelled(),
       SyncDeferred(:final status) => BackgroundSyncDeferred(
@@ -240,6 +262,58 @@ final class BackgroundSyncRunner {
         const BackgroundSyncTerminalFailure(retryEligible: false),
       SyncFailed() => const BackgroundSyncTerminalFailure(),
     };
+  }
+
+  /// Course files share the assignment scheduler and are best effort: a file
+  /// cache must never turn a successful assignment sync into a failed run.
+  Future<BackgroundSyncRunResult> _prefetchAndSucceed({
+    required int semesterId,
+    required int userId,
+    required BackgroundSyncCancellation? cancellation,
+    required Duration? remainingBudget,
+  }) async {
+    final prefetcher = _materialsPrefetcher;
+    if (prefetcher == null) {
+      return const BackgroundSyncSucceeded();
+    }
+
+    final requestCancellation = BackendRequestCancellation();
+    if (remainingBudget != null && remainingBudget <= Duration.zero) {
+      return const BackgroundSyncSucceeded();
+    }
+    Timer? budgetTimer;
+    if (remainingBudget != null) {
+      budgetTimer = Timer(remainingBudget, requestCancellation.cancel);
+    }
+    if (cancellation?.isCancelled == true) {
+      requestCancellation.cancel();
+    }
+    final cancellationSignal = cancellation?.whenCancelled;
+    if (cancellationSignal != null) {
+      unawaited(
+        cancellationSignal.then<void>((_) => requestCancellation.cancel()),
+      );
+    }
+    try {
+      await prefetcher.prefetchActiveSemester(
+        semesterId: semesterId,
+        userId: userId,
+        cancellation: requestCancellation,
+      );
+    } on Object {
+      // Assignment synchronization remains the authoritative background
+      // result. The next cadence retries a file that was not cached.
+    } finally {
+      budgetTimer?.cancel();
+    }
+    return const BackgroundSyncSucceeded();
+  }
+
+  Duration? _remainingBudget(Duration? budget, Stopwatch clock) {
+    if (budget == null) {
+      return null;
+    }
+    return budget - clock.elapsed;
   }
 
   Future<DateTime?> _readRetryAt({

@@ -1,0 +1,17 @@
+[
+  {
+    "id": 5001,
+    "classId": 3001,
+    "title": "Reading",
+    "description": "<p>Read the attached document.</p>",
+    "fileCount": 1,
+    "fileMaterials": [
+      {
+        "id": 6001,
+        "displayName": "reading.pdf",
+        "fileSize": "585.74 KB",
+        "fileType": "application/pdf"
+      }
+    ]
+  }
+]

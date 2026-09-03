@@ -13,13 +13,15 @@ const _titles = <String>[
 ];
 
 void main() {
-  testWidgets('starts with a minimal product step', (tester) async {
+  testWidgets('starts with product purpose and independence disclosure', (
+    tester,
+  ) async {
     await _pumpPage(tester);
 
     expect(find.text('LEB2 Watch'), findsOneWidget);
     expect(find.text(_titles.first), findsWidgets);
-    expect(find.textContaining('shows saved assignment data'), findsNothing);
-    expect(find.textContaining('independent third-party'), findsNothing);
+    expect(find.textContaining('keeps a local view'), findsOneWidget);
+    expect(find.textContaining('not affiliated'), findsOneWidget);
     expect(find.text('Step 1 of 5'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Back'), findsNothing);
@@ -47,23 +49,24 @@ void main() {
     expect(completionCount, 1);
   });
 
-  testWidgets('keeps notification step free of extra copy', (tester) async {
+  testWidgets('explains optional local notifications', (tester) async {
     await _pumpPage(tester);
     await _advanceTo(tester, 3);
 
     expect(find.text('Notifications are optional'), findsWidgets);
-    expect(find.textContaining('system permission prompt'), findsNothing);
+    expect(find.textContaining('created on this device'), findsOneWidget);
+    expect(find.textContaining('keep notifications off'), findsOneWidget);
   });
 
-  testWidgets('keeps background step free of extra copy', (tester) async {
+  testWidgets('sets honest background timing expectations', (tester) async {
     await _pumpPage(tester);
     await _advanceTo(tester, 4);
 
     expect(
-      find.textContaining('iOS decides when background refresh runs'),
-      findsNothing,
+      find.textContaining('iOS scheduling can delay checks'),
+      findsOneWidget,
     );
-    expect(find.textContaining('exact notification delivery'), findsNothing);
+    expect(find.textContaining('Exact timing is never guaranteed'), findsOne);
   });
 
   testWidgets('Back returns to the previous disclosure in order', (

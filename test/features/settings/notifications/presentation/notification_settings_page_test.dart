@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/platform/background/background_reliability_grant.dart';
+import 'package:leb2_watch/src/app/design_system/app_tokens.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
 import 'package:leb2_watch/src/features/authentication/application/logout_service.dart';
+import 'package:leb2_watch/src/features/courses/application/course_preferences_service.dart';
+import 'package:leb2_watch/src/features/courses/data/course_preferences_store.dart';
 import 'package:leb2_watch/src/features/notifications/application/deadline_reminder_preferences_service.dart';
 import 'package:leb2_watch/src/features/notifications/domain/deadline_reminder_preferences.dart';
 import 'package:leb2_watch/src/features/notifications/domain/local_notification_models.dart';
@@ -25,11 +28,13 @@ void main() {
       _snapshot(platform: NotificationSettingsPlatform.android),
     );
     var privacyCalls = 0;
+    var diagnosticsCalls = 0;
 
     await _pump(
       tester,
       service,
       onOpenPrivacy: () => privacyCalls += 1,
+      onOpenDiagnostics: () => diagnosticsCalls += 1,
       height: 1400,
     );
 
@@ -86,6 +91,45 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('open-privacy')));
     expect(privacyCalls, 1);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('open-diagnostics')),
+      300,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.byKey(const Key('open-diagnostics')));
+    expect(diagnosticsCalls, 1);
+  });
+
+  testWidgets('shows global course controls in settings', (tester) async {
+    final service = _SettingsService(
+      _snapshot(platform: NotificationSettingsPlatform.android),
+    );
+    final courseService = _SettingsCoursePreferencesService();
+    addTearDown(courseService.close);
+
+    await _pump(
+      tester,
+      service,
+      coursePreferencesService: courseService,
+      height: 1400,
+    );
+
+    expect(find.text('Courses'), findsOneWidget);
+    final mute = find.byKey(const Key('course-global-mute-switch'));
+    final stop = find.byKey(const Key('course-global-stop-switch'));
+    expect(tester.widget<SwitchListTile>(mute).value, isFalse);
+    expect(tester.widget<SwitchListTile>(stop).value, isFalse);
+
+    await tester.tap(mute);
+    await tester.pumpAndSettle();
+    expect(courseService.muteWrites, [true]);
+    expect(tester.widget<SwitchListTile>(mute).value, isTrue);
+
+    await tester.tap(stop);
+    await tester.pumpAndSettle();
+    expect(courseService.backgroundWrites, [false]);
+    expect(tester.widget<SwitchListTile>(stop).value, isTrue);
   });
 
   testWidgets('granted permission removes the permission section entirely', (
@@ -258,7 +302,7 @@ void main() {
       card.shape,
       RoundedRectangleBorder(
         side: BorderSide(color: scheme.error, width: 2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
       ),
     );
   });
@@ -297,11 +341,13 @@ Future<void> _pump(
   WidgetTester tester,
   _SettingsService service, {
   VoidCallback? onOpenPrivacy,
+  VoidCallback? onOpenDiagnostics,
   double width = 800,
   double height = 900,
   TextScaler textScaler = TextScaler.noScaling,
   BackgroundReliabilityGrant backgroundGrant = const _BackgroundGrant(),
   ThemeMode themeMode = ThemeMode.system,
+  CoursePreferencesService? coursePreferencesService,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, height);
@@ -322,6 +368,8 @@ Future<void> _pump(
           logoutService: const _LogoutService(),
           onLogoutCompleted: () {},
           onOpenPrivacy: onOpenPrivacy ?? () {},
+          onOpenDiagnostics: onOpenDiagnostics ?? () {},
+          coursePreferencesService: coursePreferencesService,
         ),
       ),
     ),
@@ -367,7 +415,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Between 06:00 and 19:00. Hourly overnight.'), findsOne);
+    expect(find.text('06:00–19:00 · hourly overnight'), findsOne);
   });
 
   testWidgets('choosing a cadence saves it and reports the result', (
@@ -423,7 +471,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Turn on background monitoring first.'), findsOne);
+    expect(find.text('Turn on monitoring first.'), findsOne);
   });
 
   testWidgets('precise checks are unavailable under 15 min', (tester) async {
@@ -443,7 +491,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Choose 15 min or longer to use this.'), findsOne);
+    expect(find.text('Use 15 min or longer.'), findsOne);
     expect(service.preciseWrites, isEmpty);
   });
 
@@ -460,13 +508,7 @@ void _cadenceTests() {
 
     await _pump(tester, service, height: 1400);
 
-    expect(
-      find.text(
-        'Checks every 15 min instead of when Android decides. Uses more '
-        'battery. Off overnight.',
-      ),
-      findsOne,
-    );
+    expect(find.text('Every 15 min · more battery · off overnight'), findsOne);
 
     await tester.tap(find.byKey(const Key('precise-fetch-switch')));
     await tester.pumpAndSettle();
@@ -486,10 +528,7 @@ void _cadenceTests() {
 
     await _pump(tester, service, height: 1400);
 
-    expect(
-      find.text('Android allows 15 minutes at least. Hourly overnight.'),
-      findsOne,
-    );
+    expect(find.text('Android minimum 15 min · hourly overnight'), findsOne);
   });
 }
 
@@ -630,6 +669,66 @@ final class _SettingsService implements NotificationSettingsService {
   Future<ExactAlarmPermissionStatus?> readExactAlarmPermission() async {
     exactAlarmPermissionReads += 1;
     return exactAlarmPermissionStatus;
+  }
+}
+
+final class _SettingsCoursePreferencesService
+    implements CoursePreferencesService {
+  final StreamController<CourseGlobalPreference> _changes =
+      StreamController<CourseGlobalPreference>.broadcast();
+  CourseGlobalPreference preference = const CourseGlobalPreference();
+  final List<bool> muteWrites = [];
+  final List<bool> backgroundWrites = [];
+
+  Future<void> close() => _changes.close();
+
+  @override
+  Stream<ActiveCourseCatalog> watchCatalog() => Stream.value(
+    ActiveCourseCatalog(activeSemesterId: null, courses: const []),
+  );
+
+  @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() async* {
+    yield preference;
+    yield* _changes.stream;
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setNotificationsMuted(
+    CourseKey key, {
+    required bool muted,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setBackgroundMonitoringEnabled(
+    CourseKey key, {
+    required bool enabled,
+  }) async => const CoursePreferenceUpdateSuccess();
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async {
+    muteWrites.add(muted);
+    preference = CourseGlobalPreference(
+      notificationsMuted: muted,
+      backgroundMonitoringEnabled: preference.backgroundMonitoringEnabled,
+    );
+    _changes.add(preference);
+    return const CoursePreferenceUpdateSuccess();
+  }
+
+  @override
+  Future<CoursePreferenceUpdateResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
+  }) async {
+    backgroundWrites.add(enabled);
+    preference = CourseGlobalPreference(
+      notificationsMuted: preference.notificationsMuted,
+      backgroundMonitoringEnabled: enabled,
+    );
+    _changes.add(preference);
+    return const CoursePreferenceUpdateSuccess();
   }
 }
 

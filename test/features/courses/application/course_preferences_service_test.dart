@@ -7,7 +7,8 @@ void main() {
   const key = CourseKey(semesterId: 101, courseId: 3001);
 
   test('maps applied, stale, and failed writes to bounded results', () async {
-    final store = _FakeCoursePreferencesStore();
+    final store = _FakeCoursePreferencesStore()
+      ..preference = const CoursePreference();
     final service = LocalCoursePreferencesService(store);
 
     store.writeResult = const CoursePreferenceWriteApplied();
@@ -56,6 +57,27 @@ void main() {
     expect(policy.allowsBackgroundEffect, isTrue);
 
     store.preference = const CoursePreference(
+      backgroundMonitoringEnabled: false,
+    );
+    policy = await service.readPolicy(key);
+    expect(policy.allowsNotification(backgroundTriggered: false), isTrue);
+    expect(policy.allowsNotification(backgroundTriggered: true), isFalse);
+    expect(policy.allowsBackgroundEffect, isFalse);
+  });
+
+  test('global course controls gate every course policy', () async {
+    final store = _FakeCoursePreferencesStore()
+      ..preference = const CoursePreference();
+    final service = LocalCoursePreferencesService(store);
+
+    store.globalPreference = const CourseGlobalPreference(
+      notificationsMuted: true,
+    );
+    var policy = await service.readPolicy(key);
+    expect(policy.allowsNotification(backgroundTriggered: false), isFalse);
+    expect(policy.allowsBackgroundEffect, isTrue);
+
+    store.globalPreference = const CourseGlobalPreference(
       backgroundMonitoringEnabled: false,
     );
     policy = await service.readPolicy(key);
@@ -151,6 +173,7 @@ final class _FakeCoursePreferencesStore implements CoursePreferencesStore {
   CoursePreferenceWriteResult writeResult =
       const CoursePreferenceWriteApplied();
   CoursePreference? preference;
+  CourseGlobalPreference globalPreference = const CourseGlobalPreference();
   Set<CourseKey> backgroundKeys = const {};
   Object? failure;
 
@@ -165,6 +188,16 @@ final class _FakeCoursePreferencesStore implements CoursePreferencesStore {
   Future<ActiveCourseCatalog> readActiveCatalog() async {
     _throwIfNeeded();
     return ActiveCourseCatalog(activeSemesterId: null, courses: const []);
+  }
+
+  @override
+  Stream<CourseGlobalPreference> watchGlobalPreference() =>
+      Stream.value(globalPreference);
+
+  @override
+  Future<CourseGlobalPreference> readGlobalPreference() async {
+    _throwIfNeeded();
+    return globalPreference;
   }
 
   @override
@@ -192,6 +225,22 @@ final class _FakeCoursePreferencesStore implements CoursePreferencesStore {
   Future<CoursePreferenceWriteResult> setNotificationsMuted(
     CourseKey key, {
     required bool muted,
+  }) async {
+    _throwIfNeeded();
+    return writeResult;
+  }
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalNotificationsMuted({
+    required bool muted,
+  }) async {
+    _throwIfNeeded();
+    return writeResult;
+  }
+
+  @override
+  Future<CoursePreferenceWriteResult> setGlobalBackgroundMonitoringEnabled({
+    required bool enabled,
   }) async {
     _throwIfNeeded();
     return writeResult;

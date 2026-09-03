@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
+import '../../../../app/design_system/widgets/app_page_header.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/time/app_time_zone.dart';
@@ -14,6 +15,7 @@ import '../../../../core/session/session_lifecycle.dart';
 import '../../../semesters/semester_label.dart';
 import '../../sync/assignment_sync_service.dart';
 import '../../detail/domain/assignment_detail_key.dart';
+import '../../presentation/assignment_status.dart';
 import '../application/assignment_dashboard_preferences.dart';
 import '../application/assignment_dashboard_projection.dart';
 import '../application/assignment_dashboard_service.dart';
@@ -36,6 +38,7 @@ class AssignmentDashboardPage extends StatefulWidget {
     this.deadlineFormatter = formatAssignmentDeadline,
     this.timestampFormatter = formatAssignmentTimestamp,
     this.deadlinePicker = pickAssignmentDeadlineInAppZone,
+    this.nowUtc,
     super.key,
   });
 
@@ -45,6 +48,7 @@ class AssignmentDashboardPage extends StatefulWidget {
   final AssignmentDeadlineFormatter deadlineFormatter;
   final AssignmentTimestampFormatter timestampFormatter;
   final AssignmentDeadlinePicker deadlinePicker;
+  final DateTime Function()? nowUtc;
 
   @override
   State<AssignmentDashboardPage> createState() =>
@@ -333,7 +337,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
     if (cache == null || !cache.hasActiveSemester) {
       return AppStateView.empty(
         title: 'Choose a semester first',
-        message: 'Showing your selected semester.',
+        message: 'Assignments appear after you choose a semester.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
       );
@@ -365,6 +369,7 @@ class _AssignmentDashboardPageState extends State<AssignmentDashboardPage> {
         refreshResult: _refreshResult,
         deadlineFormatter: widget.deadlineFormatter,
         timestampFormatter: widget.timestampFormatter,
+        nowUtc: (widget.nowUtc?.call() ?? DateTime.now()).toUtc(),
         onOpenAssignment: widget.onOpenAssignment,
         onRefresh:
             cache.session.state == SessionLifecycleState.expired || _refreshing
@@ -402,6 +407,7 @@ class _DashboardWorklist extends StatelessWidget {
     required this.refreshResult,
     required this.deadlineFormatter,
     required this.timestampFormatter,
+    required this.nowUtc,
     required this.onOpenAssignment,
     required this.onRefresh,
     required this.onSectionChanged,
@@ -426,6 +432,7 @@ class _DashboardWorklist extends StatelessWidget {
   final AssignmentDashboardRefreshResult? refreshResult;
   final AssignmentDeadlineFormatter deadlineFormatter;
   final AssignmentTimestampFormatter timestampFormatter;
+  final DateTime nowUtc;
   final ValueChanged<AssignmentDetailKey> onOpenAssignment;
   final VoidCallback? onRefresh;
   final ValueChanged<AssignmentDashboardSection> onSectionChanged;
@@ -567,6 +574,8 @@ class _DashboardWorklist extends StatelessWidget {
                               ),
                               row: row,
                               deadlineFormatter: deadlineFormatter,
+                              timestampFormatter: timestampFormatter,
+                              nowUtc: nowUtc,
                               detailKey: detailKey,
                               onOpenAssignment: onOpenAssignment,
                             )
@@ -582,6 +591,8 @@ class _DashboardWorklist extends StatelessWidget {
                                 ),
                                 row: row,
                                 deadlineFormatter: deadlineFormatter,
+                                timestampFormatter: timestampFormatter,
+                                nowUtc: nowUtc,
                                 detailKey: detailKey,
                                 onOpenAssignment: onOpenAssignment,
                               ),
@@ -612,61 +623,25 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final success = cache.latestSuccess?.completedAtUtc;
     final statusText = success == null
         ? 'Never synced'
-        : 'Synced ${timestampFormatter(context, success)}';
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    'Assignments',
-                    style: theme.textTheme.headlineMedium,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  formatSemesterLabel(
-                    name: cache.activeSemesterName,
-                    id: cache.activeSemesterId,
-                  ),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  cache.session.state == SessionLifecycleState.expired
-                      ? '$statusText · monitoring paused'
-                      : statusText,
-                  key: const Key('assignment-last-success'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          IconButton(
-            key: const Key('assignment-refresh-button'),
-            tooltip: refreshing
-                ? 'Refreshing assignments'
-                : 'Refresh assignments',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
+        : 'Last checked ${timestampFormatter(context, success)}';
+    return AppPageHeader(
+      title: 'Assignments',
+      semesterLabel: formatSemesterLabel(
+        name: cache.activeSemesterName,
+        id: cache.activeSemesterId,
+      ),
+      supportingText: cache.session.state == SessionLifecycleState.expired
+          ? '$statusText · monitoring paused'
+          : statusText,
+      supportingKey: const Key('assignment-last-success'),
+      trailing: IconButton(
+        key: const Key('assignment-refresh-button'),
+        tooltip: refreshing ? 'Refreshing assignments' : 'Refresh assignments',
+        onPressed: onRefresh,
+        icon: const Icon(Icons.refresh_rounded),
       ),
     );
   }
@@ -738,7 +713,7 @@ class _DashboardControls extends StatelessWidget {
       if (section != AssignmentDashboardSection.all)
         InputChip(
           key: const Key('assignment-filter-chip-section'),
-          label: Text('Section: ${_sectionLabel(section)}'),
+          label: Text(_sectionShortLabel(section)),
           onDeleted: onSectionCleared,
         ),
       if (course != null)
@@ -750,19 +725,19 @@ class _DashboardControls extends StatelessWidget {
       if (deadlineAtOrBeforeBangkok case final deadline?)
         InputChip(
           key: const Key('assignment-filter-chip-deadline'),
-          label: Text('Due by: ${_formatZoneWallTime(context, deadline)}'),
+          label: Text('Due ${_formatZoneWallTime(context, deadline)}'),
           onDeleted: onDeadlineCleared,
         ),
       if (submissionFilter == AssignmentSubmissionFilter.all)
         InputChip(
           key: const Key('assignment-filter-chip-submission'),
-          label: const Text('Show submitted assignment'),
+          label: const Text('Include submitted'),
           onDeleted: onSubmissionCleared,
         ),
       if (starredFilter == AssignmentStarredFilter.starred)
         InputChip(
           key: const Key('assignment-filter-chip-starred'),
-          label: const Text('Starred in LEB2 only'),
+          label: const Text('Starred only'),
           onDeleted: onStarredCleared,
         ),
     ];
@@ -1061,6 +1036,8 @@ class _CompactAssignmentCard extends StatelessWidget {
   const _CompactAssignmentCard({
     required this.row,
     required this.deadlineFormatter,
+    required this.timestampFormatter,
+    required this.nowUtc,
     required this.detailKey,
     required this.onOpenAssignment,
     super.key,
@@ -1068,18 +1045,27 @@ class _CompactAssignmentCard extends StatelessWidget {
 
   final AssignmentDashboardRow row;
   final AssignmentDeadlineFormatter deadlineFormatter;
+  final AssignmentTimestampFormatter timestampFormatter;
+  final DateTime nowUtc;
   final AssignmentDetailKey? detailKey;
   final ValueChanged<AssignmentDetailKey> onOpenAssignment;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final assignment = row.assignment;
+    final submitted = _isSubmitted(assignment);
     final deadline = deadlineFormatter(context, row.deadline);
-    final label =
-        'Open assignment: ${assignment.title}, ${assignment.courseName}, '
-        '${_deadlineSemantic(row.deadline, deadline)}, '
-        '${_statusLabel(assignment.submissionStatus)}';
+    final label = [
+      'Open assignment: ${assignment.title}',
+      assignment.courseName,
+      if (!submitted) ...[
+        deadline,
+        _deadlineFeedback(row.deadline, assignment, nowUtc),
+      ],
+      _submissionSemantic(assignment, timestampFormatter, context),
+    ].join(', ');
     return Semantics(
       container: true,
       button: detailKey != null,
@@ -1089,7 +1075,7 @@ class _CompactAssignmentCard extends StatelessWidget {
       child: Material(
         color: theme.colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: theme.colorScheme.outlineVariant),
+          side: BorderSide(color: scheme.outlineVariant),
           borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
         clipBehavior: Clip.antiAlias,
@@ -1110,24 +1096,21 @@ class _CompactAssignmentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text(deadline, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xxs,
-                  children: [
-                    Text(
-                      assignment.activityType,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    _AssignmentSubmissionBadge(
-                      key: Key(
-                        'assignment-submission-status-'
-                        '${assignment.identityKey}',
-                      ),
-                      status: assignment.submissionStatus,
-                    ),
-                  ],
+                if (!submitted) ...[
+                  _AssignmentDeadlineSummary(
+                    row: row,
+                    deadline: deadline,
+                    nowUtc: nowUtc,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                _AssignmentSubmissionSummary(
+                  key: Key(
+                    'assignment-submission-status-'
+                    '${assignment.identityKey}',
+                  ),
+                  assignment: assignment,
+                  timestampFormatter: timestampFormatter,
                 ),
               ],
             ),
@@ -1163,6 +1146,8 @@ class _ExpandedAssignmentRow extends StatelessWidget {
   const _ExpandedAssignmentRow({
     required this.row,
     required this.deadlineFormatter,
+    required this.timestampFormatter,
+    required this.nowUtc,
     required this.detailKey,
     required this.onOpenAssignment,
     super.key,
@@ -1170,6 +1155,8 @@ class _ExpandedAssignmentRow extends StatelessWidget {
 
   final AssignmentDashboardRow row;
   final AssignmentDeadlineFormatter deadlineFormatter;
+  final AssignmentTimestampFormatter timestampFormatter;
+  final DateTime nowUtc;
   final AssignmentDetailKey? detailKey;
   final ValueChanged<AssignmentDetailKey> onOpenAssignment;
 
@@ -1177,11 +1164,17 @@ class _ExpandedAssignmentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final assignment = row.assignment;
+    final submitted = _isSubmitted(assignment);
     final deadline = deadlineFormatter(context, row.deadline);
-    final label =
-        'Open assignment: ${assignment.title}, ${assignment.courseName}, '
-        '${_deadlineSemantic(row.deadline, deadline)}, '
-        '${_statusLabel(assignment.submissionStatus)}';
+    final label = [
+      'Open assignment: ${assignment.title}',
+      assignment.courseName,
+      if (!submitted) ...[
+        deadline,
+        _deadlineFeedback(row.deadline, assignment, nowUtc),
+      ],
+      _submissionSemantic(assignment, timestampFormatter, context),
+    ].join(', ');
     return Semantics(
       container: true,
       button: detailKey != null,
@@ -1208,12 +1201,6 @@ class _ExpandedAssignmentRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(assignment.title, style: theme.textTheme.titleSmall),
-                      Text(
-                        assignment.activityType,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -1226,23 +1213,25 @@ class _ExpandedAssignmentRow extends StatelessWidget {
                 ),
                 Expanded(
                   flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(deadline, style: theme.textTheme.bodyMedium),
-                    ],
-                  ),
+                  child: submitted
+                      ? const SizedBox.shrink()
+                      : _AssignmentDeadlineSummary(
+                          row: row,
+                          deadline: deadline,
+                          nowUtc: nowUtc,
+                        ),
                 ),
                 Expanded(
                   flex: 2,
                   child: Align(
                     alignment: AlignmentDirectional.topStart,
-                    child: _AssignmentSubmissionBadge(
+                    child: _AssignmentSubmissionSummary(
                       key: Key(
                         'assignment-submission-status-'
                         '${assignment.identityKey}',
                       ),
-                      status: assignment.submissionStatus,
+                      assignment: assignment,
+                      timestampFormatter: timestampFormatter,
                     ),
                   ),
                 ),
@@ -1255,55 +1244,108 @@ class _ExpandedAssignmentRow extends StatelessWidget {
   }
 }
 
-class _AssignmentSubmissionBadge extends StatelessWidget {
-  const _AssignmentSubmissionBadge({required this.status, super.key});
+class _AssignmentDeadlineSummary extends StatelessWidget {
+  const _AssignmentDeadlineSummary({
+    required this.row,
+    required this.deadline,
+    required this.nowUtc,
+  });
 
-  final AssignmentSubmissionStatus status;
+  final AssignmentDashboardRow row;
+  final String deadline;
+  final DateTime nowUtc;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final (background, foreground, icon) = switch (status) {
-      AssignmentSubmissionStatus.submitted => (
-        scheme.primaryContainer,
-        scheme.onPrimaryContainer,
-        Icons.check_circle_outline_rounded,
-      ),
-      AssignmentSubmissionStatus.unsubmitted => (
-        scheme.errorContainer,
-        scheme.onErrorContainer,
-        Icons.cancel_outlined,
-      ),
-      AssignmentSubmissionStatus.notApplicable => (
-        scheme.surfaceContainerHighest,
-        scheme.onSurfaceVariant,
-        Icons.remove_circle_outline_rounded,
-      ),
-    };
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppRadii.prominent),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xxs,
+    final assignment = row.assignment;
+    final deadlineUtc = _deadlineInstant(row.deadline);
+    final statusType = _deadlineStatusType(row.deadline, assignment, nowUtc);
+    final distance =
+        statusType == AssignmentStatusChipType.overdue || deadlineUtc == null
+        ? null
+        : formatAssignmentDeadlineDistance(deadlineUtc, nowUtc);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.schedule_outlined,
+          size: 18,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
-        child: Wrap(
-          spacing: AppSpacing.xxs,
-          runSpacing: AppSpacing.xxs,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Icon(icon, size: 16, color: foreground),
-            Text(
-              _statusLabel(status),
-              style: theme.textTheme.labelMedium?.copyWith(color: foreground),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xxs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(deadline, style: theme.textTheme.bodyMedium),
+                  if (statusType case final type?)
+                    AssignmentStatusChip(type: type),
+                ],
+              ),
+              if (distance != null) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  distance,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: statusType == AssignmentStatusChipType.overdue
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AssignmentSubmissionSummary extends StatelessWidget {
+  const _AssignmentSubmissionSummary({
+    required this.assignment,
+    required this.timestampFormatter,
+    super.key,
+  });
+
+  final CachedAssignment assignment;
+  final AssignmentTimestampFormatter timestampFormatter;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final submitted =
+        assignment.submissionStatus == AssignmentSubmissionStatus.submitted;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AssignmentStatusChip(
+          type: submissionStatusChipType(assignment.submissionStatus),
+        ),
+        if (submitted) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            assignment.submittedAtUtc == null
+                ? 'Date unavailable'
+                : timestampFormatter(context, assignment.submittedAtUtc!),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
-      ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          AssignmentStatusChip(
+            type: assignment.submissionIsLate
+                ? AssignmentStatusChipType.late
+                : AssignmentStatusChipType.onTime,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -1401,6 +1443,13 @@ String _sectionLabel(AssignmentDashboardSection section) => switch (section) {
   AssignmentDashboardSection.all => 'All assignments',
 };
 
+String _sectionShortLabel(AssignmentDashboardSection section) =>
+    switch (section) {
+      AssignmentDashboardSection.recent => 'Recent',
+      AssignmentDashboardSection.overdue => 'Overdue',
+      AssignmentDashboardSection.all => 'All',
+    };
+
 int _activeFilterCount({
   required AssignmentDashboardSection section,
   required int? selectedCourseId,
@@ -1421,8 +1470,78 @@ String _statusLabel(AssignmentSubmissionStatus status) => switch (status) {
   AssignmentSubmissionStatus.notApplicable => 'No submission required',
 };
 
-String _deadlineSemantic(AssignmentDeadline deadline, String formatted) {
-  return formatted;
+DateTime? _deadlineInstant(AssignmentDeadline deadline) => switch (deadline) {
+  ZonedAssignmentDeadline(:final instantUtc) => instantUtc,
+  MissingAssignmentDeadline() || InvalidAssignmentDeadline() => null,
+};
+
+bool _isSubmitted(CachedAssignment assignment) =>
+    assignment.submissionStatus == AssignmentSubmissionStatus.submitted;
+
+AssignmentStatusChipType? _deadlineStatusType(
+  AssignmentDeadline deadline,
+  CachedAssignment assignment,
+  DateTime nowUtc,
+) {
+  if (_deadlineInstant(deadline) == null) {
+    return null;
+  }
+  return _isDeadlineOverdue(
+        deadline,
+        backendReportedExceeded: assignment.dueDateExceed,
+        nowUtc: nowUtc,
+      )
+      ? AssignmentStatusChipType.overdue
+      : null;
+}
+
+String _deadlineFeedback(
+  AssignmentDeadline deadline,
+  CachedAssignment assignment,
+  DateTime nowUtc,
+) {
+  final deadlineUtc = _deadlineInstant(deadline);
+  if (deadlineUtc == null) {
+    return switch (deadline) {
+      MissingAssignmentDeadline() => 'No deadline',
+      InvalidAssignmentDeadline() => 'Deadline unavailable',
+      ZonedAssignmentDeadline() => 'Deadline unavailable',
+    };
+  }
+  if (_isDeadlineOverdue(
+    deadline,
+    backendReportedExceeded: assignment.dueDateExceed,
+    nowUtc: nowUtc,
+  )) {
+    return 'Overdue';
+  }
+  final distance = formatAssignmentDeadlineDistance(deadlineUtc, nowUtc);
+  return distance;
+}
+
+bool _isDeadlineOverdue(
+  AssignmentDeadline deadline, {
+  required bool backendReportedExceeded,
+  required DateTime nowUtc,
+}) {
+  final deadlineUtc = _deadlineInstant(deadline);
+  return backendReportedExceeded ||
+      deadlineUtc?.isBefore(nowUtc.toUtc()) == true;
+}
+
+String _submissionSemantic(
+  CachedAssignment assignment,
+  AssignmentTimestampFormatter timestampFormatter,
+  BuildContext context,
+) {
+  final status = _statusLabel(assignment.submissionStatus);
+  if (assignment.submissionStatus != AssignmentSubmissionStatus.submitted) {
+    return status;
+  }
+  final submitted = assignment.submittedAtUtc == null
+      ? 'Submitted date unavailable'
+      : 'Submitted ${timestampFormatter(context, assignment.submittedAtUtc!)}';
+  return '$status, $submitted, ${assignment.submissionIsLate ? 'Late' : 'On time'}';
 }
 
 String formatAssignmentTimestamp(BuildContext context, DateTime utc) {
