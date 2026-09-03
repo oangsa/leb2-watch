@@ -631,7 +631,6 @@ final class _SettingsService implements NotificationSettingsService {
     exactAlarmPermissionReads += 1;
     return exactAlarmPermissionStatus;
   }
-
 }
 
 final class _BackgroundGrant implements BackgroundReliabilityGrant {

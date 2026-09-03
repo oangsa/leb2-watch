@@ -75,10 +75,7 @@ final class AttachmentDownloadService {
         fileName: download.fileName,
         bytes: download.bytes,
       );
-      return AttachmentDownloadSaved(
-        fileName: download.fileName,
-        path: path,
-      );
+      return AttachmentDownloadSaved(fileName: download.fileName, path: path);
     } on Object {
       return const AttachmentDownloadFailed(
         AttachmentDownloadFailureReason.storageFailed,

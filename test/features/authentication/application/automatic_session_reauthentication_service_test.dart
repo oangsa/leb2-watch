@@ -979,7 +979,6 @@ final class _ImmediateSessionMutationGate implements SessionMutationGate {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
-
   _MemoryCredentialStore({
     this.accessKey = _testAccessKey,
     this.cookie,

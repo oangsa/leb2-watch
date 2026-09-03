@@ -200,13 +200,15 @@ final class _RecordingSink implements AttachmentFileSink {
 
 final class _FakeClient implements BackendApiClient {
   final attachmentCalls =
-      <({
-        int semesterId,
-        int classId,
-        int activityId,
-        int attachmentId,
-        int userId,
-      })>[];
+      <
+        ({
+          int semesterId,
+          int classId,
+          int activityId,
+          int attachmentId,
+          int userId,
+        })
+      >[];
   final archiveCalls =
       <({int semesterId, int classId, int activityId, int userId})>[];
   BackendTransportException? failure;

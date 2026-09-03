@@ -341,8 +341,14 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
               for (final (index, id) in ids.indexed)
                 OutlinedButton.icon(
                   key: Key('download-attachment-$id'),
-                  onPressed: _busy ? null : () => _run(() => widget.service
-                      .downloadOne(detail: widget.detail, attachmentId: id)),
+                  onPressed: _busy
+                      ? null
+                      : () => _run(
+                          () => widget.service.downloadOne(
+                            detail: widget.detail,
+                            attachmentId: id,
+                          ),
+                        ),
                   icon: const Icon(Icons.download_outlined),
                   label: Text('File ${index + 1}'),
                 ),
@@ -352,9 +358,8 @@ class _AttachmentDownloadsState extends State<_AttachmentDownloads> {
                   onPressed: _busy
                       ? null
                       : () => _run(
-                          () => widget.service.downloadAll(
-                            detail: widget.detail,
-                          ),
+                          () =>
+                              widget.service.downloadAll(detail: widget.detail),
                         ),
                   icon: const Icon(Icons.folder_zip_outlined),
                   label: const Text('Download all'),

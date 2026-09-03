@@ -513,7 +513,6 @@ Future<void> _waitFor(bool Function() predicate) async {
 }
 
 final class _MemoryCredentialStore implements CredentialStore {
-
   String? accessKey;
   String? sessionCookie;
   StoredCredentials? credentials;

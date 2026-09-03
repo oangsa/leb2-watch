@@ -324,7 +324,6 @@ final class _ThrowingDatabaseStorage extends LocalDatabaseStorage {
 }
 
 final class _CredentialStore implements CredentialStore {
-
   _CredentialStore({required this.cookie, this.readFailure});
 
   String? cookie;

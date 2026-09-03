@@ -35,7 +35,6 @@ final class CallbackHttpClientAdapter implements HttpClientAdapter {
 }
 
 final class MemoryCredentialStore implements CredentialStore {
-
   MemoryCredentialStore({
     this.accessKey = '00000000-0000-4000-8000-000000000001',
     this.sessionCookie = '<SESSION_COOKIE>',
