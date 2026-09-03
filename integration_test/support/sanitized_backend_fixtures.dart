@@ -88,8 +88,15 @@ const sanitizedNewActivity = <String, Object?>{
   'previousSubmissionStatus': null,
 };
 
+/// The recorded snapshot body.
+///
+/// [newAssignmentDueDateUtc] replaces the new assignment's recorded deadline.
+/// The capture pins a fixed instant, so a test that needs the deadline to
+/// still be ahead of the run's clock — deadline reminders are only placed for
+/// future instants — has to rebase it rather than inherit an expiring date.
 Map<String, Object?> sanitizedSnapshotFixture({
   required bool includeNewAssignment,
+  DateTime? newAssignmentDueDateUtc,
 }) {
   return <String, Object?>{
     'semesterId': 101,
@@ -99,7 +106,12 @@ Map<String, Object?> sanitizedSnapshotFixture({
         'name': 'Example Course',
         'activities': <Object?>[
           sanitizedBaselineActivity,
-          if (includeNewAssignment) sanitizedNewActivity,
+          if (includeNewAssignment)
+            <String, Object?>{
+              ...sanitizedNewActivity,
+              if (newAssignmentDueDateUtc != null)
+                'dueDate': newAssignmentDueDateUtc.toIso8601String(),
+            },
         ],
       },
       <String, Object?>{
