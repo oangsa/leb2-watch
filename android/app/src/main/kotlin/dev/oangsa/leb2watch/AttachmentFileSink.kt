@@ -3,6 +3,8 @@ package dev.oangsa.leb2watch
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -83,10 +85,25 @@ private fun saveAttachment(
         if (resolver.update(uri, complete, null, null) != 1) {
             throw IOException()
         }
+        openAttachment(context, uri, mimeType(displayName))
         "$publicFolderName/$displayName"
     } catch (error: Exception) {
         resolver.delete(uri, null, null)
         throw error
+    }
+}
+
+/** Opens a published attachment when the device has a compatible viewer. */
+private fun openAttachment(context: Context, uri: Uri, type: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, type)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(intent)
+    } catch (_: Exception) {
+        // The file remains saved when opening is unavailable or rejected.
     }
 }
 
