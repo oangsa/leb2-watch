@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../app/design_system/app_status_colors.dart';
 import '../../../../app/design_system/app_tokens.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
@@ -223,84 +224,186 @@ class _CurrentRecord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (detail.courseName case final course?)
-          Text(
-            course,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.primary,
-              fontWeight: AppTypography.labelWeight,
-            ),
-          ),
-        const SizedBox(height: AppSpacing.xs),
-        Semantics(
-          header: true,
-          child: Text(detail.title, style: theme.textTheme.headlineLarge),
-        ),
-        const SizedBox(height: AppSpacing.lg),
+        _DetailHero(detail: detail),
+        const SizedBox(height: AppSpacing.xl),
         _Section(
           title: 'Description',
           children: [
             SelectableText(
               detail.description ?? 'No description provided.',
-              style: theme.textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         _Section(
           title: 'Assignment record',
           children: [
-            _Fact(label: 'Activity type', value: detail.activityType),
-            _TimestampFact(label: 'Deadline', timestamp: detail.deadline),
-            _Fact(
-              label: 'Deadline status',
-              value: detail.backendReportedDeadlineExceeded
-                  ? 'Reported overdue by the backend'
-                  : 'Not overdue',
-            ),
-            _TimestampFact(
-              label: 'Source-created time',
-              timestamp: detail.sourceCreatedAt,
-              note: 'Not the publication time.',
-            ),
-            _Fact(
-              label: 'Submission',
-              value: _submissionLabel(detail.submissionStatus),
-            ),
-            if (detail.submissionStatus == AssignmentSubmissionStatus.submitted)
-              _Fact(
-                label: 'Submission timing',
-                value: detail.backendReportedSubmissionLate
-                    ? 'Reported late by the backend'
-                    : 'Not reported late',
-              ),
-            _Fact(
-              label: 'Attached files',
-              value: switch (detail.attachmentCount) {
-                null => 'Count unavailable',
-                0 => 'None saved',
-                final count => '$count saved',
-              },
-              note: 'The backend names each file as it is downloaded.',
+            _FactGrid(
+              children: [
+                _Fact(label: 'Activity type', value: detail.activityType),
+                _TimestampFact(label: 'Deadline', timestamp: detail.deadline),
+                _Fact(
+                  label: 'Deadline status',
+                  value: detail.backendReportedDeadlineExceeded
+                      ? 'Reported overdue by the backend'
+                      : 'Not overdue',
+                ),
+                _TimestampFact(
+                  label: 'Source-created time',
+                  timestamp: detail.sourceCreatedAt,
+                  note: 'Not the publication time.',
+                ),
+                if (detail.submissionStatus ==
+                    AssignmentSubmissionStatus.submitted)
+                  _Fact(
+                    label: 'Submission timing',
+                    value: detail.backendReportedSubmissionLate
+                        ? 'Reported late by the backend'
+                        : 'Not reported late',
+                  ),
+                _Fact(
+                  label: 'Attached files',
+                  value: switch (detail.attachmentCount) {
+                    null => 'Count unavailable',
+                    0 => 'None saved',
+                    final count => '$count saved',
+                  },
+                  note: 'The backend names each file as it is downloaded.',
+                ),
+              ],
             ),
             if (downloadService case final service?
                 when detail.canDownloadAttachments)
               _AttachmentDownloads(detail: detail, service: service),
-            _Fact(label: 'Group type', value: detail.groupType),
-            if (detail.groupName case final group?) ...[
-              _Fact(label: 'Group', value: group),
-              _Fact(
-                label: 'Group members',
-                value: '${detail.groupMemberCount}',
-              ),
-            ],
+            _FactGrid(
+              children: [
+                _Fact(label: 'Group type', value: detail.groupType),
+                if (detail.groupName case final group?) ...[
+                  _Fact(label: 'Group', value: group),
+                  _Fact(
+                    label: 'Group members',
+                    value: '${detail.groupMemberCount}',
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _DetailHero extends StatelessWidget {
+  const _DetailHero({required this.detail});
+
+  final CurrentAssignmentDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border(
+          left: BorderSide(
+            color: theme.colorScheme.primary,
+            width: AppSpacing.xxs,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.lg,
+          AppSpacing.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (detail.courseName case final course?)
+              Text(
+                course,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            const SizedBox(height: AppSpacing.xs),
+            Semantics(
+              header: true,
+              child: Text(detail.title, style: theme.textTheme.headlineLarge),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _DetailSubmissionBadge(status: detail.submissionStatus),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailSubmissionBadge extends StatelessWidget {
+  const _DetailSubmissionBadge({required this.status});
+
+  final AssignmentSubmissionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final statusColors = AppStatusColors.of(context);
+    final (background, foreground, icon) = switch (status) {
+      AssignmentSubmissionStatus.submitted => (
+        statusColors.successContainer,
+        statusColors.onSuccessContainer,
+        Icons.check_rounded,
+      ),
+      AssignmentSubmissionStatus.unsubmitted => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        Icons.schedule_rounded,
+      ),
+      AssignmentSubmissionStatus.notApplicable => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        Icons.remove_rounded,
+      ),
+    };
+    return Semantics(
+      label: 'Submission: ${_submissionLabel(status)}',
+      child: ExcludeSemantics(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(AppRadii.control),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Wrap(
+              spacing: AppSpacing.xxs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: foreground),
+                Text(
+                  _submissionLabel(status),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -476,6 +579,33 @@ class _MissingRecord extends StatelessWidget {
           Text('Not saved on this device.', style: theme.textTheme.bodyLarge),
         ],
       ),
+    );
+  }
+}
+
+class _FactGrid extends StatelessWidget {
+  const _FactGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns =
+            constraints.maxWidth >= 640 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.5;
+        final width = twoColumns
+            ? (constraints.maxWidth - AppSpacing.lg) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: AppSpacing.lg,
+          runSpacing: AppSpacing.md,
+          children: [
+            for (final child in children) SizedBox(width: width, child: child),
+          ],
+        );
+      },
     );
   }
 }

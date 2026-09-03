@@ -413,30 +413,28 @@ class _GlobalCourseControls extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('All courses', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.xs),
           Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              FilledButton.tonalIcon(
+              TextButton.icon(
                 key: const Key('course-mute-all'),
                 onPressed: muteAllEnabled ? onMuteAll : null,
                 icon: const Icon(Icons.notifications_off_outlined),
-                label: const Text('Mute all notifications'),
+                label: const Text('Mute all'),
               ),
-              FilledButton.tonalIcon(
+              TextButton.icon(
                 key: const Key('course-background-disable-all'),
                 onPressed: disableAllBackgroundEnabled
                     ? onDisableAllBackground
                     : null,
                 icon: const Icon(Icons.sync_disabled_rounded),
-                label: const Text('Disable all background monitoring'),
+                label: const Text('Stop all checks'),
               ),
             ],
           ),
           if (writing) ...[
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             const LinearProgressIndicator(
               key: Key('course-global-preference-progress'),
             ),
@@ -469,74 +467,71 @@ class _CoursePreferenceRow extends StatelessWidget {
       container: true,
       explicitChildNodes: true,
       label: '${course.name}, course ${course.key.courseId}',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(course.name, style: theme.textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              'Course ${course.key.courseId}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+      child: Material(
+        color: scheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: scheme.primary, width: AppSpacing.xxs),
+          borderRadius: BorderRadius.circular(AppRadii.panel),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Course ${course.key.courseId}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.lg,
-              runSpacing: AppSpacing.xs,
-              children: [
-                Semantics(
-                  label:
-                      '${course.postBaselineActivityCount} new activities, '
-                      'discovered after the first successful sync',
-                  child: ExcludeSemantics(
-                    child: Text(
-                      'New activities: '
-                      '${course.postBaselineActivityCount}',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-                Semantics(
-                  label:
-                      '${course.notReportedExceededDeadlineCount} upcoming '
-                      'deadlines, not reported past at the last saved sync',
-                  child: ExcludeSemantics(
-                    child: Text(
-                      'Upcoming deadlines: '
-                      '${course.notReportedExceededDeadlineCount}',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _CoursePreferenceSwitch(
-              key: Key('course-mute-${course.key.courseId}'),
-              label: 'Mute notifications',
-              description: 'No notifications for this course.',
-              value: course.preference.notificationsMuted,
-              onChanged: writing ? null : onNotificationsMuted,
-            ),
-            _CoursePreferenceSwitch(
-              key: Key('course-background-${course.key.courseId}'),
-              label: 'Background monitoring',
-              description: 'Skips background effects, not the download itself.',
-              value: course.preference.backgroundMonitoringEnabled,
-              onChanged: writing ? null : onBackgroundMonitoring,
-            ),
-            if (writing)
+              const SizedBox(height: AppSpacing.sm),
               Semantics(
-                label: 'Saving course controls',
-                liveRegion: true,
-                child: const LinearProgressIndicator(
-                  key: Key('course-preference-progress'),
+                label:
+                    '${course.postBaselineActivityCount} new activities, '
+                    'discovered after the first successful sync; '
+                    '${course.notReportedExceededDeadlineCount} upcoming '
+                    'deadlines, not reported past at the last saved sync',
+                child: ExcludeSemantics(
+                  child: Text(
+                    '${course.postBaselineActivityCount} new · '
+                    '${course.notReportedExceededDeadlineCount} due',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: AppTypography.labelWeight,
+                    ),
+                  ),
                 ),
               ),
-          ],
+              const SizedBox(height: AppSpacing.sm),
+              _CoursePreferenceSwitch(
+                key: Key('course-mute-${course.key.courseId}'),
+                label: 'Mute notifications',
+                description: 'No alerts for this course.',
+                value: course.preference.notificationsMuted,
+                onChanged: writing ? null : onNotificationsMuted,
+              ),
+              _CoursePreferenceSwitch(
+                key: Key('course-background-${course.key.courseId}'),
+                label: 'Background monitoring',
+                description: 'Runs while the app is closed.',
+                value: course.preference.backgroundMonitoringEnabled,
+                onChanged: writing ? null : onBackgroundMonitoring,
+              ),
+              if (writing)
+                Semantics(
+                  label: 'Saving course controls',
+                  liveRegion: true,
+                  child: const LinearProgressIndicator(
+                    key: Key('course-preference-progress'),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

@@ -24,12 +24,14 @@ void main() {
       find.textContaining('viewing this page does not clear them'),
       findsNothing,
     );
-    expect(find.text('Distributed Systems'), findsNWidgets(2));
-    expect(find.text('Mute all notifications'), findsOneWidget);
-    expect(find.text('Disable all background monitoring'), findsOneWidget);
-    expect(find.text('New activities: 2'), findsOneWidget);
-    expect(find.text('Upcoming deadlines: 3'), findsOneWidget);
-    expect(find.textContaining('not the download itself'), findsOneWidget);
+    expect(find.text('Distributed Systems'), findsOneWidget);
+    expect(find.text('Mute all'), findsOneWidget);
+    expect(find.text('Stop all checks'), findsOneWidget);
+    expect(find.text('2 new · 3 due'), findsOneWidget);
+    expect(
+      find.textContaining('Runs while the app is closed.'),
+      findsOneWidget,
+    );
 
     final row = tester.getSemantics(
       find.byKey(const Key('course-preference-row-3001')),
@@ -195,7 +197,7 @@ void main() {
     expect(service.watchCalls, 2);
     service.emit(_catalog());
     await tester.pump();
-    expect(find.text('Distributed Systems'), findsNWidgets(2));
+    expect(find.text('Distributed Systems'), findsOneWidget);
   });
 
   testWidgets('semantic activation invokes a course control', (tester) async {
@@ -206,9 +208,7 @@ void main() {
     await tester.pump();
 
     tester.semantics.tap(
-      find.semantics.byLabel(
-        'Mute notifications. No notifications for this course.',
-      ),
+      find.semantics.byLabel('Mute notifications. No alerts for this course.'),
     );
     await tester.pump();
 

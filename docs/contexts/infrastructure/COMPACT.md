@@ -78,7 +78,8 @@ Inside the shell, selecting a destination calls `goBranch(index)`. The indexed
 stack retains branch navigators, and responsive layout changes reuse the same
 `StatefulNavigationShell` and selected index. Compact navigation always shows
 all three labels, including under 200-percent text scaling. The semester action
-uses a visible label instead of an icon-only affordance.
+uses a visible label instead of an icon-only affordance. Expanded navigation
+uses the same destination model with a branded `LEB2 Watch` leading mark.
 
 Native app icons share `assets/branding/app_icon_master.png`, with platform
 sizes derived for Android, iOS, macOS, Windows, and desktop tray surfaces.
@@ -643,7 +644,7 @@ No result contains an exception object or stack trace.
 - flat app bars and cards
 - 1 logical-pixel structural rules and normal, enabled, focused, error, and
   focused-error input borders
-- 6-pixel controls, 8-pixel panels, and 12-pixel prominent radii
+- 10-pixel controls, 16-pixel panels, and 14-pixel prominent radii
 - the corresponding `AppStatusColors` extension
 - the current target platform's Material 2021 typography metadata, using the
   black theme for light mode and the white theme for dark mode

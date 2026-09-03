@@ -503,22 +503,21 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
     if (snapshot.platform == NotificationSettingsPlatform.android &&
         cadence == BackgroundFetchCadence.tenMinutes) {
-      return 'Android allows 15 minutes at least. Hourly overnight.';
+      return 'Android minimum 15 min · hourly overnight';
     }
-    return 'Between 06:00 and 19:00. Hourly overnight.';
+    return '06:00–19:00 · hourly overnight';
   }
 
   String _preciseFetchMessage(NotificationSettingsSnapshot snapshot) {
     if (!snapshot.backgroundMonitoring.enabled) {
-      return 'Turn on background monitoring first.';
+      return 'Turn on monitoring first.';
     }
     final cadence =
         _pendingCadence ?? snapshot.backgroundMonitoring.daytimeCadence;
     if (!supportsPreciseFetch(cadence)) {
-      return 'Choose 15 min or longer to use this.';
+      return 'Use 15 min or longer.';
     }
-    return 'Checks every ${_cadenceLabel(cadence)} instead of when Android '
-        'decides. Uses more battery. Off overnight.';
+    return 'Every ${_cadenceLabel(cadence)} · more battery · off overnight';
   }
 
   bool _exactAlarmPermissionSectionVisible(
@@ -534,7 +533,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     return switch (status) {
       ExactAlarmPermissionStatus.allowed => 'Precise reminders allowed.',
       ExactAlarmPermissionStatus.blocked =>
-        'Not allowed. Android may deliver reminders late.',
+        'Not allowed · reminders may arrive late.',
       ExactAlarmPermissionStatus.notRequired => 'Not needed here.',
       ExactAlarmPermissionStatus.unavailable =>
         'Precise reminders are unavailable on this device.',
@@ -675,16 +674,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ListTile(
                       key: const Key('background-reliability-tile'),
                       title: const Text('Allow background checks'),
-                      subtitle: const Text(
-                        'The system is currently pausing them.',
-                      ),
+                      subtitle: const Text('System is pausing checks.'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _requestBackgroundGrant,
                     ),
                   SwitchListTile.adaptive(
                     key: const Key('new-assignment-notifications-switch'),
                     title: const Text('New assignments'),
-                    subtitle: const Text('Notify when work appears.'),
+                    subtitle: const Text('Notify when new work appears.'),
                     value: snapshot.newAssignmentNotifications.enabled,
                     onChanged:
                         _pendingSettings.containsKey(
@@ -703,7 +700,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     key: const Key('deadline-reminders-switch'),
                     title: const Text('Deadline reminders'),
                     subtitle: Text(
-                      offsetsEmpty ? 'No times selected.' : 'Times below.',
+                      offsetsEmpty ? 'Choose a time.' : 'Times below.',
                     ),
                     value: snapshot.deadlineReminders.enabled,
                     onChanged:
@@ -791,8 +788,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                               ),
                       ),
                       subtitle: const Text(
-                        'Allow alarms and reminders for timing closer to the '
-                        'selected deadline offset.',
+                        'Closer timing for selected offsets.',
                       ),
                     ),
                     Padding(
@@ -828,7 +824,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                       subtitle: Text(
                         snapshot.desktopAutostart.support ==
                                 DesktopAutostartSupport.available
-                            ? 'Open LEB2 Watch when you sign in.'
+                            ? 'Open at sign-in.'
                             : 'Unavailable on this device.',
                       ),
                       value: snapshot.desktopAutostart.enabled,
@@ -846,7 +842,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               ],
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
-                title: 'Privacy',
+                title: 'Help',
                 children: [
                   ListTile(
                     key: const Key('open-privacy'),
@@ -854,19 +850,10 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenPrivacy,
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _SettingsSection(
-                title: 'Support',
-                children: [
                   ListTile(
                     key: const Key('open-diagnostics'),
                     leading: const Icon(Icons.monitor_heart_outlined),
                     title: const Text('Synchronization diagnostics'),
-                    subtitle: const Text(
-                      'Review sync, session, and scheduler status.',
-                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: widget.onOpenDiagnostics,
                   ),
@@ -885,7 +872,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const SizedBox(height: AppSpacing.md),
               _SettingsSection(
                 title: 'Local data',
-                description: 'Nothing is deleted from LEB2 itself.',
+                description: 'Only data saved on this device.',
                 danger: true,
                 children: [
                   LocalDataDeletionPanel(
@@ -906,13 +893,13 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     BackgroundScheduleStatus status,
   ) {
     if (!desiredEnabled) {
-      return 'Off.';
+      return 'Off';
     }
     return switch (status) {
-      BackgroundScheduleUnsupported() => 'Unsupported on this platform.',
-      BackgroundScheduleInactive() => 'On, but no check is registered.',
-      BackgroundScheduleActive() => 'Checks about every 15 minutes.',
-      BackgroundScheduleUnavailable() => 'On. Schedule status unknown.',
+      BackgroundScheduleUnsupported() => 'Unavailable here',
+      BackgroundScheduleInactive() => 'On · no check registered',
+      BackgroundScheduleActive() => 'On · about every 15 min',
+      BackgroundScheduleUnavailable() => 'On · schedule unknown',
     };
   }
 }
@@ -978,11 +965,6 @@ class _SettingsHeader extends StatelessWidget {
             header: true,
             child: Text('Settings', style: theme.textTheme.headlineMedium),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Saved on this device. Timing is best effort.',
-            style: theme.textTheme.bodyLarge,
-          ),
         ],
       ),
     );
@@ -1005,60 +987,62 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: AppElevation.flat,
-      color: danger
-          ? Color.alphaBlend(
-              theme.colorScheme.error.withValues(alpha: 0.08),
-              theme.colorScheme.surfaceContainerLow,
-            )
-          : theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: danger
-              ? theme.colorScheme.error
-              : theme.colorScheme.outlineVariant,
-          width: danger ? AppBorders.hairline * 2 : AppBorders.hairline,
-        ),
-        borderRadius: BorderRadius.circular(AppRadii.panel),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: danger ? theme.colorScheme.onErrorContainer : null,
-                  ),
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: danger ? theme.colorScheme.onErrorContainer : null,
                 ),
               ),
             ),
-            if (description case final description?) ...[
-              const SizedBox(height: AppSpacing.xs),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Text(
-                  description,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+          ),
+          if (description case final description?) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ],
-            if (children.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.xs),
-              ...children,
-            ],
+            ),
           ],
-        ),
+          if (children.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            ...children,
+          ],
+        ],
       ),
+    );
+
+    if (!danger) {
+      return content;
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: AppElevation.flat,
+      color: Color.alphaBlend(
+        theme.colorScheme.error.withValues(alpha: 0.08),
+        theme.colorScheme.surfaceContainerLow,
+      ),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: theme.colorScheme.error,
+          width: AppBorders.hairline * 2,
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+      ),
+      child: content,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leb2_watch/src/platform/background/background_reliability_grant.dart';
+import 'package:leb2_watch/src/app/design_system/app_tokens.dart';
 import 'package:leb2_watch/src/app/design_system/app_theme.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/background_scheduler.dart';
 import 'package:leb2_watch/src/features/background_sync/domain/desktop_autostart_service.dart';
@@ -268,7 +269,7 @@ void main() {
       card.shape,
       RoundedRectangleBorder(
         side: BorderSide(color: scheme.error, width: 2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadii.panel),
       ),
     );
   });
@@ -379,7 +380,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Between 06:00 and 19:00. Hourly overnight.'), findsOne);
+    expect(find.text('06:00–19:00 · hourly overnight'), findsOne);
   });
 
   testWidgets('choosing a cadence saves it and reports the result', (
@@ -435,7 +436,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Turn on background monitoring first.'), findsOne);
+    expect(find.text('Turn on monitoring first.'), findsOne);
   });
 
   testWidgets('precise checks are unavailable under 15 min', (tester) async {
@@ -455,7 +456,7 @@ void _cadenceTests() {
           .onChanged,
       isNull,
     );
-    expect(find.text('Choose 15 min or longer to use this.'), findsOne);
+    expect(find.text('Use 15 min or longer.'), findsOne);
     expect(service.preciseWrites, isEmpty);
   });
 
@@ -472,13 +473,7 @@ void _cadenceTests() {
 
     await _pump(tester, service, height: 1400);
 
-    expect(
-      find.text(
-        'Checks every 15 min instead of when Android decides. Uses more '
-        'battery. Off overnight.',
-      ),
-      findsOne,
-    );
+    expect(find.text('Every 15 min · more battery · off overnight'), findsOne);
 
     await tester.tap(find.byKey(const Key('precise-fetch-switch')));
     await tester.pumpAndSettle();
@@ -498,10 +493,7 @@ void _cadenceTests() {
 
     await _pump(tester, service, height: 1400);
 
-    expect(
-      find.text('Android allows 15 minutes at least. Hourly overnight.'),
-      findsOne,
-    );
+    expect(find.text('Android minimum 15 min · hourly overnight'), findsOne);
   });
 }
 

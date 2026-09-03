@@ -159,6 +159,7 @@ class _ExpandedShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return CallbackShortcuts(
       bindings: _shortcutBindings(onDestinationSelected),
       child: Focus(
@@ -179,9 +180,26 @@ class _ExpandedShell extends StatelessWidget {
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.sm,
                   ),
-                  child: Text(
-                    'LEB2 Watch',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(AppRadii.control),
+                        ),
+                        child: SizedBox.square(
+                          dimension: 28,
+                          child: Icon(
+                            Icons.visibility_outlined,
+                            color: theme.colorScheme.onPrimary,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text('LEB2 Watch', style: theme.textTheme.titleMedium),
+                    ],
                   ),
                 ),
                 onDestinationSelected: onDestinationSelected,

@@ -3,7 +3,7 @@
 ## Status
 
 Implemented. Verified by `flutter analyze` and the full `flutter test` suite
-(1248 tests). No platform build was run: no JDK is installed in the development
+(1419 tests). No platform build was run: no JDK is installed in the development
 environment, and the Apple, Linux, and Windows toolchains were not exercised
 either. Only the Dart layer is compile-verified.
 
@@ -42,6 +42,12 @@ disclosed fact but states each one once.
 renders its title and controls only. The former "Reliability" section and the
 per-platform `reliabilityMessage` are gone: they explained an OS limitation the
 user could not act on.
+
+Dashboard filters and course controls use short labels, and the selected course
+name appears once instead of being repeated beside its picker. Assignment cards
+and details surface status and deadline as a compact visual hierarchy. Settings
+and privacy groups use one shared, low-noise panel treatment; full facts remain
+available through labels and semantics.
 
 ### Time
 
@@ -158,6 +164,10 @@ which no retry can fix.
 | `android/app/src/main/kotlin/dev/oangsa/leb2watch/BatteryOptimizationExemption.kt` | Android native channel handler |
 | `ios/Runner/AppDelegate.swift` | `BackgroundRefreshStatusBridge` (pre-existing, now also drives the grant) |
 | `lib/bootstrap.dart` | Bounded startup retry and the retry button |
+| `lib/src/app/design_system/app_tokens.dart` | Shared surfaces, radii, spacing, and typography tokens |
+| `lib/src/features/assignments/dashboard/presentation/assignment_dashboard_page.dart` | Compact filters, cards, and responsive rows |
+| `lib/src/features/courses/presentation/course_preferences_page.dart` | Single-course selection and compact preference panels |
+| `lib/src/features/settings/notifications/presentation/notification_settings_page.dart` | Grouped settings copy and controls |
 
 ## Contracts and interfaces
 
@@ -210,6 +220,7 @@ which no retry can fix.
 | `test/platform/background/background_reliability_grant_test.dart` | Android, iOS, desktop, and unsupported grants |
 | `test/features/settings/notifications/presentation/notification_settings_page_test.dart` | Permission section hiding, grant tile visibility, desktop suppression |
 | `test/bootstrap_test.dart` | Bounded retry, retry-button recovery |
+| `test/features/assignments/dashboard/presentation/assignment_dashboard_golden_test.dart` | Mobile and desktop dashboard visual baselines |
 
 ## Related contexts
 

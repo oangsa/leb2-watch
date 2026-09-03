@@ -743,7 +743,7 @@ void main() {
           expect(find.byKey(const Key('assignments-surface')), findsNothing);
         } else if (destination == AppDestination.courses) {
           expect(find.text('Course controls'), findsOneWidget);
-          expect(find.text('Router course'), findsNWidgets(2));
+          expect(find.text('Router course'), findsOneWidget);
           expect(find.byKey(const Key('courses-surface')), findsNothing);
         } else if (destination == AppDestination.settings) {
           expect(find.text('Settings'), findsWidgets);

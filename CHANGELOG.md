@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-09-03
+
 ### Changed
 
+- Refreshed the app layout with shorter labels, clearer assignment hierarchy,
+  and lighter settings screens.
 - Primary navigation now keeps Assignments, Courses, and Settings visible;
   synchronization diagnostics moved into Settings.
 - Onboarding now explains each privacy disclosure, and compact navigation
@@ -119,7 +123,8 @@ detects newly published work, and raises local notifications, against a
 self-hosted [LEB2SCRAPPER API](https://github.com/oangsa/LEB2SCRAPPER-API)
 instance. Linux, Windows, and Android artifacts.
 
-[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/oangsa/leb2-watch/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/oangsa/leb2-watch/compare/v0.10.0...v0.10.1
 [0.9.0]: https://github.com/oangsa/leb2-watch/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/oangsa/leb2-watch/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/oangsa/leb2-watch/compare/v0.7.0...v0.8.0

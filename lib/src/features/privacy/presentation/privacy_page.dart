@@ -177,31 +177,37 @@ class _PrivacySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: AppElevation.flat,
-      color: theme.colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadii.panel),
+        border: Border(
+          left: BorderSide(
+            color: theme.colorScheme.primary,
+            width: AppSpacing.xxs,
+          ),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ExcludeSemantics(
-              child: Icon(
-                icon,
-                size: AppSizing.stateIcon,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Semantics(
-              key: headingKey,
-              header: true,
-              child: Text(title, style: theme.textTheme.titleLarge),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(icon, size: 24, color: theme.colorScheme.primary),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Semantics(
+                    key: headingKey,
+                    header: true,
+                    child: Text(title, style: theme.textTheme.titleLarge),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.sm),
             for (final (index, paragraph) in paragraphs.indexed) ...[
