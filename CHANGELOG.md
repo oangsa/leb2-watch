@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Assignment cards show deadline progress and submission timing; assignment details hide redundant metadata.
 - Downloaded Android files open automatically when a compatible viewer is installed.
 - The Courses tab uses the same card header as Assignments, with settings behind a gear button.
-- Updated the app icon with a smaller teal mark on a transparent background.
+- Updated the app icon with a smaller, slightly right-shifted teal mark on a transparent background.
 
 ### Fixed
 
