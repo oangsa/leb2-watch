@@ -35,6 +35,7 @@ fun configureAttachmentFileSink(
 
             val fileName = call.argument<String>("fileName")
             val bytes = call.argument<ByteArray>("bytes")
+            val openAfterSave = call.argument<Boolean>("openAfterSave") ?: true
             if (fileName.isNullOrBlank() || bytes == null || bytes.isEmpty()) {
                 result.error(saveFailedCode, saveFailedMessage, null)
                 return@setMethodCallHandler
@@ -46,7 +47,9 @@ fun configureAttachmentFileSink(
             }
 
             try {
-                result.success(saveAttachment(applicationContext, fileName, bytes))
+                result.success(
+                    saveAttachment(applicationContext, fileName, bytes, openAfterSave),
+                )
             } catch (_: Exception) {
                 result.error(saveFailedCode, saveFailedMessage, null)
             }
@@ -57,6 +60,7 @@ private fun saveAttachment(
     context: Context,
     requestedName: String,
     bytes: ByteArray,
+    openAfterSave: Boolean,
 ): String {
     val fileName = sanitizeFileName(requestedName) ?: throw IOException()
     val resolver = context.contentResolver
@@ -85,7 +89,9 @@ private fun saveAttachment(
         if (resolver.update(uri, complete, null, null) != 1) {
             throw IOException()
         }
-        openAttachment(context, uri, mimeType(displayName))
+        if (openAfterSave) {
+            openAttachment(context, uri, mimeType(displayName))
+        }
         "$publicFolderName/$displayName"
     } catch (error: Exception) {
         resolver.delete(uri, null, null)

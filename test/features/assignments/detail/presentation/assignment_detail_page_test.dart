@@ -334,7 +334,11 @@ final class _AttachmentSink implements AttachmentFileSink {
   const _AttachmentSink();
 
   @override
-  Future<String> write({required String fileName, required List<int> bytes}) {
+  Future<String> write({
+    required String fileName,
+    required List<int> bytes,
+    bool openAfterSave = true,
+  }) {
     throw UnimplementedError();
   }
 }

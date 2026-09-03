@@ -43,8 +43,10 @@ renders its title and controls only. The former "Reliability" section and the
 per-platform `reliabilityMessage` are gone: they explained an OS limitation the
 user could not act on.
 
-Dashboard filters and course controls use short labels, and the selected course
-name appears once instead of being repeated beside its picker. Assignment cards
+Dashboard filters and course settings use short labels, and the selected course
+name appears once instead of being repeated beside its picker. The Courses page
+uses the same card header as Assignments and keeps settings behind a gear modal.
+Assignment cards
 and details surface deadline progress, submission timing, and status chips as a
 compact visual hierarchy. Assignment details omit redundant source, activity,
 attachment-count, and group-type rows while retaining download actions. Settings

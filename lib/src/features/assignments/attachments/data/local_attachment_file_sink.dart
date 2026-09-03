@@ -20,15 +20,15 @@ final class AndroidAttachmentFileSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    bool openAfterSave = true,
   }) async {
     try {
-      final path = await _channel.invokeMethod<String>(
-        'saveAttachment',
-        <String, Object?>{
-          'fileName': fileName,
-          'bytes': Uint8List.fromList(bytes),
-        },
-      );
+      final path = await _channel
+          .invokeMethod<String>('saveAttachment', <String, Object?>{
+            'fileName': fileName,
+            'bytes': Uint8List.fromList(bytes),
+            'openAfterSave': openAfterSave,
+          });
       if (path == null || path.trim().isEmpty) {
         throw const FileSystemException('Attachment path was unavailable.');
       }
@@ -64,10 +64,15 @@ final class LocalAttachmentFileSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    bool openAfterSave = true,
   }) async {
     if (Platform.isAndroid) {
       try {
-        return await _androidSink.write(fileName: fileName, bytes: bytes);
+        return await _androidSink.write(
+          fileName: fileName,
+          bytes: bytes,
+          openAfterSave: openAfterSave,
+        );
       } on _AndroidPublicStorageUnavailableException {
         // Android 9 and older use the private fallback below.
       }

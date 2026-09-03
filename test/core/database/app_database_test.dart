@@ -33,7 +33,7 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toList();
 
-        expect(database.schemaVersion, 23);
+        expect(database.schemaVersion, 24);
         expect(tableNames, [
           'activities',
           'activity_fingerprints',
@@ -42,6 +42,7 @@ void main() {
           'assignment_dashboard_preferences',
           'automatic_session_reauthentication_attempts',
           'background_schedule_settings',
+          'course_material_cache',
           'course_preferences',
           'courses',
           'deadline_reminder_delivery_outbox',
@@ -58,7 +59,7 @@ void main() {
           'sync_operations',
           'sync_runs',
         ]);
-        expect(await _pragmaInt(database, 'user_version'), 23);
+        expect(await _pragmaInt(database, 'user_version'), 24);
         expect(await _pragmaInt(database, 'foreign_keys'), 1);
       },
     );

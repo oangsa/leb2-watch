@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/design_system/app_breakpoints.dart';
 import '../../../../app/design_system/app_tokens.dart';
+import '../../../../app/design_system/widgets/app_page_header.dart';
 import '../../../../app/design_system/widgets/app_state_view.dart';
 import '../../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../../core/time/app_time_zone.dart';
@@ -622,75 +623,25 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final success = cache.latestSuccess?.completedAtUtc;
     final statusText = success == null
         ? 'Never synced'
         : 'Last checked ${timestampFormatter(context, success)}';
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppRadii.panel),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.xs,
-            AppSpacing.md,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Semantics(
-                      header: true,
-                      child: Text(
-                        'Assignments',
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      formatSemesterLabel(
-                        name: cache.activeSemesterName,
-                        id: cache.activeSemesterId,
-                      ),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      cache.session.state == SessionLifecycleState.expired
-                          ? '$statusText · monitoring paused'
-                          : statusText,
-                      key: const Key('assignment-last-success'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                key: const Key('assignment-refresh-button'),
-                tooltip: refreshing
-                    ? 'Refreshing assignments'
-                    : 'Refresh assignments',
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh_rounded),
-              ),
-            ],
-          ),
-        ),
+    return AppPageHeader(
+      title: 'Assignments',
+      semesterLabel: formatSemesterLabel(
+        name: cache.activeSemesterName,
+        id: cache.activeSemesterId,
+      ),
+      supportingText: cache.session.state == SessionLifecycleState.expired
+          ? '$statusText · monitoring paused'
+          : statusText,
+      supportingKey: const Key('assignment-last-success'),
+      trailing: IconButton(
+        key: const Key('assignment-refresh-button'),
+        tooltip: refreshing ? 'Refreshing assignments' : 'Refresh assignments',
+        onPressed: onRefresh,
+        icon: const Icon(Icons.refresh_rounded),
       ),
     );
   }

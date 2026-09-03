@@ -15,29 +15,30 @@ import 'package:leb2_watch/src/features/courses/data/course_preferences_store.da
 import 'package:leb2_watch/src/features/courses/presentation/course_preferences_page.dart';
 
 void main() {
-  testWidgets('renders the cached control ledger with exact count meanings', (
-    tester,
-  ) async {
+  testWidgets('renders courses with exact count meanings', (tester) async {
     final service = _FakeCoursePreferencesService();
     addTearDown(service.close);
     await _pumpPage(tester, service);
     service.emit(_catalog());
     await tester.pump();
 
-    expect(find.text('Course controls'), findsOneWidget);
+    expect(find.text('Courses'), findsOneWidget);
     expect(find.text('Semester 101'), findsOneWidget);
+    expect(find.text('Updates follow assignment checks'), findsOneWidget);
     expect(
       find.textContaining('viewing this page does not clear them'),
       findsNothing,
     );
     expect(find.text('Distributed Systems'), findsOneWidget);
+    expect(find.byKey(const Key('course-settings-button')), findsOneWidget);
+
+    await _openCourseSettings(tester);
+
+    expect(find.text('Course settings'), findsOneWidget);
     expect(find.text('Mute all'), findsOneWidget);
     expect(find.text('Stop all checks'), findsOneWidget);
     expect(find.text('2 new · 3 due'), findsOneWidget);
-    expect(
-      find.textContaining('Runs while the app is closed.'),
-      findsOneWidget,
-    );
+    expect(find.text('Checks for updates while closed.'), findsOneWidget);
 
     final row = tester.getSemantics(
       find.byKey(const Key('course-preference-row-3001')),
@@ -181,6 +182,7 @@ void main() {
       final result = Completer<CoursePreferenceUpdateResult>();
       service.nextMuteResult = result.future;
 
+      await _openCourseSettings(tester);
       await tester.tap(find.byKey(const Key('course-mute-3001')));
       await tester.pump();
 
@@ -237,6 +239,7 @@ void main() {
       service.emit(_catalog());
       await tester.pump();
 
+      await _openCourseSettings(tester);
       await tester.tap(find.byKey(const Key('course-background-3001')));
       await tester.pumpAndSettle();
 
@@ -266,6 +269,7 @@ void main() {
     service.emit(_catalog());
     await tester.pump();
 
+    await _openCourseSettings(tester);
     await tester.tap(find.byKey(const Key('course-mute-3001')));
     await tester.pumpAndSettle();
 
@@ -288,17 +292,14 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Choose a semester first'), findsOneWidget);
-    expect(
-      find.text('Course controls appear after you choose a semester.'),
-      findsOneWidget,
-    );
+    expect(find.text('Select a semester to see courses.'), findsOneWidget);
     await tester.tap(find.text('Choose semester'));
     expect(chooseCalls, 1);
 
     service.emit(ActiveCourseCatalog(activeSemesterId: 101, courses: const []));
     await tester.pump();
     expect(find.text('No saved courses yet'), findsOneWidget);
-    expect(find.textContaining('sync'), findsOneWidget);
+    expect(find.text('Sync this semester to see courses.'), findsOneWidget);
   });
 
   testWidgets('stream errors are redacted and retry subscribes again', (
@@ -328,8 +329,9 @@ void main() {
     service.emit(_catalog());
     await tester.pump();
 
+    await _openCourseSettings(tester);
     tester.semantics.tap(
-      find.semantics.byLabel('Mute notifications. No alerts for this course.'),
+      find.semantics.byLabel('Mute notifications. Alerts for this course.'),
     );
     await tester.pump();
 
@@ -351,10 +353,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byKey(const Key('course-preference-row-3001')), findsOneWidget);
+    expect(find.byKey(const Key('course-preference-row-3001')), findsNothing);
     expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
 
     await _chooseCourse(tester, 'Computer Networks');
+    await _openCourseSettings(tester);
 
     expect(find.byKey(const Key('course-preference-row-3001')), findsNothing);
     expect(find.byKey(const Key('course-preference-row-3002')), findsOneWidget);
@@ -395,6 +398,9 @@ void main() {
           .initialValue,
       3001,
     );
+    expect(find.byKey(const Key('course-preference-row-3001')), findsNothing);
+    expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
+    await _openCourseSettings(tester);
     expect(find.byKey(const Key('course-preference-row-3001')), findsOneWidget);
     expect(find.byKey(const Key('course-preference-row-3002')), findsNothing);
   });
@@ -410,6 +416,7 @@ void main() {
     service.emit(ActiveCourseCatalog(activeSemesterId: 101, courses: courses));
     await tester.pump();
 
+    await _openCourseSettings(tester);
     await tester.tap(find.byKey(const Key('course-mute-all')));
     await tester.pump();
     await tester.pump();
@@ -483,6 +490,7 @@ void main() {
       );
       await tester.pump();
 
+      await _openCourseSettings(tester);
       await tester.tap(find.byKey(scenario.button));
       await tester.pump();
       await tester.pump();
@@ -521,11 +529,7 @@ void main() {
         await tester.pump();
 
         expect(tester.takeException(), isNull);
-        await tester.scrollUntilVisible(
-          find.byKey(const Key('course-preference-row-3001')),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
+        await _openCourseSettings(tester);
         expect(
           find.byKey(const Key('course-preference-row-3001')),
           findsOneWidget,
@@ -552,9 +556,15 @@ void main() {
     );
     await tester.pump();
 
+    await _openCourseSettings(tester);
     expect(find.byKey(const Key('course-preference-row-3000')), findsOneWidget);
     expect(find.byKey(const Key('course-preference-row-3099')), findsNothing);
   });
+}
+
+Future<void> _openCourseSettings(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('course-settings-button')));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _chooseCourse(WidgetTester tester, String name) async {
@@ -710,7 +720,10 @@ final class _FakeCourseMaterialsService implements CourseMaterialsService {
   final List<CourseKey> keys = [];
 
   @override
-  Future<CourseMaterialsCatalog> read(CourseKey key) async {
+  Future<CourseMaterialsCatalog> read(
+    CourseKey key, {
+    BackendRequestCancellation? cancellation,
+  }) async {
     keys.add(key);
     final pending = failure;
     if (pending != null) {
@@ -798,6 +811,7 @@ final class _RecordingSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    bool openAfterSave = true,
   }) async {
     fileNames.add(fileName);
     return '/saved/$fileName';

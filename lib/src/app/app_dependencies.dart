@@ -43,6 +43,8 @@ import '../features/authentication/data/session_identity_store.dart';
 import '../features/authentication/domain/automatic_session_reauthentication.dart';
 import '../features/courses/application/course_preferences_service.dart';
 import '../features/courses/application/course_materials_service.dart';
+import '../features/courses/application/course_materials_prefetch_service.dart';
+import '../features/courses/data/course_material_cache_store.dart';
 import '../features/courses/data/course_preferences_store.dart';
 import '../features/notifications/application/deadline_reminder_coordinator.dart';
 import '../features/notifications/application/desktop_deadline_reminder_delivery_coordinator.dart';
@@ -576,6 +578,9 @@ final backgroundSyncRunnerProvider = FutureProvider<BackgroundSyncRunner>((
   return BackgroundSyncRunner(
     await ref.watch(backgroundSyncTargetStoreProvider.future),
     await ref.watch(assignmentSyncServiceProvider.future),
+    materialsPrefetcher: await ref.watch(
+      courseMaterialsPrefetchServiceProvider.future,
+    ),
   );
 });
 
@@ -694,6 +699,12 @@ final coursePreferencesStoreProvider = FutureProvider<CoursePreferencesStore>((
   return DriftCoursePreferencesStore(database);
 });
 
+final courseMaterialCacheStoreProvider =
+    FutureProvider<CourseMaterialCacheStore>((ref) async {
+      final database = await ref.watch(appDatabaseProvider.future);
+      return DriftCourseMaterialCacheStore(database);
+    });
+
 final coursePreferencesServiceProvider =
     FutureProvider<CoursePreferencesService>((ref) async {
       final store = await ref.watch(coursePreferencesStoreProvider.future);
@@ -719,6 +730,18 @@ final courseMaterialsServiceProvider = Provider<CourseMaterialsService>((ref) {
     },
   );
 });
+
+final courseMaterialsPrefetchServiceProvider =
+    FutureProvider<CourseMaterialsPrefetcher>((ref) async {
+      return CourseMaterialsPrefetchService(
+        preferencesStore: await ref.watch(
+          coursePreferencesStoreProvider.future,
+        ),
+        materialsService: ref.watch(courseMaterialsServiceProvider),
+        downloadService: ref.watch(attachmentDownloadServiceProvider),
+        cacheStore: await ref.watch(courseMaterialCacheStoreProvider.future),
+      );
+    });
 
 final courseEffectPolicyReaderProvider =
     FutureProvider<CourseEffectPolicyReader>((ref) async {

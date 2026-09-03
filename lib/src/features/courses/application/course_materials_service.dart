@@ -3,7 +3,10 @@ import '../../../core/network/domain/learning_material_models.dart';
 import '../data/course_preferences_store.dart';
 
 abstract interface class CourseMaterialsService {
-  Future<CourseMaterialsCatalog> read(CourseKey key);
+  Future<CourseMaterialsCatalog> read(
+    CourseKey key, {
+    BackendRequestCancellation? cancellation,
+  });
 }
 
 final class CourseMaterialsCatalog {
@@ -40,7 +43,10 @@ final class RemoteCourseMaterialsService implements CourseMaterialsService {
   final Future<int?> Function() readUserId;
 
   @override
-  Future<CourseMaterialsCatalog> read(CourseKey key) async {
+  Future<CourseMaterialsCatalog> read(
+    CourseKey key, {
+    BackendRequestCancellation? cancellation,
+  }) async {
     try {
       final userId = await readUserId();
       if (userId == null || userId <= 0 || userId > 2147483647) {
@@ -50,6 +56,7 @@ final class RemoteCourseMaterialsService implements CourseMaterialsService {
         semesterId: key.semesterId,
         classId: key.courseId,
         userId: userId,
+        cancellation: cancellation,
       );
       return CourseMaterialsCatalog(
         semesterId: key.semesterId,

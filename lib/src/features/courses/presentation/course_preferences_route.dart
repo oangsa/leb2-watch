@@ -16,11 +16,17 @@ class CoursePreferencesRoute extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     CourseMaterialsService? materialsService;
     AttachmentDownloadService? downloadService;
+    final backgroundSettingsService = ref
+        .watch(backgroundMonitoringSettingsServiceProvider)
+        .value;
+    final prefetchService = ref
+        .watch(courseMaterialsPrefetchServiceProvider)
+        .value;
     try {
       materialsService = ref.watch(courseMaterialsServiceProvider);
       downloadService = ref.watch(attachmentDownloadServiceProvider);
     } on Object {
-      // Cached course controls remain usable when network composition is not
+      // Cached course settings remain usable when network composition is not
       // available, such as a recovery shell or an offline test container.
     }
     return ref
@@ -30,10 +36,12 @@ class CoursePreferencesRoute extends ConsumerWidget {
             service: service,
             materialsService: materialsService,
             downloadService: downloadService,
+            prefetchService: prefetchService,
+            backgroundSettingsService: backgroundSettingsService,
             onChooseSemester: () => context.go(AppRoute.semesters.path),
           ),
           error: (_, _) => AppStateView.error(
-            title: 'Course controls unavailable',
+            title: 'Courses unavailable',
             message:
                 'Saved course data could not be opened. Check local storage and '
                 'try again.',
@@ -46,7 +54,7 @@ class CoursePreferencesRoute extends ConsumerWidget {
             },
           ),
           loading: () => const AppStateView.loading(
-            title: 'Preparing course controls',
+            title: 'Preparing courses',
             message: 'Opening saved data on this device.',
           ),
         );

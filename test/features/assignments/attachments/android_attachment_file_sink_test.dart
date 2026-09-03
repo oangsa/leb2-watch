@@ -29,6 +29,7 @@ void main() {
     final arguments = received?.arguments as Map<Object?, Object?>;
     expect(arguments['fileName'], 'reading.pdf');
     expect(arguments['bytes'], orderedEquals(const [1, 2, 3]));
+    expect(arguments['openAfterSave'], isTrue);
   });
 
   test('preserves native save failures for the download service', () async {
@@ -44,5 +45,22 @@ void main() {
       ),
       throwsA(isA<PlatformException>()),
     );
+  });
+
+  test('can save without opening a viewer for background caching', () async {
+    MethodCall? received;
+    messenger.setMockMethodCallHandler(attachmentFileSinkChannel, (call) async {
+      received = call;
+      return 'Downloads/LEB2/reading.pdf';
+    });
+
+    await const AndroidAttachmentFileSink().write(
+      fileName: 'reading.pdf',
+      bytes: const [1],
+      openAfterSave: false,
+    );
+
+    final arguments = received?.arguments as Map<Object?, Object?>;
+    expect(arguments['openAfterSave'], isFalse);
   });
 }

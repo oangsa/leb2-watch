@@ -821,6 +821,559 @@ class CoursePreferencesCompanion extends UpdateCompanion<CoursePreference> {
   }
 }
 
+class $CourseMaterialCacheEntriesTable extends CourseMaterialCacheEntries
+    with TableInfo<$CourseMaterialCacheEntriesTable, CourseMaterialCacheEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CourseMaterialCacheEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _semesterIdMeta = const VerificationMeta(
+    'semesterId',
+  );
+  @override
+  late final GeneratedColumn<int> semesterId = GeneratedColumn<int>(
+    'semester_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _courseIdMeta = const VerificationMeta(
+    'courseId',
+  );
+  @override
+  late final GeneratedColumn<int> courseId = GeneratedColumn<int>(
+    'course_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _materialIdMeta = const VerificationMeta(
+    'materialId',
+  );
+  @override
+  late final GeneratedColumn<int> materialId = GeneratedColumn<int>(
+    'material_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _attachmentIdMeta = const VerificationMeta(
+    'attachmentId',
+  );
+  @override
+  late final GeneratedColumn<int> attachmentId = GeneratedColumn<int>(
+    'attachment_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _displayNameMeta = const VerificationMeta(
+    'displayName',
+  );
+  @override
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileSizeMeta = const VerificationMeta(
+    'fileSize',
+  );
+  @override
+  late final GeneratedColumn<String> fileSize = GeneratedColumn<String>(
+    'file_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _savedPathMeta = const VerificationMeta(
+    'savedPath',
+  );
+  @override
+  late final GeneratedColumn<String> savedPath = GeneratedColumn<String>(
+    'saved_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DateTime, int> cachedAtUtc =
+      GeneratedColumn<int>(
+        'cached_at_utc',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>(
+        $CourseMaterialCacheEntriesTable.$convertercachedAtUtc,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    semesterId,
+    courseId,
+    materialId,
+    attachmentId,
+    displayName,
+    fileSize,
+    savedPath,
+    cachedAtUtc,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'course_material_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CourseMaterialCacheEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('semester_id')) {
+      context.handle(
+        _semesterIdMeta,
+        semesterId.isAcceptableOrUnknown(data['semester_id']!, _semesterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_semesterIdMeta);
+    }
+    if (data.containsKey('course_id')) {
+      context.handle(
+        _courseIdMeta,
+        courseId.isAcceptableOrUnknown(data['course_id']!, _courseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_courseIdMeta);
+    }
+    if (data.containsKey('material_id')) {
+      context.handle(
+        _materialIdMeta,
+        materialId.isAcceptableOrUnknown(data['material_id']!, _materialIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_materialIdMeta);
+    }
+    if (data.containsKey('attachment_id')) {
+      context.handle(
+        _attachmentIdMeta,
+        attachmentId.isAcceptableOrUnknown(
+          data['attachment_id']!,
+          _attachmentIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_attachmentIdMeta);
+    }
+    if (data.containsKey('display_name')) {
+      context.handle(
+        _displayNameMeta,
+        displayName.isAcceptableOrUnknown(
+          data['display_name']!,
+          _displayNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_displayNameMeta);
+    }
+    if (data.containsKey('file_size')) {
+      context.handle(
+        _fileSizeMeta,
+        fileSize.isAcceptableOrUnknown(data['file_size']!, _fileSizeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fileSizeMeta);
+    }
+    if (data.containsKey('saved_path')) {
+      context.handle(
+        _savedPathMeta,
+        savedPath.isAcceptableOrUnknown(data['saved_path']!, _savedPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_savedPathMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {
+    semesterId,
+    courseId,
+    materialId,
+    attachmentId,
+  };
+  @override
+  CourseMaterialCacheEntry map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CourseMaterialCacheEntry(
+      semesterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}semester_id'],
+      )!,
+      courseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}course_id'],
+      )!,
+      materialId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}material_id'],
+      )!,
+      attachmentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attachment_id'],
+      )!,
+      displayName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}display_name'],
+      )!,
+      fileSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_size'],
+      )!,
+      savedPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}saved_path'],
+      )!,
+      cachedAtUtc: $CourseMaterialCacheEntriesTable.$convertercachedAtUtc
+          .fromSql(
+            attachedDatabase.typeMapping.read(
+              DriftSqlType.int,
+              data['${effectivePrefix}cached_at_utc'],
+            )!,
+          ),
+    );
+  }
+
+  @override
+  $CourseMaterialCacheEntriesTable createAlias(String alias) {
+    return $CourseMaterialCacheEntriesTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<DateTime, int> $convertercachedAtUtc =
+      const UtcDateTimeConverter();
+}
+
+class CourseMaterialCacheEntry extends DataClass
+    implements Insertable<CourseMaterialCacheEntry> {
+  final int semesterId;
+  final int courseId;
+  final int materialId;
+  final int attachmentId;
+  final String displayName;
+  final String fileSize;
+  final String savedPath;
+  final DateTime cachedAtUtc;
+  const CourseMaterialCacheEntry({
+    required this.semesterId,
+    required this.courseId,
+    required this.materialId,
+    required this.attachmentId,
+    required this.displayName,
+    required this.fileSize,
+    required this.savedPath,
+    required this.cachedAtUtc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['semester_id'] = Variable<int>(semesterId);
+    map['course_id'] = Variable<int>(courseId);
+    map['material_id'] = Variable<int>(materialId);
+    map['attachment_id'] = Variable<int>(attachmentId);
+    map['display_name'] = Variable<String>(displayName);
+    map['file_size'] = Variable<String>(fileSize);
+    map['saved_path'] = Variable<String>(savedPath);
+    {
+      map['cached_at_utc'] = Variable<int>(
+        $CourseMaterialCacheEntriesTable.$convertercachedAtUtc.toSql(
+          cachedAtUtc,
+        ),
+      );
+    }
+    return map;
+  }
+
+  CourseMaterialCacheEntriesCompanion toCompanion(bool nullToAbsent) {
+    return CourseMaterialCacheEntriesCompanion(
+      semesterId: Value(semesterId),
+      courseId: Value(courseId),
+      materialId: Value(materialId),
+      attachmentId: Value(attachmentId),
+      displayName: Value(displayName),
+      fileSize: Value(fileSize),
+      savedPath: Value(savedPath),
+      cachedAtUtc: Value(cachedAtUtc),
+    );
+  }
+
+  factory CourseMaterialCacheEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CourseMaterialCacheEntry(
+      semesterId: serializer.fromJson<int>(json['semesterId']),
+      courseId: serializer.fromJson<int>(json['courseId']),
+      materialId: serializer.fromJson<int>(json['materialId']),
+      attachmentId: serializer.fromJson<int>(json['attachmentId']),
+      displayName: serializer.fromJson<String>(json['displayName']),
+      fileSize: serializer.fromJson<String>(json['fileSize']),
+      savedPath: serializer.fromJson<String>(json['savedPath']),
+      cachedAtUtc: serializer.fromJson<DateTime>(json['cachedAtUtc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'semesterId': serializer.toJson<int>(semesterId),
+      'courseId': serializer.toJson<int>(courseId),
+      'materialId': serializer.toJson<int>(materialId),
+      'attachmentId': serializer.toJson<int>(attachmentId),
+      'displayName': serializer.toJson<String>(displayName),
+      'fileSize': serializer.toJson<String>(fileSize),
+      'savedPath': serializer.toJson<String>(savedPath),
+      'cachedAtUtc': serializer.toJson<DateTime>(cachedAtUtc),
+    };
+  }
+
+  CourseMaterialCacheEntry copyWith({
+    int? semesterId,
+    int? courseId,
+    int? materialId,
+    int? attachmentId,
+    String? displayName,
+    String? fileSize,
+    String? savedPath,
+    DateTime? cachedAtUtc,
+  }) => CourseMaterialCacheEntry(
+    semesterId: semesterId ?? this.semesterId,
+    courseId: courseId ?? this.courseId,
+    materialId: materialId ?? this.materialId,
+    attachmentId: attachmentId ?? this.attachmentId,
+    displayName: displayName ?? this.displayName,
+    fileSize: fileSize ?? this.fileSize,
+    savedPath: savedPath ?? this.savedPath,
+    cachedAtUtc: cachedAtUtc ?? this.cachedAtUtc,
+  );
+  CourseMaterialCacheEntry copyWithCompanion(
+    CourseMaterialCacheEntriesCompanion data,
+  ) {
+    return CourseMaterialCacheEntry(
+      semesterId: data.semesterId.present
+          ? data.semesterId.value
+          : this.semesterId,
+      courseId: data.courseId.present ? data.courseId.value : this.courseId,
+      materialId: data.materialId.present
+          ? data.materialId.value
+          : this.materialId,
+      attachmentId: data.attachmentId.present
+          ? data.attachmentId.value
+          : this.attachmentId,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
+      fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
+      savedPath: data.savedPath.present ? data.savedPath.value : this.savedPath,
+      cachedAtUtc: data.cachedAtUtc.present
+          ? data.cachedAtUtc.value
+          : this.cachedAtUtc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseMaterialCacheEntry(')
+          ..write('semesterId: $semesterId, ')
+          ..write('courseId: $courseId, ')
+          ..write('materialId: $materialId, ')
+          ..write('attachmentId: $attachmentId, ')
+          ..write('displayName: $displayName, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('savedPath: $savedPath, ')
+          ..write('cachedAtUtc: $cachedAtUtc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    semesterId,
+    courseId,
+    materialId,
+    attachmentId,
+    displayName,
+    fileSize,
+    savedPath,
+    cachedAtUtc,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CourseMaterialCacheEntry &&
+          other.semesterId == this.semesterId &&
+          other.courseId == this.courseId &&
+          other.materialId == this.materialId &&
+          other.attachmentId == this.attachmentId &&
+          other.displayName == this.displayName &&
+          other.fileSize == this.fileSize &&
+          other.savedPath == this.savedPath &&
+          other.cachedAtUtc == this.cachedAtUtc);
+}
+
+class CourseMaterialCacheEntriesCompanion
+    extends UpdateCompanion<CourseMaterialCacheEntry> {
+  final Value<int> semesterId;
+  final Value<int> courseId;
+  final Value<int> materialId;
+  final Value<int> attachmentId;
+  final Value<String> displayName;
+  final Value<String> fileSize;
+  final Value<String> savedPath;
+  final Value<DateTime> cachedAtUtc;
+  final Value<int> rowid;
+  const CourseMaterialCacheEntriesCompanion({
+    this.semesterId = const Value.absent(),
+    this.courseId = const Value.absent(),
+    this.materialId = const Value.absent(),
+    this.attachmentId = const Value.absent(),
+    this.displayName = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.savedPath = const Value.absent(),
+    this.cachedAtUtc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CourseMaterialCacheEntriesCompanion.insert({
+    required int semesterId,
+    required int courseId,
+    required int materialId,
+    required int attachmentId,
+    required String displayName,
+    required String fileSize,
+    required String savedPath,
+    required DateTime cachedAtUtc,
+    this.rowid = const Value.absent(),
+  }) : semesterId = Value(semesterId),
+       courseId = Value(courseId),
+       materialId = Value(materialId),
+       attachmentId = Value(attachmentId),
+       displayName = Value(displayName),
+       fileSize = Value(fileSize),
+       savedPath = Value(savedPath),
+       cachedAtUtc = Value(cachedAtUtc);
+  static Insertable<CourseMaterialCacheEntry> custom({
+    Expression<int>? semesterId,
+    Expression<int>? courseId,
+    Expression<int>? materialId,
+    Expression<int>? attachmentId,
+    Expression<String>? displayName,
+    Expression<String>? fileSize,
+    Expression<String>? savedPath,
+    Expression<int>? cachedAtUtc,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (semesterId != null) 'semester_id': semesterId,
+      if (courseId != null) 'course_id': courseId,
+      if (materialId != null) 'material_id': materialId,
+      if (attachmentId != null) 'attachment_id': attachmentId,
+      if (displayName != null) 'display_name': displayName,
+      if (fileSize != null) 'file_size': fileSize,
+      if (savedPath != null) 'saved_path': savedPath,
+      if (cachedAtUtc != null) 'cached_at_utc': cachedAtUtc,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CourseMaterialCacheEntriesCompanion copyWith({
+    Value<int>? semesterId,
+    Value<int>? courseId,
+    Value<int>? materialId,
+    Value<int>? attachmentId,
+    Value<String>? displayName,
+    Value<String>? fileSize,
+    Value<String>? savedPath,
+    Value<DateTime>? cachedAtUtc,
+    Value<int>? rowid,
+  }) {
+    return CourseMaterialCacheEntriesCompanion(
+      semesterId: semesterId ?? this.semesterId,
+      courseId: courseId ?? this.courseId,
+      materialId: materialId ?? this.materialId,
+      attachmentId: attachmentId ?? this.attachmentId,
+      displayName: displayName ?? this.displayName,
+      fileSize: fileSize ?? this.fileSize,
+      savedPath: savedPath ?? this.savedPath,
+      cachedAtUtc: cachedAtUtc ?? this.cachedAtUtc,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (semesterId.present) {
+      map['semester_id'] = Variable<int>(semesterId.value);
+    }
+    if (courseId.present) {
+      map['course_id'] = Variable<int>(courseId.value);
+    }
+    if (materialId.present) {
+      map['material_id'] = Variable<int>(materialId.value);
+    }
+    if (attachmentId.present) {
+      map['attachment_id'] = Variable<int>(attachmentId.value);
+    }
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
+    }
+    if (fileSize.present) {
+      map['file_size'] = Variable<String>(fileSize.value);
+    }
+    if (savedPath.present) {
+      map['saved_path'] = Variable<String>(savedPath.value);
+    }
+    if (cachedAtUtc.present) {
+      map['cached_at_utc'] = Variable<int>(
+        $CourseMaterialCacheEntriesTable.$convertercachedAtUtc.toSql(
+          cachedAtUtc.value,
+        ),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CourseMaterialCacheEntriesCompanion(')
+          ..write('semesterId: $semesterId, ')
+          ..write('courseId: $courseId, ')
+          ..write('materialId: $materialId, ')
+          ..write('attachmentId: $attachmentId, ')
+          ..write('displayName: $displayName, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('savedPath: $savedPath, ')
+          ..write('cachedAtUtc: $cachedAtUtc, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ActivitiesTable extends Activities
     with TableInfo<$ActivitiesTable, Activity> {
   @override
@@ -11891,6 +12444,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CoursesTable courses = $CoursesTable(this);
   late final $CoursePreferencesTable coursePreferences =
       $CoursePreferencesTable(this);
+  late final $CourseMaterialCacheEntriesTable courseMaterialCacheEntries =
+      $CourseMaterialCacheEntriesTable(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
   late final $SeenActivitiesTable seenActivities = $SeenActivitiesTable(this);
   late final $ActivityFingerprintsTable activityFingerprints =
@@ -12019,6 +12574,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     semesters,
     courses,
     coursePreferences,
+    courseMaterialCacheEntries,
     activities,
     seenActivities,
     activityFingerprints,
@@ -12540,6 +13096,294 @@ typedef $$CoursePreferencesTableProcessedTableManager =
         >,
       ),
       CoursePreference,
+      PrefetchHooks Function()
+    >;
+typedef $$CourseMaterialCacheEntriesTableCreateCompanionBuilder =
+    CourseMaterialCacheEntriesCompanion Function({
+      required int semesterId,
+      required int courseId,
+      required int materialId,
+      required int attachmentId,
+      required String displayName,
+      required String fileSize,
+      required String savedPath,
+      required DateTime cachedAtUtc,
+      Value<int> rowid,
+    });
+typedef $$CourseMaterialCacheEntriesTableUpdateCompanionBuilder =
+    CourseMaterialCacheEntriesCompanion Function({
+      Value<int> semesterId,
+      Value<int> courseId,
+      Value<int> materialId,
+      Value<int> attachmentId,
+      Value<String> displayName,
+      Value<String> fileSize,
+      Value<String> savedPath,
+      Value<DateTime> cachedAtUtc,
+      Value<int> rowid,
+    });
+
+class $$CourseMaterialCacheEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $CourseMaterialCacheEntriesTable> {
+  $$CourseMaterialCacheEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get courseId => $composableBuilder(
+    column: $table.courseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get materialId => $composableBuilder(
+    column: $table.materialId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attachmentId => $composableBuilder(
+    column: $table.attachmentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get savedPath => $composableBuilder(
+    column: $table.savedPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DateTime, DateTime, int> get cachedAtUtc =>
+      $composableBuilder(
+        column: $table.cachedAtUtc,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+}
+
+class $$CourseMaterialCacheEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CourseMaterialCacheEntriesTable> {
+  $$CourseMaterialCacheEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get courseId => $composableBuilder(
+    column: $table.courseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get materialId => $composableBuilder(
+    column: $table.materialId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get attachmentId => $composableBuilder(
+    column: $table.attachmentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get savedPath => $composableBuilder(
+    column: $table.savedPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get cachedAtUtc => $composableBuilder(
+    column: $table.cachedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CourseMaterialCacheEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CourseMaterialCacheEntriesTable> {
+  $$CourseMaterialCacheEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get semesterId => $composableBuilder(
+    column: $table.semesterId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get courseId =>
+      $composableBuilder(column: $table.courseId, builder: (column) => column);
+
+  GeneratedColumn<int> get materialId => $composableBuilder(
+    column: $table.materialId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get attachmentId => $composableBuilder(
+    column: $table.attachmentId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get displayName => $composableBuilder(
+    column: $table.displayName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fileSize =>
+      $composableBuilder(column: $table.fileSize, builder: (column) => column);
+
+  GeneratedColumn<String> get savedPath =>
+      $composableBuilder(column: $table.savedPath, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DateTime, int> get cachedAtUtc =>
+      $composableBuilder(
+        column: $table.cachedAtUtc,
+        builder: (column) => column,
+      );
+}
+
+class $$CourseMaterialCacheEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CourseMaterialCacheEntriesTable,
+          CourseMaterialCacheEntry,
+          $$CourseMaterialCacheEntriesTableFilterComposer,
+          $$CourseMaterialCacheEntriesTableOrderingComposer,
+          $$CourseMaterialCacheEntriesTableAnnotationComposer,
+          $$CourseMaterialCacheEntriesTableCreateCompanionBuilder,
+          $$CourseMaterialCacheEntriesTableUpdateCompanionBuilder,
+          (
+            CourseMaterialCacheEntry,
+            BaseReferences<
+              _$AppDatabase,
+              $CourseMaterialCacheEntriesTable,
+              CourseMaterialCacheEntry
+            >,
+          ),
+          CourseMaterialCacheEntry,
+          PrefetchHooks Function()
+        > {
+  $$CourseMaterialCacheEntriesTableTableManager(
+    _$AppDatabase db,
+    $CourseMaterialCacheEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CourseMaterialCacheEntriesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$CourseMaterialCacheEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$CourseMaterialCacheEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> semesterId = const Value.absent(),
+                Value<int> courseId = const Value.absent(),
+                Value<int> materialId = const Value.absent(),
+                Value<int> attachmentId = const Value.absent(),
+                Value<String> displayName = const Value.absent(),
+                Value<String> fileSize = const Value.absent(),
+                Value<String> savedPath = const Value.absent(),
+                Value<DateTime> cachedAtUtc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CourseMaterialCacheEntriesCompanion(
+                semesterId: semesterId,
+                courseId: courseId,
+                materialId: materialId,
+                attachmentId: attachmentId,
+                displayName: displayName,
+                fileSize: fileSize,
+                savedPath: savedPath,
+                cachedAtUtc: cachedAtUtc,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int semesterId,
+                required int courseId,
+                required int materialId,
+                required int attachmentId,
+                required String displayName,
+                required String fileSize,
+                required String savedPath,
+                required DateTime cachedAtUtc,
+                Value<int> rowid = const Value.absent(),
+              }) => CourseMaterialCacheEntriesCompanion.insert(
+                semesterId: semesterId,
+                courseId: courseId,
+                materialId: materialId,
+                attachmentId: attachmentId,
+                displayName: displayName,
+                fileSize: fileSize,
+                savedPath: savedPath,
+                cachedAtUtc: cachedAtUtc,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CourseMaterialCacheEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CourseMaterialCacheEntriesTable,
+      CourseMaterialCacheEntry,
+      $$CourseMaterialCacheEntriesTableFilterComposer,
+      $$CourseMaterialCacheEntriesTableOrderingComposer,
+      $$CourseMaterialCacheEntriesTableAnnotationComposer,
+      $$CourseMaterialCacheEntriesTableCreateCompanionBuilder,
+      $$CourseMaterialCacheEntriesTableUpdateCompanionBuilder,
+      (
+        CourseMaterialCacheEntry,
+        BaseReferences<
+          _$AppDatabase,
+          $CourseMaterialCacheEntriesTable,
+          CourseMaterialCacheEntry
+        >,
+      ),
+      CourseMaterialCacheEntry,
       PrefetchHooks Function()
     >;
 typedef $$ActivitiesTableCreateCompanionBuilder =
@@ -18059,6 +18903,12 @@ class $AppDatabaseManager {
       $$CoursesTableTableManager(_db, _db.courses);
   $$CoursePreferencesTableTableManager get coursePreferences =>
       $$CoursePreferencesTableTableManager(_db, _db.coursePreferences);
+  $$CourseMaterialCacheEntriesTableTableManager
+  get courseMaterialCacheEntries =>
+      $$CourseMaterialCacheEntriesTableTableManager(
+        _db,
+        _db.courseMaterialCacheEntries,
+      );
   $$ActivitiesTableTableManager get activities =>
       $$ActivitiesTableTableManager(_db, _db.activities);
   $$SeenActivitiesTableTableManager get seenActivities =>

@@ -59,6 +59,8 @@ final class AttachmentDownloadService {
     required int materialId,
     required int attachmentId,
     required int userId,
+    bool openAfterSave = true,
+    BackendRequestCancellation? cancellation,
   }) {
     final client = learningActivityClient;
     if (client == null ||
@@ -76,7 +78,9 @@ final class AttachmentDownloadService {
         materialId: materialId,
         attachmentId: attachmentId,
         userId: userId,
+        cancellation: cancellation,
       ),
+      openAfterSave: openAfterSave,
     );
   }
 
@@ -85,6 +89,8 @@ final class AttachmentDownloadService {
     required int classId,
     required int materialId,
     required int userId,
+    bool openAfterSave = true,
+    BackendRequestCancellation? cancellation,
   }) {
     final client = learningActivityClient;
     if (client == null ||
@@ -101,7 +107,9 @@ final class AttachmentDownloadService {
         classId: classId,
         materialId: materialId,
         userId: userId,
+        cancellation: cancellation,
       ),
+      openAfterSave: openAfterSave,
     );
   }
 
@@ -121,6 +129,7 @@ final class AttachmentDownloadService {
 
   Future<AttachmentDownloadResult> _saveDownload({
     required Future<BackendFileDownload> Function() request,
+    bool openAfterSave = true,
   }) async {
     final BackendFileDownload download;
     try {
@@ -137,6 +146,7 @@ final class AttachmentDownloadService {
       final path = await _sink.write(
         fileName: download.fileName,
         bytes: download.bytes,
+        openAfterSave: openAfterSave,
       );
       return AttachmentDownloadSaved(fileName: download.fileName, path: path);
     } on Object {

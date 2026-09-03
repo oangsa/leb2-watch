@@ -53,6 +53,47 @@ class CoursePreferences extends Table {
   ];
 }
 
+/// Durable manifest for course files already downloaded by background work.
+///
+/// The bytes live in the platform download location; this table only keeps
+/// the stable server identity and the saved path so a new sync does not create
+/// another copy of the same file.
+class CourseMaterialCacheEntries extends Table {
+  IntColumn get semesterId => integer()();
+  IntColumn get courseId => integer()();
+  IntColumn get materialId => integer()();
+  IntColumn get attachmentId => integer()();
+  TextColumn get displayName => text()();
+  TextColumn get fileSize => text()();
+  TextColumn get savedPath => text()();
+  IntColumn get cachedAtUtc => integer().map(const UtcDateTimeConverter())();
+
+  @override
+  String get tableName => 'course_material_cache';
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    semesterId,
+    courseId,
+    materialId,
+    attachmentId,
+  };
+
+  @override
+  List<String> get customConstraints => const [
+    'CHECK (semester_id > 0 AND semester_id <= 2147483647)',
+    'CHECK (course_id > 0 AND course_id <= 2147483647)',
+    'CHECK (material_id > 0 AND material_id <= 2147483647)',
+    'CHECK (attachment_id > 0 AND attachment_id <= 2147483647)',
+    'CHECK (length(trim(display_name)) > 0)',
+    'CHECK (length(trim(file_size)) > 0)',
+    'CHECK (length(trim(saved_path)) > 0)',
+    'FOREIGN KEY (semester_id, course_id) REFERENCES courses '
+        '(semester_id, course_id) '
+        'ON DELETE CASCADE',
+  ];
+}
+
 @TableIndex.sql(
   'CREATE UNIQUE INDEX activities_backend_identity '
   'ON activities (semester_id, backend_activity_id) '

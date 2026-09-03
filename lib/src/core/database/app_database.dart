@@ -26,6 +26,7 @@ final _transactionRetryJitter = Random();
     Semesters,
     Courses,
     CoursePreferences,
+    CourseMaterialCacheEntries,
     Activities,
     SeenActivities,
     ActivityFingerprints,
@@ -124,7 +125,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration {
@@ -134,7 +135,7 @@ class AppDatabase extends _$AppDatabase {
         await _seedSingletons();
       },
       onUpgrade: (migrator, from, to) async {
-        if (from < 1 || from > 22 || to != 23) {
+        if (from < 1 || from > 23 || to != 24) {
           throw UnsupportedError(
             'No database migration is defined from schema $from to schema $to.',
           );
@@ -209,6 +210,7 @@ class AppDatabase extends _$AppDatabase {
         await _ensureAppUpdateNotificationColumns();
         await _ensurePreciseFetchColumn();
         await _ensureStarredFilterColumn();
+        await migrator.createTable(courseMaterialCacheEntries);
         await _seedSingletons();
       },
       beforeOpen: (details) async {

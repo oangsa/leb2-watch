@@ -39,6 +39,22 @@ void main() {
     expect(client.listCall, isNull);
   });
 
+  test('forwards cancellation to the learning-material request', () async {
+    final client = _FakeClient();
+    final service = RemoteCourseMaterialsService(
+      client: () => client,
+      readUserId: () async => 2001,
+    );
+    final cancellation = BackendRequestCancellation();
+
+    await service.read(
+      const CourseKey(semesterId: 101, courseId: 3001),
+      cancellation: cancellation,
+    );
+
+    expect(client.cancellation, same(cancellation));
+  });
+
   test('redacts backend failures behind a stable unavailable error', () async {
     final service = RemoteCourseMaterialsService(
       client: () => (_FakeClient()..failure = StateError('private response')),
@@ -65,6 +81,7 @@ Future<Object> _capture(Future<Object> operation) async {
 
 final class _FakeClient implements BackendLearningActivityClient {
   ({int semesterId, int classId, int userId})? listCall;
+  BackendRequestCancellation? cancellation;
   Object? failure;
 
   @override
@@ -74,6 +91,7 @@ final class _FakeClient implements BackendLearningActivityClient {
     required int userId,
     BackendRequestCancellation? cancellation,
   }) async {
+    this.cancellation = cancellation;
     final pending = failure;
     if (pending != null) {
       throw pending;

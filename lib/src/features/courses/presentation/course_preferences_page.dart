@@ -7,12 +7,15 @@ import 'package:flutter/material.dart';
 
 import '../../../app/design_system/app_breakpoints.dart';
 import '../../../app/design_system/app_tokens.dart';
+import '../../../app/design_system/widgets/app_page_header.dart';
 import '../../../app/design_system/widgets/app_state_view.dart';
 import '../../../app/design_system/widgets/app_status_banner.dart';
 import '../../../core/network/domain/learning_material_models.dart';
+import '../../background_sync/domain/background_scheduler.dart';
 import '../../assignments/attachments/application/attachment_download_service.dart';
 import '../../assignments/attachments/domain/attachment_download.dart';
 import '../../semesters/semester_label.dart';
+import '../application/course_materials_prefetch_service.dart';
 import '../application/course_materials_service.dart';
 import '../application/course_preferences_service.dart';
 import '../data/course_preferences_store.dart';
@@ -25,6 +28,8 @@ class CoursePreferencesPage extends StatefulWidget {
     required this.onChooseSemester,
     this.materialsService,
     this.downloadService,
+    this.prefetchService,
+    this.backgroundSettingsService,
     super.key,
   });
 
@@ -32,6 +37,8 @@ class CoursePreferencesPage extends StatefulWidget {
   final VoidCallback onChooseSemester;
   final CourseMaterialsService? materialsService;
   final AttachmentDownloadService? downloadService;
+  final CourseMaterialsPrefetcher? prefetchService;
+  final BackgroundMonitoringSettingsService? backgroundSettingsService;
 
   @override
   State<CoursePreferencesPage> createState() => _CoursePreferencesPageState();
@@ -39,19 +46,26 @@ class CoursePreferencesPage extends StatefulWidget {
 
 class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
   StreamSubscription<ActiveCourseCatalog>? _subscription;
+  StreamSubscription<BackgroundMonitoringSettings>?
+  _backgroundSettingsSubscription;
   ActiveCourseCatalog? _catalog;
+  BackgroundMonitoringSettings? _backgroundSettings;
   final Map<CourseKey, _PendingPreference> _pending = {};
+  final ValueNotifier<int> _settingsRevision = ValueNotifier(0);
   bool _loading = true;
   bool _streamFailed = false;
   bool _globalWriting = false;
+  bool _prefetching = false;
   int? _selectedCourseId;
   String? _writeFailureMessage;
   int _subscriptionGeneration = 0;
+  Timer? _prefetchDebounce;
 
   @override
   void initState() {
     super.initState();
     _subscribe();
+    _subscribeBackgroundSettings();
   }
 
   @override
@@ -60,13 +74,50 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     if (!identical(oldWidget.service, widget.service)) {
       _subscribe();
     }
+    if (!identical(
+      oldWidget.backgroundSettingsService,
+      widget.backgroundSettingsService,
+    )) {
+      _subscribeBackgroundSettings();
+    }
+    if (!identical(oldWidget.prefetchService, widget.prefetchService) &&
+        _catalog != null) {
+      _schedulePrefetch(_catalog!);
+    }
   }
 
   @override
   void dispose() {
     _subscriptionGeneration += 1;
     unawaited(_subscription?.cancel());
+    unawaited(_backgroundSettingsSubscription?.cancel());
+    _prefetchDebounce?.cancel();
+    _settingsRevision.dispose();
     super.dispose();
+  }
+
+  void _subscribeBackgroundSettings() {
+    unawaited(_backgroundSettingsSubscription?.cancel());
+    _backgroundSettingsSubscription = null;
+    final service = widget.backgroundSettingsService;
+    if (service == null) {
+      setState(() => _backgroundSettings = null);
+      return;
+    }
+    _backgroundSettingsSubscription = service.watchSettings().listen(
+      (settings) {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _backgroundSettings = settings);
+        _settingsRevision.value += 1;
+      },
+      onError: (Object _, StackTrace _) {
+        if (mounted) {
+          setState(() => _backgroundSettings = null);
+        }
+      },
+    );
   }
 
   void _subscribe() {
@@ -104,6 +155,8 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
                 : catalog.courses.first.key.courseId;
           }
         });
+        _settingsRevision.value += 1;
+        _schedulePrefetch(catalog);
       },
       onError: (Object _, StackTrace _) {
         if (!mounted || generation != _subscriptionGeneration) {
@@ -174,6 +227,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
       return;
     }
     setState(() => _globalWriting = true);
+    _settingsRevision.value += 1;
     for (final course in courses) {
       final saved = await _write(
         course.key,
@@ -186,6 +240,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     }
     if (mounted) {
       setState(() => _globalWriting = false);
+      _settingsRevision.value += 1;
     }
   }
 
@@ -201,6 +256,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
       _pending[key] = pending;
       _writeFailureMessage = null;
     });
+    _settingsRevision.value += 1;
 
     final result = await action();
     if (!mounted) {
@@ -215,6 +271,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
           _writeFailureMessage =
               'The course changed before this saved. Try again.';
         });
+        _settingsRevision.value += 1;
         return false;
       case CoursePreferenceUpdateFailure():
         setState(() {
@@ -223,6 +280,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               'Not saved. Your previous setting is '
               'still in use; try again.';
         });
+        _settingsRevision.value += 1;
         return false;
     }
   }
@@ -254,7 +312,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     if (catalog == null || !catalog.hasActiveSemester) {
       return AppStateView.empty(
         title: 'Choose a semester first',
-        message: 'Course controls appear after you choose a semester.',
+        message: 'Select a semester to see courses.',
         actionLabel: 'Choose semester',
         onAction: widget.onChooseSemester,
       );
@@ -262,9 +320,7 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
     if (catalog.isEmpty) {
       return const AppStateView.empty(
         title: 'No saved courses yet',
-        message:
-            'Courses appear after a sync for the '
-            'selected semester.',
+        message: 'Sync this semester to see courses.',
       );
     }
     return _buildLedger(context, catalog);
@@ -275,17 +331,8 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
         AppBreakpoints.of(context) == AppWindowClass.compact
         ? AppSpacing.md
         : AppSpacing.lg;
-    final selectedCourse = catalog.courses.firstWhere(
-      (course) => course.key.courseId == _selectedCourseId,
-      orElse: () => catalog.courses.first,
-    );
+    final selectedCourse = _selectedCourse(catalog);
     final controlsDisabled = _globalWriting || _pending.isNotEmpty;
-    final allMuted = catalog.courses.every(
-      (course) => course.preference.notificationsMuted,
-    );
-    final allBackgroundDisabled = catalog.courses.every(
-      (course) => !course.preference.backgroundMonitoringEnabled,
-    );
 
     return SafeArea(
       child: Center(
@@ -300,27 +347,28 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
               AppSpacing.lg,
             ),
             children: [
-              _CourseLedgerHeader(
+              AppPageHeader(
+                title: 'Courses',
                 semesterLabel: formatSemesterLabel(
                   name: catalog.activeSemesterName,
                   id: catalog.activeSemesterId,
                 ),
+                supportingText: _updatesLabel,
+                trailing: IconButton(
+                  key: const Key('course-settings-button'),
+                  tooltip: 'Course settings',
+                  onPressed: () => _openSettings(catalog),
+                  icon: const Icon(Icons.settings_outlined),
+                ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              _GlobalCourseControls(
-                writing: _globalWriting,
-                muteAllEnabled: !controlsDisabled && !allMuted,
-                disableAllBackgroundEnabled:
-                    !controlsDisabled && !allBackgroundDisabled,
-                onMuteAll: () => _muteAll(catalog),
-                onDisableAllBackground: () =>
-                    _disableAllBackgroundMonitoring(catalog),
-              ),
-              if (_writeFailureMessage != null) ...[
-                const SizedBox(height: AppSpacing.md),
-                AppStatusBanner.stale(
-                  key: const Key('course-preference-write-error'),
-                  message: _writeFailureMessage!,
+              if (_prefetching) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Semantics(
+                  label: 'Caching course files',
+                  liveRegion: true,
+                  child: const LinearProgressIndicator(
+                    key: Key('course-materials-prefetch-progress'),
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
@@ -342,21 +390,15 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
                     ? null
                     : (value) => setState(() => _selectedCourseId = value),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _CoursePreferenceRow(
-                key: Key(
-                  'course-preference-row-${selectedCourse.key.courseId}',
+              if (_writeFailureMessage != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                AppStatusBanner.stale(
+                  key: const Key('course-preference-write-error'),
+                  message: _writeFailureMessage!,
                 ),
-                course: selectedCourse,
-                writing:
-                    _globalWriting || _pending.containsKey(selectedCourse.key),
-                onNotificationsMuted: (value) =>
-                    _setNotificationsMuted(selectedCourse, value),
-                onBackgroundMonitoring: (value) =>
-                    _setBackgroundMonitoring(selectedCourse, value),
-              ),
+              ],
               if (widget.materialsService != null) ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 _CourseMaterialsSection(
                   key: Key('course-materials-${selectedCourse.key.courseId}'),
                   course: selectedCourse,
@@ -368,6 +410,89 @@ class _CoursePreferencesPageState extends State<CoursePreferencesPage> {
           ),
         ),
       ),
+    );
+  }
+
+  CourseSummary _selectedCourse(ActiveCourseCatalog catalog) {
+    return catalog.courses.firstWhere(
+      (course) => course.key.courseId == _selectedCourseId,
+      orElse: () => catalog.courses.first,
+    );
+  }
+
+  String get _updatesLabel {
+    final settings = _backgroundSettings;
+    if (settings == null) {
+      return 'Updates follow assignment checks';
+    }
+    if (!settings.enabled) {
+      return 'Automatic updates off';
+    }
+    return 'Updates every ${settings.daytimeCadence.minutes} min';
+  }
+
+  void _schedulePrefetch(ActiveCourseCatalog catalog) {
+    if (widget.prefetchService == null) {
+      return;
+    }
+    _prefetchDebounce?.cancel();
+    _prefetchDebounce = Timer(const Duration(milliseconds: 250), () {
+      unawaited(_prefetch(catalog));
+    });
+  }
+
+  Future<void> _prefetch(ActiveCourseCatalog catalog) async {
+    final service = widget.prefetchService;
+    if (service == null || _prefetching) {
+      return;
+    }
+    setState(() => _prefetching = true);
+    try {
+      await service.prefetch(
+        courses: catalog.courses.map((course) => course.key),
+      );
+    } on Object {
+      // Course files remain manually downloadable when pre-caching is
+      // unavailable; the next assignment check retries it.
+    }
+    if (mounted) {
+      setState(() => _prefetching = false);
+    }
+  }
+
+  Future<void> _openSettings(ActiveCourseCatalog fallbackCatalog) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) {
+        return ValueListenableBuilder<int>(
+          valueListenable: _settingsRevision,
+          builder: (_, _, _) {
+            final catalog = _catalog ?? fallbackCatalog;
+            final course = _selectedCourse(catalog);
+            final controlsDisabled = _globalWriting || _pending.isNotEmpty;
+            final allMuted = catalog.courses.every(
+              (course) => course.preference.notificationsMuted,
+            );
+            final allBackgroundDisabled = catalog.courses.every(
+              (course) => !course.preference.backgroundMonitoringEnabled,
+            );
+            return _CourseSettingsDialog(
+              course: course,
+              writing: controlsDisabled,
+              muteAllEnabled: !controlsDisabled && !allMuted,
+              disableAllBackgroundEnabled:
+                  !controlsDisabled && !allBackgroundDisabled,
+              onMuteAll: () => _muteAll(catalog),
+              onDisableAllBackground: () =>
+                  _disableAllBackgroundMonitoring(catalog),
+              onNotificationsMuted: (value) =>
+                  _setNotificationsMuted(course, value),
+              onBackgroundMonitoring: (value) =>
+                  _setBackgroundMonitoring(course, value),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -661,36 +786,63 @@ class _CourseMaterialsSectionState extends State<_CourseMaterialsSection> {
   }
 }
 
-class _CourseLedgerHeader extends StatelessWidget {
-  const _CourseLedgerHeader({required this.semesterLabel});
+class _CourseSettingsDialog extends StatelessWidget {
+  const _CourseSettingsDialog({
+    required this.course,
+    required this.writing,
+    required this.muteAllEnabled,
+    required this.disableAllBackgroundEnabled,
+    required this.onMuteAll,
+    required this.onDisableAllBackground,
+    required this.onNotificationsMuted,
+    required this.onBackgroundMonitoring,
+  });
 
-  final String semesterLabel;
+  final CourseSummary course;
+  final bool writing;
+  final bool muteAllEnabled;
+  final bool disableAllBackgroundEnabled;
+  final VoidCallback onMuteAll;
+  final VoidCallback onDisableAllBackground;
+  final ValueChanged<bool> onNotificationsMuted;
+  final ValueChanged<bool> onBackgroundMonitoring;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Course controls',
-              style: theme.textTheme.headlineMedium,
-            ),
+    return AlertDialog(
+      title: const Text('Course settings'),
+      content: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _GlobalCourseControls(
+                writing: writing,
+                muteAllEnabled: muteAllEnabled,
+                disableAllBackgroundEnabled: disableAllBackgroundEnabled,
+                onMuteAll: onMuteAll,
+                onDisableAllBackground: onDisableAllBackground,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _CoursePreferenceRow(
+                key: Key('course-preference-row-${course.key.courseId}'),
+                course: course,
+                writing: writing,
+                onNotificationsMuted: onNotificationsMuted,
+                onBackgroundMonitoring: onBackgroundMonitoring,
+              ),
+            ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            semesterLabel,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Done'),
+        ),
+      ],
     );
   }
 }
@@ -715,7 +867,7 @@ class _GlobalCourseControls extends StatelessWidget {
     return Semantics(
       container: true,
       explicitChildNodes: true,
-      label: 'All course controls',
+      label: 'All course settings',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -776,7 +928,7 @@ class _CoursePreferenceRow extends StatelessWidget {
       child: Material(
         color: scheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
-          side: BorderSide(color: scheme.primary, width: AppSpacing.xxs),
+          side: BorderSide(color: scheme.outlineVariant),
           borderRadius: BorderRadius.circular(AppRadii.panel),
         ),
         clipBehavior: Clip.antiAlias,
@@ -790,12 +942,7 @@ class _CoursePreferenceRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Course ${course.key.courseId}',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
+              Text(course.name, style: theme.textTheme.titleMedium),
               const SizedBox(height: AppSpacing.sm),
               Semantics(
                 label:
@@ -817,20 +964,20 @@ class _CoursePreferenceRow extends StatelessWidget {
               _CoursePreferenceSwitch(
                 key: Key('course-mute-${course.key.courseId}'),
                 label: 'Mute notifications',
-                description: 'No alerts for this course.',
+                description: 'Alerts for this course.',
                 value: course.preference.notificationsMuted,
                 onChanged: writing ? null : onNotificationsMuted,
               ),
               _CoursePreferenceSwitch(
                 key: Key('course-background-${course.key.courseId}'),
                 label: 'Background monitoring',
-                description: 'Runs while the app is closed.',
+                description: 'Checks for updates while closed.',
                 value: course.preference.backgroundMonitoringEnabled,
                 onChanged: writing ? null : onBackgroundMonitoring,
               ),
               if (writing)
                 Semantics(
-                  label: 'Saving course controls',
+                  label: 'Saving course settings',
                   liveRegion: true,
                   child: const LinearProgressIndicator(
                     key: Key('course-preference-progress'),

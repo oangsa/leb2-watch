@@ -702,18 +702,18 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.text('Preparing course controls'), findsOneWidget);
+        expect(find.text('Preparing courses'), findsOneWidget);
 
         pending.completeError(StateError('<PRIVATE_COURSE_ERROR>'));
         await tester.pumpAndSettle();
-        expect(find.text('Course controls unavailable'), findsOneWidget);
+        expect(find.text('Courses unavailable'), findsOneWidget);
         expect(find.textContaining('<PRIVATE_COURSE_ERROR>'), findsNothing);
         expect(find.text('Retry'), findsOneWidget);
 
         await tester.tap(find.text('Retry'));
         await tester.pumpAndSettle();
         expect(loadCalls, 2);
-        expect(find.text('Course controls'), findsOneWidget);
+        expect(find.byKey(const Key('medium-courses')), findsOneWidget);
       },
     );
 
@@ -742,7 +742,7 @@ void main() {
           expect(find.text('Router assignment'), findsOneWidget);
           expect(find.byKey(const Key('assignments-surface')), findsNothing);
         } else if (destination == AppDestination.courses) {
-          expect(find.text('Course controls'), findsOneWidget);
+          expect(find.byKey(const Key('medium-courses')), findsOneWidget);
           expect(find.text('Router course'), findsOneWidget);
           expect(find.byKey(const Key('courses-surface')), findsNothing);
         } else if (destination == AppDestination.settings) {
@@ -775,7 +775,7 @@ void main() {
       );
     });
 
-    testWidgets('expired banner coexists with usable cached course controls', (
+    testWidgets('expired banner coexists with usable course settings', (
       tester,
     ) async {
       final controller = AppFlowController(initialStage: AppFlowStage.ready);
@@ -800,15 +800,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('session-expired-banner')), findsOneWidget);
+      expect(find.byKey(const Key('course-preference-row-3001')), findsNothing);
+      await tester.tap(find.byKey(const Key('course-settings-button')));
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const Key('course-preference-row-3001')),
         findsOneWidget,
       );
-      await tester.drag(
-        find.byKey(const Key('course-preferences-list')),
-        const Offset(0, -400),
-      );
-      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('course-mute-3001')));
       await tester.pump();
       expect(courseService.muteCalls, 1);

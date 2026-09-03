@@ -145,12 +145,13 @@ Quit closes the binding before window destruction and rejects any later
 provider replacement. Provider composition creates this driver only when
 `DeadlineReminderSchedulingPolicy.supportsProcessLifetimeDelivery` is true.
 
-Course Controls presents one selected course at a time. Per-course mute and
-background-monitoring switches continue to use the existing pessimistic saved
-preference writes. `Mute all notifications` and `Disable all background
-monitoring` reuse those same fenced writes sequentially across current saved
-courses, stop on the first failed or stale write, and expose the existing
-bounded error message rather than inventing unsaved UI state.
+The Courses tab presents one selected course at a time, with per-course mute
+and background-monitoring switches in the header's settings modal. Those
+switches continue to use the existing pessimistic saved preference writes.
+`Mute all notifications` and `Disable all background monitoring` reuse those
+same fenced writes sequentially across current saved courses, stop on the first
+failed or stale write, and expose the existing bounded error message rather
+than inventing unsaved UI state.
 
 Database activity and each platform notification Future are protected by
 `LocalDatabaseStorage` activity leases. Delete-all first closes the activity
@@ -965,11 +966,9 @@ activation.
 
 Final validation passed:
 
-- Course Controls passed its 18-test focused widget file, including selected
-  course reconciliation, sequential global writes, first-failure/stale stop,
-  responsive layouts, and 200-percent text coverage. The final memory-safe
-  runner passed all 14 sequential shards across 139 discovered files with exit
-  0.
+- The Courses page keeps course settings in a gear-triggered modal; file
+  caching is covered by the Courses context and does not change notification
+  delivery policy.
 - `dart format --output=none --set-exit-if-changed .` — 180 files, zero
   changes.
 - Permanent two-WAL stale-effect/heartbeat/timeout and production-wrapper

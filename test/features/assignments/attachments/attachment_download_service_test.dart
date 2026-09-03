@@ -245,6 +245,7 @@ final class _RecordingSink implements AttachmentFileSink {
   Future<String> write({
     required String fileName,
     required List<int> bytes,
+    bool openAfterSave = true,
   }) async {
     if (shouldThrow) {
       throw StateError('disk full');

@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Browse and download course materials from the Courses tab.
+- Course files are cached for every course and refreshed on the assignment check cadence.
 
 ### Changed
 
 - Assignment cards show deadline progress and submission timing; assignment details hide redundant metadata.
 - Downloaded Android files open automatically when a compatible viewer is installed.
+- The Courses tab uses the same card header as Assignments, with settings behind a gear button.
 
 ### Fixed
 
